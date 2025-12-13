@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="270" d:DesignHeight="200"
+		MinWidth="290"
+		MinHeight="290"
+		MaxWidth="290"
+		MaxHeight="290"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xEditDia"
+        Title="xEditDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Width="310" Height="280" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="Edit" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="Edit Project" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+				</StackPanel>
+				<Grid ColumnDefinitions="100,160" RowDefinitions="35,35,35,50" HorizontalAlignment="Center">
+					<Label Grid.Row="0" Grid.Column="0" Content="Name" VerticalAlignment="Center"/>
+					<Label Grid.Row="1" Grid.Column="0" Content="Group" VerticalAlignment="Center"/>
+					<Label Grid.Row="2" Grid.Column="0" Content="Category" VerticalAlignment="Center"/>
+					<Label Grid.Row="3" Grid.Column="0" Content="Color" VerticalAlignment="Center"/>
+				
+					<TextBox Grid.Row="0" Grid.Column="1" Name="ProjectName" Text="{Binding CurrentProject.Namn, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="1" Grid.Column="1" Name="ProjectGroup" Text="{Binding CurrentProject.Parent, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
+					<ComboBox Grid.Row="2" Grid.Column="1" Name="ProjectCategory" Width="160" VerticalAlignment="Center">
+						<ComboBoxItem Content="Archive"/>
+						<ComboBoxItem Content="Library"/>
+						<ComboBoxItem Content="Project"/>
+					</ComboBox>
+					<StackPanel Grid.Row="3" Grid.Column="1"  Orientation="Horizontal">
+						<ColorPicker Color="{Binding CurrentProject.Foreground}" Width="80" HorizontalAlignment="Left" Name="ColorPickerForeground"/>
+						<Button Click="ResetColor" VerticalContentAlignment="Center" BorderBrush="Transparent">
+							<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
+						</Button>
+					</StackPanel>
+				</Grid>
+			
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+					<Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="70" BorderBrush="{DynamicResource TextControlBorderBrush}" Click="OnEditProject"/>
+				</StackPanel>
+			</StackPanel>
+		</Grid>
+	</Border>
+    
+</Window>

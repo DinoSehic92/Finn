@@ -1,0 +1,108 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:system="clr-namespace:System;assembly=netstandard"
+			 xmlns:dialogHostAvalonia="clr-namespace:DialogHostAvalonia;assembly=DialogHost.Avalonia"
+			 RequestedThemeVariant="Dark"
+			 x:Class="Finn.App">
+
+	<Application.Styles>
+		<FluentTheme>
+			<FluentTheme.Palettes>
+				<ColorPaletteResources x:Key="Light" Accent="#999999" RegionColor="#dfe6e9"/>
+				<ColorPaletteResources x:Key="Dark" Accent="#444444" RegionColor="#333333" />
+			</FluentTheme.Palettes>
+		</FluentTheme>
+
+		<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+		<StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml"/> 
+
+
+		<Style Selector="FlyoutPresenter.mySpecialClass">
+			<Setter Property="MaxWidth" Value="999" />
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="CornerRadius" Value="0" />
+		</Style>
+
+		<Style Selector="TreeViewItem">
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="Padding" Value="0 0 0 0"/>
+			<Setter Property="MaxWidth" Value="250"/>
+			<Setter Property="MinHeight" Value="24"/>
+		</Style>
+
+		<Style Selector="ListBox">
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+		</Style>
+
+		<Style Selector="Button">
+			<Setter Property="MinHeight" Value="30"/>
+			<Setter Property="Height" Value="30"/>
+			<Setter Property="MinWidth" Value="30"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="FontSize" Value="14"/>
+			
+		</Style>
+
+		<Style Selector="ToggleButton">
+			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="1"/>
+		</Style>
+
+		<Style Selector="ComboBox">
+			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="BorderThickness" Value="0"/>
+		</Style>
+
+		<Style Selector="TextBox">
+			<Setter Property="MinHeight" Value="25"/>
+			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="FontSize" Value="14"/>
+		</Style>
+
+		<Style Selector="Label">
+			<Setter Property="FontSize" Value="14"/>
+		</Style>
+		
+		<Style Selector="MenuItem">
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="Height" Value="30"/>
+		</Style>
+
+		<Style Selector="DataGridColumnHeader">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Height" Value="20"/>
+			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
+			<Setter Property="FontStyle" Value="Italic"/>
+			
+		</Style>
+
+		<Style Selector="DataGrid">
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+		</Style>
+		
+	
+		<Style Selector="TextBlock">
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
+
+		<Style Selector="DataGridCell">
+			<Setter Property="MinHeight" Value="22"/>
+		</Style>
+
+		<Style Selector="DataGrid:focus DataGridCell:current /template/ Grid#FocusVisual">
+			<Setter Property="IsVisible" Value="True" />
+		</Style>
+
+	</Application.Styles>
+		
+	
+</Application>
+
+

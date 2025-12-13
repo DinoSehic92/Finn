@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="300"
+		
+		Width="800"
+		Height="1000"
+		
+		MinWidth="600"
+		MinHeight="500"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xIndexDia"
+        Title="xIndexDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="True"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="70,*" ColumnDefinitions="*,*" VerticalAlignment="Top" Margin="5">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			
+				<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="Globe" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="Indexed Content" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+				</StackPanel>
+
+				<DataGrid Name="IndexGrid" Grid.Column="0" Grid.Row="1" Margin="5" ItemsSource="{Binding IndexedContent}" SelectionMode="Single" SelectedItem="{Binding SelectedIndexedContent}"
+						AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
+					<DataGrid.Styles>
+						<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+							<Setter Property="IsVisible" Value="false"/>
+						</Style>
+					</DataGrid.Styles>
+
+					<DataGrid.Columns>
+						<DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
+					</DataGrid.Columns>
+				</DataGrid>
+
+				<Border Grid.Column="1" Grid.Row="1" Margin="5">
+					<ScrollViewer>
+						<TextBox Text="{Binding SelectedIndexedContent.PlainText, Mode=OneWay}"/>
+					</ScrollViewer>
+				</Border>
+
+				
+			
+		</Grid>
+	</Border>
+    
+</Window>

@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="270" d:DesignHeight="200"
+		MinWidth="590"
+		MinHeight="650"
+		MaxWidth="590"
+		MaxHeight="650"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xMetaDia"
+        Title="xMetaDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Width="610" Height="670" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="ColorBackground" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="Edit Metadata" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+				</StackPanel>
+				<Grid Name="MainGrid" ColumnDefinitions="30,110,*" HorizontalAlignment="Center" RowDefinitions="35,35,35,35,35,35,35,35,35,35,35,35,35,35,35">
+
+					<CheckBox Grid.Row="5" Grid.Column="0" Name="HandlingCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="6" Grid.Column="0" Name="StatusCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="7" Grid.Column="0" Name="DatumCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="8" Grid.Column="0" Name="RitningCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+					<CheckBox Grid.Row="9" Grid.Column="0" Name="Besk1Check" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="10" Grid.Column="0" Name="Besk2Check" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="11" Grid.Column="0" Name="Besk3Check" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="12" Grid.Column="0" Name="Besk4Check" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+					<CheckBox Grid.Row="13" Grid.Column="0" Name="RevCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+				
+				
+					<Label Grid.Row="0" Grid.Column="1" Content="File Name" VerticalAlignment="Center"/>
+					<Label Grid.Row="1" Grid.Column="1" Content="File Type" VerticalAlignment="Center"/>
+
+					<Label Grid.Row="2" Grid.Column="1" Content="Project" VerticalAlignment="Center"/>
+					<Label Grid.Row="3" Grid.Column="1" Content="User Tag" VerticalAlignment="Center"/>
+					<Label Grid.Row="4" Grid.Column="1" Content="Color Tag" VerticalAlignment="Center"/>
+
+					<Label Grid.Row="5" Grid.Column="1" Content="Handling" VerticalAlignment="Center"/>
+					<Label Grid.Row="6" Grid.Column="1" Content="Status" VerticalAlignment="Center"/>
+					<Label Grid.Row="7" Grid.Column="1" Content="Datum" VerticalAlignment="Center"/>
+					<Label Grid.Row="8" Grid.Column="1" Content="Ritningstyp" VerticalAlignment="Center"/>
+
+					<Label Grid.Row="9" Grid.Column="1" Content="Beskrivning 1" VerticalAlignment="Center"/>
+					<Label Grid.Row="10" Grid.Column="1" Content="Beskrivning 2" VerticalAlignment="Center"/>
+					<Label Grid.Row="11" Grid.Column="1" Content="Beskrivning 3" VerticalAlignment="Center"/>
+					<Label Grid.Row="12" Grid.Column="1" Content="Beskrivning 4" VerticalAlignment="Center"/>
+
+					<Label Grid.Row="13" Grid.Column="1" Content="Revidering" VerticalAlignment="Center"/>
+					<Label Grid.Row="14" Grid.Column="1" Content="Sökväg" VerticalAlignment="Center"/>
+				
+					<TextBox Grid.Row="0" Grid.Column="2" Name="FileNameInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="1" Grid.Column="2" Name="FileTypeInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+
+					<TextBox Grid.Row="2" Grid.Column="2" Name="ProjectInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="3" Grid.Column="2" Name="TagInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="4" Grid.Column="2" Name="ColorInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+
+					<TextBox Grid.Row="5" Grid.Column="2" Name="HandlingInp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="6" Grid.Column="2" Name="StatusInp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="7" Grid.Column="2" Name="DatumInp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="8" Grid.Column="2" Name="RitningInp" Width="400" VerticalAlignment="Center"/>
+
+					<TextBox Grid.Row="9" Grid.Column="2" Name="Besk1Inp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="10" Grid.Column="2" Name="Besk2Inp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="11" Grid.Column="2" Name="Besk3Inp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="12" Grid.Column="2" Name="Besk4Inp" Width="400" VerticalAlignment="Center"/>
+
+					<TextBox Grid.Row="13" Grid.Column="2" Name="RevInp" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="14" Grid.Column="2" Name="PathInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+				
+				
+				
+
+				</Grid>
+			
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+					<Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="70" BorderBrush="{DynamicResource TextControlBorderBrush}" Click="OnEditProject"/>
+				</StackPanel>
+			</StackPanel>
+		</Grid>
+	</Border>
+    
+</Window>

@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="270" d:DesignHeight="200"
+		MinWidth="420"
+		MinHeight="270"
+		MaxWidth="420"
+		MaxHeight="270"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xInfoDia"
+        Title="xInfoDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Width="440" Height="290" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="Question" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="File Info" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+				</StackPanel>
+				<Grid Name="InfoGrid" HorizontalAlignment="Center" ColumnDefinitions="80,300" RowDefinitions="35,35,35,35,35">
+					<Label Grid.Row="0" Grid.Column="0" Content="Name" VerticalAlignment="Center"/>
+					<Label Grid.Row="1" Grid.Column="0" Content="Created" VerticalAlignment="Center"/>
+					<Label Grid.Row="2" Grid.Column="0" Content="Last Read" VerticalAlignment="Center"/>
+					<Label Grid.Row="3" Grid.Column="0" Content="Last Write" VerticalAlignment="Center"/>
+					<Label Grid.Row="4" Grid.Column="0" Content="Size" VerticalAlignment="Center"/>
+
+					<Label Name="NameLabel" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"/>
+					<Label Name="CreationLabel" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"/>
+					<Label Name="ReadLabel" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"/>
+					<Label Name="WriteLabel" Grid.Row="3" Grid.Column="1" VerticalAlignment="Center"/>
+					<Label Name="SizeLabel" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center"/>
+				</Grid>
+			</StackPanel>
+		</Grid>
+	</Border>
+	
+	
+</Window>

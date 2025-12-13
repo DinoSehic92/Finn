@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="210"
+		MinWidth="350"
+		MinHeight="210"
+		MaxWidth="350"
+		MaxHeight="210"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xProgDia"
+        Title="xProgDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Width="300" Height="210" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="Info" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="Info" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+				</StackPanel>
+				<Grid Name="Info" HorizontalAlignment="Center" ColumnDefinitions="150,150" RowDefinitions="35,35,35,35">
+					
+					<Label Grid.Row="0" Grid.Column="0" Content="Compiled Date" VerticalAlignment="Center"/>
+					<Label Grid.Row="1" Grid.Column="0" Content="Last Saved" VerticalAlignment="Center"/>
+					
+					<Label Grid.Row="2" Grid.Column="0" Content="Nr Files" VerticalAlignment="Center"/>
+					
+
+					<Label Name="CompiledDate" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center"/>
+					<Label Name="LastSaved" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center"/>
+					
+					<Label Name="NrFiles" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center"/>
+
+				</Grid>
+			</StackPanel>
+		</Grid>
+	</Border>
+	
+	
+</Window>

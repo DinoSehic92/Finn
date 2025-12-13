@@ -1,0 +1,99 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <RootNamespace>FPM</RootNamespace>
+  </PropertyGroup>
+
+  
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <Content Remove="C:\Users\DOSCSE\.nuget\packages\sukiui\5.3.0\contentFiles\any\netstandard2.0\suki_photo.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.9" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.9" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.9" />
+    <PackageReference Include="FluentIcons.Avalonia" Version="1.2.315" />
+    <PackageReference Include="itext" Version="9.4.0" />
+    <PackageReference Include="itext.bouncy-castle-adapter" Version="9.4.0" />
+    <PackageReference Include="MuPDFCore" Version="2.0.1" />
+    <PackageReference Include="MuPDFCore.MuPDFRenderer" Version="2.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Update="Dialogs\xMetaDia.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Update="Dialogs\xEditDia.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Update="Dialogs\xRenameDia.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+    <AvaloniaXaml Update="Dialogs\xTagDia.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaXaml>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Dialogs\xProgDia.axaml.cs">
+      <DependentUpon>xProgDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xMetaDia.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>xMetaDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xNewDia.axaml.cs">
+      <DependentUpon>xNewDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xCloseDia.axaml.cs">
+      <DependentUpon>xCloseDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xDeleteDia.axaml.cs">
+      <DependentUpon>xDeleteDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xRenameDia.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>xRenameDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xIndexDia.axaml.cs">
+      <DependentUpon>xIndexDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xTagDia.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>xTagDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xMessageDia.axaml.cs">
+      <DependentUpon>xMessageDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xEditDia.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>xEditDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Dialogs\xColorDia.axaml.cs">
+      <DependentUpon>xColorDia.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\PreView.axaml.cs">
+      <DependentUpon>PreView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="Views\PreWindow.axaml.cs">
+      <DependentUpon>PreWindow.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+</Project>

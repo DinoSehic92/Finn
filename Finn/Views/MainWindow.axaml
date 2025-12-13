@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Finn.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:Finn.Views"
+        mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="800"
+		MinWidth="1400"
+		MinHeight="800"
+        x:Class="Finn.Views.MainWindow"
+        Icon="/Assets/folder.ico"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        Title="Finn">
+
+	<Window.Styles>
+
+
+		<Style Selector="Window[WindowState=Maximized]">
+			<Setter Property="Padding" Value="5 5 0 5"/>
+		</Style>
+
+	
+		<Style Selector="DataGridRow.Yellow">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#FFD700" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.Orange">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#FFA500" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.Brown">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#8B4513" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.Green">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#228B22" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.Blue">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#1E90FF" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.Red">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#B22222" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.Magenta">
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="#9400D3" Opacity="0.7"/>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style Selector="DataGridRow.RedForeground">
+			<Setter Property="Foreground" Value="Red"/>
+		</Style>
+		
+	</Window.Styles>
+
+		<Grid>
+			<views:MainView/>
+		</Grid>
+
+
+</Window>
+
+

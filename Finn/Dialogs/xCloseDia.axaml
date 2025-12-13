@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="230" d:DesignHeight="90"
+		MinWidth="240"
+		MinHeight="115"
+		MaxWidth="240"
+		MaxHeight="115"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xCloseDia"
+        Title="xCloseDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+	
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,170" Height="115" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Height="170" Orientation="Vertical" VerticalAlignment="Center" Spacing="10">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="10" Spacing="0">
+					<ic:SymbolIcon Symbol="Save" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="Save before close?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+				</StackPanel>
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5">
+					<Button Name="SaveYes" HotKey="Enter" Width="70" Content="Yes" Click="SaveBeforeClose" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
+					<Button Name="SaveNo" Width="70" Content="No" Click="OnLeave" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
+					<Button Name="SaveCancel" HotKey="Escape" Width="70" Content="Cancel" Click="OnCancel" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
+				</StackPanel>
+			</StackPanel>
+		</Grid>
+	</Border>
+
+</Window>
