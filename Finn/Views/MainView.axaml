@@ -399,7 +399,7 @@
 					<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
 
 						<Border Grid.Row="2" Margin="5" CornerRadius="{Binding Storage.General.CornerRadius}" BorderBrush="{DynamicResource TextControlBorderBrush}" BorderThickness="{Binding Storage.General.Border}">
-							<TextBox Name="InputName" MinWidth="0" VerticalContentAlignment="Stretch" VerticalAlignment="Stretch" Width="200" CornerRadius="{Binding Storage.General.CornerRadius}" Text="{Binding CurrentCalendarData.Reminder}" Watermark="New Project"/>
+							<TextBox Name="InputName" MinWidth="0" VerticalContentAlignment="Stretch" VerticalAlignment="Stretch" Width="200" CornerRadius="{Binding Storage.General.CornerRadius}" Watermark="New Project"/>
 						</Border>
 						
 						<Button Width="35" Click="NewTimeSheetProject">
