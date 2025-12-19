@@ -2,9 +2,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="300"
-		Width="500"
-		Height="500"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="1000"
+		Width="1000"
+		Height="1000"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialog.xPaintDia"
 		xmlns:inking="using:DotNetCampus.Inking"
@@ -13,6 +13,8 @@
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True"
+		xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions" 
+
 		x:DataType="vm:MainViewModel">
 
 	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
@@ -20,18 +22,45 @@
 			
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
-			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
-				<Button Content="■" Foreground="Red" Tag="Red" Click="SetPenColor" FontSize="20"/>
-				<Button Content="■" Foreground="Orange" Tag="Orange" Click="SetPenColor" FontSize="20"/>
-				<Button Content="■" Foreground="Blue" Tag="Blue" Click="SetPenColor" FontSize="20"/>
-				<Button Content="■" Foreground="Magenta" Tag="Magenta" Click="SetPenColor" FontSize="20"/>
-				<Button Content="■" Foreground="Green" Tag="Green" Click="SetPenColor" FontSize="20"/>
+			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+				<Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+					<StackPanel Orientation="Horizontal">
+						<Button Content="■" Foreground="Red" Tag="Red" Click="SetPenColor" FontSize="20" HotKey="D1"/>
+						<Button Content="■" Foreground="Orange" Tag="Orange" Click="SetPenColor" FontSize="20" HotKey="D2"/>
+						<Button Content="■" Foreground="Blue" Tag="Blue" Click="SetPenColor" FontSize="20" HotKey="D3"/>
+						<Button Content="■" Foreground="Magenta" Tag="Magenta" Click="SetPenColor" FontSize="20" HotKey="D4"/>
+						<Button Content="■" Foreground="Green" Tag="Green" Click="SetPenColor" FontSize="20" HotKey="D5"/>
+						<Button Content="x" Click="SetEraser" FontSize="20" HotKey="D6">
+							<ic:SymbolIcon Symbol="Eraser" FontSize="18"/>
+						</Button>
+					</StackPanel>
+				</Border>
+				<Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+					<StackPanel Orientation="Horizontal">
+						<Button Content="■" Foreground="Black" Tag="Black" Click="SetWhiteboardColor" FontSize="20"/>
+						<Button Content="■" Foreground="AntiqueWhite" Tag="Antique" Click="SetWhiteboardColor" FontSize="20"/>
+						<Button Content="■" Foreground="White" Tag="White" Click="SetWhiteboardColor" FontSize="20"/>
+					</StackPanel>
+				</Border>
 
-				<Button Content="x" Click="SetEraser" FontSize="20"/>
+				<Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+					<StackPanel Orientation="Horizontal">
+						<Button Content="■" Foreground="White" Tag="White" Click="UndoLine" HotKey="Ctrl+Z" FontSize="20">
+							<ic:SymbolIcon Symbol="ArrowUndo" FontSize="18"/>
+						</Button>
+
+						<Button Content="■" Foreground="White" Tag="White" Click="CleanWhiteboard" HotKey="Ctrl+N" FontSize="20">
+							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
+						</Button>
+					</StackPanel>
+				</Border>
+
+
+
 			</StackPanel>
 			
-			<Panel Grid.Row="2" Background="DarkGray" Margin="5">
-				<inking:InkCanvas x:Name="InkCanvas" Name="InkCanvas" EditingMode="Ink" />
+			<Panel Name="Whiteboard" Grid.Row="2" Background="AntiqueWhite" Margin="10">
+				<inking:InkCanvas x:Name="InkCanvas" Name="InkCanvas" EditingMode="Ink"/>
 			</Panel>
 
 

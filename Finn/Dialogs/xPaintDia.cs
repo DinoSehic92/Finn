@@ -1,10 +1,13 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using DotNetCampus.Inking;
 using Finn.ViewModels;
 using Org.BouncyCastle.Asn1.BC;
 using SkiaSharp;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Finn.Dialog;
 
@@ -31,6 +34,30 @@ public partial class xPaintDia : Window
         Button button = sender as Button;
         InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkColor = GetColor(button.Tag.ToString());
         InkCanvas.EditingMode = DotNetCampus.Inking.InkCanvasEditingMode.Ink;
+    }
+
+    private void SetWhiteboardColor(object sender, RoutedEventArgs e)
+    {
+        Button button = sender as Button;
+        string color = button.Tag.ToString();
+
+        if (color == "White") { Whiteboard.Background = new SolidColorBrush(Colors.White); }
+        if (color == "Antique") { Whiteboard.Background = new SolidColorBrush(Colors.AntiqueWhite); }
+        if (color == "Black") { Whiteboard.Background = new SolidColorBrush(Colors.Black); }
+
+    }
+
+    private void UndoLine(object sender, RoutedEventArgs e)
+    {
+        InkCanvas.AvaloniaSkiaInkCanvas.RemoveStaticStroke(InkCanvas.Strokes.Last());
+    }
+
+    private void CleanWhiteboard(object sender, RoutedEventArgs e)
+    {
+        foreach (SkiaStroke stroke in InkCanvas.Strokes.ToList())
+        {
+            InkCanvas.AvaloniaSkiaInkCanvas.RemoveStaticStroke(stroke);
+        }
     }
 
     private void SetEraser(object sender, RoutedEventArgs e)
