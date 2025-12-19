@@ -1,0 +1,41 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="300"
+		Width="500"
+		Height="500"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xPaintDia"
+		xmlns:inking="using:DotNetCampus.Inking"
+        Title="xTagDia"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="True"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+
+			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
+				<Button Content="■" Foreground="Red" Tag="Red" Click="SetPenColor" FontSize="20"/>
+				<Button Content="■" Foreground="Orange" Tag="Orange" Click="SetPenColor" FontSize="20"/>
+				<Button Content="■" Foreground="Blue" Tag="Blue" Click="SetPenColor" FontSize="20"/>
+				<Button Content="■" Foreground="Magenta" Tag="Magenta" Click="SetPenColor" FontSize="20"/>
+				<Button Content="■" Foreground="Green" Tag="Green" Click="SetPenColor" FontSize="20"/>
+
+				<Button Content="x" Click="SetEraser" FontSize="20"/>
+			</StackPanel>
+			
+			<Panel Grid.Row="2" Background="DarkGray" Margin="5">
+				<inking:InkCanvas x:Name="InkCanvas" Name="InkCanvas" EditingMode="Ink" />
+			</Panel>
+
+
+		</Grid>
+	</Border>
+    
+</Window>

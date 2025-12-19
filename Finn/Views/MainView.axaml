@@ -162,6 +162,11 @@
 				
 					<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right" Grid.Row="0" Grid.ColumnSpan="7" Margin="0 0 155 0">
 
+						
+						<Button Name="Whiteboard" ToolTip.Tip="Whiteboard" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" CornerRadius="{Binding Storage.General.CornerRadius}">
+							<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
+						</Button>	
+
 						<ToggleButton Name="CalendarStatus" ToolTip.Tip="Calendar: Ctrl + K" HotKey="Ctrl+K" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding CalendarOpen}" CornerRadius="{Binding Storage.General.CornerRadius}">
 							<ic:SymbolIcon Name="CalendarView" Symbol="Calendar" IconVariant="Regular" FontSize="18"/>
 						</ToggleButton>

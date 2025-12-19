@@ -440,6 +440,17 @@ namespace Finn.ViewModels
             PreviewVM.FileWorkerBusy = false;
         }
 
+        public void OpenWhiteboard(Window mainWindow)
+        {
+            var window = new xPaintDia()
+            {
+                DataContext = this
+            };
+            window.FontFamily = mainWindow.FontFamily;
+            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
+            window.ShowDialog(mainWindow);
+        }
+
         public void OpenPreviewWindow(ThemeVariant theme)
         {
             PreviewWindow = new PreWindow()
