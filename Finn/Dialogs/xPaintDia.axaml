@@ -8,7 +8,7 @@
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialog.xPaintDia"
 		xmlns:inking="using:DotNetCampus.Inking"
-        Title="xTagDia"
+        Title="Whiteboard"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"
@@ -23,7 +23,18 @@
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-				<Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+
+				<Border>
+					<StackPanel>
+						<Slider Name="OpacitySlider" Width="100" Margin="0,-10,0,0" Value="255" Minimum="5" Maximum="255"/>
+					</StackPanel>
+				</Border>
+				<Border>
+					<StackPanel>
+						<Slider Name="ThicknessSlider" Width="100" Margin="0,-10,0,0" Value="20" Minimum="5" Maximum="100"/>
+					</StackPanel>
+				</Border>
+				<Border>
 					<StackPanel Orientation="Horizontal">
 						<Button Content="■" Foreground="Red" Tag="Red" Click="SetPenColor" FontSize="20" HotKey="D1"/>
 						<Button Content="■" Foreground="Orange" Tag="Orange" Click="SetPenColor" FontSize="20" HotKey="D2"/>
@@ -35,7 +46,7 @@
 						</Button>
 					</StackPanel>
 				</Border>
-				<Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+				<Border>
 					<StackPanel Orientation="Horizontal">
 						<Button Content="■" Foreground="Black" Tag="Black" Click="SetWhiteboardColor" FontSize="20"/>
 						<Button Content="■" Foreground="AntiqueWhite" Tag="Antique" Click="SetWhiteboardColor" FontSize="20"/>
@@ -43,7 +54,7 @@
 					</StackPanel>
 				</Border>
 
-				<Border BorderBrush="Gray" BorderThickness="1" CornerRadius="5">
+				<Border>
 					<StackPanel Orientation="Horizontal">
 						<Button Content="■" Foreground="White" Tag="White" Click="UndoLine" HotKey="Ctrl+Z" FontSize="20">
 							<ic:SymbolIcon Symbol="ArrowUndo" FontSize="18"/>
@@ -60,7 +71,7 @@
 			</StackPanel>
 			
 			<Panel Name="Whiteboard" Grid.Row="2" Background="AntiqueWhite" Margin="10">
-				<inking:InkCanvas x:Name="InkCanvas" Name="InkCanvas" EditingMode="Ink"/>
+				<inking:InkCanvas x:Name="InkCanvas" Name="InkCanvas" EditingMode="Ink" />
 			</Panel>
 
 

@@ -3,10 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using DotNetCampus.Inking;
-using Finn.ViewModels;
-using Org.BouncyCastle.Asn1.BC;
 using SkiaSharp;
-using System.Diagnostics;
 using System.Linq;
 
 namespace Finn.Dialog;
@@ -18,6 +15,9 @@ public partial class xPaintDia : Window
         InitializeComponent();
 
         KeyDown += CloseKey;
+
+        ThicknessSlider.AddHandler(Slider.ValueChangedEvent, SetPenThickness);
+        OpacitySlider.AddHandler(Slider.ValueChangedEvent, SetPenOpacity);
 
     }
 
@@ -36,6 +36,17 @@ public partial class xPaintDia : Window
         InkCanvas.EditingMode = DotNetCampus.Inking.InkCanvasEditingMode.Ink;
     }
 
+    private void SetPenThickness(object sender, RoutedEventArgs e)
+    {
+        InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkThickness = (float)ThicknessSlider.Value;
+    }
+
+    private void SetPenOpacity(object sender, RoutedEventArgs e)
+    {
+        byte opacity = (byte)OpacitySlider.Value;
+        InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkColor = InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkColor.WithAlpha(opacity);
+    }
+
     private void SetWhiteboardColor(object sender, RoutedEventArgs e)
     {
         Button button = sender as Button;
@@ -49,7 +60,10 @@ public partial class xPaintDia : Window
 
     private void UndoLine(object sender, RoutedEventArgs e)
     {
-        InkCanvas.AvaloniaSkiaInkCanvas.RemoveStaticStroke(InkCanvas.Strokes.Last());
+        if (InkCanvas.Strokes.Count > 0)
+        {
+            InkCanvas.AvaloniaSkiaInkCanvas.RemoveStaticStroke(InkCanvas.Strokes.Last());
+        }
     }
 
     private void CleanWhiteboard(object sender, RoutedEventArgs e)
