@@ -23,7 +23,13 @@
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-
+				<Border>
+					<StackPanel>
+						<ToggleButton Name="ToggleStrokeButton" Click="ToggleStroke" IsChecked="True">
+							<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
+						</ToggleButton>
+					</StackPanel>
+				</Border>
 				<Border>
 					<StackPanel>
 						<Slider Name="OpacitySlider" Width="100" Margin="0,-10,0,0" Value="255" Minimum="5" Maximum="255"/>

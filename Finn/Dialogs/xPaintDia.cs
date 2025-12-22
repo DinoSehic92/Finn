@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using DotNetCampus.Inking;
+using DotNetCampus.Inking.StrokeRenderers.WpfForSkiaInkStrokeRenderers;
 using SkiaSharp;
 using System.Linq;
 
@@ -19,6 +20,8 @@ public partial class xPaintDia : Window
         ThicknessSlider.AddHandler(Slider.ValueChangedEvent, SetPenThickness);
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, SetPenOpacity);
 
+        InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkStrokeRenderer = new WpfForSkiaInkStrokeRenderer();
+
     }
 
     private void CloseKey(object sender, KeyEventArgs e)
@@ -26,6 +29,18 @@ public partial class xPaintDia : Window
         if (e.Key == Key.Escape)
         {
             this.Close();
+        }
+    }
+
+    private void ToggleStroke(object sender, RoutedEventArgs e)
+    {
+        if (ToggleStrokeButton.IsChecked == false)
+        {
+            InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkStrokeRenderer = null;
+        }
+        else
+        {
+            InkCanvas.AvaloniaSkiaInkCanvas.Settings.InkStrokeRenderer = new WpfForSkiaInkStrokeRenderer();
         }
     }
 
