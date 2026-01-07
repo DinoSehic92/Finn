@@ -282,25 +282,6 @@
 										<MenuItem Name="OpenDwgMenu" Header="Open Dwg" Command="{Binding OpenDwg}" Icon="{icxt:SymbolIconExtension Symbol=DocumentTableCube}"/>
 									</MenuItem>
 
-									<MenuItem Name="TypeMenu" Header="FileType" ItemsSource="{Binding FileTypeSelection}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
-								
-									<MenuItem Name="MetaMenu" Header="Metadata" Icon="{icxt:SymbolIconExtension Symbol=Database}">
-										<MenuItem Name="FetchSingleMetadataMenu" Header="Fetch" Click="OnFetchSingleMeta" Icon="{icxt:SymbolIconExtension Symbol=DatabaseSearch}"/>
-										<MenuItem Name="FetchMetadata" Header="Fetch All" Click="OnFetchFullMeta" Icon="{icxt:SymbolIconExtension Symbol=DatabaseLink}"/>
-										<MenuItem Name="EditMetadata" Header="Edit" Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
-										<MenuItem Name="ClearMetaMenu" Header="Clear" Command="{Binding ClearMeta}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-									</MenuItem>
-									
-									<MenuItem Name="ThumbnailMenu" Header="Thumbnail" Icon="{icxt:SymbolIconExtension Symbol=Image}">
-										<MenuItem Name="GetThumbnails" Header="Fetch" Command="{Binding GetThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-										<MenuItem Name="ClearThumbnails" Header="Clear" Command="{Binding ClearThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-									</MenuItem>
-
-									<MenuItem Name="ContentMenu" Header="Content" Icon="{icxt:SymbolIconExtension Symbol=Globe}">
-										<MenuItem Name="InspectContent" Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Table}"/>
-										<MenuItem Name="GetContent" Header="Fetch" Command="{Binding GetIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-										<MenuItem Name="ClearContent" Header="Clear" Command="{Binding ClearIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-									</MenuItem>
 								
 									<MenuItem Name="AddToCollection" Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Icon="{icxt:SymbolIconExtension Symbol=Collections}" Click="OnAddToCollection">
 									</MenuItem>
@@ -312,44 +293,71 @@
 									</MenuItem>
 
 									<Separator></Separator>
+
+									<MenuItem Name="TypeMenu" Header="Category" ItemsSource="{Binding FileTypeSelection}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
 									
 									<MenuItem Name="MarkFavorite" Header="Favorite" Icon="{icxt:SymbolIconExtension Symbol=Star}" Command="{Binding MarkFavorite}"/>
 								
-									<MenuItem Name="ColorMainMenu" Header="Color Tag" Icon="{icxt:SymbolIconExtension Symbol=Color}">
-										<MenuItem Name="WhiteMenu" Header="None" Tag ="" Click="EditColor"/>
-										<MenuItem Name="YellowMenu" Background="#FFD700" Opacity="0.6" Tag ="Yellow" Click="EditColor"/>
-										<MenuItem Name="OrangeMenu" Background="#FFA500" Opacity="0.6" Tag ="Orange" Click="EditColor"/>
-										<MenuItem Name="BrownMenu" Background="#8B4513" Opacity="0.6" Tag ="Brown" Click="EditColor"/>
-										<MenuItem Name="GreenMenu" Background="#228B22" Opacity="0.6" Tag ="Green" Click="EditColor"/>
-										<MenuItem Name="BlueMenu" Background="#1E90FF" Opacity="0.6" Tag ="Blue" Click="EditColor"/>
-										<MenuItem Name="RedMenu" Background="#B22222" Opacity="0.6" Tag ="Red" Click="EditColor"/>
-										<MenuItem Name="MagentaMenu" Background="#9400D3" Opacity="0.6" Tag ="Magenta" Click="EditColor"/>
-									</MenuItem>
+									<MenuItem Name="Tag" Header="Tag" Icon="{icxt:SymbolIconExtension Symbol=Tag}">
+										<MenuItem Name="ColorMainMenu" Header="Color" Icon="{icxt:SymbolIconExtension Symbol=Color}">
+											<MenuItem Name="WhiteMenu" Header="None" Tag ="" Click="EditColor"/>
+											<MenuItem Name="YellowMenu" Background="#FFD700" Opacity="0.6" Tag ="Yellow" Click="EditColor"/>
+											<MenuItem Name="OrangeMenu" Background="#FFA500" Opacity="0.6" Tag ="Orange" Click="EditColor"/>
+											<MenuItem Name="BrownMenu" Background="#8B4513" Opacity="0.6" Tag ="Brown" Click="EditColor"/>
+											<MenuItem Name="GreenMenu" Background="#228B22" Opacity="0.6" Tag ="Green" Click="EditColor"/>
+											<MenuItem Name="BlueMenu" Background="#1E90FF" Opacity="0.6" Tag ="Blue" Click="EditColor"/>
+											<MenuItem Name="RedMenu" Background="#B22222" Opacity="0.6" Tag ="Red" Click="EditColor"/>
+											<MenuItem Name="MagentaMenu" Background="#9400D3" Opacity="0.6" Tag ="Magenta" Click="EditColor"/>
+										</MenuItem>
 								
-									<MenuItem Name="TagMenu" Header="User Tag" Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Tag}"/>
+										<MenuItem Name="TagMenu" Header="Text" Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextAdd}"/>
 
-									<MenuItem Name="ClearAllMenu" Header="Clear Tags" Click="OnClearFiles" Icon="{icxt:SymbolIconExtension Symbol=TagDismiss}"/>
-
-									<Separator></Separator>
-
-									<MenuItem Name="StatusMenu" Header="Status" Icon="{icxt:SymbolIconExtension Symbol=Checkmark}">
-										<MenuItem Name="CheckSingleFile" Header="Check File" Click="OnCheckStatusSingleFile" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
-										<MenuItem Name="CheckProjectFiles" Header="Check All" Click="OnCheckProjectFiles" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
+										<MenuItem Name="ClearAllMenu" Header="Clear" Click="OnClearFiles" Icon="{icxt:SymbolIconExtension Symbol=TagDismiss}"/>
 									</MenuItem>
 
-									<MenuItem Name="InfoMenu" Header="File info" Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
-
 
 									<Separator></Separator>
+
+									<MenuItem Header="Data" Icon="{icxt:SymbolIconExtension Symbol=ContentSettings}">
+										<MenuItem Name="MetaMenu" Header="Metadata" Icon="{icxt:SymbolIconExtension Symbol=Database}">
+											<MenuItem Name="FetchSingleMetadataMenu" Header="Fetch" Click="OnFetchSingleMeta" Icon="{icxt:SymbolIconExtension Symbol=DatabaseSearch}"/>
+											<MenuItem Name="FetchMetadata" Header="Fetch All" Click="OnFetchFullMeta" Icon="{icxt:SymbolIconExtension Symbol=DatabaseLink}"/>
+											<MenuItem Name="EditMetadata" Header="Edit" Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
+											<MenuItem Name="ClearMetaMenu" Header="Clear" Command="{Binding ClearMeta}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+										</MenuItem>
 									
-									<MenuItem Name="RenameOriginal" Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Icon="{icxt:SymbolIconExtension Symbol=Rename}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}"/>
-								
+										<MenuItem Name="ThumbnailMenu" Header="Thumbnail" Icon="{icxt:SymbolIconExtension Symbol=Image}">
+											<MenuItem Name="GetThumbnails" Header="Fetch" Command="{Binding GetThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+											<MenuItem Name="ClearThumbnails" Header="Clear" Command="{Binding ClearThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+										</MenuItem>
 
-
-									<MenuItem Name="Watermark" Header="Watermark" Icon="{icxt:SymbolIconExtension Symbol=Warning}">
-										<MenuItem Header="Förhandskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia"/>
-										<MenuItem Header="Arbetskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}" Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia"/>
+										<MenuItem Name="ContentMenu" Header="Content" Icon="{icxt:SymbolIconExtension Symbol=Globe}">
+											<MenuItem Name="InspectContent" Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Table}"/>
+											<MenuItem Name="GetContent" Header="Fetch" Command="{Binding GetIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+											<MenuItem Name="ClearContent" Header="Clear" Command="{Binding ClearIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+										</MenuItem>										
 									</MenuItem>
+
+									<MenuItem Header="Tools" Icon="{icxt:SymbolIconExtension Symbol=Toolbox}">
+										<MenuItem Name="StatusMenu" Header="Status" Icon="{icxt:SymbolIconExtension Symbol=Checkmark}">
+											<MenuItem Name="CheckSingleFile" Header="Check File" Click="OnCheckStatusSingleFile" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
+											<MenuItem Name="CheckProjectFiles" Header="Check All" Click="OnCheckProjectFiles" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
+										</MenuItem>
+
+										<MenuItem Name="InfoMenu" Header="File info" Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
+
+										<MenuItem Name="Watermark" Header="Watermark" Icon="{icxt:SymbolIconExtension Symbol=Warning}">
+											<MenuItem Header="Förhandskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia"/>
+											<MenuItem Header="Arbetskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}" Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia"/>
+										</MenuItem>
+
+										<MenuItem Name="RenameOriginal" Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Icon="{icxt:SymbolIconExtension Symbol=Rename}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}"/>
+								
+									</MenuItem>
+
+
+									<Separator></Separator>
+
 
 									<MenuItem Name="RemoveFileMenu" Header="Remove" Click="OnRemoveFiles" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 								</ContextMenu>
