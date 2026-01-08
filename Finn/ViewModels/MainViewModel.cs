@@ -662,6 +662,12 @@ namespace Finn.ViewModels
 
         public void GetThumbnails()
         {
+
+            if (!Directory.Exists(Storage.General.SavePath + "\\Thumbnails\\"))
+            {
+                Directory.CreateDirectory(Storage.General.SavePath + "\\Thumbnails\\");
+            }
+
             foreach (FileData file in CurrentFiles)
             {
                 file.RemoveThumbnail();
@@ -1262,6 +1268,8 @@ namespace Finn.ViewModels
             }
 
             FilteredFiles.Clear();
+            CurrentProject = new ProjectData() { Namn = SearchText };
+
 
             List<string> filepaths = new List<string>();
 
@@ -1283,6 +1291,8 @@ namespace Finn.ViewModels
                     }
                 }
             }
+
+            OnPropertyChanged("NrFilteredFiles");
         }
 
         public void CheckSingleFile()
@@ -1820,6 +1830,7 @@ namespace Finn.ViewModels
         public void SeachFiles()
         {
             FilteredFiles.Clear();
+            CurrentProject = new ProjectData() { Namn = SearchText };
 
             foreach (ProjectData project in Storage.StoredProjects)
             {
@@ -1840,6 +1851,9 @@ namespace Finn.ViewModels
                     if (b4 != null && !finished) { if (b4.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
                 }
             }
+
+            OnPropertyChanged("NrFilteredFiles");
+
         }
 
         public void RenameOriginal(string newName)

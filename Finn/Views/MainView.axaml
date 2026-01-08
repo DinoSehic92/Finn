@@ -163,18 +163,6 @@
 					<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right" Grid.Row="0" Grid.ColumnSpan="7" Margin="0 0 155 0">
 
 						
-						<Button Name="Whiteboard" ToolTip.Tip="Whiteboard" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" CornerRadius="{Binding Storage.General.CornerRadius}">
-							<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
-						</Button>	
-
-						<ToggleButton Name="CalendarStatus" ToolTip.Tip="Calendar: Ctrl + K" HotKey="Ctrl+K" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding CalendarOpen}" CornerRadius="{Binding Storage.General.CornerRadius}">
-							<ic:SymbolIcon Name="CalendarView" Symbol="Calendar" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-					
-						<ToggleButton Name="IconStatus" ToolTip.Tip="Show Icons: Ctrl + I" HotKey="Ctrl+I" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding Storage.General.ShowIcons}" CornerRadius="{Binding Storage.General.CornerRadius}">
-							<ic:SymbolIcon Symbol="Icons" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-						
 						<ToggleButton Name="TreeStatus" ToolTip.Tip="Treeview: Ctrl + Q" HotKey="Ctrl+Q" FontWeight="Normal" Height="30" Width="35" Padding="0" Click="SetupTreeview" IsChecked="{Binding TreeViewOpen}" CornerRadius="{Binding Storage.General.CornerRadius}">
 							<ic:SymbolIcon Symbol="PanelLeft" IconVariant="Regular" FontSize="18"/>
 						</ToggleButton>
@@ -203,9 +191,21 @@
 							<ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/>
 						</ToggleButton>
 
+						<ToggleButton Name="IconStatus" ToolTip.Tip="Show Icons: Ctrl + I" HotKey="Ctrl+I" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding Storage.General.ShowIcons}" CornerRadius="{Binding Storage.General.CornerRadius}">
+							<ic:SymbolIcon Symbol="Icons" IconVariant="Regular" FontSize="18"/>
+						</ToggleButton>
+
 						<Button Name="ColorMenu" ToolTip.Tip="UI Color" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}" CommandParameter="{Binding $parent[Window]}" CornerRadius="{Binding Storage.General.CornerRadius}">
 							<ic:SymbolIcon Symbol="Color" FontSize="18"/>
 						</Button>
+
+						<Button Name="Whiteboard" ToolTip.Tip="Whiteboard" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" CornerRadius="{Binding Storage.General.CornerRadius}">
+							<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
+						</Button>	
+						
+						<ToggleButton Name="CalendarStatus" ToolTip.Tip="Calendar: Ctrl + K" HotKey="Ctrl+K" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding CalendarOpen}" CornerRadius="{Binding Storage.General.CornerRadius}">
+							<ic:SymbolIcon Name="CalendarView" Symbol="Calendar" IconVariant="Regular" FontSize="18"/>
+						</ToggleButton>
 
 						<Button Name="ProgMenu" ToolTip.Tip="Info" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenInfoDia}" CommandParameter="{Binding $parent[Window]}" CornerRadius="{Binding Storage.General.CornerRadius}">
 							<ic:SymbolIcon Symbol="Info" FontSize="18"/>
@@ -294,9 +294,9 @@
 
 									<Separator></Separator>
 
-									<MenuItem Name="TypeMenu" Header="Category" ItemsSource="{Binding FileTypeSelection}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
-									
 									<MenuItem Name="MarkFavorite" Header="Favorite" Icon="{icxt:SymbolIconExtension Symbol=Star}" Command="{Binding MarkFavorite}"/>
+
+									<MenuItem Name="TypeMenu" Header="Category" ItemsSource="{Binding FileTypeSelection}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
 								
 									<MenuItem Name="Tag" Header="Tag" Icon="{icxt:SymbolIconExtension Symbol=Tag}">
 										<MenuItem Name="ColorMainMenu" Header="Color" Icon="{icxt:SymbolIconExtension Symbol=Color}">
