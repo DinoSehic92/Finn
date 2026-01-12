@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 
 namespace Finn.Model
 {
@@ -171,11 +172,19 @@ namespace Finn.Model
             set { appendedFiles = value; RaisePropertyChanged("AppendedFiles"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
+
+        private ObservableCollection<OtherData> otherFiles = new ObservableCollection<OtherData>();
+        public ObservableCollection<OtherData> OtherFiles
+        {
+            get { return otherFiles; }
+            set { otherFiles = value; RaisePropertyChanged("OtherFiles"); RaisePropertyChanged("NameWithAttributes"); }
+        }
+
         public bool HasAppendedFiles
         {
             get
             {
-                if (AppendedFiles.Count > 0)
+                if (AppendedFiles.Count > 0 || OtherFiles.Count > 0)
                 {
                     return true;
                 }

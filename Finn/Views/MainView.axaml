@@ -320,8 +320,8 @@
 
 									<MenuItem Header="Data" Icon="{icxt:SymbolIconExtension Symbol=ContentSettings}">
 										<MenuItem Name="MetaMenu" Header="Metadata" Icon="{icxt:SymbolIconExtension Symbol=Database}">
-											<MenuItem Name="FetchSingleMetadataMenu" Header="Fetch" Click="OnFetchSingleMeta" Icon="{icxt:SymbolIconExtension Symbol=DatabaseSearch}"/>
-											<MenuItem Name="FetchMetadata" Header="Fetch All" Click="OnFetchFullMeta" Icon="{icxt:SymbolIconExtension Symbol=DatabaseLink}"/>
+											<MenuItem Name="FetchSingleMetadataMenu" Header="Fetch" Click="OnFetchSingleMeta" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+											<MenuItem Name="FetchMetadata" Header="Fetch All" Click="OnFetchFullMeta" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
 											<MenuItem Name="EditMetadata" Header="Edit" Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
 											<MenuItem Name="ClearMetaMenu" Header="Clear" Command="{Binding ClearMeta}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 										</MenuItem>
@@ -364,8 +364,8 @@
 							</DataGrid.ContextMenu>
 						</DataGrid>
 
-						<Grid Grid.Row="1" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600">
-							<Border Margin="5">
+						<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600">
+							<Border Grid.Column="0" Margin="5">
 								<DataGrid Name="AppendixGrid" Padding="0" ItemsSource="{Binding CurrentFile.AppendedFiles, Mode=OneWay}" SelectionMode="Extended"
 											AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" BorderBrush="{DynamicResource TextControlBorderBrush}" 
 										  BorderThickness="{Binding Storage.General.Border}" CornerRadius="{Binding Storage.General.CornerRadius}">
@@ -377,16 +377,53 @@
 									</DataGrid.Styles>
 
 									<DataGrid.Columns>
-										<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached Files" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+										<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 									</DataGrid.Columns>
 									<DataGrid.ContextMenu>
 										<ContextMenu>
-											<MenuItem Header="Remove" Click="OnRemoveAttachedFile"/>
+											<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 										</ContextMenu>
 									</DataGrid.ContextMenu>
 								</DataGrid>
 							</Border>
+
+							<Border Grid.Column="1" Margin="5">
+								<DataGrid Name="OtherFilesGrid" Padding="0" ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
+											AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" BorderBrush="{DynamicResource TextControlBorderBrush}" 
+										  BorderThickness="{Binding Storage.General.Border}" CornerRadius="{Binding Storage.General.CornerRadius}">
+									<DataGrid.Styles>
+										
+										<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+											<Setter Property="IsVisible" Value="false"/>
+										</Style>
+									</DataGrid.Styles>
+
+									<DataGrid.Columns>
+										<DataGridTemplateColumn>
+											<DataGridTemplateColumn.CellTemplate>
+												<DataTemplate>
+													<Image Source="{Binding Icon}" Height="20"/>
+												</DataTemplate>
+											</DataGridTemplateColumn.CellTemplate>
+										</DataGridTemplateColumn>
+										<DataGridTextColumn Binding="{Binding Name}" Header="Attached Files" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+										<DataGridTextColumn Binding="{Binding Type}"  Header="Type" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+
+									</DataGrid.Columns>
+									<DataGrid.ContextMenu>
+										<ContextMenu>
+											<MenuItem Header="Open" Click="OnOpenOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Open}"/>
+											<MenuItem Header="Folder" Click="OnOpenOtherFolder" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
+											<MenuItem Header="Remove" Click="OnRemoveOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+
+										</ContextMenu>
+									</DataGrid.ContextMenu>
+								</DataGrid>
+							</Border>
+
 						</Grid>
+
+
 						
 					</Grid>
 

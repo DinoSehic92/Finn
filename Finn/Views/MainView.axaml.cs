@@ -37,6 +37,8 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
 
         AppendixGrid.AddHandler(DragDrop.DropEvent, OnDropAppendedFiles);
+        OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
+        OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
         //AppendixGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectAppendedFiles);
         AppendixGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestAppendedFiles);
 
@@ -232,6 +234,21 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                 {
                     ctx.AddAppendedFile(path);
                 }
+            }
+        }
+    }
+
+    public void OnDropOtherFiles(object sender, DragEventArgs e)
+    {
+        var items = e.Data.GetFiles();
+
+        foreach (var item in items)
+        {
+            if (item.Path.IsFile)
+            {
+                string path = item.Path.LocalPath;
+
+                ctx.AddOtherFile(path);
             }
         }
     }
@@ -748,9 +765,34 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         }
     }
 
+    async void OnRemoveOtherFile(object sender, RoutedEventArgs e)
+    {
+        Window window = (MainWindow)Window.GetTopLevel(this);
+        await ctx.ConfirmDeleteDia(window);
+
+        if (ctx.Confirmed)
+        {
+            OtherData file = (OtherData)OtherFilesGrid.SelectedItem;
+            
+            ctx.RemoveOtherFile(file);
+        }
+    }
+
     private void OnOpenFile(object sender, RoutedEventArgs e)
     {
         ctx.OpenFile();
+    }
+
+    private void OnOpenOtherFile(object sender, RoutedEventArgs e)
+    {
+        OtherData file = (OtherData)OtherFilesGrid.SelectedItem;
+        ctx.OpenOtherFile(file.Filepath);
+    }
+
+    private void OnOpenOtherFolder(object sender, RoutedEventArgs e)
+    {
+        OtherData file = (OtherData)OtherFilesGrid.SelectedItem;
+        ctx.OpenOtherPath(file.Filepath);
     }
 
     private void SelectFiles(object sender, RoutedEventArgs e)

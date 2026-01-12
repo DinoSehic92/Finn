@@ -1362,6 +1362,18 @@ namespace Finn.ViewModels
             catch (Exception e) { Debug.WriteLine(e); }
         }
 
+        public void OpenOtherFile(string path)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName = path;
+                psi.UseShellExecute = true;
+                Process.Start(psi);
+            }
+            catch (Exception e) { Debug.WriteLine(e); }
+        }
+
         public void OpenMeta()
         {
             try
@@ -1436,6 +1448,19 @@ namespace Finn.ViewModels
             catch (Exception e)
             { }
         }
+
+        public void OpenOtherPath(string filepath)
+        {
+            try
+            {
+                string folderpath = System.IO.Path.GetDirectoryName(filepath);
+                Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
+            }
+
+            catch (Exception e)
+            { }
+        }
+
 
         public void AddColor(string color)
         {
@@ -1808,6 +1833,20 @@ namespace Finn.ViewModels
             }
         }
 
+        public void AddOtherFile(string filepath)
+        {
+            if (CurrentFile != null && CurrentFile.OtherFiles.Where(x => x.Filepath == filepath).Count() == 0)
+            {
+
+                OtherData newFile = new OtherData() { Filepath = filepath };
+                newFile.SetFile();
+
+                CurrentFile.OtherFiles.Add(newFile);
+
+                SortOtherFiles();
+            }
+        }
+
         public void RemoveAttachedFile(IList<FileData> files)
         {
             foreach (FileData file in files)
@@ -1818,12 +1857,24 @@ namespace Finn.ViewModels
             SortAttachedFiles();
         }
 
+        public void RemoveOtherFile(OtherData file)
+        {
+            CurrentFile.OtherFiles.Remove(file);
+            SortOtherFiles();
+        }
 
         private void SortAttachedFiles()
         {
             List<FileData> tempList = CurrentFile.AppendedFiles.OrderBy(x => x.Namn).ToList();
             CurrentFile.AppendedFiles.Clear();
             CurrentFile.AppendedFiles = new ObservableCollection<FileData>(tempList);
+        }
+
+        private void SortOtherFiles()
+        {
+            List<OtherData> tempList = CurrentFile.OtherFiles.OrderBy(x => x.Name).ToList();
+            CurrentFile.OtherFiles.Clear();
+            CurrentFile.OtherFiles = new ObservableCollection<OtherData>(tempList);
         }
 
 
