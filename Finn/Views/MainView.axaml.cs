@@ -703,7 +703,14 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private void SelectFavorite(object sender, RoutedEventArgs e)
     {
         IList<FileData> files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
-        
+
+        if (files.FirstOrDefault() != null)
+        {
+            ctx.SelectProject(files.FirstOrDefault().Uppdrag);
+            ctx.SelectType(files.FirstOrDefault().Filtyp);
+            ctx.UpdateTreeview();
+        }
+
         DeselectItems();
         ctx.select_files(files);
     }
@@ -711,6 +718,13 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private void SelectRecent(object sender, RoutedEventArgs e)
     {
         IList<FileData> files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
+
+        if (files.FirstOrDefault() != null)
+        {
+            ctx.SelectProject(files.FirstOrDefault().Uppdrag);
+            ctx.SelectType(files.FirstOrDefault().Filtyp);
+            ctx.UpdateTreeview();
+        }
 
         DeselectItems();
         ctx.select_files(files);

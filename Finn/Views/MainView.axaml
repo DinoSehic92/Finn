@@ -406,7 +406,7 @@
 												</DataTemplate>
 											</DataGridTemplateColumn.CellTemplate>
 										</DataGridTemplateColumn>
-										<DataGridTextColumn Binding="{Binding Name}" Header="Attached Files" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+										<DataGridTextColumn Binding="{Binding Name}" Header="Attached Files" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 										<DataGridTextColumn Binding="{Binding Type}"  Header="Type" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 
 									</DataGrid.Columns>
