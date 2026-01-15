@@ -448,7 +448,8 @@ namespace Finn.ViewModels
             };
             window.FontFamily = mainWindow.FontFamily;
             window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.ShowDialog(mainWindow);
+            //window.ShowDialog(mainWindow);
+            window.Show();
         }
 
         public void OpenPreviewWindow(ThemeVariant theme)

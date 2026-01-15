@@ -2,9 +2,13 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Skia;
 using DotNetCampus.Inking;
 using DotNetCampus.Inking.StrokeRenderers.WpfForSkiaInkStrokeRenderers;
+using iText.Kernel.Pdf;
 using SkiaSharp;
+using System;
+using System.IO;
 using System.Linq;
 
 namespace Finn.Dialog;
@@ -104,4 +108,45 @@ public partial class xPaintDia : Window
         } 
         return SKColors.Black; }
 
+
+    private void SaveImage(object sender, RoutedEventArgs e)
+    {
+
+        string path = "C:\\FIlePathManager\\Sketches\\test.pdf";
+
+        //Directory.CreateDirectory(path);
+
+        using var skPaint = new SKPaint();
+        {
+            skPaint.IsAntialias = true;
+
+            skPaint.Style = SKPaintStyle.Fill;
+
+            SKRect bounds = InkCanvas.Bounds.ToSKRect();
+
+            using SKWStream stream = SKFileWStream.OpenStream(path);
+            {
+                var document = SKDocument.CreatePdf(stream);
+
+                using SKCanvas skCanvas = document.BeginPage(bounds.Width, bounds.Height);
+                {
+                    for (var i = 0; i < InkCanvas.Strokes.Count; i++)
+                    {
+                        var stroke = InkCanvas.Strokes[i];
+
+                        skPaint.Color = stroke.Color;
+                        skCanvas.DrawPath(stroke.Path, skPaint);
+                    }
+
+                    document.EndPage();
+                    document.Close();
+
+                }
+                
+            }
+        }
+
+
+
+    }
 }

@@ -9,6 +9,8 @@
         x:Class="Finn.Dialog.xPaintDia"
 		xmlns:inking="using:DotNetCampus.Inking"
         Title="Whiteboard"
+		
+		
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"
@@ -68,6 +70,10 @@
 
 						<Button Content="■" Foreground="White" Tag="White" Click="CleanWhiteboard" HotKey="Ctrl+N" FontSize="20">
 							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
+						</Button>
+
+						<Button Content="■" Foreground="White" Tag="White" Click="SaveImage" HotKey="Ctrl+N" FontSize="20">
+							<ic:SymbolIcon Symbol="Save" FontSize="18"/>
 						</Button>
 					</StackPanel>
 				</Border>

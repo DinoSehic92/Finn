@@ -704,11 +704,15 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     {
         IList<FileData> files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
 
-        if (files.FirstOrDefault() != null)
+        FileData file = files.FirstOrDefault();
+        if (file != null)
         {
-            ctx.SelectProject(files.FirstOrDefault().Uppdrag);
-            ctx.SelectType(files.FirstOrDefault().Filtyp);
-            ctx.UpdateTreeview();
+            if (file.Uppdrag != string.Empty && file.Filtyp != string.Empty)
+            {
+                ctx.SelectProject(file.Uppdrag);
+                ctx.SelectType(file.Filtyp);
+                ctx.UpdateTreeview();
+            }
         }
 
         DeselectItems();
@@ -719,11 +723,17 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     {
         IList<FileData> files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
 
-        if (files.FirstOrDefault() != null)
+        FileData file = files.FirstOrDefault();
+
+        if (file != null)
         {
-            ctx.SelectProject(files.FirstOrDefault().Uppdrag);
-            ctx.SelectType(files.FirstOrDefault().Filtyp);
-            ctx.UpdateTreeview();
+            if (file.Uppdrag != string.Empty && file.Filtyp != string.Empty)
+            {
+                ctx.SelectProject(file.Uppdrag);
+                ctx.SelectType(file.Filtyp);
+                ctx.UpdateTreeview();
+                //FileGrid.SelectedItem = file;
+            }
         }
 
         DeselectItems();
