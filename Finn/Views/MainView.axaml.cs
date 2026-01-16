@@ -256,7 +256,9 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private void SetupTreeview(object sender, RoutedEventArgs e)
     {
         MainTree.Items.Clear();
-        ctx.GetGroups();     
+        ctx.GetGroups();
+        TreeViewItem selectedItem = new TreeViewItem();
+
 
         List<string> typeList = new List<string>() { "Archive", "Library", "Project" };
 
@@ -286,6 +288,14 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                                 Header = filetype + "  (" + nfiles + ")",
                                 Tag = project.Namn
                             };
+
+                            if (ctx.CurrentProject != null && ctx.CurrentFile != null)
+                            {
+                                if (ctx.CurrentProject == project && ctx.CurrentFile.Filtyp == filetype)
+                                {
+                                    selectedItem = newItemType;
+                                }
+                            }
 
                             if (project.Foreground != Color.Parse("#FFFFFFFF"))
                             {
@@ -338,6 +348,14 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                                     Tag = project.Namn
                                 };
 
+                                if (ctx.CurrentProject != null && ctx.CurrentFile != null)
+                                {
+                                    if ( ctx.CurrentProject == project && ctx.CurrentFile.Filtyp == filetype )
+                                    {
+                                        selectedItem = newItem;
+                                    }
+                                }
+
                                 if (project.Foreground != Color.Parse("#FFFFFFFF"))
                                 {
                                     newItem.Foreground = Brush.Parse(project.Foreground.ToString());
@@ -379,7 +397,6 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                                 ItemsSource = groupedTree
                             }
                         );
-
                     }
                 }
 
@@ -398,6 +415,9 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             }
 
         }
+
+        Debug.WriteLine(selectedItem.Header);
+        selectedItem.IsSelected = true;
     }
 
     public void OnTreeviewSelected(object sender, SelectionChangedEventArgs e)
@@ -711,12 +731,12 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             {
                 ctx.SelectProject(file.Uppdrag);
                 ctx.SelectType(file.Filtyp);
-                ctx.UpdateTreeview();
             }
         }
 
         DeselectItems();
         ctx.select_files(files);
+        ctx.UpdateTreeview();
     }
 
     private void SelectRecent(object sender, RoutedEventArgs e)
@@ -731,13 +751,12 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             {
                 ctx.SelectProject(file.Uppdrag);
                 ctx.SelectType(file.Filtyp);
-                ctx.UpdateTreeview();
-                //FileGrid.SelectedItem = file;
             }
         }
 
         DeselectItems();
         ctx.select_files(files);
+        ctx.UpdateTreeview();
     }
 
 

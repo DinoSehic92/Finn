@@ -291,16 +291,19 @@ namespace Finn.ViewModels
         {
             if (file != null)
             {
-                if (RecentFiles.Contains(file))
+                if (file.Uppdrag != string.Empty)
                 {
-                    RecentFiles.Remove(file);
-                }
+                    if (RecentFiles.Contains(file))
+                    {
+                        RecentFiles.Remove(file);
+                    }
 
-                RecentFiles.Insert(0, file);
+                    RecentFiles.Insert(0, file);
 
-                if (RecentFiles.Count > 20)
-                {
-                    RecentFiles.RemoveAt(20);
+                    if (RecentFiles.Count > 20)
+                    {
+                        RecentFiles.RemoveAt(20);
+                    }
                 }
             }
         }
