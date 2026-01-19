@@ -119,7 +119,7 @@ namespace Finn.Model
         public int? CurrentTimeSheetProjectTime
         {
             get { return currentTimeSheetProjectTime; }
-            set { currentTimeSheetProjectTime = value; RaisePropertyChanged("CurrentTimeSheetProjectTime"); RaisePropertyChanged("DateStringIcon"); Debug.WriteLine("TRIGGER"); }
+            set { currentTimeSheetProjectTime = value; RaisePropertyChanged("CurrentTimeSheetProjectTime"); }
         }
 
         public void TriggerDateStringUpdate()

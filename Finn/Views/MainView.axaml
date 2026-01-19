@@ -471,7 +471,6 @@
 							</DataGrid.Styles>
 							<DataGrid.Columns>
 								<DataGridTextColumn Binding="{Binding DateString}" Header="Date" Width="Auto" FontSize="14"/>
-								<DataGridTextColumn Binding="{Binding TotalTime}" Header="T" Width="50" MinWidth="50" FontSize="14"/>
 								<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectTime}" Header="t" Width="50" MinWidth="50" FontSize="14"/>
 								<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectDiary}" Header="Diary" Width="*" MinWidth="100" FontSize="14"/>
 							</DataGrid.Columns>
