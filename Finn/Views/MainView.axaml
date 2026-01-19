@@ -546,7 +546,7 @@
 
 					<Border Grid.Row="1" Margin="5">
 						<StackPanel Orientation="Horizontal" Spacing="5">
-							<ComboBox Width="65" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
+							<ComboBox Width="65" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
 							<ComboBox Width="130" ItemsSource="{Binding Storage.General.TimeSheetProjects}" SelectedItem="{Binding CurrentTimeSheet.Project}"/>
 
 						<Button Width="30" Command="{Binding NewTimeSheet}">

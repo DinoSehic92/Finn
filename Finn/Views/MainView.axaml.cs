@@ -50,6 +50,8 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
         BookmarkGrid.AddHandler(DataGrid.SelectionChangedEvent, BookmarkSelected);
 
+        HoursCombo.AddHandler(ComboBox.SelectionChangedEvent, OnUpdateTotalTime);
+
         InitMetaworker();
     }
 
@@ -793,7 +795,10 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         }
     }
 
-
+    private void OnUpdateTotalTime(object sender, RoutedEventArgs args)
+    {
+        ctx.CurrentCalendarData.TriggerDateStringUpdate();
+    }
 
     async void OnRemoveAttachedFile(object sender, RoutedEventArgs e)
     {

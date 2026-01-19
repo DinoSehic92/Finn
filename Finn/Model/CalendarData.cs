@@ -54,6 +54,10 @@ namespace Finn.Model
                 {
                     text = " - ";
                 }
+                else
+                {
+                    text = text + " " + TotalTime;
+                }
 
                 return text;
             }
@@ -84,16 +88,16 @@ namespace Finn.Model
         public int? TotalTime
         {
             get {
-                    int? time = null;
-                    if (TimeSheets.Select(x => x.Hours).Sum() != 0)
-                    {
-                        return TimeSheets.Select(x => x.Hours).Sum();
-                    }
-                    else
-                    {
-                        return null;
-                    }
+                int? time = null;
+                if (TimeSheets.Select(x => x.Hours).Sum() != 0)
+                {
+                    return TimeSheets.Select(x => x.Hours).Sum();
                 }
+                else
+                {
+                    return null;
+                }
+            }
         }
 
         private ObservableCollection<TimeSheetData> timeSheets = new ObservableCollection<TimeSheetData>();
@@ -108,14 +112,14 @@ namespace Finn.Model
         public string CurrentTimeSheetProjectDiary
         {
             get { return currentTimeSheetProjectDiary; }
-            set { currentTimeSheetProjectDiary = value; RaisePropertyChanged("CurrentTimeSheetProjectDiary");  }
+            set { currentTimeSheetProjectDiary = value; RaisePropertyChanged("CurrentTimeSheetProjectDiary"); }
         }
 
         private int? currentTimeSheetProjectTime = null;
         public int? CurrentTimeSheetProjectTime
         {
             get { return currentTimeSheetProjectTime; }
-            set { currentTimeSheetProjectTime = value; RaisePropertyChanged("CurrentTimeSheetProjectTime"); }
+            set { currentTimeSheetProjectTime = value; RaisePropertyChanged("CurrentTimeSheetProjectTime"); RaisePropertyChanged("DateStringIcon"); Debug.WriteLine("TRIGGER"); }
         }
 
         public void TriggerDateStringUpdate()
