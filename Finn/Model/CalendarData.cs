@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 
 namespace Finn.Model
@@ -17,6 +18,18 @@ namespace Finn.Model
         {
             get { return date; }
             set { date = value; RaisePropertyChanged("Date"); }
+        }
+
+        public int WeekOfMonth
+        {
+            get 
+            {
+
+                int firstWeek = ISOWeek.GetWeekOfYear(new DateTime(Date.Year, Date.Month, 1));
+                int currentWeek = ISOWeek.GetWeekOfYear(new DateTime(Date.Year, Date.Month, Date.Day));
+
+                return currentWeek - firstWeek;
+            }
         }
 
         public string DateString

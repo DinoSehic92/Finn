@@ -167,17 +167,13 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private void NewTimeSheetProject(object sender, RoutedEventArgs e)
     {
         MainViewModel ctx = (MainViewModel)this.DataContext;
-        if (InputName.Text != null)
-        {
-            ctx.Storage.General.TimeSheetProjects.Add(InputName.Text.ToString());
-            InputName.Text = null;
-        }
+        ctx.Storage.General.TimeProjects.Add(new TimeSheetProjectData() { Project = "New Project"});
     }
 
     private void RemoveTimeSheetProject(object sender, RoutedEventArgs e)
     {
         MainViewModel ctx = (MainViewModel)this.DataContext;
-        ctx.Storage.General.TimeSheetProjects.Remove(ctx.CurrentTimeSheetProject);
+        ctx.Storage.General.TimeProjects.Remove(ctx.CurrentTimeSheetProject);
     }
 
     public void OnSearch(object sender, RoutedEventArgs e)
@@ -797,7 +793,10 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
     private void OnUpdateTotalTime(object sender, RoutedEventArgs args)
     {
-        ctx.CurrentCalendarData.TriggerDateStringUpdate();
+        if (ctx.CurrentCalendarData != null)
+        {
+            ctx.CurrentCalendarData.TriggerDateStringUpdate();
+        }
     }
 
     async void OnRemoveAttachedFile(object sender, RoutedEventArgs e)

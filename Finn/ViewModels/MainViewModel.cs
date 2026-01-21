@@ -243,7 +243,7 @@ namespace Finn.ViewModels
         public bool TimeSheetOpen
         {
             get { return timeSheetOpen; }
-            set { timeSheetOpen = value; OnPropertyChanged("TimeSheetOpen"); }
+            set { timeSheetOpen = value; OnPropertyChanged("TimeSheetOpen"); WeeklyTimeSummary(); }
         }
 
         private bool trayViewOpen = false;
@@ -301,7 +301,7 @@ namespace Finn.ViewModels
         public CalendarData CurrentCalendarData
         {
             get { return currentCalendarData; }
-            set { currentCalendarData = value; OnPropertyChanged("CurrentCalendarData"); SelectDateTime(); }
+            set { currentCalendarData = value; OnPropertyChanged("CurrentCalendarData"); SelectDateTime(); WeeklyTimeSummary(); }
         }
 
         private TimeSheetData currentTimeSheet = new TimeSheetData();
@@ -319,11 +319,11 @@ namespace Finn.ViewModels
             set { hours = value; OnPropertyChanged("Hours"); }
         }
 
-        private string currentTimeSheetProject = string.Empty;
-        public string CurrentTimeSheetProject
+        private TimeSheetProjectData currentTimeSheetProject;
+        public TimeSheetProjectData CurrentTimeSheetProject
         {
             get { return currentTimeSheetProject; }
-            set { currentTimeSheetProject = value; OnPropertyChanged("CurrentTimeSheetProject"); UpdateTimeSheetSummary(); Debug.WriteLine(CurrentTimeSheetProject); }
+            set { currentTimeSheetProject = value; OnPropertyChanged("CurrentTimeSheetProject"); UpdateTimeSheetSummary(); }
         }
 
         public void NewTimeSheet()
@@ -342,9 +342,38 @@ namespace Finn.ViewModels
         {
             foreach (CalendarData calendarData in MonthlyNotes)
             {
-                calendarData.SetCurrentTimeSheetProjectDiary(CurrentTimeSheetProject);
+                calendarData.SetCurrentTimeSheetProjectDiary(CurrentTimeSheetProject.Project);
             }
         }
+
+        private void WeeklyTimeSummary()
+        {
+            if (TimeSheetOpen && CurrentCalendarData != null)
+            {
+                foreach (TimeSheetProjectData project in Storage.General.TimeProjects.Where(x => x.Project != "Total"))
+                {
+
+                    project.W1 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x=>x.WeekOfMonth == 0).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x=>x.Hours);
+                    project.W2 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 1).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                    project.W3 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 2).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                    project.W4 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 3).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                    project.W5 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 4).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                }
+
+                TimeSheetProjectData summarySheet = Storage.General.TimeProjects.Where(x => x.Project == "Total").FirstOrDefault();
+
+                if (summarySheet != null)
+                {
+                    summarySheet.W1 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W1);
+                    summarySheet.W2 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W2);
+                    summarySheet.W3 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W3);
+                    summarySheet.W4 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W4);
+                    summarySheet.W5 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W5);
+                }
+            }
+        }
+
+ 
 
 
         private void UpdateMonthly()

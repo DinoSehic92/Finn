@@ -136,12 +136,13 @@ namespace Finn.Model
             set { calendarList = value; RaisePropertyChanged("CalendarList"); }
         }
 
-        private ObservableCollection<string> timeSheetProjects = new ObservableCollection<string>() { };
 
-        public ObservableCollection<string> TimeSheetProjects
+        private ObservableCollection<TimeSheetProjectData> timeProjects = new ObservableCollection<TimeSheetProjectData>();
+
+        public ObservableCollection<TimeSheetProjectData> TimeProjects
         {
-            get { return timeSheetProjects; }
-            set { timeSheetProjects = value; RaisePropertyChanged("TimeSheetProjects"); }
+            get { return timeProjects; }
+            set { timeProjects = value; RaisePropertyChanged("TimeProjects"); }
         }
 
         private void SetCornerRadius()
