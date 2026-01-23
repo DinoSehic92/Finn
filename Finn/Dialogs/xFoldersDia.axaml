@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="270" d:DesignHeight="200"
+		MinWidth="600"
+		MinHeight="370"
+		MaxWidth="600"
+		MaxHeight="370"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xFoldersDia"
+        Title="Folders"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Height="260" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="Folder" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="Folders" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+				</StackPanel>
+				<Grid RowDefinitions="35,200" HorizontalAlignment="Center" Width="570">
+					<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5">
+						<TextBox Height="30" Width="135" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
+						<TextBox Height="30" Width="255" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
+						<ComboBox Height="30" Width="100" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding CurrentProject.Filetypes}"/>
+						<Button Width="30" Command="{Binding NewFolder}">
+							<ic:SymbolIcon Symbol="Add" FontSize="18"/>
+						</Button>
+						<Button Width="30" Command="{Binding RemoveFolder}">
+							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
+						</Button>
+					</StackPanel>
+					<DataGrid Grid.Row="1" ItemsSource="{Binding CurrentFile.AppendedFolders}" SelectedItem="{Binding CurrentFolder}" CornerRadius="{Binding Storage.General.CornerRadius}" SelectionMode="Single" IsReadOnly="True">
+
+						<DataGrid.Columns>
+							<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Name" Width="140" FontSize="{Binding Storage.General.FontSize}"/>
+							<DataGridTextColumn Binding="{Binding Path}" Header="Path" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
+							<DataGridTextColumn Binding="{Binding Filetype}" Header="Type" Width="100" FontSize="{Binding Storage.General.FontSize}"/>
+						</DataGrid.Columns>
+						<DataGrid.Styles>
+							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+								<Setter Property="IsVisible" Value="false" />
+							</Style>
+						</DataGrid.Styles>
+					</DataGrid>
+				</Grid>
+
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+					<Button Content="Fetch" Width="70" Command="{Binding FetchFilesFromFolders}" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
+				</StackPanel>
+			</StackPanel>
+		</Grid>
+	</Border>
+    
+</Window>

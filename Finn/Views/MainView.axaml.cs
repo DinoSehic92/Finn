@@ -784,7 +784,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private void OnAddToCollection(object sender, RoutedEventArgs e)
     {
         MenuItem source = e.Source as MenuItem;
-        Debug.WriteLine(source.Header.ToString());
+
         if (source.Header.ToString()!= "Collection")
         {
             ctx.AddFileToCollection(source.Header.ToString());

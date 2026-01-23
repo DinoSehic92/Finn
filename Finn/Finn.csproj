@@ -53,6 +53,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Dialogs\xFoldersDia.axaml.cs">
+      <DependentUpon>xFoldersDia.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Dialogs\xProgDia.axaml.cs">
       <DependentUpon>xProgDia.axaml</DependentUpon>
     </Compile>

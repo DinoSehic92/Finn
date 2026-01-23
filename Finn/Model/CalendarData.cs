@@ -81,21 +81,21 @@ namespace Finn.Model
         public string Note1
         {
             get { return note1; }
-            set { note1 = value; RaisePropertyChanged("Note1"); RaisePropertyChanged("DateString"); }
+            set { note1 = value; RaisePropertyChanged("Note1"); RaisePropertyChanged("DateString"); RaisePropertyChanged("DateStringIcon"); }
         }
 
         private string note2 = string.Empty;
         public string Note2
         {
             get { return note2; }
-            set { note2 = value; RaisePropertyChanged("Note2"); RaisePropertyChanged("DateString"); }
+            set { note2 = value; RaisePropertyChanged("Note2"); RaisePropertyChanged("DateString"); RaisePropertyChanged("DateStringIcon"); }
         }
 
         private string reminder = string.Empty;
         public string Reminder
         {
             get { return reminder; }
-            set { reminder = value; RaisePropertyChanged("Reminder"); RaisePropertyChanged("DateString"); }
+            set { reminder = value; RaisePropertyChanged("Reminder"); RaisePropertyChanged("DateString"); RaisePropertyChanged("DateStringIcon"); }
         }
 
         public int? TotalTime

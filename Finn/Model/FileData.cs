@@ -2,6 +2,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 
 namespace Finn.Model
 {
@@ -150,6 +151,21 @@ namespace Finn.Model
             set { favPages = value; RaisePropertyChanged("FavPages"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
+        private bool isFromFolder = false;
+        public bool IsFromFolder
+        {
+            get { return isFromFolder; }
+            set { isFromFolder = value; RaisePropertyChanged("IsFromFolder"); RaisePropertyChanged("NameWithAttributes"); }
+        }
+
+        public string FromFolder
+        {
+            get {
+                return Path.GetFileName(Path.GetDirectoryName(Sökväg));
+                }
+            
+        }
+
         public bool HasBookmarks
         {
             get
@@ -170,6 +186,13 @@ namespace Finn.Model
         {
             get { return appendedFiles; }
             set { appendedFiles = value; RaisePropertyChanged("AppendedFiles"); RaisePropertyChanged("NameWithAttributes"); }
+        }
+
+        private ObservableCollection<FolderData> appendedFolders = new ObservableCollection<FolderData>();
+        public ObservableCollection<FolderData> AppendedFolders
+        {
+            get { return appendedFolders; }
+            set { appendedFolders = value; RaisePropertyChanged("AppendedFolders"); }
         }
 
 
@@ -234,6 +257,11 @@ namespace Finn.Model
                 if (HasPlainText)
                 {
                     nameWithAttributes = nameWithAttributes + "⠀🌐";
+                }
+
+                if (IsFromFolder)
+                {
+                    nameWithAttributes = nameWithAttributes + "⠀🗁";
                 }
 
                 return nameWithAttributes;

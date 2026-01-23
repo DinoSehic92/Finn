@@ -25,14 +25,14 @@
 					<Label Content="Edit Project" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 				</StackPanel>
 				<Grid ColumnDefinitions="100,160" RowDefinitions="35,35,35,50" HorizontalAlignment="Center">
-					<Label Grid.Row="0" Grid.Column="0" Content="Name" VerticalAlignment="Center"/>
+					<Label Grid.Row="2" Grid.Column="0" Content="Name" VerticalAlignment="Center"/>
 					<Label Grid.Row="1" Grid.Column="0" Content="Group" VerticalAlignment="Center"/>
-					<Label Grid.Row="2" Grid.Column="0" Content="Category" VerticalAlignment="Center"/>
+					<Label Grid.Row="0" Grid.Column="0" Content="Category" VerticalAlignment="Center"/>
 					<Label Grid.Row="3" Grid.Column="0" Content="Color" VerticalAlignment="Center"/>
 				
-					<TextBox Grid.Row="0" Grid.Column="1" Name="ProjectName" Text="{Binding CurrentProject.Namn, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="2" Grid.Column="1" Name="ProjectName" Text="{Binding CurrentProject.Namn, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
 					<TextBox Grid.Row="1" Grid.Column="1" Name="ProjectGroup" Text="{Binding CurrentProject.Parent, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
-					<ComboBox Grid.Row="2" Grid.Column="1" Name="ProjectCategory" Width="160" VerticalAlignment="Center">
+					<ComboBox Grid.Row="0" Grid.Column="1" Name="ProjectCategory" Width="160" VerticalAlignment="Center">
 						<ComboBoxItem Content="Archive"/>
 						<ComboBoxItem Content="Library"/>
 						<ComboBoxItem Content="Project"/>

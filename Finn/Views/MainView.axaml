@@ -377,10 +377,13 @@
 									</DataGrid.Styles>
 
 									<DataGrid.Columns>
-										<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+										<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="2*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+										<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 									</DataGrid.Columns>
 									<DataGrid.ContextMenu>
 										<ContextMenu>
+											<MenuItem Header="Folders" Command="{Binding OpenFolderDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
+											<MenuItem Header="Fetch" Command="{Binding FetchFilesFromFolders}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
 											<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 										</ContextMenu>
 									</DataGrid.ContextMenu>

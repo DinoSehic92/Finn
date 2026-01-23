@@ -326,6 +326,56 @@ namespace Finn.ViewModels
             set { currentTimeSheetProject = value; OnPropertyChanged("CurrentTimeSheetProject"); UpdateTimeSheetSummary(); }
         }
 
+        private FolderData currentFolder;
+        public FolderData CurrentFolder
+        {
+            get { return currentFolder; }
+            set { currentFolder = value; OnPropertyChanged("CurrentFolder"); }
+        }
+
+        public void NewFolder()
+        {
+            if (CurrentFile != null)
+            {
+                CurrentFile.AppendedFolders.Add(new FolderData() { Name = "New Folder" });
+            }
+        }
+
+        public void RemoveFolder()
+        {
+            if (CurrentFile != null)
+            {
+                CurrentFile.AppendedFolders.Remove(CurrentFolder);
+            }
+        }
+
+        public void FetchFilesFromFolders()
+        {
+            foreach (FileData file in CurrentFile.AppendedFiles.Where(x => x.IsFromFolder == true).ToList())
+            {
+                CurrentFile.AppendedFiles.Remove(file);
+            }
+
+            foreach (FolderData folder in CurrentFile.AppendedFolders)
+            {
+                if (folder.Path != null && folder.Path != string.Empty)
+                {
+                    try
+                    {
+                        foreach (string path in Directory.GetFiles(folder.Path))
+                        {
+                            if (Path.GetExtension(path) == ".pdf")
+                            {
+                                AddAppendedFile(path, true);
+                            }
+                        }
+                    }
+                    catch { }
+
+                }
+            }
+        }
+
         public void NewTimeSheet()
         {
             CurrentCalendarData.TimeSheets.Add(new TimeSheetData() { Hours = 1, Project = "New"});
@@ -583,6 +633,19 @@ namespace Finn.ViewModels
             window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
             window.ShowDialog(mainWindow);
             window.TagMenuInput.Focus();
+        }
+
+        public void OpenFolderDia(Window mainWindow)
+        {
+            var window = new xFoldersDia()
+            {
+                DataContext = this
+            };
+
+            window.FontFamily = mainWindow.FontFamily;
+            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
+
+            window.ShowDialog(mainWindow);
         }
 
         public void TryOpenRenameDia(Window mainWindow)
@@ -896,7 +959,10 @@ namespace Finn.ViewModels
 
         public void AddFileToCollection(string collection)
         {
-            CurrentFile.PartOfCollections.Add(collection);
+            foreach (FileData file in CurrentFiles.Where(x=>x.PartOfCollections.Contains(collection) == false))
+            {
+                file.PartOfCollections.Add(collection);
+            }
             CurrentCollection = collection;
         }
 
@@ -1849,14 +1915,15 @@ namespace Finn.ViewModels
         }
 
 
-        public void AddAppendedFile(string filepath)
+        public void AddAppendedFile(string filepath, bool fromFolder = false)
         {
             if (CurrentFile != null && CurrentFile.AppendedFiles.Where(x => x.Sökväg == filepath).Count() == 0)
             {
                 CurrentFile.AppendedFiles.Add(new FileData()
                 {
                     Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
-                    Sökväg = filepath
+                    Sökväg = filepath,
+                    IsFromFolder = fromFolder
                 });
 
                 SortAttachedFiles();
