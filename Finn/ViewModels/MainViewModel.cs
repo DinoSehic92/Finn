@@ -343,6 +343,7 @@ namespace Finn.ViewModels
 
         public void RemoveFolder()
         {
+            Debug.WriteLine
             if (CurrentFile != null)
             {
                 CurrentFile.AppendedFolders.Remove(CurrentFolder);
