@@ -377,7 +377,7 @@
 									</DataGrid.Styles>
 
 									<DataGrid.Columns>
-										<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="2*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+										<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 										<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 									</DataGrid.Columns>
 									<DataGrid.ContextMenu>
