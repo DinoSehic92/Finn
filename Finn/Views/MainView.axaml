@@ -174,6 +174,10 @@
 						<ToggleButton Name="AttachedView" ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" FontWeight="Normal" Height="30" Padding="0" Width="35"  IsChecked="{Binding AttachedView}" CornerRadius="{Binding Storage.General.CornerRadius}">
 							<ic:SymbolIcon Symbol="Attach" IconVariant="Regular" FontSize="18"/>
 						</ToggleButton>
+
+						<ToggleButton Name="FolderView" ToolTip.Tip="Folders: Ctrl + L" HotKey="Ctrl+L" FontWeight="Normal" Height="30" Padding="0" Width="35"  IsChecked="{Binding ShowFolders}" CornerRadius="{Binding Storage.General.CornerRadius}">
+							<ic:SymbolIcon Symbol="Folder" IconVariant="Regular" FontSize="18"/>
+						</ToggleButton>
 						
 						<ToggleButton Name="ThumbnailToggle" FontWeight="Normal" ToolTip.Tip="Display Thumbnails, Ctrl + T" HotKey="Ctrl+T" Height="30" Width="35" Padding="0" IsChecked="{Binding ShowThumbnails}" CornerRadius="{Binding Storage.General.CornerRadius}">
 							<ic:SymbolIcon Symbol="Image" FontSize="18"/>
@@ -213,7 +217,7 @@
 						
 					</StackPanel>
 
-					<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto">
+					<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto">
 					
 						<DataGrid Name="FileGrid" Grid.Row="0" Margin="5" Padding="0" ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended" HorizontalScrollBarVisibility="Disabled" 
 								  VerticalScrollBarVisibility="Visible" AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" CornerRadius="{Binding Storage.General.CornerRadius}" 
@@ -335,7 +339,8 @@
 											<MenuItem Name="InspectContent" Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Table}"/>
 											<MenuItem Name="GetContent" Header="Fetch" Command="{Binding GetIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
 											<MenuItem Name="ClearContent" Header="Clear" Command="{Binding ClearIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-										</MenuItem>										
+										</MenuItem>		
+									
 									</MenuItem>
 
 									<MenuItem Header="Tools" Icon="{icxt:SymbolIconExtension Symbol=Toolbox}">
@@ -382,8 +387,6 @@
 									</DataGrid.Columns>
 									<DataGrid.ContextMenu>
 										<ContextMenu>
-											<MenuItem Header="Folders" Command="{Binding OpenFolderDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
-											<MenuItem Header="Fetch" Command="{Binding FetchFilesFromFolders}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
 											<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 										</ContextMenu>
 									</DataGrid.ContextMenu>
@@ -426,9 +429,48 @@
 
 						</Grid>
 
+						<Grid Grid.Row="2" ColumnDefinitions="*" IsVisible="{Binding ShowFolders}" MinHeight="200" MaxHeight="600">
+							<Border Grid.Column="0" Margin="5">
+								<Grid RowDefinitions="200,40">
+									<Grid Grid.Row="1" ColumnDefinitions="2*,5,5*,5,2*,5,*">
+										<TextBox Grid.Column="0" Height="30" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
+										<TextBox Grid.Column="2" Height="30" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
+										<ComboBox Grid.Column="4" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.AttachToFile}" ItemsSource="{Binding CurrentProject.StoredFiles}" DisplayMemberBinding="{Binding Namn}"/>
+										<ComboBox Grid.Column="6" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding CurrentProject.Filetypes}"/>
+					
+									</Grid>
+	
+									<DataGrid Name="FolderGrid" Grid.Row="0" ItemsSource="{Binding CurrentProject.Folders}" SelectedItem="{Binding CurrentFolder}" CornerRadius="{Binding Storage.General.CornerRadius}" 
+												SelectionMode="Single" IsReadOnly="True" DragDrop.AllowDrop="True">
 
+										<DataGrid.Columns>
+											<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
+											<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
+											<DataGridTextColumn Binding="{Binding AttachToFile.Namn}"	Header="Attached to File" Width="2*" FontSize="14"/>
+											<DataGridTextColumn Binding="{Binding Filetype}"			Header="Type" Width="*" FontSize="14"/>
+
+										</DataGrid.Columns>
+										<DataGrid.Styles>
+											<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+												<Setter Property="IsVisible" Value="false" />
+											</Style>
+										</DataGrid.Styles>
+
+										<DataGrid.ContextMenu>
+											<ContextMenu>
+												<MenuItem Header="New" Command="{Binding NewFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
+												<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
+												<MenuItem Header="Delete" Command="{Binding RemoveFolder}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
+											</ContextMenu>
+										</DataGrid.ContextMenu>
+
+									</DataGrid>
+								</Grid>
+							</Border>
+						</Grid>
 						
 					</Grid>
+			
 
 				<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2" Background="Transparent" ResizeDirection="Columns" Width="5" IsEnabled="{Binding PreviewEmbeddedOpen}"/>
 

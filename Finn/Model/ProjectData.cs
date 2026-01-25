@@ -58,6 +58,13 @@ namespace Finn.Model
             set { filetypesTree = value; RaisePropertyChanged("FiletypesTree"); }
         }
 
+        private ObservableCollection<FolderData> folders = new ObservableCollection<FolderData>();
+        public ObservableCollection<FolderData> Folders
+        {
+            get { return folders; }
+            set { folders = value; RaisePropertyChanged("Folders"); }
+        }
+
         private bool meta_1 = true;
         private bool meta_2 = false;
         private bool meta_3 = true;
@@ -179,7 +186,7 @@ namespace Finn.Model
             Meta_16 = MetaCheckDefault[15];
         }
 
-        public void Newfile(string filepath, string type="New")
+        public void Newfile(string filepath, string type="New", bool fromFolder = false)
         {
             if (!StoredFiles.Any(x => x.Sökväg == filepath))
             {
@@ -188,6 +195,7 @@ namespace Finn.Model
                     Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
                     Filtyp = type,
                     Uppdrag = Namn,
+                    IsFromFolder = fromFolder,
                     Sökväg = filepath
                 });
                 SetFiletypeList();

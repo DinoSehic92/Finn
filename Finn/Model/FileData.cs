@@ -188,13 +188,6 @@ namespace Finn.Model
             set { appendedFiles = value; RaisePropertyChanged("AppendedFiles"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
-        private ObservableCollection<FolderData> appendedFolders = new ObservableCollection<FolderData>();
-        public ObservableCollection<FolderData> AppendedFolders
-        {
-            get { return appendedFolders; }
-            set { appendedFolders = value; RaisePropertyChanged("AppendedFolders"); }
-        }
-
 
         private ObservableCollection<OtherData> otherFiles = new ObservableCollection<OtherData>();
         public ObservableCollection<OtherData> OtherFiles

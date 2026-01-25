@@ -29,6 +29,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
+using Avalonia.Interactivity;
 
 
 
@@ -246,6 +247,13 @@ namespace Finn.ViewModels
             set { timeSheetOpen = value; OnPropertyChanged("TimeSheetOpen"); WeeklyTimeSummary(); }
         }
 
+        private bool showFolders = false;
+        public bool ShowFolders
+        {
+            get { return showFolders; }
+            set { showFolders = value; OnPropertyChanged("ShowFolders"); }
+        }
+
         private bool trayViewOpen = false;
         public bool TrayViewOpen
         {
@@ -330,34 +338,60 @@ namespace Finn.ViewModels
         public FolderData CurrentFolder
         {
             get { return currentFolder; }
-            set { currentFolder = value; OnPropertyChanged("CurrentFolder"); }
+            set { currentFolder = value; OnPropertyChanged("CurrentFolder");}
         }
 
         public void NewFolder()
         {
-            if (CurrentFile != null)
-            {
-                CurrentFile.AppendedFolders.Add(new FolderData() { Name = "New Folder" });
-            }
+            CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
         }
 
         public void RemoveFolder()
         {
-            Debug.WriteLine
-            if (CurrentFile != null)
+            CurrentProject.Folders.Remove(CurrentFolder);
+        }
+
+        public void SyncSelectedFolder()
+        {
+            if (CurrentFolder.AttachToFile != null)
             {
-                CurrentFile.AppendedFolders.Remove(CurrentFolder);
+                if (CurrentFolder.Path != null && CurrentFolder.Path != string.Empty)
+                {
+                    try
+                    {
+                        foreach (string path in Directory.GetFiles(CurrentFolder.Path))
+                        {
+                            Debug.WriteLine(CurrentFolder.AttachToFile.Namn);
+                            if (Path.GetExtension(path) == ".pdf")
+                            {
+                                CurrentProject.StoredFiles.Where(x=>x.Sökväg == CurrentFolder.AttachToFile.Sökväg).FirstOrDefault().AppendedFiles.Add(new FileData()
+                                {
+                                    Namn = System.IO.Path.GetFileNameWithoutExtension(path),
+                                    Sökväg = path,
+                                    IsFromFolder = true
+                                });
+
+                                SortAttachedFiles();
+                            }
+                        }
+                    }
+                    catch { }
+
+                }
+
+
             }
         }
 
         public void FetchFilesFromFolders()
         {
-            foreach (FileData file in CurrentFile.AppendedFiles.Where(x => x.IsFromFolder == true).ToList())
+
+            foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.IsFromFolder == true).ToList())
             {
-                CurrentFile.AppendedFiles.Remove(file);
+                //CurrentFile.AppendedFiles.Remove(file);
             }
 
-            foreach (FolderData folder in CurrentFile.AppendedFolders)
+            foreach (FolderData folder in CurrentProject.Folders)
             {
                 if (folder.Path != null && folder.Path != string.Empty)
                 {
@@ -367,7 +401,8 @@ namespace Finn.ViewModels
                         {
                             if (Path.GetExtension(path) == ".pdf")
                             {
-                                AddAppendedFile(path, true);
+                                CurrentProject.Newfile(path, "New", true);
+                                SetDefaultType();
                             }
                         }
                     }
@@ -636,18 +671,6 @@ namespace Finn.ViewModels
             window.TagMenuInput.Focus();
         }
 
-        public void OpenFolderDia(Window mainWindow)
-        {
-            var window = new xFoldersDia()
-            {
-                DataContext = this
-            };
-
-            window.FontFamily = mainWindow.FontFamily;
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-
-            window.ShowDialog(mainWindow);
-        }
 
         public void TryOpenRenameDia(Window mainWindow)
         {
@@ -1963,9 +1986,12 @@ namespace Finn.ViewModels
 
         private void SortAttachedFiles()
         {
-            List<FileData> tempList = CurrentFile.AppendedFiles.OrderBy(x => x.Namn).ToList();
-            CurrentFile.AppendedFiles.Clear();
-            CurrentFile.AppendedFiles = new ObservableCollection<FileData>(tempList);
+            if (CurrentFile.AppendedFiles.Count > 0)
+            {
+                List<FileData> tempList = CurrentFile.AppendedFiles.OrderBy(x => x.Namn).ToList();
+                CurrentFile.AppendedFiles.Clear();
+                CurrentFile.AppendedFiles = new ObservableCollection<FileData>(tempList);
+            }
         }
 
         private void SortOtherFiles()

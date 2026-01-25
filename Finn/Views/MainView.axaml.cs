@@ -36,6 +36,8 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectFiles);
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
 
+        FolderGrid.AddHandler(DragDrop.DropEvent, OnFolderDrop);
+
         AppendixGrid.AddHandler(DragDrop.DropEvent, OnDropAppendedFiles);
         OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
         OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
@@ -162,6 +164,27 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         }
 
         MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star);
+    }
+
+    private void OnFolderDrop(object sender, DragEventArgs e)
+    {
+        MainViewModel ctx = (MainViewModel)this.DataContext;
+
+        var items = e.Data.GetFiles();
+
+        foreach (var item in items)
+        {
+            string path = item.Path.LocalPath;
+
+            if (Directory.Exists(path))
+            {
+                ctx.CurrentProject.Folders.Add(new Model.FolderData()
+                {
+                    Name = Path.GetFileName(Path.GetDirectoryName(path)),
+                    Path = path
+                });
+            }
+        }
     }
 
     private void NewTimeSheetProject(object sender, RoutedEventArgs e)
