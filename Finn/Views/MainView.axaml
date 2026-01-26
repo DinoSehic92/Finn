@@ -436,7 +436,7 @@
 										<TextBox Grid.Column="0" Height="30" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
 										<TextBox Grid.Column="2" Height="30" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
 										<ComboBox Grid.Column="4" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.AttachToFile}" ItemsSource="{Binding CurrentProject.StoredFiles}" DisplayMemberBinding="{Binding Namn}"/>
-										<ComboBox Grid.Column="6" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding CurrentProject.Filetypes}"/>
+										<ComboBox Grid.Column="6" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding FileTypeSelection}" />
 					
 									</Grid>
 	

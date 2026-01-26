@@ -186,7 +186,7 @@ namespace Finn.Model
             Meta_16 = MetaCheckDefault[15];
         }
 
-        public void Newfile(string filepath, string type="New", bool fromFolder = false)
+        public void Newfile(string filepath, string type="New", bool fromFolder = false, FolderData? syncFolder = null)
         {
             if (!StoredFiles.Any(x => x.Sökväg == filepath))
             {
@@ -196,6 +196,7 @@ namespace Finn.Model
                     Filtyp = type,
                     Uppdrag = Namn,
                     IsFromFolder = fromFolder,
+                    SyncFolder = syncFolder,
                     Sökväg = filepath
                 });
                 SetFiletypeList();

@@ -30,6 +30,7 @@ using System.Text;
 using System.Threading.Tasks;
 using static System.Net.WebRequestMethods;
 using Avalonia.Interactivity;
+using iText.IO.Font.Otf;
 
 
 
@@ -348,69 +349,94 @@ namespace Finn.ViewModels
 
         public void RemoveFolder()
         {
-            CurrentProject.Folders.Remove(CurrentFolder);
+            if (CurrentFolder.AttachToFile == null)
+            {
+                foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.SyncFolder == CurrentFolder).ToList())
+                {
+                    CurrentProject.StoredFiles.Remove(file);
+                }
+
+                UpdateFilter();
+                OnPropertyChanged("TreeViewUpdate");
+
+                CurrentProject.Folders.Remove(CurrentFolder);
+            }
+            else
+            {
+                RemoveAttachedFile(CurrentFile.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder).ToList());
+                CurrentProject.Folders.Remove(CurrentFolder);
+            }
         }
 
         public void SyncSelectedFolder()
         {
+            List<FileData> files = GetFilesFromFolder(CurrentFolder);
+
             if (CurrentFolder.AttachToFile != null)
             {
-                if (CurrentFolder.Path != null && CurrentFolder.Path != string.Empty)
+                FileData file = CurrentProject.StoredFiles.Where(x => x.Sökväg == CurrentFolder.AttachToFile.Sökväg).FirstOrDefault();
+
+                foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder).ToList())
                 {
-                    try
-                    {
-                        foreach (string path in Directory.GetFiles(CurrentFolder.Path))
-                        {
-                            Debug.WriteLine(CurrentFolder.AttachToFile.Namn);
-                            if (Path.GetExtension(path) == ".pdf")
-                            {
-                                CurrentProject.StoredFiles.Where(x=>x.Sökväg == CurrentFolder.AttachToFile.Sökväg).FirstOrDefault().AppendedFiles.Add(new FileData()
-                                {
-                                    Namn = System.IO.Path.GetFileNameWithoutExtension(path),
-                                    Sökväg = path,
-                                    IsFromFolder = true
-                                });
-
-                                SortAttachedFiles();
-                            }
-                        }
-                    }
-                    catch { }
-
+                    file.AppendedFiles.Remove(fileToRemove);
+                }
+                foreach(FileData fileToAdd in files)
+                {
+                    file.AppendedFiles.Add(fileToAdd);
                 }
 
+                SortAttachedFiles();
+            }
 
+            else
+            {
+
+                IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x => x.SyncFolder == CurrentFolder);
+
+                IEnumerable<FileData> filesToRemove = existingFiles.Where(p => !files.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
+                IEnumerable<FileData> filesToAdd = files.Where(p => !existingFiles.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
+
+                foreach (FileData file in filesToRemove)
+                {
+                    CurrentProject.StoredFiles.Remove(file);
+                }
+
+                foreach (FileData file in filesToAdd)
+                {
+                    CurrentProject.StoredFiles.Add(file);
+                }
+
+                SetDefaultType();
+                OnPropertyChanged("TreeViewUpdate");
+
+                
             }
         }
 
-        public void FetchFilesFromFolders()
+        private List<FileData> GetFilesFromFolder(FolderData folder)
         {
+            List<FileData> files = new List<FileData>();
 
-            foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.IsFromFolder == true).ToList())
+            if (folder.IsValid)
             {
-                //CurrentFile.AppendedFiles.Remove(file);
-            }
-
-            foreach (FolderData folder in CurrentProject.Folders)
-            {
-                if (folder.Path != null && folder.Path != string.Empty)
+                foreach (string path in Directory.GetFiles(folder.Path))
                 {
-                    try
+                    if (Path.GetExtension(path) == ".pdf")
                     {
-                        foreach (string path in Directory.GetFiles(folder.Path))
+                        files.Add(new FileData()
                         {
-                            if (Path.GetExtension(path) == ".pdf")
-                            {
-                                CurrentProject.Newfile(path, "New", true);
-                                SetDefaultType();
-                            }
-                        }
+                            Namn = System.IO.Path.GetFileNameWithoutExtension(path),
+                            Sökväg = path,
+                            SyncFolder = folder,
+                            IsFromFolder = true
+                        });
                     }
-                    catch { }
-
                 }
             }
+
+            return files;
         }
+
 
         public void NewTimeSheet()
         {
@@ -1972,6 +1998,7 @@ namespace Finn.ViewModels
         {
             foreach (FileData file in files)
             {
+                Debug.WriteLine("Removing " + file.Namn);
                 CurrentFile.AppendedFiles.Remove(file);
             }
 
@@ -1986,7 +2013,7 @@ namespace Finn.ViewModels
 
         private void SortAttachedFiles()
         {
-            if (CurrentFile.AppendedFiles.Count > 0)
+            if (CurrentFile != null)
             {
                 List<FileData> tempList = CurrentFile.AppendedFiles.OrderBy(x => x.Namn).ToList();
                 CurrentFile.AppendedFiles.Clear();

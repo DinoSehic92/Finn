@@ -166,6 +166,13 @@ namespace Finn.Model
             
         }
 
+        private FolderData? syncFolder = null;
+        public FolderData? SyncFolder
+        {
+            get { return syncFolder; }
+            set { syncFolder = value; RaisePropertyChanged("SyncFolder"); }
+        }
+
         public bool HasBookmarks
         {
             get
