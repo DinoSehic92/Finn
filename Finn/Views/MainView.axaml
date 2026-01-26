@@ -435,7 +435,9 @@
 									<Grid Grid.Row="1" ColumnDefinitions="2*,5,5*,5,2*,5,*">
 										<TextBox Grid.Column="0" Height="30" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
 										<TextBox Grid.Column="2" Height="30" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
-										<ComboBox Grid.Column="4" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.AttachToFile}" ItemsSource="{Binding CurrentProject.StoredFiles}" DisplayMemberBinding="{Binding Namn}"/>
+										<ComboBox Height="30" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedValue="{Binding CurrentFolder.AttachToFile}" ItemsSource="{Binding CurrentProject.StoredFiles}" 
+															SelectedValueBinding="{Binding Namn}" DisplayMemberBinding="{Binding Namn}"/>
+
 										<ComboBox Grid.Column="6" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding FileTypeSelection}" />
 					
 									</Grid>
@@ -446,7 +448,7 @@
 										<DataGrid.Columns>
 											<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
 											<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
-											<DataGridTextColumn Binding="{Binding AttachToFile.Namn}"	Header="Attached to File" Width="2*" FontSize="14"/>
+											<DataGridTextColumn Binding="{Binding AttachToFile}"		Header="Attached to File" Width="2*" FontSize="14"/>
 											<DataGridTextColumn Binding="{Binding Filetype}"			Header="Type" Width="*" FontSize="14"/>
 
 										</DataGrid.Columns>
@@ -460,6 +462,7 @@
 											<ContextMenu>
 												<MenuItem Header="New" Command="{Binding NewFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
 												<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
+												<MenuItem Header="Clear File" Command="{Binding ClearFolderFile}" Icon="{icxt:SymbolIconExtension Symbol=Attach}"/>
 												<MenuItem Header="Delete" Command="{Binding RemoveFolder}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
 											</ContextMenu>
 										</DataGrid.ContextMenu>

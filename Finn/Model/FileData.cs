@@ -166,8 +166,8 @@ namespace Finn.Model
             
         }
 
-        private FolderData? syncFolder = null;
-        public FolderData? SyncFolder
+        private string? syncFolder = string.Empty;
+        public string? SyncFolder
         {
             get { return syncFolder; }
             set { syncFolder = value; RaisePropertyChanged("SyncFolder"); }

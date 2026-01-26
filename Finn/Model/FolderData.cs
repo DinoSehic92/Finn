@@ -46,8 +46,8 @@ namespace Finn.Model
             set { filetype = value; RaisePropertyChanged("Filetype"); }
         }
 
-        private FileData? attachToFile = null;
-        public FileData? AttachToFile
+        private string? attachToFile = null;
+        public string? AttachToFile
         {
             get { return attachToFile; }
             set { attachToFile = value; RaisePropertyChanged("AttachToFile"); }
