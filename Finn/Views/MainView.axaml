@@ -367,8 +367,6 @@
 											<MenuItem Name="CheckProjectFiles" Header="Check All" Click="OnCheckProjectFiles" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
 										</MenuItem>
 
-										<MenuItem Header="Add Sync Folder" Command="{Binding NewFileFolder}" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
-
 										<MenuItem Name="InfoMenu" Header="File info" Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
 
 										<MenuItem Name="Watermark" Header="Watermark" Icon="{icxt:SymbolIconExtension Symbol=Warning}">
@@ -378,6 +376,12 @@
 
 										<MenuItem Name="RenameOriginal" Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Icon="{icxt:SymbolIconExtension Symbol=Rename}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}"/>
 								
+									</MenuItem>
+
+									<MenuItem Header="Folders" Icon="{icxt:SymbolIconExtension Symbol=Folder}">
+										<MenuItem Header="Add" Command="{Binding NewFileFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
+										<MenuItem Header="Sync" Command="{Binding SyncFile}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
+										
 									</MenuItem>
 
 
@@ -479,7 +483,8 @@
 											<ContextMenu>
 												<MenuItem Header="New" Command="{Binding NewFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
 												<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
-												<MenuItem Header="Delete" Command="{Binding RemoveFolder}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
+												<MenuItem Header="Sync All" Command="{Binding SyncAllFolders}" Icon="{icxt:SymbolIconExtension Symbol=CubeSync}"/>
+												<MenuItem Header="Delete" Click="OnRemoveFolder" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
 											</ContextMenu>
 										</DataGrid.ContextMenu>
 

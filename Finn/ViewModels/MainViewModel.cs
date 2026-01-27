@@ -336,16 +336,17 @@ namespace Finn.ViewModels
 
         public void NewFolder()
         {
-            CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
+            CurrentProject.Folders.Add(new FolderData() { Name = "New Folder", Filetype = "New" });
         }
 
         public void NewFileFolder()
         {
             if (CurrentFile != null)
             {
-                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn });
+                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, Filetype = "New"});
             }
         }
+
 
         public void RemoveFolder()
         {
@@ -353,60 +354,95 @@ namespace Finn.ViewModels
             {
                 if (CurrentFolder.AttachToFile == null)
                 {
-                    foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                    foreach (FileData file in CurrentProject.StoredFiles.Where(x=>x.IsFromFolder).Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
                     {
                         CurrentProject.StoredFiles.Remove(file);
                     }
 
                     UpdateFilter();
-                    OnPropertyChanged("TreeViewUpdate");
-
                     CurrentProject.Folders.Remove(CurrentFolder);
                 }
                 else
                 {
-                    RemoveAttachedFile(CurrentFile.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList());
+                    FileData file = CurrentProject.StoredFiles.Where(x=>x.Namn == CurrentFolder.AttachToFile).FirstOrDefault();
+                    
+                    if (file != null)
+                    {
+                        foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                        {
+                            file.AppendedFiles.Remove(fileToRemove);
+                        }
+
+                        SortAttachedFilesDirect(file);
+                    }
+
                     CurrentProject.Folders.Remove(CurrentFolder);
+
                 }
+            }
+        }
+
+        public void SyncAllFolders()
+        {
+            foreach (FolderData folder in CurrentProject.Folders)
+            {
+                SyncFolder(folder);
             }
         }
 
         public void SyncSelectedFolder()
         {
-            if (CurrentFolder == null)
+            SyncFolder(CurrentFolder);
+        }
+
+        public void SyncFile()
+        {
+            foreach (FolderData folder in CurrentProject.Folders.Where(x=>x.AttachToFile == CurrentFile.Namn))
+            {
+                SyncFolder(folder);
+            }
+        }
+
+        public void SyncFolder(FolderData folder)
+        {
+            if (folder == null)
             {
                 return;
             }
 
-            List<FileData> files = GetFilesFromFolder(CurrentFolder);
+            List<FileData> files = GetFilesFromFolder(folder);
 
-            if (CurrentFolder.Path == null)
+            if (folder.Path == null)
             {
                 return;
             }
 
-            if (CurrentFolder.AttachToFile != null)
+            if (folder.AttachToFile != null)
             {
 
-                FileData file = CurrentProject.StoredFiles.Where(x => x.Namn == CurrentFolder.AttachToFile).FirstOrDefault();
-                CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Namn == CurrentFolder.AttachToFile).ToList();
+                FileData file = CurrentProject.StoredFiles.Where(x => x.Namn == folder.AttachToFile).FirstOrDefault();
+                CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Namn == folder.AttachToFile).ToList();
 
-                foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                if (file != null)
                 {
-                    CurrentFile.AppendedFiles.Remove(fileToRemove);
-                }
-                foreach(FileData fileToAdd in files)
-                {
-                    CurrentFile.AppendedFiles.Add(fileToAdd);
-                }
+                    foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
+                    {
+                        CurrentFile.AppendedFiles.Remove(fileToRemove);
+                    }
 
-                SortAttachedFiles();
+                    foreach (FileData fileToAdd in files)
+                    {
+                        CurrentFile.AppendedFiles.Add(fileToAdd);
+                    }
+
+                    SortAttachedFiles();
+                }
             }
 
             else
             {
 
-                IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x => x.SyncFolder == CurrentFolder.Path);
+                IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x=>x.IsFromFolder).Where(x => x.SyncFolder == folder.Path);
                 IEnumerable<FileData> filesToRemove = existingFiles.Where(p => !files.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
                 IEnumerable<FileData> filesToAdd = files.Where(p => !existingFiles.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
 
@@ -1966,6 +2002,13 @@ namespace Finn.ViewModels
                 CurrentFile.AppendedFiles.Clear();
                 CurrentFile.AppendedFiles = new ObservableCollection<FileData>(tempList);
             }
+        }
+
+        private void SortAttachedFilesDirect(FileData file)
+        {
+            List<FileData> tempList = file.AppendedFiles.OrderBy(x => x.Namn).ToList();
+            file.AppendedFiles.Clear();
+            file.AppendedFiles = new ObservableCollection<FileData>(tempList);
         }
 
         private void SortOtherFiles()

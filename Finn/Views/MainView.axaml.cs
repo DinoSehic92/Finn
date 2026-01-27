@@ -181,7 +181,8 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                 ctx.CurrentProject.Folders.Add(new Model.FolderData()
                 {
                     Name = Path.GetFileName(Path.GetDirectoryName(path)),
-                    Path = path
+                    Path = path,
+                    Filetype = "New"
                 });
             }
         }
@@ -639,6 +640,21 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             if (ctx.Confirmed)
             {
                 ctx.RemoveProject();
+                SetupTreeview(null, null);
+            }
+        }
+    }
+
+    async void OnRemoveFolder(object sender, RoutedEventArgs e)
+    {
+        if (ctx.CurrentFolder != null)
+        {
+            Window window = (MainWindow)Window.GetTopLevel(this);
+            await ctx.ConfirmDeleteDia(window);
+
+            if (ctx.Confirmed)
+            {
+                ctx.RemoveFolder();
                 SetupTreeview(null, null);
             }
         }
