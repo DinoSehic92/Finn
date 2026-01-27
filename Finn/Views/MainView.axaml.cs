@@ -589,9 +589,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     {
         var menuItem = sender as MenuItem;
 
-        MenuItem SelectedMenu = ctx.FileTypeSelection[menuItem.SelectedIndex];
-
-        ctx.EditType(SelectedMenu.Header.ToString());
+        ctx.EditType(menuItem.SelectedItem.ToString());
         SetupTreeview(null, null);
     }
 

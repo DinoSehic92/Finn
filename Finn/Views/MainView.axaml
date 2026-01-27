@@ -288,6 +288,14 @@
 
 								
 									<MenuItem Name="AddToCollection" Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Icon="{icxt:SymbolIconExtension Symbol=Collections}" Click="OnAddToCollection">
+										<MenuItem.ItemTemplate>
+											<DataTemplate>
+												<StackPanel Orientation="Horizontal">
+													<TextBlock Text=" - "/>
+													<TextBlock Text="{Binding }"/>
+												</StackPanel>
+											</DataTemplate>
+										</MenuItem.ItemTemplate>
 									</MenuItem>
 								
 									<MenuItem Name="CopyMenu" Header="Clipboard" Icon="{icxt:SymbolIconExtension Symbol=Clipboard}">
@@ -300,7 +308,17 @@
 
 									<MenuItem Name="MarkFavorite" Header="Favorite" Icon="{icxt:SymbolIconExtension Symbol=Star}" Command="{Binding MarkFavorite}"/>
 
-									<MenuItem Name="TypeMenu" Header="Category" ItemsSource="{Binding FileTypeSelection}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
+									<MenuItem Name="TypeMenu" Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}">
+										<MenuItem.ItemTemplate>
+											<DataTemplate>
+												<StackPanel Orientation="Horizontal">
+													<TextBlock Text=" - "/>
+													<TextBlock Text="{Binding }"/>
+												</StackPanel>
+											</DataTemplate>
+										</MenuItem.ItemTemplate>
+									</MenuItem>
+
 								
 									<MenuItem Name="Tag" Header="Tag" Icon="{icxt:SymbolIconExtension Symbol=Tag}">
 										<MenuItem Name="ColorMainMenu" Header="Color" Icon="{icxt:SymbolIconExtension Symbol=Color}">
@@ -348,6 +366,8 @@
 											<MenuItem Name="CheckSingleFile" Header="Check File" Click="OnCheckStatusSingleFile" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
 											<MenuItem Name="CheckProjectFiles" Header="Check All" Click="OnCheckProjectFiles" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
 										</MenuItem>
+
+										<MenuItem Header="Add Sync Folder" Command="{Binding NewFileFolder}" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
 
 										<MenuItem Name="InfoMenu" Header="File info" Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
 
@@ -432,13 +452,10 @@
 						<Grid Grid.Row="2" ColumnDefinitions="*" IsVisible="{Binding ShowFolders}" MinHeight="200" MaxHeight="600">
 							<Border Grid.Column="0" Margin="5">
 								<Grid RowDefinitions="200,40">
-									<Grid Grid.Row="1" ColumnDefinitions="2*,5,5*,5,2*,5,*">
+									<Grid Grid.Row="1" ColumnDefinitions="2*,5,7*,5,1.5*">
 										<TextBox Grid.Column="0" Height="30" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
 										<TextBox Grid.Column="2" Height="30" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
-										<ComboBox Height="30" Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedValue="{Binding CurrentFolder.AttachToFile}" ItemsSource="{Binding CurrentProject.StoredFiles}" 
-															SelectedValueBinding="{Binding Namn}" DisplayMemberBinding="{Binding Namn}"/>
-
-										<ComboBox Grid.Column="6" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding FileTypeSelection}" />
+										<ComboBox Grid.Column="4" Height="30" VerticalAlignment="Center" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding CurrentProject.AllowedTypes}" />
 					
 									</Grid>
 	
@@ -449,7 +466,7 @@
 											<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
 											<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
 											<DataGridTextColumn Binding="{Binding AttachToFile}"		Header="Attached to File" Width="2*" FontSize="14"/>
-											<DataGridTextColumn Binding="{Binding Filetype}"			Header="Type" Width="*" FontSize="14"/>
+											<DataGridTextColumn Binding="{Binding Filetype}"			Header="Type" Width="1.5*" FontSize="14"/>
 
 										</DataGrid.Columns>
 										<DataGrid.Styles>
@@ -462,7 +479,6 @@
 											<ContextMenu>
 												<MenuItem Header="New" Command="{Binding NewFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
 												<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
-												<MenuItem Header="Clear File" Command="{Binding ClearFolderFile}" Icon="{icxt:SymbolIconExtension Symbol=Attach}"/>
 												<MenuItem Header="Delete" Command="{Binding RemoveFolder}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
 											</ContextMenu>
 										</DataGrid.ContextMenu>

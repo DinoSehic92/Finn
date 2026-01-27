@@ -108,14 +108,6 @@ namespace Finn.ViewModels
             set { attachedView = value; OnPropertyChanged("AttachedView"); }
         }
 
-        private List<MenuItem> fileTypeSelection = new List<MenuItem>();
-
-        public List<MenuItem> FileTypeSelection
-        {
-            get { return fileTypeSelection; }
-            set { fileTypeSelection = value; OnPropertyChanged("FileTypeSelection"); }
-        }
-
         private StoreData storage = new StoreData();
         public StoreData Storage
         {
@@ -347,6 +339,14 @@ namespace Finn.ViewModels
             CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
         }
 
+        public void NewFileFolder()
+        {
+            if (CurrentFile != null)
+            {
+                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn });
+            }
+        }
+
         public void RemoveFolder()
         {
             if (CurrentFolder != null)
@@ -426,14 +426,6 @@ namespace Finn.ViewModels
             }
         }
 
-        public void ClearFolderFile()
-        {
-            if (CurrentFolder != null)
-            {
-                CurrentFolder.AttachToFile = null;
-            }
-        }
-
         private List<FileData> GetFilesFromFolder(FolderData folder)
         {
             List<FileData> files = new List<FileData>();
@@ -448,6 +440,7 @@ namespace Finn.ViewModels
                         {
                             Namn = System.IO.Path.GetFileNameWithoutExtension(path),
                             Sökväg = path,
+                            Filtyp = folder.Filetype,
                             SyncFolder = folder.Path,
                             IsFromFolder = true
                         });
@@ -1129,7 +1122,6 @@ namespace Finn.ViewModels
             SetDefaultSelection();
             SetWindowColors();
             SetWindowBorders();
-            SetAllowedTypes();
             GetGroups();
         }
 
@@ -1233,12 +1225,6 @@ namespace Finn.ViewModels
         public void SetCategory(string category)
         {
             SetProjecCategory(category);
-            SetAllowedTypes();
-        }
-
-        public void SetAllowedTypes()
-        {
-            FileTypeSelection = GetAllowedTypes();
         }
 
         public void SetGroup(string group)
@@ -1699,7 +1685,6 @@ namespace Finn.ViewModels
             if (currentProjectName != name)
             {
                 SetProject(name);
-                SetAllowedTypes();
             }
             OnPropertyChanged("UpdateColumns");
         }
@@ -1707,7 +1692,6 @@ namespace Finn.ViewModels
         public void ReselectProject()
         {
             SetProject(CurrentProject.Namn);
-            SetAllowedTypes();
             OnPropertyChanged("UpdateColumns");
         }
 
@@ -1785,63 +1769,7 @@ namespace Finn.ViewModels
             CurrentProject.Parent = group;
         }
 
-        public List<MenuItem> GetAllowedTypes()
-        {
-
-            if (CurrentProject.Category == "Project")
-            {
-                return new List<MenuItem>()
-                {
-                    new MenuItem(){Header="Drawing", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Document", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Other", Icon=new Label(){Content="○" } }
-                };
-            }
-
-            if (CurrentProject.Category == "Library")
-            {
-
-                return new List<MenuItem>()
-                {
-                    new MenuItem(){Header="General", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Loads", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Concrete", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Steel", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Timber", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="FEM", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Mechanics", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Dynamics", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Geotechnics", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Other", Icon=new Label(){Content="○" } }
-                };
-            }
-
-            if (CurrentProject.Category == "Archive")
-            {
-                return new List<MenuItem>()
-                {
-                    new MenuItem(){Header="Portal Frame", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Slab", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Beam", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Composite", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Concrete deck", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Integral", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Steel", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Post tension", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Substructure", Icon=new Label(){Content="○" } },
-                    new MenuItem(){Header="Other", Icon=new Label(){Content="○" } }
-                };
-            }
-
-            else
-            {
-                return new List<MenuItem>()
-                {
-                    new MenuItem(){Header="" }
-                };
-            }
-        }
-
+        
         public void SortProjects()
         {
             List<ProjectData> sortedLibrary = Storage.StoredProjects.Where(x => x.Category == "Library").OrderBy(x => x.Namn).ToList();
@@ -2005,7 +1933,6 @@ namespace Finn.ViewModels
         {
             if (CurrentFile != null && CurrentFile.OtherFiles.Where(x => x.Filepath == filepath).Count() == 0)
             {
-
                 OtherData newFile = new OtherData() { Filepath = filepath };
                 newFile.SetFile();
 
@@ -2019,7 +1946,6 @@ namespace Finn.ViewModels
         {
             foreach (FileData file in files)
             {
-                Debug.WriteLine("Removing " + file.Namn);
                 CurrentFile.AppendedFiles.Remove(file);
             }
 

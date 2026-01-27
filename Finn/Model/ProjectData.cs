@@ -1,4 +1,6 @@
-﻿using Avalonia.Media;
+﻿using Avalonia.Controls;
+using Avalonia.Media;
+using iText.Forms.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -165,6 +167,27 @@ namespace Finn.Model
 
         public bool[] MetaCheckDefault = { true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false };
 
+        public List<string> AllowedTypes
+        {
+            get
+            {
+                if (Category == "Project")
+                    return new List<string>() {"Drawing", "Document", "Other"};
+
+                if (Category == "Library")
+                {
+                    return new List<string>() { "General", "Loads", "Concrete", "Steel", "Timber", "FEM", "Mechanics", "Dynamics", "Geotechnics", "Other" };
+                }
+                if (Category == "Archive")
+                {
+                    return new List<string>() { "Portal Frame", "Slab", "Beam", "Composite", "Concrete deck", "Integral", "Steel", "Post tension", "Substructure", "Other" };
+                }
+                else
+                {
+                    return new List<string>() { "Error" };
+                }
+            }
+        }
 
         public void SetDefaultMeta()
         {
