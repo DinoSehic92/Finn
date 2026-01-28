@@ -409,6 +409,10 @@ namespace Finn.ViewModels
             {
                 return;
             }
+            if (folder.IsValid == false)
+            {
+                return;
+            }
 
             List<FileData> files = GetFilesFromFolder(folder);
 

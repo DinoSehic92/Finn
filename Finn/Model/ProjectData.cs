@@ -29,7 +29,7 @@ namespace Finn.Model
         public string Category
         {
             get { return category; }
-            set { category = value; RaisePropertyChanged("Category"); }
+            set { category = value; RaisePropertyChanged("Category"); RaisePropertyChanged("AllowedTypes"); }
         }
 
         private string parent = null;
@@ -176,11 +176,11 @@ namespace Finn.Model
 
                 if (Category == "Library")
                 {
-                    return new List<string>() { "General", "Loads", "Concrete", "Steel", "Timber", "FEM", "Mechanics", "Dynamics", "Geotechnics", "Other" };
+                    return new List<string>() { "Drawing", "Document", "General", "Loads", "Concrete", "Steel", "Timber", "FEM", "Mechanics", "Dynamics", "Geotechnics", "Other" };
                 }
                 if (Category == "Archive")
                 {
-                    return new List<string>() { "Portal Frame", "Slab", "Beam", "Composite", "Concrete deck", "Integral", "Steel", "Post tension", "Substructure", "Other" };
+                    return new List<string>() { "Drawing", "Document", "Portal Frame", "Slab", "Beam", "Composite", "Concrete deck", "Integral", "Steel", "Post tension", "Substructure", "Other" };
                 }
                 else
                 {

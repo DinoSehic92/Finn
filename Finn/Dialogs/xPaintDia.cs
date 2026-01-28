@@ -1,13 +1,17 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Skia;
 using DotNetCampus.Inking;
+using DotNetCampus.Inking.Primitive;
 using DotNetCampus.Inking.StrokeRenderers.WpfForSkiaInkStrokeRenderers;
+using DotNetCampus.Numerics.Geometry;
 using iText.Kernel.Pdf;
 using SkiaSharp;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 
@@ -35,6 +39,7 @@ public partial class xPaintDia : Window
             this.Close();
         }
     }
+
 
     private void ToggleStroke(object sender, RoutedEventArgs e)
     {
@@ -71,9 +76,9 @@ public partial class xPaintDia : Window
         Button button = sender as Button;
         string color = button.Tag.ToString();
 
-        if (color == "White") { Whiteboard.Background = new SolidColorBrush(Colors.White); }
-        if (color == "Antique") { Whiteboard.Background = new SolidColorBrush(Colors.AntiqueWhite); }
-        if (color == "Black") { Whiteboard.Background = new SolidColorBrush(Colors.Black); }
+        if (color == "White") { WhiteboardPanel.Background = new SolidColorBrush(Colors.White); }
+        if (color == "Antique") { WhiteboardPanel.Background = new SolidColorBrush(Colors.AntiqueWhite); }
+        if (color == "Black") { WhiteboardPanel.Background = new SolidColorBrush(Colors.Black); }
 
     }
 
