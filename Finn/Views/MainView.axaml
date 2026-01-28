@@ -150,7 +150,7 @@
 
 				<StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="7" HorizontalAlignment="Center" Margin="30 0 0 0">
 					<Grid ColumnDefinitions="*,30,30">           
-						<TextBox Grid.Column="0" Watermark="Seach All Files" Padding="10,7,5,5"  Name="SearchText" Width="160" Height="30" KeyDown="OnStartSearch" BorderBrush="{DynamicResource TextControlBorderBrush}" BorderThickness="{Binding Storage.General.Border}"/>
+						<TextBox Grid.Column="0" Watermark="Seach All Files" Padding="10,7,5,5" Text="{Binding SearchText}" Name="SearchText" Width="160" Height="30" KeyDown="OnStartSearch" BorderBrush="{DynamicResource TextControlBorderBrush}" BorderThickness="{Binding Storage.General.Border}"/>
 						<Button Grid.Column="1" Click="OnSearch" Height="30" Width="35" CornerRadius="{Binding Storage.General.CornerRadius}"> 
 							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="17" Padding="0"/>
 						</Button>

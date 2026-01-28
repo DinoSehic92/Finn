@@ -202,14 +202,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
     public void OnSearch(object sender, RoutedEventArgs e)
     {
-        string searchtext = SearchText.Text;
-
-        if (searchtext != null)
-        {
-
-            ctx.Search(searchtext);
-        }
-
+        ctx.Search();
         OnUpdateColumns();
     }
 

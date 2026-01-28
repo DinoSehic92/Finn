@@ -1427,10 +1427,8 @@ namespace Finn.ViewModels
             ClearSelectedMetadata();
         }
 
-        public void Search(string searchtext)
+        public void Search()
         {
-            SearchText = searchtext;
-
             if (IndexedSearch)
             {
                 SearchIndex();
@@ -1461,7 +1459,7 @@ namespace Finn.ViewModels
             }
 
             FilteredFiles.Clear();
-            CurrentProject = new ProjectData() { Namn = SearchText };
+            CurrentProject = new ProjectData() { Namn = SearchText, Category = "Search"};
 
 
             List<string> filepaths = new List<string>();
@@ -1911,6 +1909,13 @@ namespace Finn.ViewModels
                 }
             }
             OnPropertyChanged("NrFilteredFiles");
+
+            if (CurrentProject.Category != "Search")
+            {
+                IndexedSearch = false;
+                PreviewVM.SearchMode = false;
+                SearchText = String.Empty;
+            }
         }
 
 
@@ -2026,7 +2031,7 @@ namespace Finn.ViewModels
         public void SeachFiles()
         {
             FilteredFiles.Clear();
-            CurrentProject = new ProjectData() { Namn = SearchText };
+            CurrentProject = new ProjectData() { Namn = SearchText, Category = "Search"};
 
             foreach (ProjectData project in Storage.StoredProjects)
             {
