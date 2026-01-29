@@ -387,6 +387,16 @@
 
 									<Separator></Separator>
 
+									<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" Icon="{icxt:SymbolIconExtension Symbol=DocumentArrowRight}">
+										<MenuItem.ItemTemplate>
+											<DataTemplate>
+												<StackPanel Orientation="Horizontal">
+													<TextBlock Text=" - "/>
+													<TextBlock Text="{Binding Namn}"/>
+												</StackPanel>
+											</DataTemplate>
+										</MenuItem.ItemTemplate>
+									</MenuItem>
 
 									<MenuItem Name="RemoveFileMenu" Header="Remove" Click="OnRemoveFiles" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 								</ContextMenu>

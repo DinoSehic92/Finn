@@ -2081,6 +2081,25 @@ namespace Finn.ViewModels
         }
 
 
+        public void MoveSelectedFiles(ProjectData project)
+        {
+            if (project != null)
+            {
+                foreach (FileData file in CurrentFiles.ToList())
+                {
+
+                    if (!project.StoredFiles.Contains(file))
+                    {
+                        CurrentProject.StoredFiles.Remove(file);
+                        file.Filtyp = "New";
+                        file.Uppdrag = project.Namn;
+                        project.StoredFiles.Add(file);
+                    }
+                }
+
+                UpdateFilter();
+            }
+        }
 
 
         public void WatermarkFiles(string text = "Arbetskopia")

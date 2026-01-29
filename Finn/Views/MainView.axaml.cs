@@ -821,6 +821,15 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         }
     }
 
+    private void OnMoveFile(object sender, RoutedEventArgs e)
+    {
+        var menuItem = sender as MenuItem;
+        ProjectData moveToProject = menuItem.SelectedItem as ProjectData;
+        ctx.MoveSelectedFiles(moveToProject);
+        SetupTreeview(null, null);
+    }
+    
+
     private void OnUpdateTotalTime(object sender, RoutedEventArgs args)
     {
         if (ctx.CurrentCalendarData != null)
