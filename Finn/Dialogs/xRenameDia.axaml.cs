@@ -1,11 +1,12 @@
-using Finn.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Finn.ViewModels;
+using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xRenameDia : Window
+public partial class xRenameDia : TemplateWindow
 {
     public xRenameDia()
     {

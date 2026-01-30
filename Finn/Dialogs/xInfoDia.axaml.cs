@@ -1,12 +1,13 @@
-using Finn.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Finn.ViewModels;
+using Finn.Views;
 using System;
 using System.IO;
 
 namespace Finn.Dialog;
 
-public partial class xInfoDia : Window
+public partial class xInfoDia : TemplateWindow
 {
     public xInfoDia()
     {

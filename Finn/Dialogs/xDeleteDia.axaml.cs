@@ -1,11 +1,12 @@
-using Finn.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Finn.ViewModels;
+using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xDeleteDia : Window
+public partial class xDeleteDia : TemplateWindow
 {
     public xDeleteDia()
     {

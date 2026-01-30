@@ -1253,7 +1253,7 @@ namespace Finn.ViewModels
         public void SetWindowBorders()
         {
             Storage.General.CornerRadiusVal = Storage.General.CornerRadiusVal;
-            Storage.General.BorderVal = Storage.General.BorderVal;
+            Storage.General.ShadowVal = Storage.General.ShadowVal;
         }
 
         public void AddFilesDrag(string path)

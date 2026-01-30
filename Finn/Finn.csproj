@@ -90,6 +90,9 @@
     <Compile Update="Dialogs\xColorDia.axaml.cs">
       <DependentUpon>xColorDia.axaml</DependentUpon>
     </Compile>
+    <Compile Update="Views\TemplateWindow.axaml.cs">
+      <DependentUpon>TemplateWindow.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\PreView.axaml.cs">
       <DependentUpon>PreView.axaml</DependentUpon>
     </Compile>

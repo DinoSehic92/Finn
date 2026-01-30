@@ -1,10 +1,11 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xMessageDia : Window
+public partial class xMessageDia : TemplateWindow
 {
     public xMessageDia()
     {

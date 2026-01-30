@@ -2,12 +2,13 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Finn.Views;
 using System.Collections.Generic;
 using System.ComponentModel;
 
 namespace Finn.Dialog;
 
-public partial class xColorDia : Window, INotifyPropertyChanged
+public partial class xColorDia : TemplateWindow
 {
     public xColorDia()
     {

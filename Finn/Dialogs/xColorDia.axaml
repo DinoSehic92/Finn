@@ -18,8 +18,6 @@
 		x:DataType="vm:MainViewModel">
 
 
-
-
 	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			
@@ -55,7 +53,7 @@
 					<Label Grid.Column="0" Grid.Row="5" Content="Accent" VerticalAlignment="Center"/>
 
 					<Label Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" FontWeight="Bold" Content="Borders" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-					<Label Grid.Column="0" Grid.Row="7" Content="Border" VerticalAlignment="Center"/>
+					<Label Grid.Column="0" Grid.Row="7" Content="Shadow" VerticalAlignment="Center"/>
 					<Label Grid.Column="0" Grid.Row="8" Content="Radius" VerticalAlignment="Center"/>
 
 					<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -75,11 +73,11 @@
 					<ColorPicker Grid.Column="1" Grid.Row="4" Color="{Binding Storage.General.Color3}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerLight"/>
 					<ColorPicker Grid.Column="1" Grid.Row="5" Color="{Binding Storage.General.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
 
-					<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding Storage.General.BorderVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+					<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding Storage.General.ShadowVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 					<ToggleSwitch Grid.Column="1" Grid.Row="8" IsChecked="{Binding Storage.General.CornerRadiusVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
-					<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" DataContext="{Binding Storage.General}" SelectedValue="{Binding Font}" VerticalAlignment="Center"/>
-					<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" DataContext="{Binding Storage.General}" SelectedValue="{Binding FontSize}" VerticalAlignment="Center"/>
+					<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" DataContext="{Binding Storage.General}" SelectedValue="{Binding Font}"/>
+					<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" DataContext="{Binding Storage.General}" SelectedValue="{Binding FontSize}"/>
 
 					<Button Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
 					

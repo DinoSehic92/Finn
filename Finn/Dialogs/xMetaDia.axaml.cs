@@ -1,13 +1,14 @@
-using Finn.Model;
-using Finn.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Finn.Model;
+using Finn.ViewModels;
+using Finn.Views;
 using System.Linq;
 
 namespace Finn.Dialog;
 
-public partial class xMetaDia : Window
+public partial class xMetaDia : TemplateWindow
 {
     public xMetaDia()
     {

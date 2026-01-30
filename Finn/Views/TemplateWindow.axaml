@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Finn.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:Finn.Views"
+        x:Class="Finn.Views.TemplateWindow"
+        Icon="/Assets/folder.ico"
+		x:DataType="vm:MainViewModel"
+        Title="Template">
+
+	<Window.Styles>
+
+		<Style Selector="Border">
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+		</Style>
+
+		<Style Selector="Button">
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+		</Style>
+
+		<Style Selector="TextBox">
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="5"/>
+		</Style>
+		<Style Selector="TextBox /template/ ContentPresenter">
+			<Setter Property="Margin" Value="5"/>
+		</Style>
+		<Style Selector="TextBox /template/ Border#PART_BorderElement">
+			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Margin" Value="5"/>
+		</Style>
+
+
+		<Style Selector="ComboBox">
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="5"/>
+		</Style>
+		<Style Selector="ComboBox /template/ ContentControl#ContentPresenter">
+			<Setter Property="Padding" Value="10,0,0,0"/>
+		</Style>
+		<Style Selector="ComboBox /template/ Border#Background">
+			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Margin" Value="4"/>
+		</Style>
+
+
+		<Style Selector="DataGrid">
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Padding" Value="5"/>
+		</Style>
+
+		<Style Selector="DataGrid /template/ Border#DataGridBorder">
+			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Margin" Value="5"/>
+		</Style>
+
+	</Window.Styles>
+
+
+</Window>
+
+

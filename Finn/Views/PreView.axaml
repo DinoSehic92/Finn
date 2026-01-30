@@ -58,12 +58,12 @@
 		</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="True" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
-			<Border Name="SearchGridBorder" Grid.Row="0" Margin="0 0 5 0" Background="{DynamicResource TextControlBackground}" CornerRadius="{Binding Storage.General.CornerRadius}" BorderBrush="{DynamicResource TextControlBorderBrush}" BorderThickness="{Binding Storage.General.Border}">
+			<Border Name="SearchGridBorder" Grid.Row="0" Margin="0 0 5 0" Background="{DynamicResource TextControlBackground}" CornerRadius="{Binding Storage.General.CornerRadius}">
 				<Grid RowDefinitions="10,30,30,*">
 
 					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
 						<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">
-							<TextBox Grid.Column="0" Watermark="Seach String" Name="SearchRegex" KeyDown="OnStartSearhRegex" BorderBrush="{DynamicResource TextControlBorderBrush}" BorderThickness="{Binding Storage.General.Border}"/>
+							<TextBox Grid.Column="0" Watermark="Seach String" Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
 							<Button Grid.Column="1" Margin="0" Click="OnSeachRegex" BorderThickness="0" IsEnabled="{Binding !PreviewVM.SearchBusy}">
 								<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 							</Button>

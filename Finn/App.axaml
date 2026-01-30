@@ -39,7 +39,6 @@
 			<Setter Property="Height" Value="30"/>
 			<Setter Property="MinWidth" Value="30"/>
 			<Setter Property="Padding" Value="0"/>
-			<Setter Property="CornerRadius" Value="10"/>
 			<Setter Property="VerticalContentAlignment" Value="Center"/>
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -48,19 +47,17 @@
 		</Style>
 
 		<Style Selector="ToggleButton">
-			<Setter Property="CornerRadius" Value="10"/>
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="BorderThickness" Value="1"/>
 		</Style>
 
 		<Style Selector="ComboBox">
-			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="Height" Value="35"/>
 			<Setter Property="BorderThickness" Value="0"/>
 		</Style>
 
 		<Style Selector="TextBox">
-			<Setter Property="MinHeight" Value="25"/>
-			<Setter Property="CornerRadius" Value="10"/>
+			<Setter Property="MinHeight" Value="26"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="FontSize" Value="14"/>
 		</Style>
@@ -80,7 +77,6 @@
 			<Setter Property="FontSize" Value="14"/>
 			<Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
 			<Setter Property="FontStyle" Value="Italic"/>
-			
 		</Style>
 
 		<Style Selector="DataGrid">

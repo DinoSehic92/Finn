@@ -5,7 +5,7 @@ using System.Diagnostics;
 
 namespace Finn.Views;
 
-public partial class PreWindow : Window
+public partial class PreWindow : TemplateWindow
 {
     public PreWindow()
     {

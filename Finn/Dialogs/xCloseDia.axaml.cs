@@ -6,7 +6,7 @@ using Avalonia.Interactivity;
 
 namespace Finn.Dialog;
 
-public partial class xCloseDia : Window
+public partial class xCloseDia : TemplateWindow
 {
     private MainWindow mainWindow;
 

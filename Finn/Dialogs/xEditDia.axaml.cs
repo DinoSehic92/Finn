@@ -1,12 +1,13 @@
-using Finn.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Finn.ViewModels;
+using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xEditDia : Window
+public partial class xEditDia : TemplateWindow
 {
     public xEditDia()
     {

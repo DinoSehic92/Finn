@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Media;
 using System.Collections.Generic;
+using Avalonia.Controls.Primitives;
 
 namespace Finn.Model
 {
@@ -58,18 +59,19 @@ namespace Finn.Model
             set { cornerRadius = value; RaisePropertyChanged("CornerRadius"); }
         }
 
-        private bool borderVal = false;
-        public bool BorderVal
+        private BoxShadows shadow = BoxShadows.Parse("1 1 3 1 Black");
+
+        public BoxShadows Shadow
         {
-            get { return borderVal; }
-            set { borderVal = value; RaisePropertyChanged("BorderVal"); SetBorder(); }
+            get { return shadow; }
+            set { shadow = value; RaisePropertyChanged("Shadow"); }
         }
 
-        private Thickness border = new Thickness(0);
-        public Thickness Border
+        private bool shadowVal = false;
+        public bool ShadowVal
         {
-            get { return border; }
-            set { border = value; RaisePropertyChanged("Border"); }
+            get { return shadowVal; }
+            set { shadowVal = value; RaisePropertyChanged("ShadowVal"); SetShadow(); }
         }
 
         private int fontSize = 16;
@@ -157,15 +159,15 @@ namespace Finn.Model
             }
         }
 
-        private void SetBorder()
+        private void SetShadow()
         {
-            if (BorderVal)
+            if (ShadowVal)
             {
-                Border = new Thickness(0.6);
+                Shadow = BoxShadows.Parse("1 1 3 1 Black");
             }
             else
             {
-                Border = new Thickness(0);
+                Shadow = new BoxShadows();
             }
         }
 

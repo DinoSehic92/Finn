@@ -1,14 +1,15 @@
 
-using Finn.Model;
-using Finn.ViewModels;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Finn.Model;
+using Finn.ViewModels;
+using Finn.Views;
 using System.IO;
 using System.Reflection;
 
 namespace Finn.Dialog;
 
-public partial class xProgDia : Window
+public partial class xProgDia : TemplateWindow
 {
     public xProgDia()
     {

@@ -2,11 +2,12 @@
 using Avalonia.Controls;
 using Finn.Dialog;
 using System.ComponentModel;
+using System.Diagnostics;
 
 
 namespace Finn.Views;
 
-public partial class MainWindow : Window, INotifyPropertyChanged
+public partial class MainWindow : TemplateWindow, INotifyPropertyChanged
 {
 
     public bool confirmLeave = true;
@@ -18,7 +19,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if(confirmLeave)
+        if (confirmLeave)
         {
             e.Cancel = true;
             OpenClosingDia();

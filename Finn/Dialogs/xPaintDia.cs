@@ -8,6 +8,7 @@ using DotNetCampus.Inking;
 using DotNetCampus.Inking.Primitive;
 using DotNetCampus.Inking.StrokeRenderers.WpfForSkiaInkStrokeRenderers;
 using DotNetCampus.Numerics.Geometry;
+using Finn.Views;
 using iText.Kernel.Pdf;
 using SkiaSharp;
 using System;
@@ -17,7 +18,7 @@ using System.Linq;
 
 namespace Finn.Dialog;
 
-public partial class xPaintDia : Window
+public partial class xPaintDia : TemplateWindow
 {
     public xPaintDia()
     {
