@@ -59,7 +59,7 @@ namespace Finn.Model
             set { cornerRadius = value; RaisePropertyChanged("CornerRadius"); }
         }
 
-        private BoxShadows shadow = BoxShadows.Parse("1 1 3 1 Black");
+        private BoxShadows shadow = BoxShadows.Parse("1 1 4 1 Black");
 
         public BoxShadows Shadow
         {
@@ -163,7 +163,7 @@ namespace Finn.Model
         {
             if (ShadowVal)
             {
-                Shadow = BoxShadows.Parse("1 1 3 1 Black");
+                Shadow = BoxShadows.Parse("1 1 4 1 Black");
             }
             else
             {

@@ -105,7 +105,7 @@
 
 	</UserControl.Styles>
 
-			<Grid Name ="MainGrid" DragDrop.AllowDrop="True" ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto" RowDefinitions="35,33,*" Margin="5">
+			<Grid Name ="MainGrid" DragDrop.AllowDrop="True" ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto" RowDefinitions="35,35,*" Margin="5">
 				<DockPanel Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Left">
 					<Menu DockPanel.Dock="Top" FontSize="15" FontFamily="Default">
 						<MenuItem Header="File">
