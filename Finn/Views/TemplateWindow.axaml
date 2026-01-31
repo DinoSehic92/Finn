@@ -19,10 +19,13 @@
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 		</Style>
 
+		<Style Selector="ToggleButton">
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+		</Style>
+
 		<Style Selector="TextBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="VerticalContentAlignment" Value="Center"/>
-			<Setter Property="Padding" Value="5"/>
+			<Setter Property="Padding" Value="5,9,5,9"/>
 		</Style>
 		<Style Selector="TextBox /template/ ContentPresenter">
 			<Setter Property="Margin" Value="5"/>
@@ -36,16 +39,16 @@
 
 		<Style Selector="ComboBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="VerticalAlignment" Value="Center"/>
 			<Setter Property="Padding" Value="5"/>
 		</Style>
 		<Style Selector="ComboBox /template/ ContentControl#ContentPresenter">
 			<Setter Property="Padding" Value="10,0,0,0"/>
+			<Setter Property="Margin" Value="5"/>
 		</Style>
 		<Style Selector="ComboBox /template/ Border#Background">
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Margin" Value="4"/>
+			<Setter Property="Margin" Value="5"/>
 		</Style>
 
 

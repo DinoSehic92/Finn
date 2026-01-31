@@ -48,17 +48,20 @@
 
 		<Style Selector="ToggleButton">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="BorderThickness" Value="0"/>
 		</Style>
 
 		<Style Selector="ComboBox">
-			<Setter Property="Height" Value="35"/>
+			<Setter Property="MinHeight" Value="37"/>
+			<Setter Property="VerticalAlignment" Value="Top"/>
 			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Margin" Value="0,-1,0,0"/>
 		</Style>
 
 		<Style Selector="TextBox">
-			<Setter Property="MinHeight" Value="26"/>
+			<Setter Property="MinHeight" Value="27"/>
 			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
 		</Style>
 
