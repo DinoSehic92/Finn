@@ -19,7 +19,6 @@
 
 		x:DataType="vm:MainViewModel">
 
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
@@ -95,6 +94,5 @@
 				</Panel>
 			</Grid>
 		</Grid>
-	</Border>
     
 </Window>

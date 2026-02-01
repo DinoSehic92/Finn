@@ -150,9 +150,8 @@
 
 		
 				
-					<StackPanel Grid.Row="1" Grid.ColumnSpan="7" MinHeight="0" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="10" Margin="5">
-						
-						<Button Name="Columns" Width="140" Click="Border_PointerPressed" BorderBrush="{DynamicResource TextControlBorderBrush}">
+					<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="10" Margin="5 5 4 5">
+						<Button Name="Columns" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
 							<Grid ColumnDefinitions="30,*,30" FlowDirection="LeftToRight" Width="140">
 								<ic:SymbolIcon Grid.Column="0" Symbol="Database" IconVariant="Regular" FontSize="20"/>
 								<Label Grid.Column="1" Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -182,7 +181,7 @@
 									</StackPanel>
 								</Flyout>
 							</Button.Flyout>
-						</Button>
+							</Button>
 
 						<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
 							<ToggleButton IsChecked="{Binding Storage.General.TrayNote}" Height="30" Width="30" Padding="0">

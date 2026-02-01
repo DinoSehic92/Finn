@@ -16,7 +16,6 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Width="390" Height="180" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -26,11 +25,10 @@
 				</StackPanel>
 				<TextBox Name="NewNameInput" HorizontalContentAlignment="Center" Width="360" />
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-					<Button Name="TagAccept" HotKey="Enter" Content="Accept" Width="70" BorderBrush="{DynamicResource TextControlBorderBrush}" Click="AcceptRename"/>
-					<Button Name="Cancel" HotKey="Escape" Content="Cancel" Width="70" BorderBrush="{DynamicResource TextControlBorderBrush}" Click="OnClose"/>
+					<Button Name="TagAccept" HotKey="Enter" Content="Accept" Width="70" Background="{DynamicResource TextControlBackground}" Click="AcceptRename"/>
+					<Button Name="Cancel" HotKey="Escape" Content="Cancel" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnClose"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>
-	</Border>
     
 </Window>

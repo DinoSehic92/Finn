@@ -16,7 +16,6 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Width="610" Height="670" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -85,10 +84,10 @@
 				</Grid>
 			
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-					<Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="70" BorderBrush="{DynamicResource TextControlBorderBrush}" Click="OnEditProject"/>
+					<Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnEditProject"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>
-	</Border>
+
     
 </Window>

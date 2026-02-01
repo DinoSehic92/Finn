@@ -19,7 +19,7 @@
 		<converter:GridDefConverter x:Key="GridDefConverter"/>
 	</UserControl.Resources>
 
-	<Grid Name="MainPreviewGrid" RowDefinitions="*,35" ColumnDefinitions="*,Auto">
+	<Grid Name="MainPreviewGrid" RowDefinitions="*,35" ColumnDefinitions="*,Auto" Margin="0">
 		<Grid Name="PreviewGrid" ClipToBounds="True" ColumnDefinitions="*" RowDefinitions="*" Grid.Row="0" Grid.Column="0">
 			<LayoutTransformControl Name="Tester">
 				<LayoutTransformControl.LayoutTransform>
@@ -58,8 +58,8 @@
 		</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="True" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
-			<Border Name="SearchGridBorder" Grid.Row="0" Margin="0 0 5 0" Background="{DynamicResource TextControlBackground}" CornerRadius="{Binding Storage.General.CornerRadius}">
-				<Grid RowDefinitions="10,30,30,*">
+			<Border Name="SearchGridBorder" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}" BoxShadow="{Binding Storage.General.Shadow}" CornerRadius="{Binding Storage.General.CornerRadius}">
+				<Grid RowDefinitions="10,35,30,*">
 
 					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
 						<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">

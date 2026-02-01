@@ -118,9 +118,9 @@ public partial class xPaintDia : TemplateWindow
     private void SaveImage(object sender, RoutedEventArgs e)
     {
 
-        string path = "C:\\FIlePathManager\\Sketches\\test.pdf";
+        Directory.CreateDirectory("C:\\FIlePathManager\\Sketches");
 
-        //Directory.CreateDirectory(path);
+        string path = "C:\\FIlePathManager\\Sketches\\" + DateTime.Now.ToString("yyyy-MM-dd hh-mm-ss") + ".pdf";
 
         using var skPaint = new SKPaint();
         {

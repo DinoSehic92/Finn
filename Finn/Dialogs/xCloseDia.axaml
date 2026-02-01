@@ -16,7 +16,6 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 	
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
 		<Grid RowDefinitions="30,170" Height="115" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Height="170" Orientation="Vertical" VerticalAlignment="Center" Spacing="10">
@@ -25,12 +24,11 @@
 					<Label Content="Save before close?" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 				</StackPanel>
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5">
-					<Button Name="SaveYes" HotKey="Enter" Width="70" Content="Yes" Click="SaveBeforeClose" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
-					<Button Name="SaveNo" Width="70" Content="No" Click="OnLeave" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
-					<Button Name="SaveCancel" HotKey="Escape" Width="70" Content="Cancel" Click="OnCancel" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
+					<Button Name="SaveYes" HotKey="Enter" Width="70" Content="Yes" Click="SaveBeforeClose" Background="{DynamicResource TextControlBackground}"/>
+					<Button Name="SaveNo" Width="70" Content="No" Click="OnLeave" Background="{DynamicResource TextControlBackground}"/>
+					<Button Name="SaveCancel" HotKey="Escape" Width="70" Content="Cancel" Click="OnCancel" Background="{DynamicResource TextControlBackground}"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>
-	</Border>
 
 </Window>

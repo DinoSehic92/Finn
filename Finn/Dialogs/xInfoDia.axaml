@@ -16,7 +16,7 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
+
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Width="440" Height="290" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -39,7 +39,7 @@
 				</Grid>
 			</StackPanel>
 		</Grid>
-	</Border>
+
 	
 	
 </Window>

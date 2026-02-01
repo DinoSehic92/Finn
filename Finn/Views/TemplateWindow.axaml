@@ -43,7 +43,6 @@
 		</Style>
 		<Style Selector="ComboBox /template/ ContentControl#ContentPresenter">
 			<Setter Property="Padding" Value="10,0,0,0"/>
-			<Setter Property="Margin" Value="5"/>
 		</Style>
 		<Style Selector="ComboBox /template/ Border#Background">
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
@@ -62,6 +61,9 @@
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Margin" Value="5"/>
 		</Style>
+
+
+
 
 	</Window.Styles>
 

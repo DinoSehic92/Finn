@@ -16,7 +16,6 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Width="210" Height="180" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -26,10 +25,9 @@
 				</StackPanel>
 				<TextBox Name="TagMenuInput" HorizontalContentAlignment="Center" Width="160" />
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-					<Button Name="TagAccept" HotKey="Enter" Content="Accept" Width="70" BorderBrush="{DynamicResource TextControlBorderBrush}" Click="OnSetTag"/>
+					<Button Name="TagAccept" HotKey="Enter" Content="Accept" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnSetTag"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>
-	</Border>
     
 </Window>

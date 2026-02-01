@@ -18,74 +18,70 @@
 		x:DataType="vm:MainViewModel">
 
 
-	<Border BorderThickness="1" BorderBrush="{DynamicResource MenuFlyoutPresenterBackground}">
-		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
-			
-			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
-			<StackPanel Grid.Row="1" Width="270" Height="620" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+	<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+		<Panel Grid.Row="0" IsHitTestVisible="False"/>
+		<StackPanel Grid.Row="1" Width="270" Height="620" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
 				
-				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="10" Spacing="0">
-					<ic:SymbolIcon Symbol="ColorBackground" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
-					<Label Content="Edit Theme Colors" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
-				</StackPanel>
-				
-				<Grid ColumnDefinitions="100,120" RowDefinitions="30,40,40,40,40,40,40,40,40,40,40,40,60" HorizontalAlignment="Center" VerticalAlignment="Center">
-
-					<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center">
-						<Label FontWeight="Bold" Content="Dark" VerticalAlignment="Center"/>
-						<Button Grid.Column="2" Click="ResetDark" VerticalContentAlignment="Center" BorderBrush="Transparent">
-							<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
-						</Button>
-					</StackPanel>
-					
-					<Label Grid.Column="0" Grid.Row="1" Content="Background" VerticalAlignment="Center"/>
-					<Label Grid.Column="0" Grid.Row="2" Content="Accent" VerticalAlignment="Center"/>
-
-					<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<Label FontWeight="Bold" Content="Light" VerticalAlignment="Center"/>
-						<Button Grid.Column="2" Click="ResetLight" BorderBrush="Transparent">
-							<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
-						</Button>
-					</StackPanel>
-					
-					<Label Grid.Column="0" Grid.Row="4" Content="Background" VerticalAlignment="Center"/>
-					<Label Grid.Column="0" Grid.Row="5" Content="Accent" VerticalAlignment="Center"/>
-
-					<Label Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" FontWeight="Bold" Content="Borders" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-					<Label Grid.Column="0" Grid.Row="7" Content="Shadow" VerticalAlignment="Center"/>
-					<Label Grid.Column="0" Grid.Row="8" Content="Radius" VerticalAlignment="Center"/>
-
-					<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<Label FontWeight="Bold" Content="Fonts" VerticalAlignment="Center"/>
-						<Button Grid.Column="2" Click="ResetFonts" BorderBrush="Transparent">
-							<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
-						</Button>
-					</StackPanel>
-					
-					<Label Grid.Column="0" Grid.Row="10" Content="Font" VerticalAlignment="Center"/>
-					<Label Grid.Column="0" Grid.Row="11" Content="Size" VerticalAlignment="Center"/>
-
-
-					<ColorPicker Grid.Column="1" Grid.Row="1" Color="{Binding Storage.General.Color1}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerDark"/>
-					<ColorPicker Grid.Column="1" Grid.Row="2" Color="{Binding Storage.General.Color2}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerDark"/>
-
-					<ColorPicker Grid.Column="1" Grid.Row="4" Color="{Binding Storage.General.Color3}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerLight"/>
-					<ColorPicker Grid.Column="1" Grid.Row="5" Color="{Binding Storage.General.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
-
-					<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding Storage.General.ShadowVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-					<ToggleSwitch Grid.Column="1" Grid.Row="8" IsChecked="{Binding Storage.General.CornerRadiusVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-
-					<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" DataContext="{Binding Storage.General}" SelectedValue="{Binding Font}"/>
-					<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" DataContext="{Binding Storage.General}" SelectedValue="{Binding FontSize}"/>
-
-					<Button Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" BorderBrush="{DynamicResource TextControlBorderBrush}"/>
-					
-
-				</Grid>
+			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="10" Spacing="0">
+				<ic:SymbolIcon Symbol="ColorBackground" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+				<Label Content="Edit Theme Colors" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
 			</StackPanel>
-			
-		</Grid>
-	</Border>
+				
+			<Grid ColumnDefinitions="100,120" RowDefinitions="30,40,40,40,40,40,40,40,40,40,40,40,60" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+				<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center">
+					<Label FontWeight="Bold" Content="Dark" VerticalAlignment="Center"/>
+					<Button Grid.Column="2" Click="ResetDark" VerticalContentAlignment="Center" BorderBrush="Transparent">
+						<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
+					</Button>
+				</StackPanel>
+					
+				<Label Grid.Column="0" Grid.Row="1" Content="Background" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="2" Content="Accent" VerticalAlignment="Center"/>
+
+				<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+					<Label FontWeight="Bold" Content="Light" VerticalAlignment="Center"/>
+					<Button Grid.Column="2" Click="ResetLight" BorderBrush="Transparent">
+						<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
+					</Button>
+				</StackPanel>
+					
+				<Label Grid.Column="0" Grid.Row="4" Content="Background" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="5" Content="Accent" VerticalAlignment="Center"/>
+
+				<Label Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" FontWeight="Bold" Content="Borders" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="7" Content="Shadow" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="8" Content="Radius" VerticalAlignment="Center"/>
+
+				<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+					<Label FontWeight="Bold" Content="Fonts" VerticalAlignment="Center"/>
+					<Button Grid.Column="2" Click="ResetFonts" BorderBrush="Transparent">
+						<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
+					</Button>
+				</StackPanel>
+					
+				<Label Grid.Column="0" Grid.Row="10" Content="Font" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="11" Content="Size" VerticalAlignment="Center"/>
+
+
+				<ColorPicker Grid.Column="1" Grid.Row="1" Color="{Binding Storage.General.Color1}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerDark"/>
+				<ColorPicker Grid.Column="1" Grid.Row="2" Color="{Binding Storage.General.Color2}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerDark"/>
+
+				<ColorPicker Grid.Column="1" Grid.Row="4" Color="{Binding Storage.General.Color3}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerLight"/>
+				<ColorPicker Grid.Column="1" Grid.Row="5" Color="{Binding Storage.General.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
+
+				<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding Storage.General.ShadowVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+				<ToggleSwitch Grid.Column="1" Grid.Row="8" IsChecked="{Binding Storage.General.CornerRadiusVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+				<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" SelectedValue="{Binding Storage.General.Font}"/>
+				<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" SelectedValue="{Binding Storage.General.FontSize}"/>
+
+				<Button Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
+			</Grid>
+		</StackPanel>
+	</Grid>
+		
+
     
 </Window>
