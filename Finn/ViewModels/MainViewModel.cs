@@ -1999,8 +1999,11 @@ namespace Finn.ViewModels
 
         public void RemoveOtherFile(OtherData file)
         {
-            CurrentFile.OtherFiles.Remove(file);
-            SortOtherFiles();
+            if (file != null)
+            {
+                CurrentFile.OtherFiles.Remove(file);
+                SortOtherFiles();
+            }
         }
 
         private void SortAttachedFiles()

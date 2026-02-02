@@ -6,6 +6,7 @@
         xmlns:views="clr-namespace:Finn.Views"
         x:Class="Finn.Views.TemplateWindow"
         Icon="/Assets/folder.ico"
+		RequestedThemeVariant="{Binding Storage.General.Theme}"
 		x:DataType="vm:MainViewModel"
         Title="Template">
 

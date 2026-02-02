@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Avalonia.Media;
 using System.Collections.Generic;
 using Avalonia.Controls.Primitives;
+using Avalonia.Styling;
 
 namespace Finn.Model
 {
@@ -66,6 +67,29 @@ namespace Finn.Model
             get { return shadow; }
             set { shadow = value; RaisePropertyChanged("Shadow"); }
         }
+
+        private bool darkMode = true;
+        public bool DarkMode
+        {
+            get { return darkMode; }
+            set { darkMode = value; RaisePropertyChanged("DarkMode"); RaisePropertyChanged("Theme"); }
+        }
+
+        public ThemeVariant Theme
+        {
+            get 
+            { 
+                if (DarkMode)
+                {
+                    return ThemeVariant.Dark;
+                }
+                else
+                {
+                    return ThemeVariant.Light;
+                }
+            }
+        }
+
 
         private bool shadowVal = false;
         public bool ShadowVal
