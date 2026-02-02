@@ -15,6 +15,7 @@ using Avalonia.Data;
 using Avalonia.Styling;
 using System.Diagnostics;
 using System.Drawing.Printing;
+using Avalonia.Platform.Storage;
 
 
 namespace Finn.Views;
@@ -57,7 +58,6 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         InitMetaworker();
     }
 
-    public bool darkmode = true;
 
     private BackgroundWorker MetaWorker = new BackgroundWorker();
 
@@ -515,23 +515,6 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         }
     }
 
-    public void ToggleTheme(object sender, RoutedEventArgs e)
-    {
-        darkmode = !darkmode;
-
-        var window = Window.GetTopLevel(this);
-
-        if (darkmode)
-        {
-            window.RequestedThemeVariant = ThemeVariant.Dark;
-        }
-        else
-        {
-            window.RequestedThemeVariant = ThemeVariant.Light;
-        }
-
-    }
-
 
     private void Border_PointerPressed(object sender, RoutedEventArgs args)
     {
@@ -910,13 +893,20 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private void OnOpenOtherFile(object sender, RoutedEventArgs e)
     {
         OtherData file = (OtherData)OtherFilesGrid.SelectedItem;
-        ctx.OpenOtherFile(file.Filepath);
+        if (file != null)
+        {
+            ctx.OpenOtherFile(file.Filepath);
+        }
     }
 
     private void OnOpenOtherFolder(object sender, RoutedEventArgs e)
     {
         OtherData file = (OtherData)OtherFilesGrid.SelectedItem;
-        ctx.OpenOtherPath(file.Filepath);
+
+        if (file != null)
+        {
+            ctx.OpenOtherPath(file.Filepath);
+        }
     }
 
     private void SelectFiles(object sender, RoutedEventArgs e)

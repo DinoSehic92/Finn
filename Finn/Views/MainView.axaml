@@ -241,7 +241,7 @@
 							<ic:SymbolIcon Symbol="Eye" IconVariant="Regular" FontSize="18"/>
 						</ToggleButton>	
 
-						<ToggleButton Name="ThemeToggle" ToolTip.Tip="Mode: Ctrl + M" HotKey="Ctrl+M" FontWeight="Normal" Height="30" Width="35" Padding="0" IsCheckedChanged="ToggleTheme">
+						<ToggleButton Name="ThemeToggle" ToolTip.Tip="Mode: Ctrl + M" HotKey="Ctrl+M" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding !Storage.General.DarkMode}">
 							<ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/>
 						</ToggleButton>
 
@@ -548,7 +548,7 @@
 
 				<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2" Background="Transparent" ResizeDirection="Columns" Width="5" IsEnabled="{Binding PreviewEmbeddedOpen}"/>
 
-				<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="250,35,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
+				<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,35,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
 
 					<DataGrid Grid.Row="0" Name="ProjectList" ItemsSource="{Binding Storage.General.TimeProjects}" SelectedItem="{Binding CurrentTimeSheetProject}" CornerRadius="{Binding Storage.General.CornerRadius}" IsReadOnly="True" >
 						<DataGrid.Styles>
