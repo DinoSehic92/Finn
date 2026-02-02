@@ -28,9 +28,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static System.Net.WebRequestMethods;
-using Avalonia.Interactivity;
-using iText.IO.Font.Otf;
+using System.Transactions;
 
 
 
@@ -105,7 +103,7 @@ namespace Finn.ViewModels
         public bool AttachedView
         {
             get { return attachedView; }
-            set { attachedView = value; OnPropertyChanged("AttachedView"); }
+            set { attachedView = value; OnPropertyChanged("AttachedView");}
         }
 
         private StoreData storage = new StoreData();
@@ -186,6 +184,7 @@ namespace Finn.ViewModels
                 OnPropertyChanged("CurrentFiles");
                 OnPropertyChanged("CurrentFile");
                 OnPropertyChanged("NrSelectedFiles");
+                OnPropertyChanged("FileSelected");
             }
         }
 
@@ -201,6 +200,21 @@ namespace Finn.ViewModels
                 else
                 {
                     return null;
+                }
+            }
+        }
+
+        public bool FileSelected
+        {
+            get
+            {
+                if (CurrentFile == null)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
                 }
             }
         }
@@ -336,14 +350,14 @@ namespace Finn.ViewModels
 
         public void NewFolder()
         {
-            CurrentProject.Folders.Add(new FolderData() { Name = "New Folder", Filetype = "New" });
+            CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
         }
 
         public void NewFileFolder()
         {
             if (CurrentFile != null)
             {
-                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, Filetype = "New"});
+                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn});
             }
         }
 
@@ -361,6 +375,7 @@ namespace Finn.ViewModels
 
                     UpdateFilter();
                     CurrentProject.Folders.Remove(CurrentFolder);
+                    OnPropertyChanged("TreeViewUpdate");
                 }
                 else
                 {
@@ -368,12 +383,26 @@ namespace Finn.ViewModels
                     
                     if (file != null)
                     {
-                        foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                        if (CurrentFolder.Types == "PDF")
                         {
-                            file.AppendedFiles.Remove(fileToRemove);
+                            foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                            {
+                                file.AppendedFiles.Remove(fileToRemove);
+                            }
+
+                            SortAttachedFilesDirect(file);
+
                         }
 
-                        SortAttachedFilesDirect(file);
+                        if (CurrentFolder.Types == "Other Files")
+                        {
+                            foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                            {
+                                file.OtherFiles.Remove(fileToRemove);
+                            }
+
+                            SortOtherFilesDirect(file);
+                        }
                     }
 
                     CurrentProject.Folders.Remove(CurrentFolder);
@@ -414,8 +443,6 @@ namespace Finn.ViewModels
                 return;
             }
 
-            List<FileData> files = GetFilesFromFolder(folder);
-
             if (folder.Path == null)
             {
                 return;
@@ -429,22 +456,43 @@ namespace Finn.ViewModels
 
                 if (file != null)
                 {
-                    foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
+                    if (folder.Types == "PDF")
                     {
-                        CurrentFile.AppendedFiles.Remove(fileToRemove);
+                        foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
+                        {
+                            CurrentFile.AppendedFiles.Remove(fileToRemove);
+                        }
+
+                        foreach (FileData fileToAdd in GetFilesFromFolder(folder))
+                        {
+                            CurrentFile.AppendedFiles.Add(fileToAdd);
+                        }
+
+                        SortAttachedFiles();
+
                     }
 
-                    foreach (FileData fileToAdd in files)
+                    if (folder.Types == "Other Files")
                     {
-                        CurrentFile.AppendedFiles.Add(fileToAdd);
-                    }
+                        foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == folder.Path).ToList())
+                        {
+                            CurrentFile.OtherFiles.Remove(fileToRemove);
+                        }
 
-                    SortAttachedFiles();
+                        foreach (OtherData fileToAdd in GetOtherFilesFromFolder(folder))
+                        {
+                            CurrentFile.OtherFiles.Add(fileToAdd);
+                        }
+
+                        SortOtherFiles();
+                    }
                 }
             }
 
             else
             {
+
+                List<FileData> files = GetFilesFromFolder(folder);
 
                 IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x=>x.IsFromFolder).Where(x => x.SyncFolder == folder.Path);
                 IEnumerable<FileData> filesToRemove = existingFiles.Where(p => !files.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
@@ -480,11 +528,35 @@ namespace Finn.ViewModels
                         {
                             Namn = System.IO.Path.GetFileNameWithoutExtension(path),
                             Sökväg = path,
-                            Filtyp = folder.Filetype,
+                            Filtyp = "New",
                             SyncFolder = folder.Path,
                             IsFromFolder = true
                         });
                     }
+                }
+            }
+
+            return files;
+        }
+
+        private List<OtherData> GetOtherFilesFromFolder(FolderData folder)
+        {
+            List<OtherData> files = new List<OtherData>();
+
+            if (folder.IsValid)
+            {
+                foreach (string path in Directory.GetFiles(folder.Path))
+                {
+                    OtherData newFile = new OtherData()
+                    {
+                        Name = System.IO.Path.GetFileNameWithoutExtension(path),
+                        Filepath = path,
+                        SyncFolder = folder.Path,
+                        IsFromFolder = true
+                    };
+
+                    newFile.SetFile();
+                    files.Add(newFile);
                 }
             }
 
@@ -2007,9 +2079,7 @@ namespace Finn.ViewModels
         {
             if (CurrentFile != null)
             {
-                List<FileData> tempList = CurrentFile.AppendedFiles.OrderBy(x => x.Namn).ToList();
-                CurrentFile.AppendedFiles.Clear();
-                CurrentFile.AppendedFiles = new ObservableCollection<FileData>(tempList);
+                SortAttachedFilesDirect(CurrentFile);
             }
         }
 
@@ -2022,11 +2092,18 @@ namespace Finn.ViewModels
 
         private void SortOtherFiles()
         {
-            List<OtherData> tempList = CurrentFile.OtherFiles.OrderBy(x => x.Name).ToList();
-            CurrentFile.OtherFiles.Clear();
-            CurrentFile.OtherFiles = new ObservableCollection<OtherData>(tempList);
+            if (CurrentFile != null)
+            {
+                SortOtherFilesDirect(CurrentFile);
+            }
         }
 
+        private void SortOtherFilesDirect(FileData file)
+        {
+            List<OtherData> tempList = file.OtherFiles.OrderBy(x => x.Name).ToList();
+            file.OtherFiles.Clear();
+            file.OtherFiles = new ObservableCollection<OtherData>(tempList);
+        }
 
         public void SeachFiles()
         {

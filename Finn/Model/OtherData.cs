@@ -35,6 +35,30 @@ namespace Finn.Model
         }
 
 
+        private bool isFromFolder = false;
+        public bool IsFromFolder
+        {
+            get { return isFromFolder; }
+            set { isFromFolder = value; RaisePropertyChanged("IsFromFolder"); RaisePropertyChanged("NameWithAttributes"); }
+        }
+
+        public string FromFolder
+        {
+            get
+            {
+                return Path.GetFileName(Path.GetDirectoryName(Filepath));
+            }
+
+        }
+
+        private string? syncFolder = string.Empty;
+        public string? SyncFolder
+        {
+            get { return syncFolder; }
+            set { syncFolder = value; RaisePropertyChanged("SyncFolder"); }
+        }
+
+
         private byte[] iconBytes;
         public byte[] IconBytes
         {

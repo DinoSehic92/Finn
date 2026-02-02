@@ -181,8 +181,8 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                 ctx.CurrentProject.Folders.Add(new Model.FolderData()
                 {
                     Name = Path.GetFileName(Path.GetDirectoryName(path)),
-                    Path = path,
-                    Filetype = "New"
+                    Types = "PDF",
+                    Path = path
                 });
             }
         }
@@ -238,9 +238,14 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     {
         var items = e.Data.GetFiles();
 
-        foreach(var item in items)
+        if (ctx.CurrentFile == null)
         {
-            if (item.Path.IsFile)
+            return;
+        }
+
+        foreach (var item in items)
+        {
+            if (File.Exists(item.Path.LocalPath))
             {
                 string path = item.Path.LocalPath;
                 string type = Path.GetExtension(path);
@@ -250,6 +255,21 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                     ctx.AddAppendedFile(path);
                 }
             }
+
+            if (Directory.Exists(item.Path.LocalPath))
+            {
+                FolderData newfolder = new FolderData()
+                {
+                    Name = Path.GetFileName(Path.GetDirectoryName(item.Path.LocalPath)),
+                    AttachToFile = ctx.CurrentFile.Namn,
+                    Types = "PDF",
+                    Path = item.Path.LocalPath
+                };
+
+                ctx.CurrentProject.Folders.Add(newfolder);
+                ctx.SyncFolder(newfolder);
+            }
+
         }
     }
 
@@ -257,14 +277,33 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     {
         var items = e.Data.GetFiles();
 
+        if (ctx.CurrentFile == null)
+        {
+            return;
+        }
+
         foreach (var item in items)
         {
-            if (item.Path.IsFile)
+            if (File.Exists(item.Path.LocalPath))
             {
                 string path = item.Path.LocalPath;
-
                 ctx.AddOtherFile(path);
             }
+
+            if (Directory.Exists(item.Path.LocalPath))
+            {
+                FolderData newfolder = new FolderData()
+                {
+                    Name = Path.GetFileName(Path.GetDirectoryName(item.Path.LocalPath)),
+                    AttachToFile = ctx.CurrentFile.Namn,
+                    Types = "Other Files",
+                    Path = item.Path.LocalPath
+                };
+
+                ctx.CurrentProject.Folders.Add(newfolder);
+                ctx.SyncFolder(newfolder);
+            }
+
         }
     }
 
@@ -648,7 +687,6 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             if (ctx.Confirmed)
             {
                 ctx.RemoveFolder();
-                SetupTreeview(null, null);
             }
         }
     }

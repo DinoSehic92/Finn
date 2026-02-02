@@ -454,7 +454,7 @@
 						</DataGrid>
 
 
-						<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600">
+						<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600" IsEnabled="{Binding FileSelected}">
 							
 							<DataGrid Grid.Column="0" Name="AppendixGrid" Padding="0" ItemsSource="{Binding CurrentFile.AppendedFiles, Mode=OneWay}" SelectionMode="Extended"
 									AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" CornerRadius="{Binding Storage.General.CornerRadius}">
@@ -511,10 +511,9 @@
 
 						<Grid Grid.Row="2" ColumnDefinitions="*" IsVisible="{Binding ShowFolders}" MinHeight="200" MaxHeight="600">
 							<Grid Grid.Column="0" RowDefinitions="200,35">
-								<Grid Grid.Row="1" ColumnDefinitions="2*,7*,1.5*">
+								<Grid Grid.Row="1" ColumnDefinitions="3*,7*">
 									<TextBox Grid.Column="0" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
 									<TextBox Grid.Column="1" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
-									<ComboBox Grid.Column="2" HorizontalAlignment="Stretch" SelectedItem="{Binding CurrentFolder.Filetype}" ItemsSource="{Binding CurrentProject.AllowedTypes}" />
 					
 								</Grid>
 	
@@ -525,7 +524,7 @@
 										<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
 										<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
 										<DataGridTextColumn Binding="{Binding AttachToFile}"		Header="Attached to File" Width="2*" FontSize="14"/>
-										<DataGridTextColumn Binding="{Binding Filetype}"			Header="Type" Width="1.5*" FontSize="14"/>
+										<DataGridTextColumn Binding="{Binding Types}"				Header="Types" Width="1.5*" FontSize="14"/>
 
 									</DataGrid.Columns>
 									<DataGrid.Styles>

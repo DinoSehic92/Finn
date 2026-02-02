@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 
 namespace Finn.Model
@@ -39,11 +41,11 @@ namespace Finn.Model
             set { path = value; RaisePropertyChanged("Path"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
-        private string filetype;
-        public string Filetype
+        private string types;
+        public string Types
         {
-            get { return filetype; }
-            set { filetype = value; RaisePropertyChanged("Filetype"); }
+            get { return types; }
+            set { types = value; RaisePropertyChanged("Types"); }
         }
 
         private string? attachToFile = null;
