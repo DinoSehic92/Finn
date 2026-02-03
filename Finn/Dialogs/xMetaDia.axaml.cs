@@ -154,7 +154,7 @@ public partial class xMetaDia : TemplateWindow
         string val15 = ctx.CurrentFile.Sökväg;
         if (ctx.CurrentFiles.Where(x => x.Sökväg == val15).Count() == ctx.CurrentFiles.Count())
         { 
-            PathInp.Text = val15; 
+            PathInp.Text = val15;
         }
 
     }
@@ -165,7 +165,12 @@ public partial class xMetaDia : TemplateWindow
 
         foreach (FileData file in ctx.CurrentFiles)
         {
-            if(HandlingCheck.IsChecked == true)
+            if (NameCheck.IsChecked == true)
+            {
+                file.Namn = FileNameInp.Text;
+            }
+
+            if (HandlingCheck.IsChecked == true)
             {
                 file.Handling = HandlingInp.Text;
             }
@@ -208,6 +213,11 @@ public partial class xMetaDia : TemplateWindow
             if (RevCheck.IsChecked == true)
             {
                 file.Revidering = RevInp.Text;
+            }
+
+            if (PathCheck.IsChecked == true)
+            {
+                file.Sökväg = PathInp.Text;
             }
         }
         this.Close();

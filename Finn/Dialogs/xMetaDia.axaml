@@ -25,6 +25,8 @@
 				</StackPanel>
 				<Grid Name="MainGrid" ColumnDefinitions="30,110,*" HorizontalAlignment="Center" RowDefinitions="35,35,35,35,35,35,35,35,35,35,35,35,35,35,35">
 
+					<CheckBox Grid.Row="0" Grid.Column="0" Name="NameCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
 					<CheckBox Grid.Row="5" Grid.Column="0" Name="HandlingCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 					<CheckBox Grid.Row="6" Grid.Column="0" Name="StatusCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 					<CheckBox Grid.Row="7" Grid.Column="0" Name="DatumCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -36,6 +38,7 @@
 					<CheckBox Grid.Row="12" Grid.Column="0" Name="Besk4Check" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 
 					<CheckBox Grid.Row="13" Grid.Column="0" Name="RevCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<CheckBox Grid.Row="14" Grid.Column="0" Name="PathCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 				
 				
 					<Label Grid.Row="0" Grid.Column="1" Content="File Name" VerticalAlignment="Center"/>
@@ -58,7 +61,7 @@
 					<Label Grid.Row="13" Grid.Column="1" Content="Revidering" VerticalAlignment="Center"/>
 					<Label Grid.Row="14" Grid.Column="1" Content="Sökväg" VerticalAlignment="Center"/>
 				
-					<TextBox Grid.Row="0" Grid.Column="2" Name="FileNameInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="0" Grid.Column="2" Name="FileNameInp" Width="400" VerticalAlignment="Center"/>
 					<TextBox Grid.Row="1" Grid.Column="2" Name="FileTypeInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
 
 					<TextBox Grid.Row="2" Grid.Column="2" Name="ProjectInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
@@ -76,7 +79,7 @@
 					<TextBox Grid.Row="12" Grid.Column="2" Name="Besk4Inp" Width="400" VerticalAlignment="Center"/>
 
 					<TextBox Grid.Row="13" Grid.Column="2" Name="RevInp" Width="400" VerticalAlignment="Center"/>
-					<TextBox Grid.Row="14" Grid.Column="2" Name="PathInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/>
+					<TextBox Grid.Row="14" Grid.Column="2" Name="PathInp" Width="400" VerticalAlignment="Center"/>
 				
 				
 				
