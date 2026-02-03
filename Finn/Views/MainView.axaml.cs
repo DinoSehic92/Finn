@@ -890,12 +890,31 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         ctx.OpenFile();
     }
 
+    private void OnOpenAppendedFile(object sender, RoutedEventArgs e)
+    {
+        FileData file = (FileData)AppendixGrid.SelectedItem;
+        if (file != null)
+        {
+            ctx.OpenFileDirect(file.Sökväg);
+        }
+    }
+
     private void OnOpenOtherFile(object sender, RoutedEventArgs e)
     {
         OtherData file = (OtherData)OtherFilesGrid.SelectedItem;
         if (file != null)
         {
-            ctx.OpenOtherFile(file.Filepath);
+            ctx.OpenFileDirect(file.Filepath);
+        }
+    }
+
+    private void OnOpenAppendedFolder(object sender, RoutedEventArgs e)
+    {
+        FileData file = (FileData)AppendixGrid.SelectedItem;
+
+        if (file != null)
+        {
+            ctx.OpenPathDirect(file.Sökväg);
         }
     }
 
@@ -905,7 +924,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
         if (file != null)
         {
-            ctx.OpenOtherPath(file.Filepath);
+            ctx.OpenPathDirect(file.Filepath);
         }
     }
 

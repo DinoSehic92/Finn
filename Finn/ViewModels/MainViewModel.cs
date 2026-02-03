@@ -1625,7 +1625,7 @@ namespace Finn.ViewModels
             catch (Exception e) { Debug.WriteLine(e); }
         }
 
-        public void OpenOtherFile(string path)
+        public void OpenFileDirect(string path)
         {
             try
             {
@@ -1712,7 +1712,7 @@ namespace Finn.ViewModels
             { }
         }
 
-        public void OpenOtherPath(string filepath)
+        public void OpenPathDirect(string filepath)
         {
             try
             {

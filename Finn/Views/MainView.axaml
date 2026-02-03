@@ -428,12 +428,6 @@
 								
 									</MenuItem>
 
-									<MenuItem Header="Folders" Icon="{icxt:SymbolIconExtension Symbol=Folder}">
-										<MenuItem Header="Add" Command="{Binding NewFileFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
-										<MenuItem Header="Sync" Command="{Binding SyncFile}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
-										
-									</MenuItem>
-
 
 									<Separator></Separator>
 
@@ -471,6 +465,10 @@
 								</DataGrid.Columns>
 								<DataGrid.ContextMenu>
 									<ContextMenu>
+										<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
+											<MenuItem Header="Open PDF" Click="OnOpenAppendedFile" Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
+											<MenuItem Header="Open Folder" Click="OnOpenAppendedFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+										</MenuItem>
 										<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 									</ContextMenu>
 								</DataGrid.ContextMenu>
@@ -494,13 +492,16 @@
 										</DataGridTemplateColumn.CellTemplate>
 									</DataGridTemplateColumn>
 									<DataGridTextColumn Binding="{Binding Name}" Header="Attached Files" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-									<DataGridTextColumn Binding="{Binding Type}"  Header="Type" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+									<DataGridTextColumn Binding="{Binding Type}"  Header="Type" Width="80" MinWidth="80" FontSize="{Binding Storage.General.FontSize}"/>
+									<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder" Width="1.2*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 
 								</DataGrid.Columns>
 								<DataGrid.ContextMenu>
 									<ContextMenu>
-										<MenuItem Header="Open" Click="OnOpenOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Open}"/>
-										<MenuItem Header="Folder" Click="OnOpenOtherFolder" Icon="{icxt:SymbolIconExtension Symbol=Folder}"/>
+										<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
+											<MenuItem Header="Open File" Click="OnOpenOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Document}"/>
+											<MenuItem Header="Open Folder" Click="OnOpenOtherFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+										</MenuItem>
 										<MenuItem Header="Remove" Click="OnRemoveOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
 
 									</ContextMenu>
@@ -509,43 +510,35 @@
 
 						</Grid>
 
-						<Grid Grid.Row="2" ColumnDefinitions="*" IsVisible="{Binding ShowFolders}" MinHeight="200" MaxHeight="600">
-							<Grid Grid.Column="0" RowDefinitions="200,35">
-								<Grid Grid.Row="1" ColumnDefinitions="3*,7*">
-									<TextBox Grid.Column="0" Watermark="Name" Text="{Binding CurrentFolder.Name}"/>
-									<TextBox Grid.Column="1" Watermark="Path" Text="{Binding CurrentFolder.Path}"/>
-					
-								</Grid>
+
+
 	
-								<DataGrid Name="FolderGrid" Grid.Row="0" ItemsSource="{Binding CurrentProject.Folders}" SelectedItem="{Binding CurrentFolder}" CornerRadius="{Binding Storage.General.CornerRadius}" 
-											SelectionMode="Single" IsReadOnly="True" DragDrop.AllowDrop="True">
+						<DataGrid Name="FolderGrid" Grid.Row="2" MinHeight="200" MaxHeight="600" IsVisible="{Binding ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}" SelectedItem="{Binding CurrentFolder}" CornerRadius="{Binding Storage.General.CornerRadius}" 
+									SelectionMode="Single" IsReadOnly="True" DragDrop.AllowDrop="True">
 
-									<DataGrid.Columns>
-										<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
-										<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
-										<DataGridTextColumn Binding="{Binding AttachToFile}"		Header="Attached to File" Width="2*" FontSize="14"/>
-										<DataGridTextColumn Binding="{Binding Types}"				Header="Types" Width="1.5*" FontSize="14"/>
+							<DataGrid.Columns>
+								<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
+								<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
+								<DataGridTextColumn Binding="{Binding AttachToFile}"		Header="Attached to File" Width="2*" FontSize="14"/>
+								<DataGridTextColumn Binding="{Binding Types}"				Header="Types" Width="1.5*" FontSize="14"/>
 
-									</DataGrid.Columns>
-									<DataGrid.Styles>
-										<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-											<Setter Property="IsVisible" Value="false" />
-										</Style>
-									</DataGrid.Styles>
+							</DataGrid.Columns>
+							<DataGrid.Styles>
+								<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+									<Setter Property="IsVisible" Value="false" />
+								</Style>
+							</DataGrid.Styles>
 
-									<DataGrid.ContextMenu>
-										<ContextMenu>
-											<MenuItem Header="New" Command="{Binding NewFolder}" Icon="{icxt:SymbolIconExtension Symbol=Add}"/>
-											<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
-											<MenuItem Header="Sync All" Command="{Binding SyncAllFolders}" Icon="{icxt:SymbolIconExtension Symbol=CubeSync}"/>
-											<MenuItem Header="Delete" Click="OnRemoveFolder" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
-										</ContextMenu>
-									</DataGrid.ContextMenu>
-								</DataGrid>
-							</Grid>
-						</Grid>
-					</Grid>
+							<DataGrid.ContextMenu>
+								<ContextMenu>
+									<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
+									<MenuItem Header="Sync All" Command="{Binding SyncAllFolders}" Icon="{icxt:SymbolIconExtension Symbol=CubeSync}"/>
+									<MenuItem Header="Delete" Click="OnRemoveFolder" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
+								</ContextMenu>
+							</DataGrid.ContextMenu>
+						</DataGrid>
 
+				</Grid>
 				<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2" Background="Transparent" ResizeDirection="Columns" Width="5" IsEnabled="{Binding PreviewEmbeddedOpen}"/>
 
 				<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,35,*" IsVisible="{Binding TimeSheetOpen}" Width="500">

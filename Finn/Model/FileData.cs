@@ -261,7 +261,7 @@ namespace Finn.Model
 
                 if (IsFromFolder)
                 {
-                    nameWithAttributes = nameWithAttributes + "⠀🗁";
+                    nameWithAttributes = nameWithAttributes + "⠀🗀";
                 }
 
                 return nameWithAttributes;
