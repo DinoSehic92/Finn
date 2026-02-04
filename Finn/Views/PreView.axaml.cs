@@ -18,7 +18,7 @@ public partial class PreView : UserControl
         ScrollSliderSecondary.AddHandler(Slider.ValueChangedEvent, SecondaryPageNrSlider);
         PreviewGrid.AddHandler(Grid.SizeChangedEvent, PreviewSizeChanged);
 
-        MuPDFRenderer.AddHandler(LoadedEvent, InitSetup);
+        this.AddHandler(LoadedEvent, InitSetup);
     }
 
     public MainViewModel ctx = null;
@@ -50,9 +50,7 @@ public partial class PreView : UserControl
         MuPDFRendererSecondary.ActivateLinks = false;
         MuPDFRendererSecondary.DrawLinks = false;
 
-        
-
-        pwr.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
+        ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
     }
 
     private void OnSeachRegex(object sender, RoutedEventArgs e)

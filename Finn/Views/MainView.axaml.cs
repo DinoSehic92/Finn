@@ -55,6 +55,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
         HoursCombo.AddHandler(ComboBox.SelectionChangedEvent, OnUpdateTotalTime);
 
+
         InitMetaworker();
     }
 
@@ -66,7 +67,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     private CancellationTokenSource cts = new CancellationTokenSource();
 
     public MainViewModel ctx = null;
-    public PreviewViewModel pwr = null;
+    public PreviewViewModel pwr = null; 
     public GeneralData gnr = null;
 
     public List<DataGridRowEventArgs> Args = new List<DataGridRowEventArgs>();
@@ -84,7 +85,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
     {
         GetDatacontext();
         UpdateFont();
-        ctx.PreviewEmbeddedOpen = false;
+        //ctx.PreviewEmbeddedOpen = false;
 
         try
         {
@@ -262,6 +263,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                 {
                     Name = Path.GetFileName(Path.GetDirectoryName(item.Path.LocalPath)),
                     AttachToFile = ctx.CurrentFile.Namn,
+                    AttachToFilePath = ctx.CurrentFile.Sökväg,
                     Types = "PDF",
                     Path = item.Path.LocalPath
                 };
@@ -296,6 +298,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
                 {
                     Name = Path.GetFileName(Path.GetDirectoryName(item.Path.LocalPath)),
                     AttachToFile = ctx.CurrentFile.Namn,
+                    AttachToFilePath = ctx.CurrentFile.Sökväg,
                     Types = "Other Files",
                     Path = item.Path.LocalPath
                 };

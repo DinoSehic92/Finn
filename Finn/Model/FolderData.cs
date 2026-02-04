@@ -55,6 +55,13 @@ namespace Finn.Model
             set { attachToFile = value; RaisePropertyChanged("AttachToFile"); }
         }
 
+        private string? attachToFilePath = null;
+        public string? AttachToFilePath
+        {
+            get { return attachToFilePath; }
+            set { attachToFilePath = value; RaisePropertyChanged("AttachToFilePath"); }
+        }
+
         public bool IsValid
         {
             get { return Directory.Exists(Path); }

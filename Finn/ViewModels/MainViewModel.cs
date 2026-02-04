@@ -226,7 +226,7 @@ namespace Finn.ViewModels
             set { previewWindowOpen = value; OnPropertyChanged("PreviewWindowOpen"); if (PreviewWindowOpen) { PreviewEmbeddedOpen = false; }; }
         }
 
-        private bool previewEmbeddedOpen = true;
+        private bool previewEmbeddedOpen = false;
         public bool PreviewEmbeddedOpen
         {
             get { return previewEmbeddedOpen; }
@@ -357,7 +357,7 @@ namespace Finn.ViewModels
         {
             if (CurrentFile != null)
             {
-                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn});
+                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, AttachToFilePath = CurrentFile.Sökväg});
             }
         }
 
@@ -426,7 +426,7 @@ namespace Finn.ViewModels
 
         public void SyncFile()
         {
-            foreach (FolderData folder in CurrentProject.Folders.Where(x=>x.AttachToFile == CurrentFile.Namn))
+            foreach (FolderData folder in CurrentProject.Folders.Where(x=>x.AttachToFilePath == CurrentFile.Sökväg))
             {
                 SyncFolder(folder);
             }
@@ -451,8 +451,8 @@ namespace Finn.ViewModels
             if (folder.AttachToFile != null)
             {
 
-                FileData file = CurrentProject.StoredFiles.Where(x => x.Namn == folder.AttachToFile).FirstOrDefault();
-                CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Namn == folder.AttachToFile).ToList();
+                FileData file = CurrentProject.StoredFiles.Where(x => x.Sökväg == folder.AttachToFilePath).FirstOrDefault();
+                CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Sökväg == folder.AttachToFilePath).ToList();
 
                 if (file != null)
                 {
