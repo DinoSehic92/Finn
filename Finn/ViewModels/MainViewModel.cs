@@ -563,6 +563,20 @@ namespace Finn.ViewModels
             return files;
         }
 
+        public void AddPlaceholderFile(string name)
+        {
+            FileData newfile = new FileData()
+            {
+                Namn = name,
+                Filtyp = "New",
+                Sökväg = "C:\\PlaceholderPath\\" + name + ".pdf"
+            };
+
+            CurrentProject.StoredFiles.Add(newfile);
+            UpdateFilter();
+            OnPropertyChanged("TreeViewUpdate");
+        }
+
 
         public void NewTimeSheet()
         {
@@ -821,6 +835,21 @@ namespace Finn.ViewModels
             window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
             window.ShowDialog(mainWindow);
             window.TagMenuInput.Focus();
+        }
+
+
+        public void OpenNewPlaceholderFile(Window mainWindow)
+        {
+            var window = new xPlaceholderDia()
+            {
+                DataContext = this
+            };
+
+            window.FontFamily = mainWindow.FontFamily;
+
+            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
+            window.ShowDialog(mainWindow);
+            window.NewFileName.Focus();
         }
 
 

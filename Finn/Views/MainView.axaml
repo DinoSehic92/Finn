@@ -426,6 +426,8 @@
 
 										<MenuItem Name="RenameOriginal" Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Icon="{icxt:SymbolIconExtension Symbol=Rename}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}"/>
 								
+										<MenuItem Header="New File" Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}"/>
+											
 									</MenuItem>
 
 

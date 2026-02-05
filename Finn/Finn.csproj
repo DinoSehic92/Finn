@@ -76,6 +76,9 @@
     <Compile Update="Dialogs\xIndexDia.axaml.cs">
       <DependentUpon>xIndexDia.axaml</DependentUpon>
     </Compile>
+    <Compile Update="Dialogs\xPlaceholderDia.axaml.cs">
+      <DependentUpon>xPlaceholderDia.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Dialogs\xTagDia.axaml.cs">
       <SubType>Code</SubType>
       <DependentUpon>xTagDia.axaml</DependentUpon>

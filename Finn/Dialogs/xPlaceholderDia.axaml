@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="300"
+		MinWidth="190"
+		MinHeight="160"
+		MaxWidth="190"
+		MaxHeight="160"
+		xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xPlaceholderDia"
+        Title="New Placeholder File"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="False"
+		WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+		x:DataType="vm:MainViewModel">
+
+		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+			<StackPanel Grid.Row="1" Width="210" Height="180" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
+					<ic:SymbolIcon Symbol="DocumentAdd" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
+					<Label Content="New Document" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+				</StackPanel>
+				<TextBox Name="NewFileName" HorizontalContentAlignment="Center" Width="160" />
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+					<Button Name="Accept" HotKey="Enter" Content="Accept" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnAddPlaceholder"/>
+				</StackPanel>
+			</StackPanel>
+		</Grid>
+    
+</Window>
