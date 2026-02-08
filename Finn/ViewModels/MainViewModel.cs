@@ -528,6 +528,7 @@ namespace Finn.ViewModels
                         {
                             Namn = System.IO.Path.GetFileNameWithoutExtension(path),
                             Sökväg = path,
+                            Uppdrag = CurrentProject.Namn,
                             Filtyp = "New",
                             SyncFolder = folder.Path,
                             IsFromFolder = true
