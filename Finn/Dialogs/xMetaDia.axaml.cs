@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Finn.Model;
 using Finn.ViewModels;
 using Finn.Views;
+using System.IO;
 using System.Linq;
 
 namespace Finn.Dialog;
@@ -217,7 +218,22 @@ public partial class xMetaDia : TemplateWindow
 
             if (PathCheck.IsChecked == true)
             {
-                file.Sökväg = PathInp.Text;
+                string text = PathInp.Text;
+
+                if (text == null || text == string.Empty)
+                {
+                    file.Sökväg = text;
+                }
+                else
+                {
+                    if (File.Exists(text))
+                    {
+                        if (Path.GetExtension(text) == ".pdf")
+                        {
+                            file.Sökväg = text;
+                        }
+                    }
+                }
             }
         }
         this.Close();

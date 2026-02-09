@@ -564,7 +564,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         {
             CheckStatusSingleFile();
 
-            if (file != null && Path.Exists(file.Sökväg)) 
+            if (file != null && file.IsValidPdf()) 
             {
                 int startPage = file.DefaultPage;
 
@@ -1003,6 +1003,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         if (dataObject != null && dataObject.Färg == "") { e.Row.Classes.Clear(); }
 
         if (dataObject != null && dataObject.FileStatus == "Missing") { e.Row.Classes.Add("RedForeground"); }
+        if (dataObject != null && dataObject.IsPlaceholder == true) { e.Row.Classes.Add("Placeholder"); }
 
         if (dataObject != null && dataObject.Färg == "Yellow") { e.Row.Classes.Add("Yellow"); }
         if (dataObject != null && dataObject.Färg == "Orange") { e.Row.Classes.Add("Orange"); }
@@ -1023,6 +1024,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
             e.Row.Classes.Clear();
 
             if (dataObject != null && dataObject.FileStatus == "Missing") { e.Row.Classes.Add("RedForeground"); }
+            if (dataObject != null && dataObject.IsPlaceholder == true) { e.Row.Classes.Add("Placeholder"); }
 
             if (dataObject != null && dataObject.Färg == "Yellow") { e.Row.Classes.Add("Yellow"); }
             if (dataObject != null && dataObject.Färg == "Orange") { e.Row.Classes.Add("Orange"); }

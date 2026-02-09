@@ -25,13 +25,16 @@ public partial class xInfoDia : TemplateWindow
         {
             string path = ctx.CurrentFile.Sökväg;
 
-            FileInfo fileInfo = new FileInfo(path);
+            if (File.Exists(path))
+            {
+                FileInfo fileInfo = new FileInfo(path);
 
-            NameLabel.Content = fileInfo.Name;
-            CreationLabel.Content = fileInfo.CreationTime;
-            ReadLabel.Content = fileInfo.LastAccessTime;
-            WriteLabel.Content = fileInfo.LastWriteTime;
-            SizeLabel.Content = Math.Round((decimal)fileInfo.Length / 1000000, 2) + " Mb";
+                NameLabel.Content = fileInfo.Name;
+                CreationLabel.Content = fileInfo.CreationTime;
+                ReadLabel.Content = fileInfo.LastAccessTime;
+                WriteLabel.Content = fileInfo.LastWriteTime;
+                SizeLabel.Content = Math.Round((decimal)fileInfo.Length / 1000000, 2) + " Mb";
+            }
         }
     }
 

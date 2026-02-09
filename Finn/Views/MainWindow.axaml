@@ -79,6 +79,11 @@
 		<Style Selector="DataGridRow.RedForeground">
 			<Setter Property="Foreground" Value="Red"/>
 		</Style>
+
+		<Style Selector="DataGridRow.Placeholder">
+			<Setter Property="Foreground" Value="Sienna"/>
+			<Setter Property="FontWeight" Value="Bold"/>
+		</Style>
 		
 	</Window.Styles>
 

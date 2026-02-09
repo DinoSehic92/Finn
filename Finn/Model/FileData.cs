@@ -121,19 +121,42 @@ namespace Finn.Model
             set { sökväg = value; RaisePropertyChanged("Sökväg"); }
         }
 
-        public bool IsLocal
+        public bool IsPlaceholder
         {
-            get 
+            get
             {
-                if (Sökväg[0].ToString() == "C")
+                if (Sökväg == null || Sökväg == string.Empty)
                 {
                     return true;
                 }
-
                 else
                 {
                     return false;
                 }
+            }
+        }
+
+
+        public bool IsLocal
+        {
+            get 
+            {
+                if (!IsPlaceholder)
+                {
+                    if (Sökväg[0].ToString() == "C")
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+
             }
         }
 
@@ -160,10 +183,10 @@ namespace Finn.Model
 
         public string FromFolder
         {
-            get {
+            get 
+            {
                 return Path.GetFileName(Path.GetDirectoryName(Sökväg));
-                }
-            
+            }
         }
 
         private string? syncFolder = string.Empty;
@@ -333,6 +356,25 @@ namespace Finn.Model
         {
             get { return hasPlainText; }
             set { hasPlainText = value; RaisePropertyChanged("HasPlainText"); RaisePropertyChanged("NameWithAttributes"); }
+        }
+
+        public bool IsValidPdf()
+        {
+            if (File.Exists(Sökväg))
+            {
+                if (Path.GetExtension(Sökväg) == ".pdf")
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
+            }
         }
 
         public void RemoveThumbnail()

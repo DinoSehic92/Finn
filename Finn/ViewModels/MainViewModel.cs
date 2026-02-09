@@ -570,7 +570,8 @@ namespace Finn.ViewModels
             {
                 Namn = name,
                 Filtyp = "New",
-                Sökväg = "C:\\PlaceholderPath\\" + name + ".pdf"
+                Uppdrag = CurrentProject.Namn,
+                Sökväg = string.Empty
             };
 
             CurrentProject.StoredFiles.Add(newfile);
@@ -969,17 +970,19 @@ namespace Finn.ViewModels
 
             foreach (FileData file in CurrentFiles)
             {
-                file.RemoveThumbnail();
+                if (file.IsValidPdf())
+                {
+                    file.RemoveThumbnail();
 
-                byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+                    byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
 
-                MuPDFDocument fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
+                    MuPDFDocument fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
 
-                file.ThumbnailSource = "C:\\FIlePathManager\\Thumbnails\\" + file.Namn + ".jpeg";
-                fileDocument.SaveImageAsJPEG(0, 1, file.ThumbnailSource, 20);
+                    file.ThumbnailSource = "C:\\FIlePathManager\\Thumbnails\\" + file.Namn + ".jpeg";
+                    fileDocument.SaveImageAsJPEG(0, 1, file.ThumbnailSource, 20);
 
-                fileDocument.Dispose();
-
+                    fileDocument.Dispose();
+                }
             }
         }
 
@@ -1000,24 +1003,27 @@ namespace Finn.ViewModels
 
             foreach (FileData file in CurrentFiles)
             {
-                byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+                if (file.IsValidPdf())
+                {
+                    byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
 
-                MuPDFDocument fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
-                ContentData existing = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
+                    MuPDFDocument fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
+                    ContentData existing = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
 
-                IndexedContent.Remove(existing);
+                    IndexedContent.Remove(existing);
 
-                ContentData content = new ContentData();
+                    ContentData content = new ContentData();
 
-                content.Name = file.Namn;
-                content.Filepath = file.Sökväg;
-                content.PlainText = fileDocument.ExtractText();
+                    content.Name = file.Namn;
+                    content.Filepath = file.Sökväg;
+                    content.PlainText = fileDocument.ExtractText();
 
-                IndexedContent.Add(content);
+                    IndexedContent.Add(content);
 
-                file.HasPlainText = true;
+                    file.HasPlainText = true;
 
-                fileDocument.Dispose();
+                    fileDocument.Dispose();
+                }
             }
 
             SaveIndexFile(indexPath);
@@ -1592,7 +1598,7 @@ namespace Finn.ViewModels
         {
             if (CurrentFile != null)
             {
-                if (System.IO.File.Exists(CurrentFile.Sökväg))
+                if (CurrentFile.IsValidPdf())
                 {
                     CurrentFile.FileStatus = "OK";
                 }
@@ -1619,7 +1625,7 @@ namespace Finn.ViewModels
             {
                 i++;
 
-                if (System.IO.File.Exists(file.Sökväg))
+                if (file.IsValidPdf())
                 {
                     file.FileStatus = "OK";
                 }
@@ -2224,43 +2230,40 @@ namespace Finn.ViewModels
             foreach (FileData file in CurrentFiles)
             {
 
-                string outputFilePath = outputPath + "\\" + file.Namn + "_" + text + "_" + date + ".pdf";
-
-                if (!IsFileInUse(outputFilePath))
+                if (file.IsValidPdf())
                 {
-                    PdfDocument pdfDoc = new PdfDocument(new PdfReader(file.Sökväg), new PdfWriter(outputFilePath));
+                    string outputFilePath = outputPath + "\\" + file.Namn + "_" + text + "_" + date + ".pdf";
 
-                    PdfFont font = PdfFontFactory.CreateFont(FontProgramFactory.CreateFont(StandardFonts.HELVETICA));
-                    Document document = new Document(pdfDoc);
-                    iText.Kernel.Geom.Rectangle pageSize;
-
-                    PdfCanvas canvas;
-                    int n = pdfDoc.GetNumberOfPages();
-                    for (int i = 1; i <= n; i++)
+                    if (!IsFileInUse(outputFilePath))
                     {
-                        PdfPage page = pdfDoc.GetPage(i);
-                        page.NewContentStreamBefore();
-                        pageSize = page.GetPageSize();
-                        float fontSize = pageSize.GetWidth() / 10;
+                        PdfDocument pdfDoc = new PdfDocument(new PdfReader(file.Sökväg), new PdfWriter(outputFilePath));
 
-                        canvas = new PdfCanvas(page);
+                        PdfFont font = PdfFontFactory.CreateFont(FontProgramFactory.CreateFont(StandardFonts.HELVETICA));
+                        Document document = new Document(pdfDoc);
+                        iText.Kernel.Geom.Rectangle pageSize;
 
-                        Paragraph paragraph = new Paragraph(text).SetFont(font).SetFontSize(fontSize).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f);
-                        paragraph.SetMultipliedLeading(0.5f);
-                        paragraph.Add(Environment.NewLine);
-                        paragraph.Add(new Paragraph(date).SetFont(font).SetFontSize(fontSize / 2).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f));
+                        PdfCanvas canvas;
+                        int n = pdfDoc.GetNumberOfPages();
+                        for (int i = 1; i <= n; i++)
+                        {
+                            PdfPage page = pdfDoc.GetPage(i);
+                            page.NewContentStreamBefore();
+                            pageSize = page.GetPageSize();
+                            float fontSize = pageSize.GetWidth() / 10;
 
-                        iText.Layout.Canvas canvasWatermark2 = new iText.Layout.Canvas(canvas, pdfDoc.GetDefaultPageSize()).ShowTextAligned(paragraph, pageSize.GetWidth() / 2, pageSize.GetHeight() / 2, 1, TextAlignment.CENTER, VerticalAlignment.MIDDLE, 120);
+                            canvas = new PdfCanvas(page);
+
+                            Paragraph paragraph = new Paragraph(text).SetFont(font).SetFontSize(fontSize).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f);
+                            paragraph.SetMultipliedLeading(0.5f);
+                            paragraph.Add(Environment.NewLine);
+                            paragraph.Add(new Paragraph(date).SetFont(font).SetFontSize(fontSize / 2).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f));
+
+                            iText.Layout.Canvas canvasWatermark2 = new iText.Layout.Canvas(canvas, pdfDoc.GetDefaultPageSize()).ShowTextAligned(paragraph, pageSize.GetWidth() / 2, pageSize.GetHeight() / 2, 1, TextAlignment.CENTER, VerticalAlignment.MIDDLE, 120);
+                        }
+                        pdfDoc.Close();
                     }
-                    pdfDoc.Close();
                 }
-
-
-
             }
-
-
-
         }
 
         public static bool IsFileInUse(string filePath)
@@ -2273,7 +2276,6 @@ namespace Finn.ViewModels
             {
                 try
                 {
-                    Debug.WriteLine(filePath);
                     // Try opening the file with read-write access and an exclusive lock
                     using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
                     {
