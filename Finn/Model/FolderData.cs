@@ -21,7 +21,7 @@ namespace Finn.Model
                 string nameWithAttributes = Name;
 
 
-                if (IsValid)
+                if (IsValid())
                 {
                     nameWithAttributes = nameWithAttributes + "⠀✓";
                 }
@@ -62,9 +62,9 @@ namespace Finn.Model
             set { attachToFilePath = value; RaisePropertyChanged("AttachToFilePath"); }
         }
 
-        public bool IsValid
+        public bool IsValid()
         {
-            get { return Directory.Exists(Path); }
+            return Directory.Exists(Path);
         }
 
         

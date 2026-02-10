@@ -121,44 +121,6 @@ namespace Finn.Model
             set { sökväg = value; RaisePropertyChanged("Sökväg"); }
         }
 
-        public bool IsPlaceholder
-        {
-            get
-            {
-                if (Sökväg == null || Sökväg == string.Empty)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-
-
-        public bool IsLocal
-        {
-            get 
-            {
-                if (!IsPlaceholder)
-                {
-                    if (Sökväg[0].ToString() == "C")
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    return false;
-                }
-
-            }
-        }
 
         private int defaultPage;
         public int DefaultPage
@@ -181,12 +143,11 @@ namespace Finn.Model
             set { isFromFolder = value; RaisePropertyChanged("IsFromFolder"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
+        private string fromFolder = string.Empty;
         public string FromFolder
         {
-            get 
-            {
-                return Path.GetFileName(Path.GetDirectoryName(Sökväg));
-            }
+            get { return fromFolder; }
+            set { fromFolder = value; RaisePropertyChanged("FromFolder"); }
         }
 
         private string? syncFolder = string.Empty;
@@ -360,6 +321,8 @@ namespace Finn.Model
 
         public bool IsValidPdf()
         {
+            Debug.WriteLine("TRIGGER");
+
             if (File.Exists(Sökväg))
             {
                 if (Path.GetExtension(Sökväg) == ".pdf")
@@ -383,6 +346,25 @@ namespace Finn.Model
             {
                 System.IO.File.Delete(thumbnailSource);
                 ThumbnailSource = string.Empty;
+            }
+        }
+
+        public bool IsLocal()
+        {
+            if (Sökväg == string.Empty)
+            {
+                if (Sökväg[0].ToString() == "C")
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                return false;
             }
         }
 

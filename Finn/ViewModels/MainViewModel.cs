@@ -438,7 +438,7 @@ namespace Finn.ViewModels
             {
                 return;
             }
-            if (folder.IsValid == false)
+            if (folder.IsValid() == false)
             {
                 return;
             }
@@ -518,7 +518,7 @@ namespace Finn.ViewModels
         {
             List<FileData> files = new List<FileData>();
 
-            if (folder.IsValid)
+            if (folder.IsValid())
             {
                 foreach (string path in Directory.GetFiles(folder.Path))
                 {
@@ -544,7 +544,7 @@ namespace Finn.ViewModels
         {
             List<OtherData> files = new List<OtherData>();
 
-            if (folder.IsValid)
+            if (folder.IsValid())
             {
                 foreach (string path in Directory.GetFiles(folder.Path))
                 {
@@ -857,7 +857,7 @@ namespace Finn.ViewModels
 
         public void TryOpenRenameDia(Window mainWindow)
         {
-            if (!CurrentFile.IsLocal)
+            if (!CurrentFile.IsLocal())
             {
                 OpenMessageDia(mainWindow);
             }
@@ -2178,7 +2178,7 @@ namespace Finn.ViewModels
             string oldName = CurrentFile.Namn;
             string oldPath = CurrentFile.Sökväg;
 
-            if (oldName != newName && newName.Length > 0 && CurrentFile.IsLocal)
+            if (oldName != newName && newName.Length > 0 && CurrentFile.IsLocal())
             {
                 string newPath = CurrentFile.Sökväg.Replace(oldName, newName);
                 try
