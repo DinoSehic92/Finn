@@ -1,376 +1,342 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace Finn.Model
 {
     public class FileData : INotifyPropertyChanged
     {
+        #region Constants
+        private const string FAVORITE_ICON = "⭐ ";
+        private const string SEPARATOR = "⠀";
+        private const string ATTACHMENT_ICON = "📎";
+        private const string BOOKMARK_ICON = "🔖";
+        private const string NOTE_ICON = " 📝";
+        private const string THUMBNAIL_ICON = " ؞";
+        private const string PLAINTEXT_ICON = "⠀🌐";
+        private const string FOLDER_ICON = "⠀🗀";
+        private const string PDF_EXTENSION = ".pdf";
+        #endregion
 
+        #region Fields
         private string namn = string.Empty;
+        private string fileStatus = string.Empty;
+        private string tagg = string.Empty;
+        private string färg = string.Empty;
+        private string handling = string.Empty;
+        private string status = string.Empty;
+        private string datum = string.Empty;
+        private string ritningstyp = string.Empty;
+        private string beskrivning1 = string.Empty;
+        private string beskrivning2 = string.Empty;
+        private string beskrivning3 = string.Empty;
+        private string beskrivning4 = string.Empty;
+        private string uppdrag = string.Empty;
+        private string filtyp = string.Empty;
+        private string revidering = string.Empty;
+        private string sökväg = string.Empty;
+        private int defaultPage = 0;
+        private ObservableCollection<PageData> favPages = new();
+        private bool isFromFolder = false;
+        private string fromFolder = string.Empty;
+        private string? syncFolder = string.Empty;
+        private ObservableCollection<FileData> appendedFiles = new();
+        private ObservableCollection<OtherData> otherFiles = new();
+        private string note = string.Empty;
+        private bool favorite = false;
+        private List<string> partOfCollections = new();
+        private string thumbnailSource = string.Empty;
+        private bool hasPlainText = false;
+        #endregion
+
+        #region Properties
         public string Namn
         {
-            get { return namn; }
-            set { namn = value; RaisePropertyChanged("Namn"); RaisePropertyChanged("NameWithAttributes"); }
+            get => namn;
+            set { SetProperty(ref namn, value); OnPropertyChanged(nameof(NameWithAttributes)); }
         }
 
-        private string fileStatus = string.Empty;
         public string FileStatus
         {
-            get { return fileStatus; }
-            set { fileStatus = value; RaisePropertyChanged("FileStatus"); }
+            get => fileStatus;
+            set => SetProperty(ref fileStatus, value);
         }
 
-        private string tagg = string.Empty;
         public string Tagg
         {
-            get { return tagg; }
-            set { tagg = value; RaisePropertyChanged("Tagg"); }
+            get => tagg;
+            set => SetProperty(ref tagg, value);
         }
 
-        private string färg = string.Empty;
         public string Färg
         {
-            get { return färg; }
-            set { färg = value; RaisePropertyChanged("Färg"); }
+            get => färg;
+            set => SetProperty(ref färg, value);
         }
 
-        private string handling = string.Empty;
         public string Handling
         {
-            get { return handling; }
-            set { handling = value; RaisePropertyChanged("Handling"); }
+            get => handling;
+            set => SetProperty(ref handling, value);
         }
 
-        private string status = string.Empty;
         public string Status
         {
-            get { return status; }
-            set { status = value; RaisePropertyChanged("Status"); }
+            get => status;
+            set => SetProperty(ref status, value);
         }
 
-        private string datum = string.Empty;
         public string Datum
         {
-            get { return datum; }
-            set { datum = value; RaisePropertyChanged("Datum"); }
+            get => datum;
+            set => SetProperty(ref datum, value);
         }
 
-        private string ritningstyp = string.Empty;
         public string Ritningstyp
         {
-            get { return ritningstyp; }
-            set { ritningstyp = value; RaisePropertyChanged("Ritningstyp"); }
+            get => ritningstyp;
+            set => SetProperty(ref ritningstyp, value);
         }
 
-        private string beskrivning1 = string.Empty;
         public string Beskrivning1
         {
-            get { return beskrivning1; }
-            set { beskrivning1 = value; RaisePropertyChanged("Beskrivning1"); }
+            get => beskrivning1;
+            set => SetProperty(ref beskrivning1, value);
         }
 
-        private string beskrivning2 = string.Empty;
         public string Beskrivning2
         {
-            get { return beskrivning2; }
-            set { beskrivning2 = value; RaisePropertyChanged("Beskrivning2"); }
+            get => beskrivning2;
+            set => SetProperty(ref beskrivning2, value);
         }
 
-        private string beskrivning3 = string.Empty;
         public string Beskrivning3
         {
-            get { return beskrivning3; }
-            set { beskrivning3 = value; RaisePropertyChanged("Beskrivning3"); }
+            get => beskrivning3;
+            set => SetProperty(ref beskrivning3, value);
         }
 
-        private string beskrivning4 = string.Empty;
         public string Beskrivning4
         {
-            get { return beskrivning4; }
-            set { beskrivning4 = value; RaisePropertyChanged("Beskrivning4"); }
+            get => beskrivning4;
+            set => SetProperty(ref beskrivning4, value);
         }
 
-        private string uppdrag = string.Empty;
         public string Uppdrag
         {
-            get { return uppdrag; }
-            set { uppdrag = value; RaisePropertyChanged("Uppdrag"); }
+            get => uppdrag;
+            set => SetProperty(ref uppdrag, value);
         }
 
-        private string filtyp = string.Empty;
         public string Filtyp
         {
-            get { return filtyp; }
-            set { filtyp = value; RaisePropertyChanged("Filtyp"); }
+            get => filtyp;
+            set => SetProperty(ref filtyp, value);
         }
 
-        private string revidering = string.Empty;
         public string Revidering
         {
-            get { return revidering; }
-            set { revidering = value; RaisePropertyChanged("Revidering"); }
+            get => revidering;
+            set => SetProperty(ref revidering, value);
         }
 
-        private string sökväg = string.Empty;
         public string Sökväg
         {
-            get { return sökväg; }
-            set { sökväg = value; RaisePropertyChanged("Sökväg"); }
+            get => sökväg;
+            set => SetProperty(ref sökväg, value);
         }
 
-
-        private int defaultPage = 0;
         public int DefaultPage
         {
-            get { return defaultPage; }
-            set { defaultPage = value; RaisePropertyChanged("DefaultPage"); }
+            get => defaultPage;
+            set => SetProperty(ref defaultPage, value);
         }
 
-        private ObservableCollection<PageData> favPages = new ObservableCollection<PageData>();
         public ObservableCollection<PageData> FavPages
         {
-            get { return favPages; }
-            set { favPages = value; RaisePropertyChanged("FavPages"); RaisePropertyChanged("NameWithAttributes"); }
+            get => favPages;
+            set
+            {
+                SetProperty(ref favPages, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+            }
         }
 
-        private bool isFromFolder = false;
         public bool IsFromFolder
         {
-            get { return isFromFolder; }
-            set { isFromFolder = value; RaisePropertyChanged("IsFromFolder"); RaisePropertyChanged("NameWithAttributes"); }
+            get => isFromFolder;
+            set
+            {
+                SetProperty(ref isFromFolder, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+            }
         }
 
-        private string fromFolder = string.Empty;
         public string FromFolder
         {
-            get { return fromFolder; }
-            set { fromFolder = value; RaisePropertyChanged("FromFolder"); }
+            get => fromFolder;
+            set => SetProperty(ref fromFolder, value);
         }
 
-        private string? syncFolder = string.Empty;
         public string? SyncFolder
         {
-            get { return syncFolder; }
-            set { syncFolder = value; RaisePropertyChanged("SyncFolder"); }
+            get => syncFolder;
+            set => SetProperty(ref syncFolder, value);
         }
 
-        public bool HasBookmarks
-        {
-            get
-            {
-                if (FavPages.Count > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
+        public bool HasBookmarks => FavPages.Count > 0;
 
-        private ObservableCollection<FileData> appendedFiles = new ObservableCollection<FileData>();
         public ObservableCollection<FileData> AppendedFiles
         {
-            get { return appendedFiles; }
-            set { appendedFiles = value; RaisePropertyChanged("AppendedFiles"); RaisePropertyChanged("NameWithAttributes"); }
-        }
-
-
-        private ObservableCollection<OtherData> otherFiles = new ObservableCollection<OtherData>();
-        public ObservableCollection<OtherData> OtherFiles
-        {
-            get { return otherFiles; }
-            set { otherFiles = value; RaisePropertyChanged("OtherFiles"); RaisePropertyChanged("NameWithAttributes"); }
-        }
-
-        public bool HasAppendedFiles
-        {
-            get
+            get => appendedFiles;
+            set
             {
-                if (AppendedFiles.Count > 0 || OtherFiles.Count > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                SetProperty(ref appendedFiles, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+                OnPropertyChanged(nameof(HasAppendedFiles));
             }
         }
+
+        public ObservableCollection<OtherData> OtherFiles
+        {
+            get => otherFiles;
+            set
+            {
+                SetProperty(ref otherFiles, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+                OnPropertyChanged(nameof(HasAppendedFiles));
+            }
+        }
+
+        public bool HasAppendedFiles => AppendedFiles.Count > 0 || OtherFiles.Count > 0;
 
         public string NameWithAttributes
         {
             get
             {
-                string nameWithAttributes = Namn;
+                var nameBuilder = new System.Text.StringBuilder(Namn);
 
                 if (Favorite)
-                {
-                    nameWithAttributes = "⭐ " + nameWithAttributes;
-                }
+                    nameBuilder.Insert(0, FAVORITE_ICON);
 
                 if (HasAppendedFiles || HasBookmarks || HasNote || HasThumbnail)
-                {
-                    nameWithAttributes = nameWithAttributes + "⠀";
-                }
+                    nameBuilder.Append(SEPARATOR);
 
-                if (HasAppendedFiles)
-                {
-                    nameWithAttributes = nameWithAttributes + "📎";
-                }
+                if (HasAppendedFiles) nameBuilder.Append(ATTACHMENT_ICON);
+                if (HasBookmarks) nameBuilder.Append(BOOKMARK_ICON);
+                if (HasNote) nameBuilder.Append(NOTE_ICON);
+                if (HasThumbnail) nameBuilder.Append(THUMBNAIL_ICON);
+                if (HasPlainText) nameBuilder.Append(PLAINTEXT_ICON);
+                if (IsFromFolder) nameBuilder.Append(FOLDER_ICON);
 
-                if (HasBookmarks)
-                {
-                    nameWithAttributes = nameWithAttributes + "🔖";
-                }
-
-                if (HasNote)
-                {
-                    nameWithAttributes = nameWithAttributes + " 📝";
-                }
-
-                if (HasThumbnail)
-                {
-                    nameWithAttributes = nameWithAttributes + " ؞";
-                }
-
-                if (HasPlainText)
-                {
-                    nameWithAttributes = nameWithAttributes + "⠀🌐";
-                }
-
-                if (IsFromFolder)
-                {
-                    nameWithAttributes = nameWithAttributes + "⠀🗀";
-                }
-
-                return nameWithAttributes;
+                return nameBuilder.ToString();
             }
         }
 
-        private string note = string.Empty;
         public string Note
         {
-            get { return note; }
-            set { note = value; RaisePropertyChanged("Note"); RaisePropertyChanged("NameWithAttributes"); }
-        }
-
-        public bool HasNote
-        {
-            get
+            get => note;
+            set
             {
-                if (Note.Length > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                SetProperty(ref note, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+                OnPropertyChanged(nameof(HasNote));
             }
         }
 
-        private bool favorite = false;
+        public bool HasNote => !string.IsNullOrEmpty(Note);
+
         public bool Favorite
         {
-            get { return favorite; }
-            set { favorite = value; RaisePropertyChanged("Favorite"); RaisePropertyChanged("NameWithAttributes"); }
+            get => favorite;
+            set
+            {
+                SetProperty(ref favorite, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+            }
         }
 
-
-        private List<string> partOfCollections = new List<string>();
         public List<string> PartOfCollections
         {
-            get { return partOfCollections; }
-            set { partOfCollections = value; RaisePropertyChanged("PartOfCollections"); }
+            get => partOfCollections;
+            set => SetProperty(ref partOfCollections, value);
         }
 
-
-        private string thumbnailSource = string.Empty;
         public string ThumbnailSource
         {
-            get { return thumbnailSource; }
-            set { thumbnailSource = value; RaisePropertyChanged("ThumbnailSource"); RaisePropertyChanged("NameWithAttributes"); }
-        }
-
-        public bool HasThumbnail
-        {
-            get
+            get => thumbnailSource;
+            set
             {
-                if (ThumbnailSource.Length > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                SetProperty(ref thumbnailSource, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+                OnPropertyChanged(nameof(HasThumbnail));
             }
         }
 
-        private bool hasPlainText = false;
+        public bool HasThumbnail => !string.IsNullOrEmpty(ThumbnailSource);
+
         public bool HasPlainText
         {
-            get { return hasPlainText; }
-            set { hasPlainText = value; RaisePropertyChanged("HasPlainText"); RaisePropertyChanged("NameWithAttributes"); }
+            get => hasPlainText;
+            set
+            {
+                SetProperty(ref hasPlainText, value);
+                OnPropertyChanged(nameof(NameWithAttributes));
+            }
         }
+        #endregion
 
+        #region Methods
         public bool IsValidPdf()
         {
-            if (File.Exists(Sökväg))
-            {
-                if (Path.GetExtension(Sökväg) == ".pdf")
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                return false;
-            }
+            return File.Exists(Sökväg) &&
+                   Path.GetExtension(Sökväg).Equals(PDF_EXTENSION, StringComparison.OrdinalIgnoreCase);
         }
 
         public void RemoveThumbnail()
         {
-            if (thumbnailSource != string.Empty)
+            if (HasThumbnail && File.Exists(thumbnailSource))
             {
-                System.IO.File.Delete(thumbnailSource);
-                ThumbnailSource = string.Empty;
+                try
+                {
+                    File.Delete(thumbnailSource);
+                    ThumbnailSource = string.Empty;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error removing thumbnail: {ex.Message}");
+                }
             }
         }
 
         public bool IsLocal()
         {
-            if (Sökväg == string.Empty)
-            {
-                if (Sökväg[0].ToString() == "C")
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
+            return !string.IsNullOrEmpty(Sökväg) &&
+                   Sökväg.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
+        }
+        #endregion
+
+        #region Property Changed Implementation
+        private bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, newValue))
                 return false;
-            }
+
+            field = newValue;
+            OnPropertyChanged(propertyName);
+            return true;
         }
 
-        private void RaisePropertyChanged(string propName)
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-        public event PropertyChangedEventHandler PropertyChanged;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        #endregion
     }
 }

@@ -1,2297 +1,2114 @@
-﻿using Finn.Dialog;
-using Finn.Model;
-using Finn.Views;
-using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Platform.Storage;
-using Avalonia.Styling;
-using Avalonia.Themes.Fluent;
-using iText.IO.Font;
-using iText.IO.Font.Constants;
-using iText.Kernel.Colors;
-using iText.Kernel.Font;
-using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas;
-using iText.Layout;
-using iText.Layout.Element;
-using iText.Layout.Properties;
-using MuPDFCore;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Transactions;
+﻿    using Finn.Dialog;
+    using Finn.Model;
+    using Finn.Views;
+    using Avalonia;
+    using Avalonia.Controls;
+    using Avalonia.Controls.Documents;
+    using Avalonia.Platform.Storage;
+    using Avalonia.Styling;
+    using Avalonia.Themes.Fluent;
+    using iText.IO.Font;
+    using iText.IO.Font.Constants;
+    using iText.Kernel.Colors;
+    using iText.Kernel.Font;
+    using iText.Kernel.Pdf;
+    using iText.Kernel.Pdf.Canvas;
+    using iText.Layout;
+    using iText.Layout.Element;
+    using iText.Layout.Properties;
+    using MuPDFCore;
+    using Newtonsoft.Json;
+    using System;
+    using System.Collections.Generic;
+    using System.Collections.ObjectModel;
+    using System.ComponentModel;
+    using System.Diagnostics;
+    using System.Globalization;
+    using System.IO;
+    using System.Linq;
+    using System.Text;
+    using System.Threading.Tasks;
+    using System.Transactions;
 
-
-
-namespace Finn.ViewModels
-{
-    public class MainViewModel : ViewModelBase, INotifyPropertyChanged
+    namespace Finn.ViewModels
     {
-        public MainViewModel() 
+        public class MainViewModel : ViewModelBase, INotifyPropertyChanged
         {
-            NewProject("New Project");
-            SetProjectlist();
-            SetProject("New Project");
-            SetDefaultType();
+            // Constants for magic strings
+            private const string ALL_TYPES = "All Types";
+            private const string NEW_TYPE = "New";
+            private const string SEARCH_CATEGORY = "Search";
+            private const string PROJECT_CATEGORY = "Project";
+            private const string TOTAL_PROJECT = "Total";
+            private const string PDF_TYPE = "PDF";
+            private const string OTHER_FILES_TYPE = "Other Files";
+            private const string DRAWING_TYPE = "Drawing";
+            private const string DOCUMENT_TYPE = "Document";
 
-
-        }
-
-        private PreviewViewModel previewVM = new PreviewViewModel();
-        public PreviewViewModel PreviewVM
-        {
-            get { return previewVM; }
-            set { previewVM = value; OnPropertyChanged("PreviewVM"); }
-        }
-
-        public List<string[]> MetaStore = new List<string[]>();
-
-        public List<string> PathStore = new List<string>();
-
-        private ObservableCollection<string> favorites = new ObservableCollection<string>() { "Default" };
-        public ObservableCollection<string> Favorites
-        {
-            get { return favorites; }
-            set { favorites = value; OnPropertyChanged("Favorites"); }
-        }
-
-        private string currentCollection = string.Empty;
-        public string CurrentCollection
-        {
-            get { return currentCollection; }
-            set { currentCollection = value; OnPropertyChanged("CurrentCollection"); SetCollectionContent(); }
-        }
-
-        private ObservableCollection<FileData> collectionContent = new ObservableCollection<FileData>();
-        public ObservableCollection<FileData> CollectionContent
-        {
-            get { return collectionContent; }
-            set { collectionContent = value; OnPropertyChanged("CollectionContent"); }
-        }
-
-        public Window PreviewWindow;
-
-
-        private ObservableCollection<string> groups = new ObservableCollection<string>() {};
-        public ObservableCollection<string> Groups
-        {
-            get { return groups; }
-            set { groups = value; OnPropertyChanged("groups"); }
-        }
-
-        private PageData favPage;
-        public PageData FavPage
-        {
-            get { return favPage; }
-            set { favPage = value; OnPropertyChanged("FavPage"); TrySetPage(); }
-        }
-
-        public string ProjectMessage { get; set; } = "";
-
-        public bool Confirmed = false;
-
-        private bool attachedView = false;
-        public bool AttachedView
-        {
-            get { return attachedView; }
-            set { attachedView = value; OnPropertyChanged("AttachedView");}
-        }
-
-        private StoreData storage = new StoreData();
-        public StoreData Storage
-        {
-            get { return storage; }
-            set { storage = value; OnPropertyChanged("Storage"); Storage.General.PropertyChanged += OnGeneralChanged; }
-        }
-
-        private List<string> projectList = new List<string>();
-        public List<string> ProjectList
-        {
-            get { return projectList; }
-            set { projectList = value; OnPropertyChanged("ProjectList"); }
-        }
-
-        private ProjectData currentProject;
-        public ProjectData CurrentProject
-        {
-            get { return currentProject; }
-            set { currentProject = value; OnPropertyChanged("CurrentProject"); UpdateFilter(); }
-        }
-
-        private string type = null;
-        public string Type
-        {
-            get { return type; }
-            set { type = value; OnPropertyChanged("Type"); UpdateFilter(); }
-        }
-
-        private ObservableCollection<FileData> filteredFiles = new ObservableCollection<FileData>();
-        public ObservableCollection<FileData> FilteredFiles
-        {
-            get { return filteredFiles; }
-            set { filteredFiles = value; OnPropertyChanged("FilteredFiles"); OnPropertyChanged("NrFilteredFiles"); }
-        }
-
-        private ObservableCollection<ContentData> indexedContent = null;
-        public ObservableCollection<ContentData> IndexedContent
-        {
-            get { return indexedContent; }
-            set { indexedContent = value; OnPropertyChanged("IndexedContent"); }
-        }
-
-        private ContentData selectedIndexedContent = null;
-        public ContentData SelectedIndexedContent
-        {
-            get { return selectedIndexedContent; }
-            set { selectedIndexedContent = value; OnPropertyChanged("SelectedIndexedContent"); }
-        }
-
-        public int NrFilteredFiles
-        {
-            get
+            public MainViewModel()
             {
-                if (FilteredFiles == null) { return 0; }
-                else { return FilteredFiles.Count(); }
+                NewProject("New Project");
+                SetProjectlist();
+                SetProject("New Project");
+                SetDefaultType();
             }
-        }
 
-        public int NrSelectedFiles
-        {
-            get
+            private PreviewViewModel previewVM = new();
+            public PreviewViewModel PreviewVM
             {
-                if (CurrentFiles == null) { return 0; }
-                else { return CurrentFiles.Count(); }
+                get { return previewVM; }
+                set { previewVM = value; OnPropertyChanged(nameof(PreviewVM)); }
             }
-        }
 
-        private IList<FileData> currentFiles = null;
-        public IList<FileData> CurrentFiles
-        {
-            get { return currentFiles; }
-            set
+            public List<string[]> MetaStore = new();
+            public List<string> PathStore = new();
+
+            private ObservableCollection<string> favorites = new() { "Default" };
+            public ObservableCollection<string> Favorites
             {
-                currentFiles = value;
-                OnPropertyChanged("FiletypesTree");
-                OnPropertyChanged("CurrentFiles");
-                OnPropertyChanged("CurrentFile");
-                OnPropertyChanged("NrSelectedFiles");
-                OnPropertyChanged("FileSelected");
+                get { return favorites; }
+                set { favorites = value; OnPropertyChanged(nameof(Favorites)); }
             }
-        }
 
-        private FileData currentFile = null;
-        public FileData CurrentFile
-        {
-            get
+            private string currentCollection = string.Empty;
+            public string CurrentCollection
             {
-                if (CurrentFiles != null)
+                get { return currentCollection; }
+                set { currentCollection = value; OnPropertyChanged(nameof(CurrentCollection)); SetCollectionContent(); }
+            }
+
+            private ObservableCollection<FileData> collectionContent = new();
+            public ObservableCollection<FileData> CollectionContent
+            {
+                get { return collectionContent; }
+                set { collectionContent = value; OnPropertyChanged(nameof(CollectionContent)); }
+            }
+
+            public Window PreviewWindow;
+
+            private ObservableCollection<string> groups = new();
+            public ObservableCollection<string> Groups
+            {
+                get { return groups; }
+                set { groups = value; OnPropertyChanged(nameof(Groups)); }
+            }
+
+            private PageData favPage;
+            public PageData FavPage
+            {
+                get { return favPage; }
+                set { favPage = value; OnPropertyChanged(nameof(FavPage)); TrySetPage(); }
+            }
+
+            public string ProjectMessage { get; set; } = "";
+            public bool Confirmed = false;
+
+            private bool attachedView = false;
+            public bool AttachedView
+            {
+                get { return attachedView; }
+                set { attachedView = value; OnPropertyChanged(nameof(AttachedView)); }
+            }
+
+            private StoreData storage = new();
+            public StoreData Storage
+            {
+                get { return storage; }
+                set { storage = value; OnPropertyChanged(nameof(Storage)); Storage.General.PropertyChanged += OnGeneralChanged; }
+            }
+
+            private List<string> projectList = new();
+            public List<string> ProjectList
+            {
+                get { return projectList; }
+                set { projectList = value; OnPropertyChanged(nameof(ProjectList)); }
+            }
+
+            private ProjectData currentProject;
+            public ProjectData CurrentProject
+            {
+                get { return currentProject; }
+                set { currentProject = value; OnPropertyChanged(nameof(CurrentProject)); UpdateFilter(); }
+            }
+
+            private string type = null;
+            public string Type
+            {
+                get { return type; }
+                set { type = value; OnPropertyChanged(nameof(Type)); UpdateFilter(); }
+            }
+
+            private ObservableCollection<FileData> filteredFiles = new();
+            public ObservableCollection<FileData> FilteredFiles
+            {
+                get { return filteredFiles; }
+                set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }
+            }
+
+            private ObservableCollection<ContentData> indexedContent = null;
+            public ObservableCollection<ContentData> IndexedContent
+            {
+                get { return indexedContent; }
+                set { indexedContent = value; OnPropertyChanged(nameof(IndexedContent)); }
+            }
+
+            private ContentData selectedIndexedContent = null;
+            public ContentData SelectedIndexedContent
+            {
+                get { return selectedIndexedContent; }
+                set { selectedIndexedContent = value; OnPropertyChanged(nameof(SelectedIndexedContent)); }
+            }
+
+            public int NrFilteredFiles => FilteredFiles?.Count ?? 0;
+            public int NrSelectedFiles => CurrentFiles?.Count ?? 0;
+
+            private IList<FileData> currentFiles = null;
+            public IList<FileData> CurrentFiles
+            {
+                get { return currentFiles; }
+                set
                 {
-                    return CurrentFiles.LastOrDefault();
+                    currentFiles = value;
+                    OnPropertyChanged("FiletypesTree");
+                    OnPropertyChanged(nameof(CurrentFiles));
+                    OnPropertyChanged(nameof(CurrentFile));
+                    OnPropertyChanged(nameof(NrSelectedFiles));
+                    OnPropertyChanged(nameof(FileSelected));
+                }
+            }
+
+            public FileData CurrentFile => CurrentFiles?.LastOrDefault();
+            public bool FileSelected => CurrentFile != null;
+
+            private bool previewWindowOpen = false;
+            public bool PreviewWindowOpen
+            {
+                get { return previewWindowOpen; }
+                set { previewWindowOpen = value; OnPropertyChanged(nameof(PreviewWindowOpen)); if (PreviewWindowOpen) { PreviewEmbeddedOpen = false; }; }
+            }
+
+            private bool previewEmbeddedOpen = false;
+            public bool PreviewEmbeddedOpen
+            {
+                get { return previewEmbeddedOpen; }
+                set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); NewPreviewContext(); if (PreviewEmbeddedOpen) { PreviewWindowOpen = false; }; }
+            }
+
+            private bool treeViewOpen = true;
+            public bool TreeViewOpen
+            {
+                get { return treeViewOpen; }
+                set { treeViewOpen = value; OnPropertyChanged(nameof(TreeViewOpen)); }
+            }
+
+            private bool calendarOpen = false;
+            public bool CalendarOpen
+            {
+                get { return calendarOpen; }
+                set { calendarOpen = value; OnPropertyChanged(nameof(CalendarOpen)); }
+            }
+
+            private bool timeSheetOpen = false;
+            public bool TimeSheetOpen
+            {
+                get { return timeSheetOpen; }
+                set { timeSheetOpen = value; OnPropertyChanged(nameof(TimeSheetOpen)); WeeklyTimeSummary(); }
+            }
+
+            private bool showFolders = false;
+            public bool ShowFolders
+            {
+                get { return showFolders; }
+                set { showFolders = value; OnPropertyChanged(nameof(ShowFolders)); }
+            }
+
+            private bool trayViewOpen = false;
+            public bool TrayViewOpen
+            {
+                get { return trayViewOpen; }
+                set { trayViewOpen = value; OnPropertyChanged(nameof(TrayViewOpen)); }
+            }
+
+            private bool showThumbnails = false;
+            public bool ShowThumbnails
+            {
+                get { return showThumbnails; }
+                set { showThumbnails = value; OnPropertyChanged(nameof(ShowThumbnails)); }
+            }
+
+            private string searchText = string.Empty;
+            public string SearchText
+            {
+                get { return searchText; }
+                set { searchText = value; OnPropertyChanged(nameof(SearchText)); }
+            }
+
+            private bool indexedSearch = false;
+            public bool IndexedSearch
+            {
+                get { return indexedSearch; }
+                set { indexedSearch = value; OnPropertyChanged(nameof(IndexedSearch)); }
+            }
+
+            private DateTime selectedDateTime = new();
+            public DateTime SelectedDateTime
+            {
+                get { return selectedDateTime; }
+                set { selectedDateTime = value; OnPropertyChanged(nameof(SelectedDateTime)); UpdateMonthly(); SetCurrentCalendarData(); }
+            }
+
+            private int selectedWeek = 0;
+            public int SelectedWeek
+            {
+                get { return selectedWeek; }
+                set { selectedWeek = value; OnPropertyChanged(nameof(SelectedWeek)); }
+            }
+
+            private ObservableCollection<CalendarData> monthlyNotes = new();
+            public ObservableCollection<CalendarData> MonthlyNotes
+            {
+                get { return monthlyNotes; }
+                set { monthlyNotes = value; OnPropertyChanged(nameof(MonthlyNotes)); }
+            }
+
+            private CalendarData currentCalendarData = new();
+            public CalendarData CurrentCalendarData
+            {
+                get { return currentCalendarData; }
+                set { currentCalendarData = value; OnPropertyChanged(nameof(CurrentCalendarData)); SelectDateTime(); WeeklyTimeSummary(); }
+            }
+
+            private TimeSheetData currentTimeSheet = new();
+            public TimeSheetData CurrentTimeSheet
+            {
+                get { return currentTimeSheet; }
+                set { currentTimeSheet = value; OnPropertyChanged(nameof(CurrentTimeSheet)); }
+            }
+
+            private ObservableCollection<int> hours = new() { 1, 2, 3, 4, 5, 6, 7, 8 };
+            public ObservableCollection<int> Hours
+            {
+                get { return hours; }
+                set { hours = value; OnPropertyChanged(nameof(Hours)); }
+            }
+
+            private TimeSheetProjectData currentTimeSheetProject;
+            public TimeSheetProjectData CurrentTimeSheetProject
+            {
+                get { return currentTimeSheetProject; }
+                set { currentTimeSheetProject = value; OnPropertyChanged(nameof(CurrentTimeSheetProject)); UpdateTimeSheetSummary(); }
+            }
+
+            private FolderData currentFolder;
+            public FolderData CurrentFolder
+            {
+                get { return currentFolder; }
+                set { currentFolder = value; OnPropertyChanged(nameof(CurrentFolder)); }
+            }
+
+            // Helper method for common window setup
+            private void ConfigureWindow(Window window, Window mainWindow)
+            {
+                window.DataContext = this;
+                window.FontFamily = mainWindow.FontFamily;
+                window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
+                window.Focusable = true;
+            }
+
+            public void NewFolder()
+            {
+                CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
+            }
+
+            public void NewFileFolder()
+            {
+                if (CurrentFile != null)
+                {
+                    CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, AttachToFilePath = CurrentFile.Sökväg });
+                }
+            }
+
+            public void RemoveFolder()
+            {
+                if (CurrentFolder != null)
+                {
+                    if (CurrentFolder.AttachToFile == null)
+                    {
+                        foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                        {
+                            CurrentProject.StoredFiles.Remove(file);
+                        }
+
+                        UpdateFilter();
+                        CurrentProject.Folders.Remove(CurrentFolder);
+                        OnPropertyChanged("TreeViewUpdate");
+                    }
+                    else
+                    {
+                        FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == CurrentFolder.AttachToFile);
+
+                        if (file != null)
+                        {
+                            if (CurrentFolder.Types == PDF_TYPE)
+                            {
+                                foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                                {
+                                    file.AppendedFiles.Remove(fileToRemove);
+                                }
+                                SortAttachedFilesDirect(file);
+                            }
+
+                            if (CurrentFolder.Types == OTHER_FILES_TYPE)
+                            {
+                                foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                                {
+                                    file.OtherFiles.Remove(fileToRemove);
+                                }
+                                SortOtherFilesDirect(file);
+                            }
+                        }
+
+                        CurrentProject.Folders.Remove(CurrentFolder);
+                    }
+                }
+            }
+
+            public void SyncAllFolders()
+            {
+                foreach (FolderData folder in CurrentProject.Folders)
+                {
+                    SyncFolder(folder);
+                }
+            }
+
+            public void SyncSelectedFolder()
+            {
+                SyncFolder(CurrentFolder);
+            }
+
+            public void SyncFile()
+            {
+                if (CurrentFile != null)
+                {
+                    foreach (FolderData folder in CurrentProject.Folders.Where(x => x.AttachToFilePath == CurrentFile.Sökväg))
+                    {
+                        SyncFolder(folder);
+                    }
+                }
+            }
+
+            public void SyncFolder(FolderData folder)
+            {
+                if (folder?.IsValid() != true || folder.Path == null)
+                {
+                    return;
+                }
+
+                if (folder.AttachToFile != null)
+                {
+                    FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Sökväg == folder.AttachToFilePath);
+                    CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Sökväg == folder.AttachToFilePath).ToList();
+
+                    if (file != null)
+                    {
+                        if (folder.Types == PDF_TYPE)
+                        {
+                            foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
+                            {
+                                CurrentFile.AppendedFiles.Remove(fileToRemove);
+                            }
+
+                            foreach (FileData fileToAdd in GetFilesFromFolder(folder))
+                            {
+                                CurrentFile.AppendedFiles.Add(fileToAdd);
+                            }
+
+                            SortAttachedFiles();
+                        }
+
+                        if (folder.Types == OTHER_FILES_TYPE)
+                        {
+                            foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == folder.Path).ToList())
+                            {
+                                CurrentFile.OtherFiles.Remove(fileToRemove);
+                            }
+
+                            foreach (OtherData fileToAdd in GetOtherFilesFromFolder(folder))
+                            {
+                                CurrentFile.OtherFiles.Add(fileToAdd);
+                            }
+
+                            SortOtherFiles();
+                        }
+                    }
                 }
                 else
                 {
-                    return null;
+                    List<FileData> files = GetFilesFromFolder(folder);
+
+                    IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == folder.Path);
+                    IEnumerable<FileData> filesToRemove = existingFiles.Where(p => !files.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
+                    IEnumerable<FileData> filesToAdd = files.Where(p => !existingFiles.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
+
+                    foreach (FileData file in filesToRemove)
+                    {
+                        CurrentProject.StoredFiles.Remove(file);
+                    }
+                    foreach (FileData file in filesToAdd)
+                    {
+                        CurrentProject.StoredFiles.Add(file);
+                    }
+
+                    SetDefaultType();
+                    OnPropertyChanged("TreeViewUpdate");
                 }
             }
-        }
 
-        public bool FileSelected
-        {
-            get
+            private List<FileData> GetFilesFromFolder(FolderData folder)
             {
-                if (CurrentFile == null)
+                List<FileData> files = new();
+
+                if (folder.IsValid())
+                {
+                    foreach (string path in Directory.GetFiles(folder.Path))
+                    {
+                        if (Path.GetExtension(path) == ".pdf")
+                        {
+                            files.Add(new FileData()
+                            {
+                                Namn = System.IO.Path.GetFileNameWithoutExtension(path),
+                                Sökväg = path,
+                                Uppdrag = CurrentProject.Namn,
+                                Filtyp = NEW_TYPE,
+                                SyncFolder = folder.Path,
+                                IsFromFolder = true
+                            });
+                        }
+                    }
+                }
+
+                return files;
+            }
+
+            private List<OtherData> GetOtherFilesFromFolder(FolderData folder)
+            {
+                List<OtherData> files = new();
+
+                if (folder.IsValid())
+                {
+                    foreach (string path in Directory.GetFiles(folder.Path))
+                    {
+                        OtherData newFile = new()
+                        {
+                            Name = System.IO.Path.GetFileNameWithoutExtension(path),
+                            Filepath = path,
+                            SyncFolder = folder.Path,
+                            IsFromFolder = true
+                        };
+
+                        newFile.SetFile();
+                        files.Add(newFile);
+                    }
+                }
+
+                return files;
+            }
+
+            public void AddPlaceholderFile(string name)
+            {
+                FileData newfile = new()
+                {
+                    Namn = name,
+                    Filtyp = NEW_TYPE,
+                    Uppdrag = CurrentProject.Namn,
+                    Sökväg = string.Empty
+                };
+
+                CurrentProject.StoredFiles.Add(newfile);
+                UpdateFilter();
+                OnPropertyChanged("TreeViewUpdate");
+            }
+
+            public void NewTimeSheet()
+            {
+                CurrentCalendarData.TimeSheets.Add(new TimeSheetData() { Hours = 1, Project = NEW_TYPE });
+                CurrentCalendarData.TriggerDateStringUpdate();
+            }
+
+            public void RemoveTimeSheet()
+            {
+                CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
+                CurrentCalendarData.TriggerDateStringUpdate();
+            }
+
+            private void UpdateTimeSheetSummary()
+            {
+                foreach (CalendarData calendarData in MonthlyNotes)
+                {
+                    calendarData.SetCurrentTimeSheetProjectDiary(CurrentTimeSheetProject.Project);
+                }
+            }
+
+            private void WeeklyTimeSummary()
+            {
+                if (TimeSheetOpen && CurrentCalendarData != null)
+                {
+                    foreach (TimeSheetProjectData project in Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT))
+                    {
+                        project.W1 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 0).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                        project.W2 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 1).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                        project.W3 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 2).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                        project.W4 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 3).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                        project.W5 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 4).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
+                    }
+
+                    TimeSheetProjectData summarySheet = Storage.General.TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
+
+                    if (summarySheet != null)
+                    {
+                        summarySheet.W1 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W1);
+                        summarySheet.W2 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W2);
+                        summarySheet.W3 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W3);
+                        summarySheet.W4 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W4);
+                        summarySheet.W5 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W5);
+                    }
+                }
+            }
+
+            private void UpdateMonthly()
+            {
+                if (SelectedDateTime != null)
+                {
+                    SelectedWeek = ISOWeek.GetWeekOfYear(SelectedDateTime);
+
+                    MonthlyNotes.Clear();
+
+                    foreach (CalendarData data in Storage.General.CalendarList.Where(x => x.Date.Month == SelectedDateTime.Month).Where(x => x.Date.Year == SelectedDateTime.Year).OrderBy(x => x.Date))
+                    {
+                        MonthlyNotes.Add(data);
+                    }
+                }
+            }
+
+            private void SetCurrentCalendarData()
+            {
+                if (SelectedDateTime != null)
+                {
+                    CurrentCalendarData = Storage.General.CalendarList.FirstOrDefault(x => x.Date == DateOnly.FromDateTime(SelectedDateTime));
+                    if (CurrentCalendarData == null)
+                    {
+                        CalendarData newData = new()
+                        {
+                            Date = DateOnly.FromDateTime(SelectedDateTime)
+                        };
+
+                        Storage.General.CalendarList.Add(newData);
+                        CurrentCalendarData = newData;
+                    }
+                }
+            }
+
+            public void SetCalendarMonth()
+            {
+                foreach (DateTime datetime in GetDates(SelectedDateTime.Year, SelectedDateTime.Month))
+                {
+                    DateOnly date = DateOnly.FromDateTime(datetime);
+                    if (!Storage.General.CalendarList.Any(x => x.Date == date))
+                    {
+                        Storage.General.CalendarList.Add(new CalendarData() { Date = date });
+                    }
+                }
+
+                UpdateMonthly();
+            }
+
+            public static List<DateTime> GetDates(int year, int month)
+            {
+                return Enumerable.Range(1, DateTime.DaysInMonth(year, month))
+                                 .Select(day => new DateTime(year, month, day))
+                                 .ToList();
+            }
+
+            public void RemoveCalendarNote()
+            {
+                Storage.General.CalendarList.Remove(CurrentCalendarData);
+                CurrentCalendarData = Storage.General.CalendarList.FirstOrDefault() ?? new CalendarData();
+                UpdateMonthly();
+            }
+
+            public void ResetDate()
+            {
+                SelectedDateTime = DateTime.Now;
+            }
+
+            private void SelectDateTime()
+            {
+                if (CurrentCalendarData != null)
+                {
+                    if (CurrentCalendarData.Date != DateOnly.FromDateTime(SelectedDateTime.Date))
+                    {
+                        SelectedDateTime = CurrentCalendarData.Date.ToDateTime(TimeOnly.Parse("10:00 PM"));
+                    }
+                }
+            }
+
+            public void ResetPreviewer()
+            {
+                PreviewVM.FileWorkerBusy = false;
+            }
+
+            public void OpenWhiteboard(Window mainWindow)
+            {
+                var window = new xPaintDia();
+                ConfigureWindow(window, mainWindow);
+                window.Show();
+            }
+
+            public void OpenPreviewWindow(ThemeVariant theme)
+            {
+                PreviewWindow = new PreWindow()
+                {
+                    DataContext = this,
+                    RequestedThemeVariant = theme
+                };
+                PreviewWindow.Show();
+            }
+
+            public void OpenInfoDia(Window mainWindow)
+            {
+                var window = new xProgDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+            }
+
+            public void OpenColorDia(Window mainWindow)
+            {
+                var window = new xColorDia();
+                ConfigureWindow(window, mainWindow);
+                window.FontCombo.SelectionChanged += SignalFontChanged;
+                window.FontSizeCombo.SelectionChanged += SignalFontChanged;
+                window.ShowDialog(mainWindow);
+            }
+
+            private void NewPreviewContext()
+            {
+            }
+
+            private void SignalFontChanged(object sender, SelectionChangedEventArgs e)
+            {
+                OnPropertyChanged("FontChanged");
+            }
+
+            public void OpenMetaEditDia(Window mainWindow)
+            {
+                var window = new xMetaDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+            }
+
+            public void OpenProjectEditDia(Window mainWindow)
+            {
+                var window = new xEditDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+            }
+
+            public void OpenProjectNewDia(Window mainWindow)
+            {
+                var window = new xNewDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+                window.ProjectName.Focus();
+            }
+
+            public void OpenTagDia(Window mainWindow)
+            {
+                var window = new xTagDia();
+                ConfigureWindow(window, mainWindow);
+                window.TagMenuInput.Text = CurrentFile.Tagg;
+                window.TagMenuInput.CaretIndex = window.TagMenuInput.Text.Length;
+                window.ShowDialog(mainWindow);
+                window.TagMenuInput.Focus();
+            }
+
+            public void OpenNewPlaceholderFile(Window mainWindow)
+            {
+                var window = new xPlaceholderDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+                window.NewFileName.Focus();
+            }
+
+            public void TryOpenRenameDia(Window mainWindow)
+            {
+                if (!CurrentFile.IsLocal())
+                {
+                    OpenMessageDia(mainWindow);
+                }
+                else
+                {
+                    OpenRenameDia(mainWindow);
+                }
+            }
+
+            public void OpenRenameDia(Window mainWindow)
+            {
+                var window = new xRenameDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetCurrentName(CurrentFile.Namn);
+                window.NewNameInput.CaretIndex = window.NewNameInput.Text.Length;
+                window.ShowDialog(mainWindow);
+                window.NewNameInput.Focus();
+            }
+
+            public async Task OpenMessageDia(Window mainWindow)
+            {
+                var window = new xMessageDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetMessage("Only available for files stored on C:\\");
+                await window.ShowDialog(mainWindow);
+            }
+
+            public async Task ConfirmDeleteDia(Window mainWindow)
+            {
+                var window = new xDeleteDia();
+                ConfigureWindow(window, mainWindow);
+                await window.ShowDialog(mainWindow);
+            }
+
+            public void OnInfoDia(Window mainWindow)
+            {
+                var window = new xInfoDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+            }
+
+            public void OnIndexDia(Window mainWindow)
+            {
+                var window = new xIndexDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+            }
+
+            private void OnGeneralChanged(object sender, PropertyChangedEventArgs e)
+            {
+                string val = e.PropertyName;
+
+                if (val == "Color1" || val == "Color2" || val == "Color3" || val == "Color4")
+                {
+                    SetWindowColors();
+                }
+            }
+
+            public void TrySetPage()
+            {
+                if (FavPage != null)
+                {
+                    PreviewVM.RequestPage1 = FavPage.PageNr;
+                }
+            }
+
+            public void GetThumbnails()
+            {
+                string thumbnailPath = $"{Storage.General.SavePath}\\Thumbnails\\";
+                if (!Directory.Exists(thumbnailPath))
+                {
+                    Directory.CreateDirectory(thumbnailPath);
+                }
+
+                foreach (FileData file in CurrentFiles)
+                {
+                    if (file.IsValidPdf())
+                    {
+                        file.RemoveThumbnail();
+
+                        byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+                        MuPDFDocument fileDocument = new(new MuPDFContext(), bytes, InputFileTypes.PDF);
+
+                        file.ThumbnailSource = $"{thumbnailPath}{file.Namn}.jpeg";
+                        fileDocument.SaveImageAsJPEG(0, 1, file.ThumbnailSource, 20);
+
+                        fileDocument.Dispose();
+                    }
+                }
+            }
+
+            public void GetIndexedContent()
+            {
+                string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
+
+                if (System.IO.File.Exists(indexPath))
+                {
+                    LoadIndexFile(indexPath);
+                }
+
+                IndexedContent ??= new ObservableCollection<ContentData>();
+
+                foreach (FileData file in CurrentFiles)
+                {
+                    if (file.IsValidPdf())
+                    {
+                        byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+
+                        MuPDFDocument fileDocument = new(new MuPDFContext(), bytes, InputFileTypes.PDF);
+                        ContentData existing = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
+
+                        IndexedContent.Remove(existing);
+
+                        ContentData content = new()
+                        {
+                            Name = file.Namn,
+                            Filepath = file.Sökväg,
+                            PlainText = fileDocument.ExtractText()
+                        };
+
+                        IndexedContent.Add(content);
+                        file.HasPlainText = true;
+                        fileDocument.Dispose();
+                    }
+                }
+
+                SaveIndexFile(indexPath);
+            }
+
+            public void ClearIndexedContent()
+            {
+                string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
+
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.HasPlainText = false;
+
+                    if (IndexedContent?.Any(x => x.Filepath == file.Sökväg) == true)
+                    {
+                        ContentData contentToRemove = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
+                        IndexedContent.Remove(contentToRemove);
+                        SaveIndexFile(indexPath);
+                    }
+                }
+            }
+
+            private void LoadIndexFile(string indexPath)
+            {
+                using StreamReader streamReader = new(indexPath);
+                string fileContent = streamReader.ReadToEnd();
+                IndexedContent = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent);
+
+                List<string> indexedFiles = new();
+
+                foreach (ContentData content in IndexedContent)
+                {
+                    indexedFiles.Add(content.Filepath);
+                }
+
+                foreach (ProjectData project in Storage.StoredProjects)
+                {
+                    foreach (FileData file in project.StoredFiles)
+                    {
+                        file.HasPlainText = indexedFiles.Contains(file.Sökväg);
+                    }
+                }
+            }
+
+            private void SaveIndexFile(string indexPath)
+            {
+                if (!Directory.Exists(Storage.General.SavePath))
+                {
+                    Directory.CreateDirectory(Storage.General.SavePath);
+                }
+
+                using StreamWriter streamWriter = new(indexPath);
+                var data = JsonConvert.SerializeObject(IndexedContent);
+                streamWriter.WriteLine(data);
+            }
+
+            public void ClearThumbnails()
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.RemoveThumbnail();
+                }
+            }
+
+            public void SetBookmark(PageData page)
+            {
+                FavPage = page;
+            }
+
+            public void AddBookmark(string pageName)
+            {
+                int pageNr = PreviewVM.CurrentPage1;
+                PageData page = new() { PageNr = pageNr, PageName = pageName };
+
+                if (PreviewVM.CurrentFile != null)
+                {
+                    PreviewVM.CurrentFile.FavPages.Add(page);
+                }
+
+                SortBookmarks();
+            }
+
+            public void RenameBookmark(string pageName)
+            {
+                if (FavPage != null)
+                {
+                    FavPage.PageName = pageName;
+                }
+            }
+
+            public void RemoveBookmark(PageData page)
+            {
+                if (PreviewVM.CurrentFile != null)
+                {
+                    PreviewVM.CurrentFile.FavPages.Remove(page);
+                }
+
+                SortBookmarks();
+            }
+
+            private void SortBookmarks()
+            {
+                List<PageData> tempList = PreviewVM.CurrentFile.FavPages.OrderBy(x => x.PageNr).ToList();
+                PreviewVM.CurrentFile.FavPages.Clear();
+                PreviewVM.CurrentFile.FavPages = new ObservableCollection<PageData>(tempList);
+            }
+
+            public void MarkFavorite()
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Favorite = !file.Favorite;
+                }
+            }
+
+            public void NewCollection(string name)
+            {
+                Storage.General.Collections.Add(name);
+            }
+
+            public void RemoveCollection()
+            {
+                if (CollectionContent.Count > 0)
+                {
+                    foreach (FileData file in CollectionContent)
+                    {
+                        file.PartOfCollections.Remove(CurrentCollection);
+                    }
+                }
+                Storage.General.Collections.Remove(CurrentCollection);
+            }
+
+            public void AddFileToCollection(string collection)
+            {
+                foreach (FileData file in CurrentFiles.Where(x => !x.PartOfCollections.Contains(collection)))
+                {
+                    file.PartOfCollections.Add(collection);
+                }
+                CurrentCollection = collection;
+            }
+
+            public void RemoveFileFromCollection()
+            {
+                CurrentFile.PartOfCollections.Remove(CurrentCollection);
+                SetCollectionContent();
+            }
+
+            public void SetCollectionContent()
+            {
+                CollectionContent.Clear();
+
+                foreach (ProjectData project in Storage.StoredProjects)
+                {
+                    foreach (FileData file in project.StoredFiles.Where(x => x.PartOfCollections.Contains(CurrentCollection)))
+                    {
+                        CollectionContent.Add(file);
+                    }
+                }
+            }
+
+            public void RenameCollection(string newName)
+            {
+                if (!Storage.General.Collections.Contains(newName))
+                {
+                    foreach (FileData file in CollectionContent)
+                    {
+                        file.PartOfCollections.Remove(CurrentCollection);
+                        file.PartOfCollections.Add(newName);
+                    }
+
+                    int index = Storage.General.Collections.IndexOf(CurrentCollection);
+                    Storage.General.Collections[index] = newName;
+
+                    CurrentCollection = newName;
+                }
+            }
+
+            public async Task LoadFile(Visual window)
+            {
+                var topLevel = TopLevel.GetTopLevel(window);
+
+                var jsonformat = new FilePickerFileType("Json format") { Patterns = new[] { "*.json" } };
+                List<FilePickerFileType> formatlist = new() { jsonformat };
+                IReadOnlyList<FilePickerFileType> fileformat = formatlist;
+
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    Title = "Load File",
+                    AllowMultiple = false,
+                    FileTypeFilter = fileformat
+                });
+
+                if (files.Count > 0)
+                {
+                    await using var stream = await files[0].OpenReadAsync();
+                    using var streamReader = new StreamReader(stream);
+                    string fileContent = await streamReader.ReadToEndAsync();
+                    DeserializeLoadFile(fileContent);
+                }
+            }
+
+            public void LoadFileAuto()
+            {
+                using StreamReader streamReader = new($"{Storage.General.SavePath}\\Projects.json");
+                string fileContent = streamReader.ReadToEnd();
+                DeserializeLoadFile(fileContent);
+            }
+
+            public void DeserializeLoadFile(string fileContent)
+            {
+                Storage = new StoreData();
+                try // Trying reading v.2 save file
+                {
+                    Storage = JsonConvert.DeserializeObject<StoreData>(fileContent);
+                }
+                catch // If not, try read as v.1 save file
+                {
+                    Storage.StoredProjects = JsonConvert.DeserializeObject<ObservableCollection<ProjectData>>(fileContent);
+                    RemoveProjects(Storage.StoredProjects.Where(x => x.Category == SEARCH_CATEGORY).ToList());
+                    RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Favorites").ToList());
+                }
+
+                SetProjectlist();
+                SetDefaultSelection();
+                SetWindowColors();
+                SetWindowBorders();
+                GetGroups();
+            }
+
+            public async Task SaveFile(Avalonia.Visual window)
+            {
+                var topLevel = TopLevel.GetTopLevel(window);
+
+                var jsonformat = new FilePickerFileType("Json format") { Patterns = new[] { "*.json" } };
+                List<FilePickerFileType> formatlist = new() { jsonformat };
+                IReadOnlyList<FilePickerFileType> fileformat = formatlist;
+
+                var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "Save File",
+                    FileTypeChoices = fileformat
+                });
+
+                if (file is not null)
+                {
+                    await using var stream = await file.OpenWriteAsync();
+                    using var streamWriter = new StreamWriter(stream);
+                    var data = JsonConvert.SerializeObject(Storage);
+                    await streamWriter.WriteLineAsync(data);
+                }
+            }
+
+            public async Task SaveFileAuto()
+            {
+                if (!Directory.Exists(Storage.General.SavePath))
+                {
+                    Directory.CreateDirectory(Storage.General.SavePath);
+                }
+
+                using StreamWriter streamWriter = new($"{Storage.General.SavePath}\\Projects.json");
+                var data = JsonConvert.SerializeObject(Storage);
+                await streamWriter.WriteLineAsync(data);
+            }
+
+            public void BackupSaveFile()
+            {
+                string backupDir = $"{Storage.General.SavePath}\\Backup_{DateTime.Today:d}";
+
+                Directory.CreateDirectory(backupDir);
+
+                System.IO.File.Copy($"{Storage.General.SavePath}\\Projects.json", $"{backupDir}\\Projects.json", true);
+            }
+
+            public async Task AddFile(Avalonia.Visual window)
+            {
+                if (CurrentProject != null)
+                {
+                    var topLevel = TopLevel.GetTopLevel(window);
+                    var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                    {
+                        Title = "Add File",
+                        FileTypeFilter = new[] { FilePickerFileTypes.Pdf },
+                        AllowMultiple = true
+                    });
+
+                    foreach (var file in files)
+                    {
+                        string path = file.Path.LocalPath;
+                        CurrentProject.Newfile(path);
+                        SetDefaultType();
+                    }
+                }
+            }
+
+            public void SetWindowColors()
+            {
+                var theme = new FluentTheme()
+                {
+                    Palettes =
+                    {
+                        [ThemeVariant.Dark] = new ColorPaletteResources() {RegionColor = Storage.General.Color1, Accent = Storage.General.Color2},
+                        [ThemeVariant.Light] = new ColorPaletteResources() {RegionColor = Storage.General.Color3, Accent = Storage.General.Color4 }
+                    }
+                };
+
+                App.Current.Resources = theme.Resources;
+            }
+
+            public void SetWindowBorders()
+            {
+                Storage.General.CornerRadiusVal = Storage.General.CornerRadiusVal;
+                Storage.General.ShadowVal = Storage.General.ShadowVal;
+            }
+
+            public void AddFilesDrag(string path)
+            {
+                CurrentProject.Newfile(path);
+                SetDefaultType();
+            }
+
+            public void SetCategory(string category)
+            {
+                SetProjecCategory(category);
+            }
+
+            public void SetGroup(string group)
+            {
+                SetGroups(group);
+                GetGroups();
+            }
+
+            public void CopyFilenameToClipboard(Avalonia.Visual window)
+            {
+                string store = string.Empty;
+
+                foreach (FileData file in CurrentFiles)
+                {
+                    store += file.Namn + Environment.NewLine;
+                }
+
+                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
+            }
+
+            public void CopyFilepathToClipboard(Avalonia.Visual window)
+            {
+                string store = string.Empty;
+
+                foreach (FileData file in CurrentFiles)
+                {
+                    store += file.Sökväg + Environment.NewLine;
+                }
+
+                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
+            }
+
+            public void CopyListviewToClipboard(Avalonia.Visual window)
+            {
+                string store = string.Empty;
+
+                foreach (FileData file in CurrentFiles)
+                {
+                    if (CurrentProject.Meta_1 == true) { store += file.Namn + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_2 == true) { store += file.Filtyp + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_3 == true) { store += file.Uppdrag + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_4 == true) { store += file.Tagg + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_5 == true) { store += file.Färg + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_6 == true) { store += file.Handling + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_7 == true) { store += file.Status + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_8 == true) { store += file.Datum + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_9 == true) { store += file.Ritningstyp + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_10 == true) { store += file.Beskrivning1 + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_11 == true) { store += file.Beskrivning2 + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_12 == true) { store += file.Beskrivning3 + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_13 == true) { store += file.Beskrivning4 + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_14 == true) { store += file.Revidering + "\t"; }
+                    ;
+                    if (CurrentProject.Meta_15 == true) { store += file.Sökväg + "\t"; }
+                    ;
+
+                    store += Environment.NewLine;
+                }
+                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
+            }
+
+            public void SelectFilesForMetaworker(bool singleMode)
+            {
+                MetaStore.Clear();
+                PathStore.Clear();
+
+                if (singleMode == true)
+                {
+                    foreach (FileData file in CurrentFiles) { PathStore.Add((file.Sökväg)); }
+                }
+                if (singleMode == false)
+                {
+                    foreach (FileData file in FilteredFiles) { PathStore.Add((file.Sökväg)); }
+                }
+            }
+
+            public int GetNrSelectedFiles()
+            {
+                return PathStore.Count;
+            }
+
+            public void SetMeta()
+            {
+                int i = 0;
+                foreach (string path in PathStore)
+                {
+                    FileData file = FilteredFiles.FirstOrDefault(x => x.Sökväg == path);
+
+                    string[] md = MetaStore[i];
+
+                    file.Handling = md[0];
+                    file.Status = md[1];
+                    file.Datum = md[2];
+                    file.Ritningstyp = md[3];
+                    file.Beskrivning1 = md[4];
+                    file.Beskrivning2 = md[5];
+                    file.Beskrivning3 = md[6];
+                    file.Beskrivning4 = md[7];
+                    file.Revidering = md[8];
+                    file.Sökväg = path;
+
+                    i++;
+                }
+            }
+
+            public void GetMetadata(int k)
+            {
+                string[] tags = ["Handlingstyp = ", "Granskningsstatus = ", "Datum = ", "Ritningstyp = ", "Beskrivning1 = ", "Beskrivning2 = ", "Beskrivning3 = ", "Beskrivning4 = ", "Revidering = "];
+                int ntags = tags.Length;
+
+                string path = PathStore[k];
+                string[] description = new string[ntags];
+                try
+                {
+                    string[] lines = System.IO.File.ReadAllLines(path + ".md", Encoding.GetEncoding("ISO-8859-1"));
+
+                    int iter = 1;
+                    int start = 100;
+                    int end = 0;
+                    foreach (string line in lines)
+                    {
+                        if (line == "[Metadata]") { start = iter; }
+                        if (line.Trim().Length == 0 || iter > start) { end = iter; }
+                        iter++;
+                    }
+
+                    for (int i = start; i < end; i++)
+                    {
+                        string line = lines[i];
+                        for (int j = 0; j < ntags; j++)
+                        {
+                            string tag = tags[j];
+                            if (line.StartsWith(tag))
+                            {
+                                description[j] = line.Replace(tag, "");
+                            }
+                            if (line.StartsWith(tag.ToUpper()))
+                            {
+                                description[j] = line.Replace(tag.ToUpper(), "");
+                            }
+                        }
+                    }
+                    MetaStore.Add(description);
+                }
+                catch (Exception)
+                {
+                    MetaStore.Add(["", "", "", "", "", "", "", "", ""]);
+                }
+            }
+
+            public void ClearMeta()
+            {
+                ClearSelectedMetadata();
+            }
+
+            public void Search()
+            {
+                if (IndexedSearch)
+                {
+                    SearchIndex();
+                }
+                else
+                {
+                    SeachFiles();
+                }
+
+                OnPropertyChanged("UpdateColumns");
+            }
+
+            public void SearchIndex()
+            {
+                string indexPath = $"{Storage.General.SavePath}//IndexedContent.json";
+
+                if (IndexedContent == null)
+                {
+                    if (System.IO.File.Exists(indexPath))
+                    {
+                        LoadIndexFile(indexPath);
+                    }
+                    else
+                    {
+                        IndexedContent = new ObservableCollection<ContentData>();
+                    }
+                }
+
+                FilteredFiles.Clear();
+                CurrentProject = new ProjectData() { Namn = SearchText, Category = SEARCH_CATEGORY };
+
+                List<string> filepaths = new();
+
+                foreach (ContentData content in IndexedContent)
+                {
+                    if (content.PlainText.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                    {
+                        filepaths.Add(content.Filepath);
+                    }
+                }
+
+                foreach (ProjectData project in Storage.StoredProjects)
+                {
+                    foreach (FileData file in project.StoredFiles)
+                    {
+                        if (filepaths.Contains(file.Sökväg))
+                        {
+                            FilteredFiles.Add(file);
+                        }
+                    }
+                }
+
+                OnPropertyChanged(nameof(NrFilteredFiles));
+            }
+
+            public void CheckSingleFile()
+            {
+                if (CurrentFile != null)
+                {
+                    if (CurrentFile.IsValidPdf())
+                    {
+                        CurrentFile.FileStatus = "OK";
+                    }
+                    else
+                    {
+                        CurrentFile.FileStatus = "Missing";
+                    }
+                }
+            }
+
+            public async Task CheckProjectFiles()
+            {
+                await Task.Run(() => CheckFileAsync());
+            }
+
+            public async Task CheckFileAsync()
+            {
+                ClearFileStatus();
+
+                int n = CurrentProject.StoredFiles.Count;
+                int i = 0;
+
+                foreach (FileData file in CurrentProject.StoredFiles)
+                {
+                    i++;
+
+                    if (file.IsValidPdf())
+                    {
+                        file.FileStatus = "OK";
+                    }
+                    else
+                    {
+                        file.FileStatus = "Missing";
+                    }
+
+                    PreviewVM.Progress = (int)(100 * ((float)i / (float)n));
+                }
+            }
+
+            public void ClearFileStatus()
+            {
+                foreach (FileData file in CurrentProject.StoredFiles)
+                {
+                    file.FileStatus = "";
+                }
+            }
+
+            public void OpenFile()
+            {
+                try
+                {
+                    foreach (FileData file in CurrentFiles)
+                    {
+                        ProcessStartInfo psi = new()
+                        {
+                            FileName = file.Sökväg,
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                }
+                catch (Exception e) { Debug.WriteLine(e); }
+            }
+
+            public void OpenFileDirect(string path)
+            {
+                try
+                {
+                    ProcessStartInfo psi = new()
+                    {
+                        FileName = path,
+                        UseShellExecute = true
+                    };
+                    Process.Start(psi);
+                }
+                catch (Exception e) { Debug.WriteLine(e); }
+            }
+
+            public void OpenMeta()
+            {
+                try
+                {
+                    foreach (FileData file in CurrentFiles)
+                    {
+                        ProcessStartInfo psi = new()
+                        {
+                            FileName = file.Sökväg + ".md",
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                }
+                catch { }
+            }
+
+            public void OpenDwg()
+            {
+                if (CurrentFile?.Filtyp == DRAWING_TYPE)
+                {
+                    string dwgPathOld = CurrentFile.Sökväg.Replace("Ritning", "Ritdef").Replace("pdf", "dwg");
+                    string dwgPathNew = CurrentFile.Sökväg.Replace("Drawing", "Drawing Definition").Replace("pdf", "dwg");
+
+                    try
+                    {
+                        ProcessStartInfo psi = new()
+                        {
+                            FileName = dwgPathOld,
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                    catch (Exception) { }
+
+                    try
+                    {
+                        ProcessStartInfo psi = new()
+                        {
+                            FileName = dwgPathNew,
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                    catch (Exception) { }
+                }
+            }
+
+            public void OpenDoc()
+            {
+                if (CurrentFile?.Filtyp == DOCUMENT_TYPE)
+                {
+                    string docPath = CurrentFile.Sökväg.Replace("pdf", "docx");
+
+                    try
+                    {
+                        ProcessStartInfo psi = new()
+                        {
+                            FileName = docPath,
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                    catch (Exception) { }
+                }
+            }
+
+            public void OpenPath()
+            {
+                try
+                {
+                    string folderpath = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
+                    Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
+                }
+                catch (Exception) { }
+            }
+
+            public void OpenPathDirect(string filepath)
+            {
+                try
+                {
+                    string folderpath = System.IO.Path.GetDirectoryName(filepath);
+                    Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
+                }
+                catch (Exception) { }
+            }
+
+            public void AddColor(string color)
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Färg = color;
+                }
+            }
+
+            public void ClearAll()
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Färg = "";
+                    file.Tagg = "";
+                }
+            }
+
+            public void AddTag(string tag)
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Tagg = tag;
+                }
+            }
+
+            public void ClearTag()
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Tagg = "";
+                }
+            }
+
+            public void EditType(string type)
+            {
+                SetTypeSelected(type);
+            }
+
+            public void select_files(IList<FileData> files)
+            {
+                CurrentFiles = files;
+                SetAttachedView();
+            }
+
+            private void SetAttachedView()
+            {
+                if (CurrentFile != null)
+                {
+                    AttachedView = CurrentFile.HasAppendedFiles;
+                }
+            }
+
+            public void SelectType(string name)
+            {
+                string currentType = Type;
+
+                if (currentType != name)
+                {
+                    Type = name;
+                }
+                OnPropertyChanged("UpdateColumns");
+            }
+
+            public void SelectProject(string name)
+            {
+                string currentProjectName = CurrentProject.Namn;
+                if (currentProjectName != name)
+                {
+                    SetProject(name);
+                }
+                OnPropertyChanged("UpdateColumns");
+            }
+
+            public void ReselectProject()
+            {
+                SetProject(CurrentProject.Namn);
+                OnPropertyChanged("UpdateColumns");
+            }
+
+            public void Renameproject(string newProjectName)
+            {
+                RenameProject(newProjectName);
+                SetProjectlist();
+            }
+
+            public void UpdateTreeview()
+            {
+                OnPropertyChanged("TreeViewUpdate");
+            }
+
+            public void NewProject(string name, string group = null, string category = PROJECT_CATEGORY)
+            {
+                if (!Storage.StoredProjects.Any(x => x.Namn == name))
+                {
+                    ProjectData newProject = new() { Namn = name, Parent = group, Category = category };
+
+                    Storage.StoredProjects.Add(newProject);
+                    CurrentProject = newProject;
+
+                    SetProjectlist();
+                    SetDefaultType();
+                    SortProjects();
+                }
+            }
+
+            public void RemoveProject()
+            {
+                Storage.StoredProjects.Remove(CurrentProject);
+                SetProjectlist();
+                SetDefaultSelection();
+                SortProjects();
+            }
+
+            public void RemoveProjects(List<ProjectData> list)
+            {
+                foreach (ProjectData project in list)
+                {
+                    Storage.StoredProjects.Remove(project);
+                }
+
+                SetProjectlist();
+                SetDefaultSelection();
+                SortProjects();
+            }
+
+            public void RenameProject(string projectName)
+            {
+                CurrentProject.Namn = projectName;
+
+                foreach (FileData file in CurrentProject.StoredFiles)
+                {
+                    file.Uppdrag = projectName;
+                }
+                CurrentProject.SetFiletypeList();
+            }
+
+            public void GetGroups()
+            {
+                Groups.Clear();
+
+                List<string> list = Storage.StoredProjects.Select(x => x.Parent).Where(x => x != null).Distinct().ToList();
+                list.Remove("");
+
+                Groups = new ObservableCollection<string>(list);
+            }
+
+            public void SetGroups(string group)
+            {
+                CurrentProject.Parent = group;
+            }
+
+            public void SortProjects()
+            {
+                List<ProjectData> sortedLibrary = Storage.StoredProjects.Where(x => x.Category == "Library").OrderBy(x => x.Namn).ToList();
+                List<ProjectData> sortedArchive = Storage.StoredProjects.Where(x => x.Category == "Archive").OrderBy(x => x.Namn).ToList();
+                List<ProjectData> sortedProject = Storage.StoredProjects.Where(x => x.Category == PROJECT_CATEGORY).OrderBy(x => x.Namn).ToList();
+
+                Storage.StoredProjects.Clear();
+
+                foreach (var project in sortedLibrary) { Storage.StoredProjects.Add(project); }
+                foreach (var project in sortedArchive) { Storage.StoredProjects.Add(project); }
+                foreach (var project in sortedProject) { Storage.StoredProjects.Add(project); }
+
+                SetProjectlist();
+            }
+
+            public void RemoveSelectedFiles()
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    CurrentProject.RemoveFile(file);
+                }
+
+                CurrentProject.SetFiletypeList();
+
+                if (FilteredFiles == null)
+                {
+                    SetDefaultSelection();
+                }
+            }
+
+            public void SetProject(string name)
+            {
+                ProjectData project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
+
+                SelectProjectAsync(project);
+
+                if (!CurrentProject.Filetypes.Contains(Type))
+                {
+                    Type = ALL_TYPES;
+                }
+            }
+
+            public async Task SelectProjectAsync(ProjectData project)
+            {
+                CurrentProject = project;
+            }
+
+            public void SetProjecCategory(string name)
+            {
+                CurrentProject.Category = name;
+
+                if (name != PROJECT_CATEGORY)
+                {
+                    CurrentProject.Parent = null;
+                }
+
+                SortProjects();
+            }
+
+            public void SetDefaultType()
+            {
+                Type = ALL_TYPES;
+            }
+
+            public void SetTypeSelected(string type)
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Filtyp = type;
+                }
+                currentProject.SetFiletypeList();
+                UpdateFilter();
+            }
+
+            public void SetDefaultSelection()
+            {
+                string defaultProject = Storage.StoredProjects.FirstOrDefault().Namn;
+                CurrentProject = GetProject(defaultProject);
+                Type = ALL_TYPES;
+            }
+
+            public void UpdateFilter()
+            {
+                FilteredFiles.Clear();
+
+                if (Type != ALL_TYPES)
+                {
+                    foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn))
+                    {
+                        FilteredFiles.Add(file);
+                    }
+                }
+                else
+                {
+                    foreach (FileData file in CurrentProject.StoredFiles.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp))
+                    {
+                        FilteredFiles.Add(file);
+                    }
+                }
+                OnPropertyChanged(nameof(NrFilteredFiles));
+
+                if (CurrentProject.Category != SEARCH_CATEGORY)
+                {
+                    IndexedSearch = false;
+                    PreviewVM.SearchMode = false;
+                    SearchText = String.Empty;
+                }
+            }
+
+            public ProjectData GetProject(string name)
+            {
+                return Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
+            }
+
+            public void SetProjectlist()
+            {
+                ProjectList.Clear();
+
+                List<string> newList = Storage.StoredProjects.Select(x => x.Namn).Distinct().ToList();
+
+                foreach (string item in newList)
+                {
+                    ProjectList.Add(item);
+                }
+            }
+
+            public ProjectData GetDefaultProject()
+            {
+                return Storage.StoredProjects.FirstOrDefault();
+            }
+
+            public void ClearSelectedMetadata()
+            {
+                foreach (FileData file in CurrentFiles)
+                {
+                    file.Handling = "";
+                    file.Status = "";
+                    file.Datum = "";
+                    file.Ritningstyp = "";
+                    file.Beskrivning1 = "";
+                    file.Beskrivning2 = "";
+                    file.Beskrivning3 = "";
+                    file.Beskrivning4 = "";
+                    file.Revidering = "";
+                }
+            }
+
+            public void AddAppendedFile(string filepath, bool fromFolder = false)
+            {
+                if (CurrentFile != null && !CurrentFile.AppendedFiles.Any(x => x.Sökväg == filepath))
+                {
+                    CurrentFile.AppendedFiles.Add(new FileData()
+                    {
+                        Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
+                        Sökväg = filepath,
+                        IsFromFolder = fromFolder
+                    });
+
+                    SortAttachedFiles();
+                }
+            }
+
+            public void AddOtherFile(string filepath)
+            {
+                if (CurrentFile != null && !CurrentFile.OtherFiles.Any(x => x.Filepath == filepath))
+                {
+                    OtherData newFile = new() { Filepath = filepath };
+                    newFile.SetFile();
+
+                    CurrentFile.OtherFiles.Add(newFile);
+                    SortOtherFiles();
+                }
+            }
+
+
+            public void RemoveAttachedFile(IList<FileData> files)
+            {
+                foreach (FileData file in files)
+                {
+                    CurrentFile.AppendedFiles.Remove(file);
+                }
+
+                SortAttachedFiles();
+            }
+
+            public void RemoveOtherFile(OtherData file)
+            {
+                if (file != null)
+                {
+                    CurrentFile.OtherFiles.Remove(file);
+                    SortOtherFiles();
+                }
+            }
+
+            private void SortAttachedFiles()
+            {
+                if (CurrentFile != null)
+                {
+                    SortAttachedFilesDirect(CurrentFile);
+                }
+            }
+
+            private void SortAttachedFilesDirect(FileData file)
+            {
+                List<FileData> tempList = file.AppendedFiles.OrderBy(x => x.Namn).ToList();
+                file.AppendedFiles.Clear();
+                file.AppendedFiles = new ObservableCollection<FileData>(tempList);
+            }
+
+            private void SortOtherFiles()
+            {
+                if (CurrentFile != null)
+                {
+                    SortOtherFilesDirect(CurrentFile);
+                }
+            }
+
+            private void SortOtherFilesDirect(FileData file)
+            {
+                List<OtherData> tempList = file.OtherFiles.OrderBy(x => x.Name).ToList();
+                file.OtherFiles.Clear();
+                file.OtherFiles = new ObservableCollection<OtherData>(tempList);
+            }
+
+            public void SeachFiles()
+            {
+                FilteredFiles.Clear();
+                CurrentProject = new ProjectData() { Namn = SearchText, Category = "Search" };
+
+                foreach (ProjectData project in Storage.StoredProjects)
+                {
+                    foreach (FileData file in project.StoredFiles)
+                    {
+                        bool finished = false;
+
+                        string b0 = file.Namn;
+                        string b1 = file.Beskrivning1;
+                        string b2 = file.Beskrivning2;
+                        string b3 = file.Beskrivning3;
+                        string b4 = file.Tagg;
+
+                        if (b0 != null && !finished) { if (b0.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
+                        if (b1 != null && !finished) { if (b1.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
+                        if (b2 != null && !finished) { if (b2.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
+                        if (b3 != null && !finished) { if (b3.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
+                        if (b4 != null && !finished) { if (b4.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
+                    }
+                }
+
+                OnPropertyChanged("NrFilteredFiles");
+
+            }
+
+            public void RenameOriginal(string newName)
+            {
+                string oldName = CurrentFile.Namn;
+                string oldPath = CurrentFile.Sökväg;
+
+                if (oldName != newName && newName.Length > 0 && CurrentFile.IsLocal())
+                {
+                    string newPath = CurrentFile.Sökväg.Replace(oldName, newName);
+                    try
+                    {
+                        System.IO.File.Move(oldPath, newPath);
+                    }
+                    catch
+                    {
+                        return;
+                    }
+
+                    CurrentFile.Sökväg = newPath;
+                    CurrentFile.Namn = newName;
+
+                }
+            }
+
+
+            public void MoveSelectedFiles(ProjectData project)
+            {
+                if (project != null)
+                {
+                    foreach (FileData file in CurrentFiles.ToList())
+                    {
+
+                        if (!project.StoredFiles.Contains(file))
+                        {
+                            CurrentProject.StoredFiles.Remove(file);
+                            file.Filtyp = "New";
+                            file.Uppdrag = project.Namn;
+                            project.StoredFiles.Add(file);
+                        }
+                    }
+
+                    UpdateFilter();
+                }
+            }
+
+
+            public void WatermarkFiles(string text = "Arbetskopia")
+            {
+
+                string date = DateTime.Today.ToString("yyyy-MM-dd");
+                string folder = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
+                string outputPath = folder + "\\" + text + " " + date;
+
+                System.IO.Directory.CreateDirectory(outputPath);
+
+                foreach (FileData file in CurrentFiles)
+                {
+
+                    if (file.IsValidPdf())
+                    {
+                        string outputFilePath = outputPath + "\\" + file.Namn + "_" + text + "_" + date + ".pdf";
+
+                        if (!IsFileInUse(outputFilePath))
+                        {
+                            PdfDocument pdfDoc = new PdfDocument(new PdfReader(file.Sökväg), new PdfWriter(outputFilePath));
+
+                            PdfFont font = PdfFontFactory.CreateFont(FontProgramFactory.CreateFont(StandardFonts.HELVETICA));
+                            Document document = new Document(pdfDoc);
+                            iText.Kernel.Geom.Rectangle pageSize;
+
+                            PdfCanvas canvas;
+                            int n = pdfDoc.GetNumberOfPages();
+                            for (int i = 1; i <= n; i++)
+                            {
+                                PdfPage page = pdfDoc.GetPage(i);
+                                page.NewContentStreamBefore();
+                                pageSize = page.GetPageSize();
+                                float fontSize = pageSize.GetWidth() / 10;
+
+                                canvas = new PdfCanvas(page);
+
+                                Paragraph paragraph = new Paragraph(text).SetFont(font).SetFontSize(fontSize).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f);
+                                paragraph.SetMultipliedLeading(0.5f);
+                                paragraph.Add(Environment.NewLine);
+                                paragraph.Add(new Paragraph(date).SetFont(font).SetFontSize(fontSize / 2).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f));
+
+                                iText.Layout.Canvas canvasWatermark2 = new iText.Layout.Canvas(canvas, pdfDoc.GetDefaultPageSize()).ShowTextAligned(paragraph, pageSize.GetWidth() / 2, pageSize.GetHeight() / 2, 1, TextAlignment.CENTER, VerticalAlignment.MIDDLE, 120);
+                            }
+                            pdfDoc.Close();
+                        }
+                    }
+                }
+            }
+
+            public static bool IsFileInUse(string filePath)
+            {
+                if (System.IO.File.Exists(filePath) == false)
                 {
                     return false;
                 }
                 else
                 {
-                    return true;
-                }
-            }
-        }
-
-        private bool previewWindowOpen = false;
-        public bool PreviewWindowOpen
-        {
-            get { return previewWindowOpen; }
-            set { previewWindowOpen = value; OnPropertyChanged("PreviewWindowOpen"); if (PreviewWindowOpen) { PreviewEmbeddedOpen = false; }; }
-        }
-
-        private bool previewEmbeddedOpen = false;
-        public bool PreviewEmbeddedOpen
-        {
-            get { return previewEmbeddedOpen; }
-            set { previewEmbeddedOpen = value; OnPropertyChanged("PreviewEmbeddedOpen"); NewPreviewContext(); if (PreviewEmbeddedOpen) { PreviewWindowOpen = false; }; }
-        }
-
-        private bool treeViewOpen = true;
-        public bool TreeViewOpen
-        {
-            get { return treeViewOpen; }
-            set { treeViewOpen = value; OnPropertyChanged("TreeViewOpen"); }
-        }
-
-        private bool calendarOpen = false;
-        public bool CalendarOpen
-        {
-            get { return calendarOpen; }
-            set { calendarOpen = value; OnPropertyChanged("CalendarOpen"); }
-        }
-
-        private bool timeSheetOpen = false;
-        public bool TimeSheetOpen
-        {
-            get { return timeSheetOpen; }
-            set { timeSheetOpen = value; OnPropertyChanged("TimeSheetOpen"); WeeklyTimeSummary(); }
-        }
-
-        private bool showFolders = false;
-        public bool ShowFolders
-        {
-            get { return showFolders; }
-            set { showFolders = value; OnPropertyChanged("ShowFolders"); }
-        }
-
-        private bool trayViewOpen = false;
-        public bool TrayViewOpen
-        {
-            get { return trayViewOpen; }
-            set { trayViewOpen = value; OnPropertyChanged("TrayViewOpen"); }
-        }
-
-        private bool showThumbnails = false;
-        public bool ShowThumbnails
-        {
-            get { return showThumbnails; }
-            set { showThumbnails = value; OnPropertyChanged("ShowThumbnails"); }
-        }
-
-        private string searchText = string.Empty;
-        public string SearchText
-        {
-            get { return searchText; }
-            set { searchText = value; OnPropertyChanged("SearchText"); }
-        }
-
-        private bool indexedSearch = false;
-        public bool IndexedSearch
-        {
-            get { return indexedSearch; }
-            set { indexedSearch = value; OnPropertyChanged("IndexedSearch"); }
-        }
-
-        private DateTime selectedDateTime = new DateTime();
-        public DateTime SelectedDateTime
-        {
-            get { return selectedDateTime; }
-            set { selectedDateTime = value; OnPropertyChanged("SelectedDateTime"); UpdateMonthly(); SetCurrentCalendarData(); }
-        }
-
-        private int selectedWeek = 0;
-        public int SelectedWeek
-        {
-            get { return selectedWeek; }
-            set { selectedWeek = value; OnPropertyChanged("SelectedWeek"); }
-        }
-
-
-        private ObservableCollection<CalendarData> monthlyNotes = new ObservableCollection<CalendarData>();
-        public ObservableCollection<CalendarData> MonthlyNotes
-        {
-            get { return monthlyNotes; }
-            set { monthlyNotes = value; OnPropertyChanged("MonthlyNotes"); }
-        }
-
-
-        private CalendarData currentCalendarData = new CalendarData();
-        public CalendarData CurrentCalendarData
-        {
-            get { return currentCalendarData; }
-            set { currentCalendarData = value; OnPropertyChanged("CurrentCalendarData"); SelectDateTime(); WeeklyTimeSummary(); }
-        }
-
-        private TimeSheetData currentTimeSheet = new TimeSheetData();
-        public TimeSheetData CurrentTimeSheet
-        {
-            get { return currentTimeSheet; }
-            set { currentTimeSheet = value; OnPropertyChanged("CurrentTimeSheet"); }
-        }
-
-        private ObservableCollection<int> hours = new ObservableCollection<int>() { 1, 2, 3, 4, 5, 6, 7, 8 };
-
-        public ObservableCollection<int> Hours
-        {
-            get { return hours; }
-            set { hours = value; OnPropertyChanged("Hours"); }
-        }
-
-        private TimeSheetProjectData currentTimeSheetProject;
-        public TimeSheetProjectData CurrentTimeSheetProject
-        {
-            get { return currentTimeSheetProject; }
-            set { currentTimeSheetProject = value; OnPropertyChanged("CurrentTimeSheetProject"); UpdateTimeSheetSummary(); }
-        }
-
-        private FolderData currentFolder;
-        public FolderData CurrentFolder
-        {
-            get { return currentFolder; }
-            set { currentFolder = value; OnPropertyChanged("CurrentFolder");}
-        }
-
-        public void NewFolder()
-        {
-            CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
-        }
-
-        public void NewFileFolder()
-        {
-            if (CurrentFile != null)
-            {
-                CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, AttachToFilePath = CurrentFile.Sökväg});
-            }
-        }
-
-
-        public void RemoveFolder()
-        {
-            if (CurrentFolder != null)
-            {
-                if (CurrentFolder.AttachToFile == null)
-                {
-                    foreach (FileData file in CurrentProject.StoredFiles.Where(x=>x.IsFromFolder).Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                    try
                     {
-                        CurrentProject.StoredFiles.Remove(file);
-                    }
-
-                    UpdateFilter();
-                    CurrentProject.Folders.Remove(CurrentFolder);
-                    OnPropertyChanged("TreeViewUpdate");
-                }
-                else
-                {
-                    FileData file = CurrentProject.StoredFiles.Where(x=>x.Namn == CurrentFolder.AttachToFile).FirstOrDefault();
-                    
-                    if (file != null)
-                    {
-                        if (CurrentFolder.Types == "PDF")
+                        // Try opening the file with read-write access and an exclusive lock
+                        using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
                         {
-                            foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
-                            {
-                                file.AppendedFiles.Remove(fileToRemove);
-                            }
-
-                            SortAttachedFilesDirect(file);
-
-                        }
-
-                        if (CurrentFolder.Types == "Other Files")
-                        {
-                            foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
-                            {
-                                file.OtherFiles.Remove(fileToRemove);
-                            }
-
-                            SortOtherFilesDirect(file);
+                            // If we can open it, the file isn't in use
                         }
                     }
-
-                    CurrentProject.Folders.Remove(CurrentFolder);
-
-                }
-            }
-        }
-
-        public void SyncAllFolders()
-        {
-            foreach (FolderData folder in CurrentProject.Folders)
-            {
-                SyncFolder(folder);
-            }
-        }
-
-        public void SyncSelectedFolder()
-        {
-            SyncFolder(CurrentFolder);
-        }
-
-        public void SyncFile()
-        {
-            foreach (FolderData folder in CurrentProject.Folders.Where(x=>x.AttachToFilePath == CurrentFile.Sökväg))
-            {
-                SyncFolder(folder);
-            }
-        }
-
-        public void SyncFolder(FolderData folder)
-        {
-            if (folder == null)
-            {
-                return;
-            }
-            if (folder.IsValid() == false)
-            {
-                return;
-            }
-
-            if (folder.Path == null)
-            {
-                return;
-            }
-
-            if (folder.AttachToFile != null)
-            {
-
-                FileData file = CurrentProject.StoredFiles.Where(x => x.Sökväg == folder.AttachToFilePath).FirstOrDefault();
-                CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Sökväg == folder.AttachToFilePath).ToList();
-
-                if (file != null)
-                {
-                    if (folder.Types == "PDF")
+                    catch (IOException)
                     {
-                        foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
-                        {
-                            CurrentFile.AppendedFiles.Remove(fileToRemove);
-                        }
-
-                        foreach (FileData fileToAdd in GetFilesFromFolder(folder))
-                        {
-                            CurrentFile.AppendedFiles.Add(fileToAdd);
-                        }
-
-                        SortAttachedFiles();
-
+                        // IOException indicates the file is in use
+                        return true;
                     }
 
-                    if (folder.Types == "Other Files")
-                    {
-                        foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == folder.Path).ToList())
-                        {
-                            CurrentFile.OtherFiles.Remove(fileToRemove);
-                        }
-
-                        foreach (OtherData fileToAdd in GetOtherFilesFromFolder(folder))
-                        {
-                            CurrentFile.OtherFiles.Add(fileToAdd);
-                        }
-
-                        SortOtherFiles();
-                    }
+                    // If no exception was thrown, the file is not in use
+                    return false;
                 }
-            }
-
-            else
-            {
-
-                List<FileData> files = GetFilesFromFolder(folder);
-
-                IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x=>x.IsFromFolder).Where(x => x.SyncFolder == folder.Path);
-                IEnumerable<FileData> filesToRemove = existingFiles.Where(p => !files.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
-                IEnumerable<FileData> filesToAdd = files.Where(p => !existingFiles.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
-
-                foreach (FileData file in filesToRemove)
-                {
-                    CurrentProject.StoredFiles.Remove(file);
-                }
-                foreach (FileData file in filesToAdd)
-                {
-                    CurrentProject.StoredFiles.Add(file);
-                }
-
-                SetDefaultType();
-                OnPropertyChanged("TreeViewUpdate");
-
-                
-            }
-        }
-
-        private List<FileData> GetFilesFromFolder(FolderData folder)
-        {
-            List<FileData> files = new List<FileData>();
-
-            if (folder.IsValid())
-            {
-                foreach (string path in Directory.GetFiles(folder.Path))
-                {
-                    if (Path.GetExtension(path) == ".pdf")
-                    {
-                        files.Add(new FileData()
-                        {
-                            Namn = System.IO.Path.GetFileNameWithoutExtension(path),
-                            Sökväg = path,
-                            Uppdrag = CurrentProject.Namn,
-                            Filtyp = "New",
-                            SyncFolder = folder.Path,
-                            IsFromFolder = true
-                        });
-                    }
-                }
-            }
-
-            return files;
-        }
-
-        private List<OtherData> GetOtherFilesFromFolder(FolderData folder)
-        {
-            List<OtherData> files = new List<OtherData>();
-
-            if (folder.IsValid())
-            {
-                foreach (string path in Directory.GetFiles(folder.Path))
-                {
-                    OtherData newFile = new OtherData()
-                    {
-                        Name = System.IO.Path.GetFileNameWithoutExtension(path),
-                        Filepath = path,
-                        SyncFolder = folder.Path,
-                        IsFromFolder = true
-                    };
-
-                    newFile.SetFile();
-                    files.Add(newFile);
-                }
-            }
-
-            return files;
-        }
-
-        public void AddPlaceholderFile(string name)
-        {
-            FileData newfile = new FileData()
-            {
-                Namn = name,
-                Filtyp = "New",
-                Uppdrag = CurrentProject.Namn,
-                Sökväg = string.Empty
-            };
-
-            CurrentProject.StoredFiles.Add(newfile);
-            UpdateFilter();
-            OnPropertyChanged("TreeViewUpdate");
-        }
-
-
-        public void NewTimeSheet()
-        {
-            CurrentCalendarData.TimeSheets.Add(new TimeSheetData() { Hours = 1, Project = "New"});
-            CurrentCalendarData.TriggerDateStringUpdate();
-        }
-
-        public void RemoveTimeSheet()
-        {
-            CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
-            CurrentCalendarData.TriggerDateStringUpdate();
-        }
-
-        private void UpdateTimeSheetSummary()
-        {
-            foreach (CalendarData calendarData in MonthlyNotes)
-            {
-                calendarData.SetCurrentTimeSheetProjectDiary(CurrentTimeSheetProject.Project);
-            }
-        }
-
-        private void WeeklyTimeSummary()
-        {
-            if (TimeSheetOpen && CurrentCalendarData != null)
-            {
-                foreach (TimeSheetProjectData project in Storage.General.TimeProjects.Where(x => x.Project != "Total"))
-                {
-
-                    project.W1 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x=>x.WeekOfMonth == 0).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x=>x.Hours);
-                    project.W2 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 1).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                    project.W3 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 2).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                    project.W4 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 3).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                    project.W5 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 4).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                }
-
-                TimeSheetProjectData summarySheet = Storage.General.TimeProjects.Where(x => x.Project == "Total").FirstOrDefault();
-
-                if (summarySheet != null)
-                {
-                    summarySheet.W1 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W1);
-                    summarySheet.W2 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W2);
-                    summarySheet.W3 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W3);
-                    summarySheet.W4 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W4);
-                    summarySheet.W5 = Storage.General.TimeProjects.Where(x => x.Project != "Total").Sum(x => x.W5);
-                }
-            }
-        }
-
- 
-
-
-        private void UpdateMonthly()
-        {
-
-            if (SelectedDateTime != null)
-            {
-
-                SelectedWeek = ISOWeek.GetWeekOfYear(SelectedDateTime);
-
-                MonthlyNotes.Clear();
-
-                foreach (CalendarData data in Storage.General.CalendarList.Where(x => x.Date.Month == SelectedDateTime.Month).Where(x => x.Date.Year == SelectedDateTime.Year).OrderBy(x => x.Date))
-                {
-                    MonthlyNotes.Add(data);
-                }
-
-            }
-        }
-
-        private void SetCurrentCalendarData()
-        {
-
-            if (SelectedDateTime != null)
-            {
-                if (Storage.General.CalendarList.Where(x => x.Date == DateOnly.FromDateTime(SelectedDateTime)).Any())
-                {
-                    CurrentCalendarData = Storage.General.CalendarList.Where(x => x.Date == DateOnly.FromDateTime(SelectedDateTime)).FirstOrDefault();
-                }
-                else
-                {
-                    CalendarData newData = new CalendarData()
-                    {
-                        Date = DateOnly.FromDateTime(SelectedDateTime)
-                    };
-
-                    Storage.General.CalendarList.Add(newData);
-
-                    CurrentCalendarData = newData;
-                }
-            }
-        }
-
-        public void SetCalendarMonth()
-        {
-            foreach (DateTime datetime in GetDates(SelectedDateTime.Year, SelectedDateTime.Month))
-            {
-                DateOnly date = DateOnly.FromDateTime(datetime);
-                if (!Storage.General.CalendarList.Any(x=>x.Date == date))
-                {
-                    Storage.General.CalendarList.Add(new CalendarData() { Date = date });
-                }
-            }
-
-            UpdateMonthly();
-        }
-
-        public static List<DateTime> GetDates(int year, int month)
-        {
-            return Enumerable.Range(1, DateTime.DaysInMonth(year, month))  // Days: 1, 2 ... 31 etc.
-                             .Select(day => new DateTime(year, month, day)) // Map each day to a date
-                             .ToList(); // Load dates into a list
-        }
-
-        public void RemoveCalendarNote()
-        {
-            Storage.General.CalendarList.Remove(CurrentCalendarData);
-            CurrentCalendarData = Storage.General.CalendarList.FirstOrDefault();
-            UpdateMonthly();
-        }
-
-
-        public void ResetDate()
-        {
-            SelectedDateTime = DateTime.Now;
-            SelectedDateTime = DateTime.Now;
-        }
-
-        private void SelectDateTime()
-        {
-
-            if (CurrentCalendarData != null)
-            {
-                if (CurrentCalendarData.Date != DateOnly.FromDateTime(SelectedDateTime.Date))
-                {
-                    SelectedDateTime = CurrentCalendarData.Date.ToDateTime(TimeOnly.Parse("10:00 PM"));
-                }
-            }
-        }
-
-        public void ResetPreviewer()
-        {
-            PreviewVM.FileWorkerBusy = false;
-        }
-
-        public void OpenWhiteboard(Window mainWindow)
-        {
-            var window = new xPaintDia()
-            {
-                DataContext = this
-            };
-            window.FontFamily = mainWindow.FontFamily;
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            //window.ShowDialog(mainWindow);
-            window.Show();
-        }
-
-        public void OpenPreviewWindow(ThemeVariant theme)
-        {
-            PreviewWindow = new PreWindow()
-            {
-                DataContext = this
-            };
-
-            PreviewWindow.RequestedThemeVariant = theme;
-            PreviewWindow.Show();
-        }
-
-        public void OpenInfoDia(Window mainWindow)
-        {
-            var window = new xProgDia()
-            {
-                DataContext = this
-            };
-            window.FontFamily = mainWindow.FontFamily;
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.ShowDialog(mainWindow);
-        }
-
-
-        public void OpenColorDia(Window mainWindow)
-        {
-            var window = new xColorDia()
-            {
-                DataContext = this
-            };
-
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.FontCombo.SelectionChanged += SignalFontChanged;
-            window.FontSizeCombo.SelectionChanged += SignalFontChanged;
-            window.Focusable = true;
-            window.ShowDialog(mainWindow);
-        }
-
-        private void NewPreviewContext()
-        {
-
-        }
-
-        private void SignalFontChanged(object sender, SelectionChangedEventArgs e)
-        {
-            OnPropertyChanged("FontChanged");
-        }
-
-        public void OpenMetaEditDia(Window mainWindow)
-        {
-            var window = new xMetaDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.Focusable = true;
-            window.ShowDialog(mainWindow);
-        }
-
-        public void OpenProjectEditDia(Window mainWindow)
-        {
-            var window = new xEditDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.Focusable = true;
-            window.ShowDialog(mainWindow);
-        }
-
-        public void OpenProjectNewDia(Window mainWindow)
-        {
-            var window = new xNewDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.ShowDialog(mainWindow);
-            window.ProjectName.Focus();
-        }
-
-        public void OpenTagDia(Window mainWindow)
-        {
-            var window = new xTagDia()
-            {
-                DataContext = this
-            };
-
-            window.TagMenuInput.Text = CurrentFile.Tagg;
-            window.FontFamily = mainWindow.FontFamily;
-            window.TagMenuInput.CaretIndex = window.TagMenuInput.Text.Length;
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.ShowDialog(mainWindow);
-            window.TagMenuInput.Focus();
-        }
-
-
-        public void OpenNewPlaceholderFile(Window mainWindow)
-        {
-            var window = new xPlaceholderDia()
-            {
-                DataContext = this
-            };
-
-            window.FontFamily = mainWindow.FontFamily;
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.ShowDialog(mainWindow);
-            window.NewFileName.Focus();
-        }
-
-
-        public void TryOpenRenameDia(Window mainWindow)
-        {
-            if (!CurrentFile.IsLocal())
-            {
-                OpenMessageDia(mainWindow);
-            }
-
-            else
-            {
-                OpenRenameDia(mainWindow);
-            }
-        }
-
-        public void OpenRenameDia(Window mainWindow)
-        {
-            var window = new xRenameDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.Focusable = true;
-
-            window.SetCurrentName(CurrentFile.Namn);
-
-            window.NewNameInput.CaretIndex = window.NewNameInput.Text.Length;
-            window.ShowDialog(mainWindow);
-
-            window.NewNameInput.Focus();
-
-
-        }
-
-        public async Task OpenMessageDia(Window mainWindow)
-        {
-            var window = new xMessageDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.Focusable = true;
-            window.SetMessage("Only available for files stored on C:\\");
-
-            await window.ShowDialog(mainWindow);
-        }
-
-
-        public async Task ConfirmDeleteDia(Window mainWindow)
-        {
-            var window = new xDeleteDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.Focusable = true;
-            await window.ShowDialog(mainWindow);
-        }
-
-        public void OnInfoDia(Window mainWindow)
-        {
-            var window = new xInfoDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.ShowDialog(mainWindow);
-        }
-
-        public void OnIndexDia(Window mainWindow)
-        {
-            var window = new xIndexDia()
-            {
-                DataContext = this
-            };
-
-            window.RequestedThemeVariant = mainWindow.ActualThemeVariant;
-            window.FontFamily = mainWindow.FontFamily;
-            window.ShowDialog(mainWindow);
-        }
-
-        private void OnGeneralChanged(object sender, PropertyChangedEventArgs e)
-        {
-            string val = e.PropertyName;
-
-            if (val == "Color1" || val == "Color2" || val == "Color3" || val == "Color4")
-            {
-                SetWindowColors();
-            }
-        }
-
-        public void TrySetPage()
-        {
-            if(FavPage != null)
-            {
-                PreviewVM.RequestPage1 = FavPage.PageNr;
-            }
-        }
-
-        public void GetThumbnails()
-        {
-
-            if (!Directory.Exists(Storage.General.SavePath + "\\Thumbnails\\"))
-            {
-                Directory.CreateDirectory(Storage.General.SavePath + "\\Thumbnails\\");
-            }
-
-            foreach (FileData file in CurrentFiles)
-            {
-                if (file.IsValidPdf())
-                {
-                    file.RemoveThumbnail();
-
-                    byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
-
-                    MuPDFDocument fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
-
-                    file.ThumbnailSource = "C:\\FIlePathManager\\Thumbnails\\" + file.Namn + ".jpeg";
-                    fileDocument.SaveImageAsJPEG(0, 1, file.ThumbnailSource, 20);
-
-                    fileDocument.Dispose();
-                }
-            }
-        }
-
-        public void GetIndexedContent()
-        {
-
-            string indexPath = Storage.General.SavePath + "\\IndexedContent.json";
-
-            if (System.IO.File.Exists(indexPath))
-            {
-                LoadIndexFile(indexPath);
-            }
-
-            if (IndexedContent == null)
-            {
-                IndexedContent = new ObservableCollection<ContentData>();
-            }
-
-            foreach (FileData file in CurrentFiles)
-            {
-                if (file.IsValidPdf())
-                {
-                    byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
-
-                    MuPDFDocument fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
-                    ContentData existing = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
-
-                    IndexedContent.Remove(existing);
-
-                    ContentData content = new ContentData();
-
-                    content.Name = file.Namn;
-                    content.Filepath = file.Sökväg;
-                    content.PlainText = fileDocument.ExtractText();
-
-                    IndexedContent.Add(content);
-
-                    file.HasPlainText = true;
-
-                    fileDocument.Dispose();
-                }
-            }
-
-            SaveIndexFile(indexPath);
-
-        }
-
-        public void ClearIndexedContent()
-        {
-            string indexPath = Storage.General.SavePath + "\\IndexedContent.json";
-
-            foreach(FileData file in CurrentFiles)
-            {
-                file.HasPlainText = false;
-
-                if (IndexedContent != null && IndexedContent.Where(x => x.Filepath == file.Sökväg) != null)
-                {
-                    ContentData contentToRemove = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
-                    IndexedContent.Remove(contentToRemove);
-                    SaveIndexFile(indexPath);
-                }
-            }
-        }
-
-        private void LoadIndexFile(string indexPath)
-        {               
-            using (StreamReader streamReader = new StreamReader(indexPath))
-            {
-                string fileContent = streamReader.ReadToEnd();
-                IndexedContent = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent);
-            }
-
-            List<string> indexedFiles = new List<string>();
-
-            foreach(ContentData content in IndexedContent)
-            {
-                indexedFiles.Add(content.Filepath);
-            }
-
-            foreach(ProjectData project in Storage.StoredProjects)
-            {
-                foreach(FileData file in project.StoredFiles)
-                {
-                    if(indexedFiles.Contains(file.Sökväg))
-                    {
-                        file.HasPlainText = true;
-                    }
-                    else
-                    {
-                        file.HasPlainText = false;
-                    }
-                }
-            }
-        }
-
-        private void SaveIndexFile(string indexPath)
-        {
-            if (!Directory.Exists(Storage.General.SavePath))
-            {
-                Directory.CreateDirectory(Storage.General.SavePath);
-            }
-
-            using (StreamWriter streamWriter = new StreamWriter(indexPath))
-            {
-                var data = JsonConvert.SerializeObject(IndexedContent);
-                streamWriter.WriteLine(data);
-            }
-        }
-
-        public void ClearThumbnails()
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.RemoveThumbnail();
-            }
-        }
-
-        public void SetBookmark(PageData page)
-        {
-            FavPage = page;
-        }
-
-        public void AddBookmark(string pageName)
-        {
-            int pageNr = PreviewVM.CurrentPage1;
-            PageData page = new PageData() { PageNr = pageNr, PageName = pageName };
-
-            if (PreviewVM.CurrentFile != null)
-            {
-                PreviewVM.CurrentFile.FavPages.Add(page);
-            }
-
-            SortBookmarks();
-        }
-
-        public void RenameBookmark(string pageName)
-        {
-            if (FavPage != null)
-            {
-                FavPage.PageName = pageName;
-            }
-        }
-
-        public void RemoveBookmark(PageData page)
-        {
-            if (PreviewVM.CurrentFile != null)
-            {
-                PreviewVM.CurrentFile.FavPages.Remove(page);
-            }
-
-            SortBookmarks();
-        }
-
-        private void SortBookmarks()
-        {
-            List<PageData> tempList = PreviewVM.CurrentFile.FavPages.OrderBy(x => x.PageNr).ToList();
-            PreviewVM.CurrentFile.FavPages.Clear();
-            PreviewVM.CurrentFile.FavPages = new ObservableCollection<PageData>(tempList);
-        }
-
-        public void MarkFavorite()
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Favorite = !file.Favorite;
-            }
-        }
-
-        public void NewCollection(string name)
-        {
-            Storage.General.Collections.Add(name);
-        }
-
-
-        public void RemoveCollection()
-        {
-            if (CollectionContent.Count() > 0)
-            {
-                foreach (FileData file in CollectionContent)
-                {
-                    file.PartOfCollections.Remove(CurrentCollection);
-                }
-            }
-            Storage.General.Collections.Remove(CurrentCollection);
-        }
-
-        public void AddFileToCollection(string collection)
-        {
-            foreach (FileData file in CurrentFiles.Where(x=>x.PartOfCollections.Contains(collection) == false))
-            {
-                file.PartOfCollections.Add(collection);
-            }
-            CurrentCollection = collection;
-        }
-
-        public void RemoveFileFromCollection()
-        {
-            CurrentFile.PartOfCollections.Remove(CurrentCollection);
-            SetCollectionContent();
-        }
-
-        public void SetCollectionContent()
-        {
-            CollectionContent.Clear();
-
-            foreach (ProjectData project in Storage.StoredProjects)
-            {
-                foreach(FileData file in project.StoredFiles.Where(x => x.PartOfCollections.Contains(CurrentCollection)))
-                {
-                    CollectionContent.Add(file);
-                }
-            }
-        }
-
-        public void RenameCollection(string newName)
-        {
-            if (!Storage.General.Collections.Contains(newName))
-            {
-                foreach (FileData file in CollectionContent)
-                {
-                    file.PartOfCollections.Remove(CurrentCollection);
-                    file.PartOfCollections.Add(newName);
-                }
-
-                int index = Storage.General.Collections.IndexOf(CurrentCollection);
-                Storage.General.Collections[index] = newName;
-
-                CurrentCollection = newName;
-            }
-        }
-
-        public async Task LoadFile(Visual window)
-        {
-            var topLevel = TopLevel.GetTopLevel(window);
-
-            var jsonformat = new FilePickerFileType("Json format") { Patterns = new[] { "*.json" } };
-            List<FilePickerFileType> formatlist = new List<FilePickerFileType>();
-            formatlist.Add(jsonformat);
-            IReadOnlyList<FilePickerFileType> fileformat = formatlist;
-
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = "Load File",
-                AllowMultiple = false,
-                FileTypeFilter = fileformat
-            });
-
-            if (files.Count > 0)
-            {
-                await using var stream = await files[0].OpenReadAsync();
-
-                using var streamReader = new StreamReader(stream);
-                string fileContent = await streamReader.ReadToEndAsync();
-
-                DeserializeLoadFile(fileContent);
-
-            }
-        }
-
-        public void LoadFileAuto()
-        {
-            using (StreamReader streamReader = new StreamReader(Storage.General.SavePath + "\\Projects.json"))
-            {
-                string fileContent = streamReader.ReadToEnd();
-                DeserializeLoadFile(fileContent);
-            }
-        }
-
-        public void DeserializeLoadFile(string fileContent)
-        {
-            Storage = new StoreData();
-            try // Trying reading v.2 save file
-            {
-                Storage = JsonConvert.DeserializeObject<StoreData>(fileContent);
-            }
-            catch // If not, try read as v.1 save file
-            {
-                Storage.StoredProjects = JsonConvert.DeserializeObject<ObservableCollection<ProjectData>>(fileContent);
-                RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Search").ToList());
-                RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Favorites").ToList());
-
-            }
-
-            SetProjectlist();
-            SetDefaultSelection();
-            SetWindowColors();
-            SetWindowBorders();
-            GetGroups();
-        }
-
-        public async Task SaveFile(Avalonia.Visual window)
-        {
-            var topLevel = TopLevel.GetTopLevel(window);
-
-            var jsonformat = new FilePickerFileType("Json format") { Patterns = new[] { "*.json" } };
-            List<FilePickerFileType> formatlist = new List<FilePickerFileType>();
-            formatlist.Add(jsonformat);
-            IReadOnlyList<FilePickerFileType> fileformat = formatlist;
-
-
-            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save File",
-                FileTypeChoices = fileformat
-            });
-
-            if (file is not null)
-            {
-                await using var stream = await file.OpenWriteAsync();
-                using var streamWriter = new StreamWriter(stream);
-                var data = JsonConvert.SerializeObject(Storage);
-                await streamWriter.WriteLineAsync(data);
-            }
-        }
-
-        public async Task SaveFileAuto()
-        {
-            if (!Directory.Exists(Storage.General.SavePath))
-            {
-                Directory.CreateDirectory(Storage.General.SavePath);
-            }
-
-            using (StreamWriter streamWriter = new StreamWriter(Storage.General.SavePath + "\\Projects.json"))
-            {
-                var data = JsonConvert.SerializeObject(Storage);
-                await streamWriter.WriteLineAsync(data);
-            }
-        }
-
-        public void BackupSaveFile()
-        {
-            string backupDir = Storage.General.SavePath + "\\Backup_" + DateTime.Today.ToString("d");
-
-            Directory.CreateDirectory(backupDir);
-
-            System.IO.File.Copy(Storage.General.SavePath + "\\Projects.json", backupDir + "\\Projects.json", true);
-
-        }
-
-        public async Task AddFile(Avalonia.Visual window)
-        {
-            if (CurrentProject != null)
-            {
-                var topLevel = TopLevel.GetTopLevel(window);
-                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                {
-                    Title = "Add File",
-                    FileTypeFilter = new[] { FilePickerFileTypes.Pdf },
-                    AllowMultiple = true
-                });
-
-                foreach (var file in files)
-                {
-                    string path = file.Path.LocalPath;
-                    CurrentProject.Newfile(path);
-                    SetDefaultType();
-                }
-            }
-        }
-
-        public void SetWindowColors()
-        {
-            var theme = new FluentTheme()
-            {
-                Palettes =
-                {
-                    [ThemeVariant.Dark] = new ColorPaletteResources() {RegionColor = Storage.General.Color1, Accent = Storage.General.Color2},
-                    [ThemeVariant.Light] = new ColorPaletteResources() {RegionColor = Storage.General.Color3, Accent = Storage.General.Color4 }
-                }
-            };
-
-            App.Current.Resources = theme.Resources;   
-
-        }
-
-        public void SetWindowBorders()
-        {
-            Storage.General.CornerRadiusVal = Storage.General.CornerRadiusVal;
-            Storage.General.ShadowVal = Storage.General.ShadowVal;
-        }
-
-        public void AddFilesDrag(string path)
-        {
-            CurrentProject.Newfile(path);
-            SetDefaultType();
-        }
-
-        public void SetCategory(string category)
-        {
-            SetProjecCategory(category);
-        }
-
-        public void SetGroup(string group)
-        {
-            SetGroups(group);
-            GetGroups();
-        }
-
-        public void CopyFilenameToClipboard(Avalonia.Visual window)
-        {
-            string store = string.Empty;
-
-            foreach (FileData file in CurrentFiles)
-            {
-                store += file.Namn + Environment.NewLine;
-            }
-
-            TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
-
-        }
-
-        public void CopyFilepathToClipboard(Avalonia.Visual window)
-        {
-            string store = string.Empty;
-
-            foreach (FileData file in CurrentFiles)
-            {
-                store += file.Sökväg + Environment.NewLine;
-            }
-
-            TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
-
-        }
-
-        public void CopyListviewToClipboard(Avalonia.Visual window)
-        {
-            string store = string.Empty;
-
-            foreach (FileData file in CurrentFiles)
-            {
-                if (CurrentProject.Meta_1 == true) { store += file.Namn + "\t"; };
-                if (CurrentProject.Meta_2 == true) { store += file.Filtyp + "\t"; };
-                if (CurrentProject.Meta_3 == true) { store += file.Uppdrag + "\t"; };
-                if (CurrentProject.Meta_4 == true) { store += file.Tagg + "\t"; };
-                if (CurrentProject.Meta_5 == true) { store += file.Färg + "\t"; };
-                if (CurrentProject.Meta_6 == true) { store += file.Handling + "\t"; };
-                if (CurrentProject.Meta_7 == true) { store += file.Status + "\t"; };
-                if (CurrentProject.Meta_8 == true) { store += file.Datum + "\t"; };
-                if (CurrentProject.Meta_9 == true) { store += file.Ritningstyp + "\t"; };
-                if (CurrentProject.Meta_10 == true) { store += file.Beskrivning1 + "\t"; };
-                if (CurrentProject.Meta_11 == true) { store += file.Beskrivning2 + "\t"; };
-                if (CurrentProject.Meta_12 == true) { store += file.Beskrivning3 + "\t"; };
-                if (CurrentProject.Meta_13 == true) { store += file.Beskrivning4 + "\t"; };
-                if (CurrentProject.Meta_14 == true) { store += file.Revidering + "\t"; };
-                if (CurrentProject.Meta_15 == true) { store += file.Sökväg + "\t"; };
-
-                store += Environment.NewLine;
-            }
-            TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
-        }
-
-        public void SelectFilesForMetaworker(bool singleMode)
-        {
-            MetaStore.Clear();
-            PathStore.Clear();
-
-            if (singleMode == true)
-            {
-                foreach (FileData file in CurrentFiles) { PathStore.Add((file.Sökväg)); }
-            }
-            if (singleMode == false)
-            {
-                foreach (FileData file in FilteredFiles) { PathStore.Add((file.Sökväg)); }
-            }
-        }
-
-        public int GetNrSelectedFiles()
-        {
-            return PathStore.Count();
-        }
-
-        public void SetMeta()
-        {
-            int i = 0;
-            foreach (string path in PathStore)
-            {
-                FileData file = FilteredFiles.FirstOrDefault(x => x.Sökväg == path);
-
-                string[] md = MetaStore[i];
-
-                file.Handling = md[0];
-                file.Status = md[1];
-                file.Datum = md[2];
-                file.Ritningstyp = md[3];
-                file.Beskrivning1 = md[4];
-                file.Beskrivning2 = md[5];
-                file.Beskrivning3 = md[6];
-                file.Beskrivning4 = md[7];
-                file.Revidering = md[8];
-                file.Sökväg = path;
-
-                i++;
-            }
-        }
-
-        public void GetMetadata(int k)
-        {
-            string[] tags = ["Handlingstyp = ", "Granskningsstatus = ", "Datum = ", "Ritningstyp = ", "Beskrivning1 = ", "Beskrivning2 = ", "Beskrivning3 = ", "Beskrivning4 = ", "Revidering = "];
-            int ntags = tags.Count();
-
-            List<string[]> metadata = new List<string[]>();
-
-            string path = PathStore[k];
-            string[] description = new string[ntags];
-            try
-            {
-                string[] lines = System.IO.File.ReadAllLines(path + ".md", Encoding.GetEncoding("ISO-8859-1"));
-
-                int iter = 1;
-                int start = 100;
-                int end = 0;
-                foreach (string line in lines)
-                {
-                    if (line == "[Metadata]") { start = iter; }
-                    if (line.Trim().Length == 0 || iter > start) { end = iter; }
-                    iter++;
-                }
-
-                for (int i = start; i < end; i++)
-                {
-                    string line = lines[i];
-                    for (int j = 0; j < ntags; j++)
-                    {
-                        string tag = tags[j];
-                        if (line.StartsWith(tag))
-                        {
-                            description[j] = line.Replace(tag, "");
-                        }
-                        if (line.StartsWith(tag.ToUpper()))
-                        {
-                            description[j] = line.Replace(tag.ToUpper(), "");
-                        }
-
-                    }
-                }
-                MetaStore.Add(description);
-            }
-            catch (Exception)
-            {
-                MetaStore.Add(["", "", "", "", "", "", "", "", ""]);
-            }
-
-            FileInfo file = new FileInfo("amit.txt");
-            DateTime dt = file.CreationTime;
-
-        }
-
-        public void ClearMeta()
-        {
-            ClearSelectedMetadata();
-        }
-
-        public void Search()
-        {
-            if (IndexedSearch)
-            {
-                SearchIndex();
-            }
-
-            else
-            {
-                SeachFiles();
-            }
-
-            OnPropertyChanged("UpdateColumns");
-        }
-
-        public void SearchIndex()
-        {
-            string indexPath = Storage.General.SavePath + "//IndexedContent.json";
-
-            if (IndexedContent == null)
-            {
-                if (System.IO.File.Exists(indexPath))
-                {
-                    LoadIndexFile(indexPath);
-                }
-                else
-                {
-                    IndexedContent = new ObservableCollection<ContentData>();
-                }
-            }
-
-            FilteredFiles.Clear();
-            CurrentProject = new ProjectData() { Namn = SearchText, Category = "Search"};
-
-
-            List<string> filepaths = new List<string>();
-
-            foreach (ContentData content in IndexedContent)
-            {
-                if (content.PlainText.Contains(SearchText,StringComparison.OrdinalIgnoreCase))
-                {
-                    filepaths.Add(content.Filepath);
-                }
-            }
-
-            foreach (ProjectData project in Storage.StoredProjects)
-            {
-                foreach (FileData file in project.StoredFiles)
-                {
-                    if (filepaths.Contains(file.Sökväg))
-                    {
-                        FilteredFiles.Add(file);
-                    }
-                }
-            }
-
-            OnPropertyChanged("NrFilteredFiles");
-        }
-
-        public void CheckSingleFile()
-        {
-            if (CurrentFile != null)
-            {
-                if (CurrentFile.IsValidPdf())
-                {
-                    CurrentFile.FileStatus = "OK";
-                }
-                else
-                {
-                    CurrentFile.FileStatus = "Missing";
-                }
-            }
-        }
-
-        public async Task CheckProjectFiles()
-        {
-            await Task.Run(() => CheckFileAsync());
-        }
-
-        public async Task CheckFileAsync()
-        {
-            ClearFileStatus();
-
-            int n = CurrentProject.StoredFiles.Count();
-            int i = 0;
-
-            foreach (FileData file in CurrentProject.StoredFiles)
-            {
-                i++;
-
-                if (file.IsValidPdf())
-                {
-                    file.FileStatus = "OK";
-                }
-                else
-                {
-                    file.FileStatus = "Missing";
-                }
-
-                PreviewVM.Progress = (int)(100 * ((float)i / (float)n));
-            }
-        }
-
-        public void ClearFileStatus()
-        {
-            foreach (FileData file in CurrentProject.StoredFiles)
-            {
-                file.FileStatus = "";
-            }
-        }
-
-        public void OpenFile()
-        {
-            try
-            {
-                foreach (FileData file in CurrentFiles)
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = file.Sökväg;
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                }
-            }
-            catch (Exception e) { Debug.WriteLine(e); }
-        }
-
-        public void OpenFileDirect(string path)
-        {
-            try
-            {
-                ProcessStartInfo psi = new ProcessStartInfo();
-                psi.FileName = path;
-                psi.UseShellExecute = true;
-                Process.Start(psi);
-            }
-            catch (Exception e) { Debug.WriteLine(e); }
-        }
-
-        public void OpenMeta()
-        {
-            try
-            {
-                foreach (FileData file in CurrentFiles)
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = file.Sökväg + ".md";
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                }
-            }
-            catch { }
-        }
-
-        public void OpenDwg()
-        {
-            if (CurrentFile.Filtyp == "Drawing")
-            {
-                string dwgPathOld = CurrentFile.Sökväg.Replace("Ritning", "Ritdef").Replace("pdf", "dwg");
-                string dwgPathNew = CurrentFile.Sökväg.Replace("Drawing", "Drawing Definition").Replace("pdf", "dwg");
-
-                try
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = dwgPathOld;
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                }
-                catch (Exception)
-                { }
-
-                try
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = dwgPathNew;
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                }
-                catch (Exception)
-                { }
-            }
-        }
-
-        public void OpenDoc()
-        {
-            if (CurrentFile.Filtyp == "Document")
-            {
-                string docPath = CurrentFile.Sökväg.Replace("pdf", "docx");
-
-                try
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo();
-                    psi.FileName = docPath;
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
-                }
-                catch (Exception)
-                { }
-            }
-
-        }
-
-        public void OpenPath()
-        {
-            try
-            {
-                string folderpath = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
-                Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
-            }
-
-            catch (Exception e)
-            { }
-        }
-
-        public void OpenPathDirect(string filepath)
-        {
-            try
-            {
-                string folderpath = System.IO.Path.GetDirectoryName(filepath);
-                Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
-            }
-
-            catch (Exception e)
-            { }
-        }
-
-
-        public void AddColor(string color)
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Färg = color;
-            }
-        }
-
-        public void ClearAll()
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Färg = "";
-                file.Tagg = "";
-            }
-        }
-
-        public void AddTag(string tag)
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Tagg = tag;
-            }
-        }
-
-        public void ClearTag()
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Tagg = "";
-            }
-        }
-
-        public void EditType(string type)
-        {
-            SetTypeSelected(type);
-        }
-
-        public void select_files(IList<FileData> files)
-        {
-            CurrentFiles = files;
-
-            SetAttachedView();
-        }
-
-        private void SetAttachedView()
-        {
-            if (CurrentFile != null)
-            {
-                AttachedView = CurrentFile.HasAppendedFiles;
-            }
-        }
-
-        public void SelectType(string name)
-        {
-            string currentType = Type;
-
-            if (currentType != name)
-            {
-                Type = name;
-            }
-            OnPropertyChanged("UpdateColumns");
-        }
-
-        public void SelectProject(string name)
-        {
-            string currentProjectName = CurrentProject.Namn;
-            if (currentProjectName != name)
-            {
-                SetProject(name);
-            }
-            OnPropertyChanged("UpdateColumns");
-        }
-
-        public void ReselectProject()
-        {
-            SetProject(CurrentProject.Namn);
-            OnPropertyChanged("UpdateColumns");
-        }
-
-        public void Renameproject(string newProjectName)
-        {
-            RenameProject(newProjectName);
-            SetProjectlist();
-        }
-
-        public void UpdateTreeview()
-        {
-            OnPropertyChanged("TreeViewUpdate");
-        }
-
-        public void NewProject(string name, string group = null, string category = "Project")
-        {
-            if (!Storage.StoredProjects.Any(x => x.Namn == name))
-            {
-                ProjectData newProject = new ProjectData { Namn = name, Parent = group, Category = category };
-
-                Storage.StoredProjects.Add(newProject);
-                CurrentProject = newProject;
-
-                SetProjectlist();
-                SetDefaultType();
-                SortProjects();
-            }
-        }
-
-        public void RemoveProject()
-        {
-            Storage.StoredProjects.Remove(CurrentProject);
-            SetProjectlist();
-            SetDefaultSelection();
-            SortProjects();
-        }
-
-        public void RemoveProjects(List<ProjectData> list)
-        {
-            foreach (ProjectData project in list)
-            {
-                Storage.StoredProjects.Remove(project);
-            }
-
-            SetProjectlist();
-            SetDefaultSelection();
-            SortProjects();
-        }
-
-        public void RenameProject(string projectName)
-        {
-            CurrentProject.Namn = projectName;
-
-            foreach (FileData file in CurrentProject.StoredFiles)
-            {
-                file.Uppdrag = projectName;
-            }
-            CurrentProject.SetFiletypeList();
-        }
-
-        public void GetGroups()
-        {
-            Groups.Clear();
-
-            List<string> list = Storage.StoredProjects.Select(x => x.Parent).Where(x => x != null).Distinct().ToList();
-
-            list.Remove("");
-
-            Groups = new ObservableCollection<string>(list);
-        }
-
-
-        public void SetGroups(string group)
-        {
-            CurrentProject.Parent = group;
-        }
-
-        
-        public void SortProjects()
-        {
-            List<ProjectData> sortedLibrary = Storage.StoredProjects.Where(x => x.Category == "Library").OrderBy(x => x.Namn).ToList();
-            List<ProjectData> sortedArchive = Storage.StoredProjects.Where(x => x.Category == "Archive").OrderBy(x => x.Namn).ToList();
-            List<ProjectData> sortedProject = Storage.StoredProjects.Where(x => x.Category == "Project").OrderBy(x => x.Namn).ToList();
-
-            Storage.StoredProjects.Clear();
-
-            foreach (var project in sortedLibrary) { Storage.StoredProjects.Add(project); }
-            foreach (var project in sortedArchive) { Storage.StoredProjects.Add(project); }
-            foreach (var project in sortedProject) { Storage.StoredProjects.Add(project); }
-
-            SetProjectlist();
-        }
-
-        public void RemoveSelectedFiles()
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                CurrentProject.RemoveFile(file);
-            }
-
-            CurrentProject.SetFiletypeList();
-
-            if (FilteredFiles == null)
-            {
-                SetDefaultSelection();
-            }
-        }
-
-        public void SetProject(string name)
-        {
-            ProjectData project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
-
-            SelectProjectAsync(project);
-
-            if (!CurrentProject.Filetypes.Contains(Type))
-            {
-                Type = "All Types";
-            }
-        }
-
-        public async Task SelectProjectAsync(ProjectData project)
-        {
-            CurrentProject = project;
-        }
-
-        public void SetProjecCategory(string name)
-        {
-            CurrentProject.Category = name;
-
-            if (name != "Project")
-            {
-                CurrentProject.Parent = null;
-            }
-
-            SortProjects();
-        }
-
-        public void SetDefaultType()
-        {
-            Type = "All Types";
-        }
-
-        public void SetTypeSelected(string type)
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Filtyp = type;
-            }
-            currentProject.SetFiletypeList();
-            UpdateFilter();
-        }
-
-        public void SetDefaultSelection()
-        {
-            string defaultProject = Storage.StoredProjects.FirstOrDefault().Namn;
-            CurrentProject = GetProject(defaultProject);
-            Type = "All Types";
-        }
-
-        public void UpdateFilter()
-        {
-            FilteredFiles.Clear();
-
-            if (Type != "All Types")
-            {
-                foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn))
-                {
-                    FilteredFiles.Add(file);
-                }
-            }
-
-            else
-            {
-                foreach (FileData file in CurrentProject.StoredFiles.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp))
-                {
-                    FilteredFiles.Add(file);
-                }
-            }
-            OnPropertyChanged("NrFilteredFiles");
-
-            if (CurrentProject.Category != "Search")
-            {
-                IndexedSearch = false;
-                PreviewVM.SearchMode = false;
-                SearchText = String.Empty;
-            }
-        }
-
-
-        public ProjectData GetProject(string name)
-        {
-            return Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
-        }
-
-        public void SetProjectlist()
-        {
-            ProjectList.Clear();
-
-            List<string> newList = Storage.StoredProjects.Select(x => x.Namn).Distinct().ToList();
-
-            foreach (string item in newList)
-            {
-                ProjectList.Add(item);
-            }
-        }
-
-        public ProjectData GetDefaultProject()
-        {
-            return Storage.StoredProjects.FirstOrDefault();
-        }
-
-
-        public void ClearSelectedMetadata()
-        {
-            foreach (FileData file in CurrentFiles)
-            {
-                file.Handling = "";
-                file.Status = "";
-                file.Datum = "";
-                file.Ritningstyp = "";
-                file.Beskrivning1 = "";
-                file.Beskrivning2 = "";
-                file.Beskrivning3 = "";
-                file.Beskrivning4 = "";
-                file.Revidering = "";
-            }
-        }
-
-
-        public void AddAppendedFile(string filepath, bool fromFolder = false)
-        {
-            if (CurrentFile != null && CurrentFile.AppendedFiles.Where(x => x.Sökväg == filepath).Count() == 0)
-            {
-                CurrentFile.AppendedFiles.Add(new FileData()
-                {
-                    Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
-                    Sökväg = filepath,
-                    IsFromFolder = fromFolder
-                });
-
-                SortAttachedFiles();
-            }
-        }
-
-        public void AddOtherFile(string filepath)
-        {
-            if (CurrentFile != null && CurrentFile.OtherFiles.Where(x => x.Filepath == filepath).Count() == 0)
-            {
-                OtherData newFile = new OtherData() { Filepath = filepath };
-                newFile.SetFile();
-
-                CurrentFile.OtherFiles.Add(newFile);
-
-                SortOtherFiles();
-            }
-        }
-
-        public void RemoveAttachedFile(IList<FileData> files)
-        {
-            foreach (FileData file in files)
-            {
-                CurrentFile.AppendedFiles.Remove(file);
-            }
-
-            SortAttachedFiles();
-        }
-
-        public void RemoveOtherFile(OtherData file)
-        {
-            if (file != null)
-            {
-                CurrentFile.OtherFiles.Remove(file);
-                SortOtherFiles();
-            }
-        }
-
-        private void SortAttachedFiles()
-        {
-            if (CurrentFile != null)
-            {
-                SortAttachedFilesDirect(CurrentFile);
-            }
-        }
-
-        private void SortAttachedFilesDirect(FileData file)
-        {
-            List<FileData> tempList = file.AppendedFiles.OrderBy(x => x.Namn).ToList();
-            file.AppendedFiles.Clear();
-            file.AppendedFiles = new ObservableCollection<FileData>(tempList);
-        }
-
-        private void SortOtherFiles()
-        {
-            if (CurrentFile != null)
-            {
-                SortOtherFilesDirect(CurrentFile);
-            }
-        }
-
-        private void SortOtherFilesDirect(FileData file)
-        {
-            List<OtherData> tempList = file.OtherFiles.OrderBy(x => x.Name).ToList();
-            file.OtherFiles.Clear();
-            file.OtherFiles = new ObservableCollection<OtherData>(tempList);
-        }
-
-        public void SeachFiles()
-        {
-            FilteredFiles.Clear();
-            CurrentProject = new ProjectData() { Namn = SearchText, Category = "Search"};
-
-            foreach (ProjectData project in Storage.StoredProjects)
-            {
-                foreach (FileData file in project.StoredFiles)
-                {
-                    bool finished = false;
-
-                    string b0 = file.Namn;
-                    string b1 = file.Beskrivning1;
-                    string b2 = file.Beskrivning2;
-                    string b3 = file.Beskrivning3;
-                    string b4 = file.Tagg;
-
-                    if (b0 != null && !finished) { if (b0.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                    if (b1 != null && !finished) { if (b1.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                    if (b2 != null && !finished) { if (b2.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                    if (b3 != null && !finished) { if (b3.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                    if (b4 != null && !finished) { if (b4.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                }
-            }
-
-            OnPropertyChanged("NrFilteredFiles");
-
-        }
-
-        public void RenameOriginal(string newName)
-        {
-            string oldName = CurrentFile.Namn;
-            string oldPath = CurrentFile.Sökväg;
-
-            if (oldName != newName && newName.Length > 0 && CurrentFile.IsLocal())
-            {
-                string newPath = CurrentFile.Sökväg.Replace(oldName, newName);
-                try
-                {
-                    System.IO.File.Move(oldPath, newPath);
-                }
-                catch
-                {
-                    return;
-                }
-
-                CurrentFile.Sökväg = newPath;
-                CurrentFile.Namn = newName;
-
-            }
-        }
-
-
-        public void MoveSelectedFiles(ProjectData project)
-        {
-            if (project != null)
-            {
-                foreach (FileData file in CurrentFiles.ToList())
-                {
-
-                    if (!project.StoredFiles.Contains(file))
-                    {
-                        CurrentProject.StoredFiles.Remove(file);
-                        file.Filtyp = "New";
-                        file.Uppdrag = project.Namn;
-                        project.StoredFiles.Add(file);
-                    }
-                }
-
-                UpdateFilter();
-            }
-        }
-
-
-        public void WatermarkFiles(string text = "Arbetskopia")
-        {
-
-            string date = DateTime.Today.ToString("yyyy-MM-dd");
-            string folder = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
-            string outputPath = folder + "\\" + text + " " + date;
-
-            System.IO.Directory.CreateDirectory(outputPath);
-
-            foreach (FileData file in CurrentFiles)
-            {
-
-                if (file.IsValidPdf())
-                {
-                    string outputFilePath = outputPath + "\\" + file.Namn + "_" + text + "_" + date + ".pdf";
-
-                    if (!IsFileInUse(outputFilePath))
-                    {
-                        PdfDocument pdfDoc = new PdfDocument(new PdfReader(file.Sökväg), new PdfWriter(outputFilePath));
-
-                        PdfFont font = PdfFontFactory.CreateFont(FontProgramFactory.CreateFont(StandardFonts.HELVETICA));
-                        Document document = new Document(pdfDoc);
-                        iText.Kernel.Geom.Rectangle pageSize;
-
-                        PdfCanvas canvas;
-                        int n = pdfDoc.GetNumberOfPages();
-                        for (int i = 1; i <= n; i++)
-                        {
-                            PdfPage page = pdfDoc.GetPage(i);
-                            page.NewContentStreamBefore();
-                            pageSize = page.GetPageSize();
-                            float fontSize = pageSize.GetWidth() / 10;
-
-                            canvas = new PdfCanvas(page);
-
-                            Paragraph paragraph = new Paragraph(text).SetFont(font).SetFontSize(fontSize).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f);
-                            paragraph.SetMultipliedLeading(0.5f);
-                            paragraph.Add(Environment.NewLine);
-                            paragraph.Add(new Paragraph(date).SetFont(font).SetFontSize(fontSize / 2).SetFontColor(ColorConstants.GRAY).SetOpacity(0.5f));
-
-                            iText.Layout.Canvas canvasWatermark2 = new iText.Layout.Canvas(canvas, pdfDoc.GetDefaultPageSize()).ShowTextAligned(paragraph, pageSize.GetWidth() / 2, pageSize.GetHeight() / 2, 1, TextAlignment.CENTER, VerticalAlignment.MIDDLE, 120);
-                        }
-                        pdfDoc.Close();
-                    }
-                }
-            }
-        }
-
-        public static bool IsFileInUse(string filePath)
-        {
-            if (System.IO.File.Exists(filePath) == false)
-            {
-                return false;
-            }
-            else
-            {
-                try
-                {
-                    // Try opening the file with read-write access and an exclusive lock
-                    using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
-                    {
-                        // If we can open it, the file isn't in use
-                    }
-                }
-                catch (IOException)
-                {
-                    // IOException indicates the file is in use
-                    return true;
-                }
-
-                // If no exception was thrown, the file is not in use
-                return false;
             }
         }
     }
-}
+
+
 
