@@ -5,7 +5,7 @@ namespace Finn.Model
     public class TimeSheetData : INotifyPropertyChanged
     {
 
-        private int hours;
+        private int hours = 0;
         public int Hours
         {
             get { return hours; }

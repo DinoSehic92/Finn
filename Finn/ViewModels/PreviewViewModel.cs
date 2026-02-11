@@ -363,7 +363,7 @@ namespace Finn.ViewModels
 
                         StatusMessage = "Reading Bytes: " + (total/1000000).ToString() + " Mb";
 
-                        byte[] buffer = new byte[4096];
+                        byte[] buffer = new byte[2 * 8192];
                         int bytesRead;
 
                         int steps = (int)(total / buffer.Length);

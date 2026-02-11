@@ -141,21 +141,6 @@ namespace Finn.Model
             RaisePropertyChanged("DateStringIcon");
         }
 
-        public SolidColorBrush Foreground
-        {
-            get
-            {
-                if (Date.DayOfWeek == DayOfWeek.Friday)
-                {
-                    return new SolidColorBrush(Avalonia.Media.Color.Parse("#444444"));
-                }
-                else
-                {
-                    return new SolidColorBrush(Avalonia.Media.Color.Parse("#444444"));
-                }
-            } 
-        }
-
         public bool HasNote
         {
             get

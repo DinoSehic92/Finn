@@ -1,13 +1,14 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 
 namespace Finn.Model
 {
     public class FolderData : INotifyPropertyChanged
     {
-        private string name;
+        private string name = string.Empty;
         public string Name
         {
             get { return name; }
@@ -34,14 +35,14 @@ namespace Finn.Model
             }
         }
 
-        private string path;
+        private string path = string.Empty;
         public string Path
         {
             get { return path; }
             set { path = value; RaisePropertyChanged("Path"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
-        private string types;
+        private string types = string.Empty;
         public string Types
         {
             get { return types; }
@@ -66,9 +67,6 @@ namespace Finn.Model
         {
             return Directory.Exists(Path);
         }
-
-        
-
 
         private void RaisePropertyChanged(string propName)
         {

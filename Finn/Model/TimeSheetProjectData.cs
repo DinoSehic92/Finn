@@ -5,21 +5,21 @@ namespace Finn.Model
     public class TimeSheetProjectData : INotifyPropertyChanged
     {
 
-        private string project;
+        private string project = string.Empty;
         public string Project
         {
             get { return project; }
             set { project = value; RaisePropertyChanged("Project"); }
         }
 
-        private string projectNr;
+        private string projectNr = string.Empty;
         public string ProjectNr
         {
             get { return projectNr; }
             set { projectNr = value; RaisePropertyChanged("ProjectNr"); }
         }
 
-        private string task;
+        private string task = string.Empty;
         public string Task
         {
             get { return task; }

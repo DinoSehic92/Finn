@@ -122,7 +122,7 @@ namespace Finn.Model
         }
 
 
-        private int defaultPage;
+        private int defaultPage = 0;
         public int DefaultPage
         {
             get { return defaultPage; }
@@ -321,8 +321,6 @@ namespace Finn.Model
 
         public bool IsValidPdf()
         {
-            Debug.WriteLine("TRIGGER");
-
             if (File.Exists(Sökväg))
             {
                 if (Path.GetExtension(Sökväg) == ".pdf")

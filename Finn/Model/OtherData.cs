@@ -42,13 +42,11 @@ namespace Finn.Model
             set { isFromFolder = value; RaisePropertyChanged("IsFromFolder"); RaisePropertyChanged("NameWithAttributes"); }
         }
 
+        private string fromFolder = string.Empty;
         public string FromFolder
         {
-            get
-            {
-                return Path.GetFileName(Path.GetDirectoryName(Filepath));
-            }
-
+            get { return fromFolder; }
+            set { fromFolder = value; RaisePropertyChanged("FromFolder"); }
         }
 
         private string? syncFolder = string.Empty;
@@ -57,7 +55,6 @@ namespace Finn.Model
             get { return syncFolder; }
             set { syncFolder = value; RaisePropertyChanged("SyncFolder"); }
         }
-
 
         private byte[] iconBytes;
         public byte[] IconBytes
@@ -74,15 +71,11 @@ namespace Finn.Model
 
         public void SetFile()
         {
-
             Type = Path.GetExtension(filepath);
             Name = Path.GetFileName(filepath).Replace(Type, "");
             System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath).ToBitmap();
-
             IconBytes = BitmapToByteArray(bitmap);
-
         }
-
 
 
         public byte[] BitmapToByteArray(System.Drawing.Bitmap bitmap)
@@ -92,7 +85,6 @@ namespace Finn.Model
                 bitmap.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
                 return memoryStream.ToArray();
             }
-
         }
 
 

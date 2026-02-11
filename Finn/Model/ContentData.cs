@@ -21,7 +21,7 @@ namespace Finn.Model
             set { filepath = value; RaisePropertyChanged("Filepath"); }
         }
 
-        private string plainText;
+        private string plainText = string.Empty;
         public string PlainText
         {
             get { return plainText; }

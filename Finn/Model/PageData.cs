@@ -4,7 +4,7 @@ namespace Finn.Model
 {
     public class PageData : INotifyPropertyChanged
     {
-        private int pageNr;
+        private int pageNr = 0;
         public int PageNr
         {
             get { return pageNr; }
