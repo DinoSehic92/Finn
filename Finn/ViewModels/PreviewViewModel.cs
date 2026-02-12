@@ -692,18 +692,20 @@ namespace Finn.ViewModels
 
         public void NextPage(bool secondPage = false)
         {
-            if (!TwopageMode) RequestPage1++;
-            else if (LinkedPageMode) RequestPage1 += 2;
-            else if (!secondPage) RequestPage1++;
-            else RequestPage2++;
+            int lastPage = Pagecount - 1;
+
+            if (!TwopageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
+            else if (LinkedPageMode) { if (RequestPage1 + 2 <= lastPage) RequestPage1 += 2; }
+            else if (!secondPage) { if (RequestPage1 < lastPage) RequestPage1++; }
+            else { if (RequestPage2 < lastPage) RequestPage2++; }
         }
 
         public void PrevPage(bool secondPage = false)
         {
-            if (!TwopageMode) RequestPage1--;
-            else if (LinkedPageMode) RequestPage1 -= 2;
-            else if (!secondPage) RequestPage1--;
-            else RequestPage2--;
+            if (!TwopageMode) { if (RequestPage1 > 0) RequestPage1--; }
+            else if (LinkedPageMode) { if (RequestPage1 >= 2) RequestPage1 -= 2; }
+            else if (!secondPage) { if (RequestPage1 > 0) RequestPage1--; }
+            else { if (RequestPage2 > 0) RequestPage2--; }
         }
 
         public bool PageInRange(int pageNr) => pageNr >= 0 && pageNr < Pagecount;

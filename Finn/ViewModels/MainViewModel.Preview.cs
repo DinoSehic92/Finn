@@ -22,7 +22,6 @@ namespace Finn.ViewModels
 
             if (file != null && file.IsValidPdf())
             {
-                PreviewVM.SetupPage(file.DefaultPage);
                 PreviewVM.RequestFile = file;
                 PreviewVM.ToggleVisibility(false);
 
