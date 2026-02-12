@@ -19,11 +19,20 @@
 			<Setter Property="Padding" Value="5 5 0 5"/>
 		</Style>
 
-	
+		<!-- Smooth row hover transition for all DataGridRows -->
+		<Style Selector="DataGridRow">
+			<Setter Property="Transitions">
+				<Transitions>
+					<BrushTransition Property="Background" Duration="0:0:0.2"/>
+				</Transitions>
+			</Setter>
+		</Style>
+
+		<!-- Color tag rows with consistent lower opacity for readability -->
 		<Style Selector="DataGridRow.Yellow">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#FFD700" Opacity="0.7"/>
+					<SolidColorBrush Color="#FFD700" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -31,7 +40,7 @@
 		<Style Selector="DataGridRow.Orange">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#FFA500" Opacity="0.7"/>
+					<SolidColorBrush Color="#FFA500" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -39,7 +48,7 @@
 		<Style Selector="DataGridRow.Brown">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#8B4513" Opacity="0.7"/>
+					<SolidColorBrush Color="#8B4513" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -47,7 +56,7 @@
 		<Style Selector="DataGridRow.Green">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#228B22" Opacity="0.7"/>
+					<SolidColorBrush Color="#228B22" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -55,7 +64,7 @@
 		<Style Selector="DataGridRow.Blue">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#1E90FF" Opacity="0.7"/>
+					<SolidColorBrush Color="#1E90FF" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -63,7 +72,7 @@
 		<Style Selector="DataGridRow.Red">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#B22222" Opacity="0.7"/>
+					<SolidColorBrush Color="#B22222" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -71,26 +80,27 @@
 		<Style Selector="DataGridRow.Magenta">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#9400D3" Opacity="0.7"/>
+					<SolidColorBrush Color="#9400D3" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
 
 		<Style Selector="DataGridRow.RedForeground">
-			<Setter Property="Foreground" Value="Red"/>
+			<Setter Property="Foreground" Value="#FF6B6B"/>
+			<Setter Property="FontStyle" Value="Italic"/>
 		</Style>
 
 		<Style Selector="DataGridRow.Placeholder">
 			<Setter Property="Foreground" Value="Sienna"/>
-			<Setter Property="FontWeight" Value="Bold"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="Opacity" Value="0.75"/>
 		</Style>
 		
 	</Window.Styles>
 
-		<Grid>
-			<views:MainView/>
-		</Grid>
-
+	<Grid>
+		<views:MainView/>
+	</Grid>
 
 </Window>
 

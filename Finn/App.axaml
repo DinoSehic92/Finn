@@ -43,12 +43,29 @@
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="HorizontalContentAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
-			
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+
+		<Style Selector="Button:pressed">
+			<Setter Property="Opacity" Value="0.7"/>
 		</Style>
 
 		<Style Selector="ToggleButton">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+
+		<Style Selector="ToggleButton:pressed">
+			<Setter Property="Opacity" Value="0.7"/>
 		</Style>
 
 		<Style Selector="ComboBox">
@@ -76,10 +93,12 @@
 
 		<Style Selector="DataGridColumnHeader">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Height" Value="20"/>
-			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="Height" Value="24"/>
+			<Setter Property="FontSize" Value="13"/>
 			<Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
 			<Setter Property="FontStyle" Value="Italic"/>
+			<Setter Property="Opacity" Value="0.8"/>
+			<Setter Property="Padding" Value="8,0,0,0"/>
 		</Style>
 
 		<Style Selector="DataGrid">

@@ -16,10 +16,8 @@
 			 x:DataType="vm:MainViewModel">
 
 	<Design.DataContext>
-		<!-- This only sets the DataContext for the previewer in an IDE,
-         to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
 		<vm:MainViewModel />
-  </Design.DataContext>
+	</Design.DataContext>
 
 	<UserControl.Resources>
 		<converter:ShortenStringConverter x:Key="ShortenStringConverter" />
@@ -49,6 +47,13 @@
 		<FontFamily x:Key="Urbanist">avares://Finn/Assets/Fonts#Urbanist</FontFamily>
 		<FontFamily x:Key="Work Sans">avares://Finn/Assets/Fonts#Work Sans</FontFamily>
 
+		<!-- Shared styles as reusable resources to reduce duplication -->
+		<ControlTemplate x:Key="ThumbnailTooltipTemplate">
+			<Panel Background="White">
+				<Image Source="{Binding (model:FileData).ThumbnailSource, Converter={StaticResource BitmapConverter}, Mode=OneWay}"/>
+			</Panel>
+		</ControlTemplate>
+
 	</UserControl.Resources>
 
 	<UserControl.Styles>
@@ -77,7 +82,6 @@
 			<Setter Property="Margin" Value="5"/>
 		</Style>
 
-
 		<Style Selector="ComboBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
@@ -91,782 +95,633 @@
 			<Setter Property="Margin" Value="5"/>
 		</Style>
 
-
 		<Style Selector="DataGrid">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
 		</Style>
-
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Margin" Value="5"/>
 		</Style>
 
+		<!-- Global style: hide focus visual on all DataGridCells -->
+		<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+			<Setter Property="IsVisible" Value="false"/>
+		</Style>
+
+		<!-- Thumbnail tooltip styles applied to any DataGrid with the ThumbnailGrid class -->
+		<Style Selector="DataGrid.ThumbnailGrid ToolTip">
+			<Setter Property="Template" Value="{StaticResource ThumbnailTooltipTemplate}"/>
+			<Setter Property="MaxWidth" Value="500"/>
+			<Setter Property="MaxHeight" Value="500"/>
+		</Style>
+		<Style Selector="DataGrid.ThumbnailGrid DataGridRow">
+			<Setter Property="ToolTip.Tip" Value="{Binding (model:FileData).Namn}"/>
+		</Style>
+
+		<!-- Smooth opacity for toggled panels -->
+		<Style Selector="Grid.AnimatedPanel">
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+				</Transitions>
+			</Setter>
+		</Style>
 	</UserControl.Styles>
 
-			<Grid Name ="MainGrid" DragDrop.AllowDrop="True" ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto" RowDefinitions="35,35,*" Margin="5">
-				<DockPanel Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Left">
-					<Menu DockPanel.Dock="Top" FontSize="15" FontFamily="Default">
-						<MenuItem Header="File">
-							<MenuItem Header="Load" Click="OnLoadFile" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
-							<Separator/>
-							<MenuItem Header="Save" HotKey="Ctrl+S" Click="OnSaveFileAuto" Icon="{icxt:SymbolIconExtension Symbol=Save}"/>
-							<MenuItem Header="Save As" Click="OnSaveFile" Icon="{icxt:SymbolIconExtension Symbol=SaveEdit}"/>
-							<Separator/>
-							<MenuItem Header="Backup" Command="{Binding BackupSaveFile}" Icon="{icxt:SymbolIconExtension Symbol=ArrowCircleUp}"/>
-							<MenuItem Header="Reset" Command="{Binding ResetPreviewer}" Icon="{icxt:SymbolIconExtension Symbol=ArrowReset}"/>
-						</MenuItem>
-					</Menu>
-					<TextBlock/>
-				</DockPanel>
+	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
+		  ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto"
+		  RowDefinitions="35,35,*"
+		  Margin="5">
 
-					<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-						<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="25" FontSize="14" Opacity="0.7"/>
-						<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,2,0"/>
-					</StackPanel>
-				
-					<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="60,2,0,0">
-						<ProgressBar Name="ProgressBar" Width="200" VerticalAlignment="Center" Value="{Binding PreviewVM.Progress}"/>
-						<Label Name="ProgressStatus" Width="200" Height="40" VerticalContentAlignment="Center" IsHitTestVisible="False" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="10"/>
-					</StackPanel>
+		<!-- ═══════════════════════════════════════════════ -->
+		<!-- Row 0: Top bar (menu, status, toolbar)         -->
+		<!-- ═══════════════════════════════════════════════ -->
 
-				<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
-					<StackPanel Margin="8 -2 0 0" Orientation="Horizontal" Spacing="3">
-						<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="25" FontSize="13" Opacity="0.7"/>
-						<TextBlock Text="{Binding CurrentProject.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
-						<TextBlock Text=" | Filtered: " FontStyle="Italic" Opacity="0.7" FontSize="14" Padding="1,0,1,0"/>
-						<TextBlock Text="{Binding NrFilteredFiles}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
-						<TextBlock Text=" | Selected: " FontStyle="Italic" Opacity="0.7" FontSize="14" Padding="1,0,1,0"/>
-						<TextBlock Text="{Binding NrSelectedFiles}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+		<!-- File menu -->
+		<DockPanel Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Left">
+			<Menu DockPanel.Dock="Top" FontSize="15" FontFamily="Default">
+				<MenuItem Header="File">
+					<MenuItem Header="Load"    Click="OnLoadFile"                          Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+					<Separator/>
+					<MenuItem Header="Save"    HotKey="Ctrl+S" Click="OnSaveFileAuto"      Icon="{icxt:SymbolIconExtension Symbol=Save}"/>
+					<MenuItem Header="Save As" Click="OnSaveFile"                          Icon="{icxt:SymbolIconExtension Symbol=SaveEdit}"/>
+					<Separator/>
+					<MenuItem Header="Backup"  Command="{Binding BackupSaveFile}"           Icon="{icxt:SymbolIconExtension Symbol=ArrowCircleUp}"/>
+					<MenuItem Header="Reset"   Command="{Binding ResetPreviewer}"           Icon="{icxt:SymbolIconExtension Symbol=ArrowReset}"/>
+				</MenuItem>
+			</Menu>
+		</DockPanel>
 
-					</StackPanel>
-					<StackPanel Margin="8 0 0 0" Orientation="Horizontal">
-						<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="25" FontSize="13" Opacity="0.7"/>
-						<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="3,0,1,0"/>
-					</StackPanel>
-				</StackPanel>
-				
+		<!-- Center status message -->
+		<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
+					Spacing="4">
+			<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
+			<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
+					   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
+		</StackPanel>
 
-		
-				
-					<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="10" Margin="5 5 4 5">
-						<Button Name="Columns" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
-							<Grid ColumnDefinitions="30,*,30" FlowDirection="LeftToRight" Width="140">
-								<ic:SymbolIcon Grid.Column="0" Symbol="Database" IconVariant="Regular" FontSize="20"/>
-								<Label Grid.Column="1" Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-								<ic:SymbolIcon Grid.Column="2" Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
-							</Grid>
-							<Button.Flyout>
-								<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
-									<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="140" Margin="0,5,0,10">
-										<ListBoxItem Height="30"><CheckBox Content="Name" Height="30" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="FileStatus" Height="30" IsChecked="{Binding CurrentProject.Meta_2, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Filtyp" Height="30" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Uppdrag" Height="30" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Tagg" Height="30" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Färg" Height="30" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Handling" Height="30" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Status" Height="30" IsChecked="{Binding CurrentProject.Meta_8, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Datum" Height="30" IsChecked="{Binding CurrentProject.Meta_9, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Ritningstyp" Height="30" IsChecked="{Binding CurrentProject.Meta_10, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Beskrivning 1" Height="30" IsChecked="{Binding CurrentProject.Meta_11, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Beskrivning 2" Height="30" IsChecked="{Binding CurrentProject.Meta_12, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Beskrivning 3" Height="30" IsChecked="{Binding CurrentProject.Meta_13, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Beskrivning 4" Height="30" IsChecked="{Binding CurrentProject.Meta_14, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Revidering" Height="30" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/></ListBoxItem>
-										<ListBoxItem Height="30"><CheckBox Content="Sökväg" Height="30" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/></ListBoxItem>
+		<!-- Progress bar -->
+		<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6">
+			<ProgressBar Name="ProgressBar" Width="200" VerticalAlignment="Center" Value="{Binding PreviewVM.Progress}"
+						 Height="4" MinHeight="4" CornerRadius="2"/>
+			<Label Name="ProgressStatus" Width="200" Height="35" VerticalContentAlignment="Center"
+				   IsHitTestVisible="False" FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="4,0"/>
+		</StackPanel>
 
-										<Button Content="Set Default" HorizontalAlignment="Center" Width="120" BorderBrush="{DynamicResource TextControlBorderBrush}" Command="{Binding CurrentProject.SetDefaultMeta}"/>
-									</StackPanel>
-								</Flyout>
-							</Button.Flyout>
-							</Button>
+		<!-- ═══════════════════════════════════════════════ -->
+		<!-- Row 1: Info bar & search                       -->
+		<!-- ═══════════════════════════════════════════════ -->
 
-						<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
-							<ToggleButton IsChecked="{Binding Storage.General.TrayNote}" Height="30" Width="30" Padding="0">
-								<ic:SymbolIcon Symbol="Notebook" IconVariant="Regular" FontSize="15"/>
-							</ToggleButton>
-							<ToggleButton IsChecked="{Binding Storage.General.TrayCollections}" Height="30" Width="30"  Padding="0">
-								<ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/>
-							</ToggleButton>
-							<ToggleButton IsChecked="{Binding Storage.General.TrayBookmarks}" Height="30" Width="30" Padding="0">
-								<ic:SymbolIcon Symbol="Bookmark" IconVariant="Regular" FontSize="15"/>
-							</ToggleButton>
-							<ToggleButton IsChecked="{Binding Storage.General.TrayRecent}" Height="30" Width="30" Padding="0">
-								<ic:SymbolIcon Symbol="Timer" IconVariant="Regular" FontSize="15"/>
-							</ToggleButton>
+		<!-- Project / file info -->
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
+			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="3">
+				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="25" FontSize="13" Opacity="0.7"/>
+				<TextBlock Text="{Binding CurrentProject.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+				<TextBlock Text=" | Filtered: "                 FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+				<TextBlock Text="{Binding NrFilteredFiles}"     FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+				<TextBlock Text=" | Selected: "                 FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+				<TextBlock Text="{Binding NrSelectedFiles}"     FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+			</StackPanel>
+			<StackPanel Margin="8,0,0,0" Orientation="Horizontal">
+				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="25" FontSize="13" Opacity="0.7"/>
+				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="3,0,1,0"/>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- Right-aligned row 1: metadata flyout + tray toggles -->
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="10" Margin="5,5,4,5">
+			<Button Name="Columns" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
+				<Grid ColumnDefinitions="30,*,30" FlowDirection="LeftToRight" Width="140">
+					<ic:SymbolIcon Grid.Column="0" Symbol="Database" IconVariant="Regular" FontSize="20"/>
+					<Label Grid.Column="1" Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+					<ic:SymbolIcon Grid.Column="2" Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
+				</Grid>
+				<Button.Flyout>
+					<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
+						<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="140" Margin="0,5,0,10">
+							<ListBoxItem Height="30"><CheckBox Content="Name"          Height="30" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="FileStatus"    Height="30" IsChecked="{Binding CurrentProject.Meta_2, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Filtyp"        Height="30" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Uppdrag"       Height="30" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Tagg"          Height="30" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Färg"          Height="30" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Handling"      Height="30" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Status"        Height="30" IsChecked="{Binding CurrentProject.Meta_8, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Datum"         Height="30" IsChecked="{Binding CurrentProject.Meta_9, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Ritningstyp"   Height="30" IsChecked="{Binding CurrentProject.Meta_10, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 1" Height="30" IsChecked="{Binding CurrentProject.Meta_11, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 2" Height="30" IsChecked="{Binding CurrentProject.Meta_12, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 3" Height="30" IsChecked="{Binding CurrentProject.Meta_13, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 4" Height="30" IsChecked="{Binding CurrentProject.Meta_14, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Revidering"    Height="30" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/></ListBoxItem>
+							<ListBoxItem Height="30"><CheckBox Content="Sökväg"        Height="30" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/></ListBoxItem>
+							<Button Content="Set Default" HorizontalAlignment="Center" Width="120"
+									BorderBrush="{DynamicResource TextControlBorderBrush}" Command="{Binding CurrentProject.SetDefaultMeta}"/>
 						</StackPanel>
-					</StackPanel>
-
-				<StackPanel Orientation="Horizontal" Grid.Row="1" Grid.ColumnSpan="7" HorizontalAlignment="Center" Margin="30 0 0 0">
-					<Grid ColumnDefinitions="*,30,30">   
-						<TextBox Grid.Column="0" Watermark="Seach All Files" Text="{Binding SearchText}" Name="SearchText" Width="160" KeyDown="OnStartSearch"/>
-						<Button Grid.Column="1" Click="OnSearch" Height="30" Width="35"> 
-							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="17" Padding="0"/>
-						</Button>
-						<ToggleButton Grid.Column="2" ToolTip.Tip="Global Indexed Search: Ctrl + G" HotKey="Ctrl+G" Height="30" Width="35" IsChecked="{Binding IndexedSearch}">
-							<ic:SymbolIcon Symbol="Globe" IconVariant="Regular" FontSize="17" Padding="0"/>
-						</ToggleButton>
-					</Grid>
-				</StackPanel>
-				
-					<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right" Grid.Row="0" Grid.ColumnSpan="7" Margin="0 0 155 0">
-
-						<ToggleButton Name="TreeStatus" ToolTip.Tip="Treeview: Ctrl + Q" HotKey="Ctrl+Q" FontWeight="Normal" Height="30" Width="35" Padding="0" Click="SetupTreeview" IsChecked="{Binding TreeViewOpen}">
-							<ic:SymbolIcon Symbol="PanelLeft" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-						
-						<ToggleButton Name="TrayStatus" ToolTip.Tip="Tray: Ctrl + E" HotKey="Ctrl+E" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding TrayViewOpen}">
-							<ic:SymbolIcon Symbol="PanelRight" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-
-						<ToggleButton Name="AttachedView" ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" FontWeight="Normal" Height="30" Padding="0" Width="35"  IsChecked="{Binding AttachedView}">
-							<ic:SymbolIcon Symbol="Attach" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-
-						<ToggleButton Name="FolderView" ToolTip.Tip="Folders: Ctrl + L" HotKey="Ctrl+L" FontWeight="Normal" Height="30" Padding="0" Width="35"  IsChecked="{Binding ShowFolders}">
-							<ic:SymbolIcon Symbol="Folder" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-						
-						<ToggleButton Name="ThumbnailToggle" FontWeight="Normal" ToolTip.Tip="Display Thumbnails, Ctrl + T" HotKey="Ctrl+T" Height="30" Width="35" Padding="0" IsChecked="{Binding ShowThumbnails}">
-							<ic:SymbolIcon Symbol="Image" FontSize="18"/>
-						</ToggleButton>
-
-						<ToggleButton Name="PreviewWindow" FontWeight="Normal" ToolTip.Tip="Preview Window, Ctrl + W" HotKey="Ctrl+W" Height="30" Width="35" Padding="0" IsChecked="{Binding PreviewWindowOpen}">
-							<ic:SymbolIcon Symbol="Window" FontSize="18"/>
-						</ToggleButton>
-
-						<ToggleButton Name="PreviewEmbedded" ToolTip.Tip="Preview Embedded: Ctrl + P" HotKey="Ctrl+P" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding PreviewEmbeddedOpen}">
-							<ic:SymbolIcon Symbol="Eye" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>	
-
-						<ToggleButton Name="ThemeToggle" ToolTip.Tip="Mode: Ctrl + M" HotKey="Ctrl+M" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding !Storage.General.DarkMode}">
-							<ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-
-						<ToggleButton Name="IconStatus" ToolTip.Tip="Show Icons: Ctrl + I" HotKey="Ctrl+I" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding Storage.General.ShowIcons}">
-							<ic:SymbolIcon Symbol="Icons" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-
-						<Button Name="ColorMenu" ToolTip.Tip="UI Color" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}" CommandParameter="{Binding $parent[Window]}">
-							<ic:SymbolIcon Symbol="Color" FontSize="18"/>
-						</Button>
-
-						<Button Name="Whiteboard" ToolTip.Tip="Whiteboard" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}">
-							<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
-						</Button>	
-						
-						<ToggleButton Name="CalendarStatus" ToolTip.Tip="Calendar: Ctrl + K" HotKey="Ctrl+K" FontWeight="Normal" Height="30" Width="35" Padding="0" IsChecked="{Binding CalendarOpen}">
-							<ic:SymbolIcon Name="CalendarView" Symbol="Calendar" IconVariant="Regular" FontSize="18"/>
-						</ToggleButton>
-
-						<Button Name="ProgMenu" ToolTip.Tip="Info" FontWeight="Normal" Height="30" Width="35" Padding="0" Command="{Binding OpenInfoDia}" CommandParameter="{Binding $parent[Window]}">
-							<ic:SymbolIcon Symbol="Info" FontSize="18"/>
-						</Button>	
-						
-					</StackPanel>
-
-					<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto">
-					
-						
-						<DataGrid Name="FileGrid" Padding="0" ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended" HorizontalScrollBarVisibility="Disabled" 
-									VerticalScrollBarVisibility="Visible" AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-									LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True" ToolTip.ServiceEnabled="{Binding ShowThumbnails}" >
-							
-								<DataGrid.Styles>
-									
-								<Style Selector="ToolTip">
-									<Setter Property="Template">
-										<Setter.Value>
-											<ControlTemplate>
-												<Panel Background="White">
-													<Image Source="{Binding (model:FileData).ThumbnailSource, Converter={StaticResource BitmapConverter}, Mode=OneWay}"/>
-												</Panel>
-											</ControlTemplate>
-										</Setter.Value>
-									</Setter>
-									<Setter Property="MaxWidth" Value="500"/>
-									<Setter Property="MaxHeight" Value="500"/>
-								</Style>							
-								
-								<Style Selector="DataGridRow">
-									<Setter Property="ToolTip.Tip" Value="{Binding (model:FileData).Namn}"/>
-								</Style>
-									
-								<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-									<Setter Property="IsVisible" Value="false" />
-								</Style>
-								
-							</DataGrid.Styles>
-						
-							<DataGrid.Columns>
-								<DataGridTextColumn Binding="{Binding NameWithAttributes}"				Header="Namn"           Width="Auto" MinWidth="120" IsVisible="{Binding Storage.General.ShowIcons}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Namn}"							Header="Namn"           Width="Auto" MinWidth="120" IsVisible="{Binding !Storage.General.ShowIcons}" FontSize="{Binding Storage.General.FontSize}"/>
-								
-								<DataGridTextColumn Binding="{Binding FileStatus, Mode=OneWay}"			Header="FileStatus"		Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_2}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Filtyp, Mode=OneWay}"				Header="Filtyp"			Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Uppdrag, Mode=OneWay}"			Header="Uppdrag"		Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}" FontSize="{Binding Storage.General.FontSize}"/>
-							
-								<DataGridTextColumn Binding="{Binding Tagg, Mode=OneWay}"				Header="Tagg"			Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_5}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Färg, Mode=OneWay}"				Header="Färg"			Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_6}" FontSize="{Binding Storage.General.FontSize}"/>
-
-								<DataGridTextColumn Binding="{Binding Handling, Mode=OneWay}"			Header="Handling"	   	Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_7}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Status, Mode=OneWay}"				Header="Status"			Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_8}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Datum, Mode=OneWay}"				Header="Datum"			Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_9}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Ritningstyp, Mode=OneWay}"		Header="Ritningstyp"	Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_10}" FontSize="{Binding Storage.General.FontSize}"/>
-						
-								<DataGridTextColumn Binding="{Binding Beskrivning1, Mode=OneWay}"		Header="Beskrivning 1"  Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_11}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Beskrivning2, Mode=OneWay}"		Header="Beskrivning 2"  Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_12}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Beskrivning3, Mode=OneWay}"		Header="Beskrivning 3"  Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_13}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Beskrivning4, Mode=OneWay}"		Header="Beskrivning 4"  Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_14}" FontSize="{Binding Storage.General.FontSize}"/>
-								<DataGridTextColumn Binding="{Binding Revidering, Mode=OneWay}"			Header="Revidering"		Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_15}" FontSize="{Binding Storage.General.FontSize}"/>
-
-								<DataGridTextColumn Binding="{Binding Sökväg, Mode=OneWay}"				Header="Sökväg"			Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_16}" FontSize="{Binding Storage.General.FontSize}"/>
-							</DataGrid.Columns>
-						
-							<DataGrid.ContextMenu>
-								<ContextMenu Name="Menu">
-								
-									<MenuItem Name="OpenMenu" Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
-										<MenuItem Name="OpenFileMenu" Header="Open PDF" Command="{Binding OpenFile}" Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
-										<MenuItem Name="OpenPathMenu" Header="Open Folder" Command="{Binding OpenPath}" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
-										<MenuItem Name="OpenMetaMenu" Header="Open Metafile" Command="{Binding OpenMeta}" Icon="{icxt:SymbolIconExtension Symbol=DocumentDataLink}"/>
-										<MenuItem Name="OpenDocMenu" Header="Open Docx" Command="{Binding OpenDoc}" Icon="{icxt:SymbolIconExtension Symbol=DocumentEdit}"/>
-										<MenuItem Name="OpenDwgMenu" Header="Open Dwg" Command="{Binding OpenDwg}" Icon="{icxt:SymbolIconExtension Symbol=DocumentTableCube}"/>
-									</MenuItem>
-
-								
-									<MenuItem Name="AddToCollection" Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Icon="{icxt:SymbolIconExtension Symbol=Collections}" Click="OnAddToCollection">
-										<MenuItem.ItemTemplate>
-											<DataTemplate>
-												<StackPanel Orientation="Horizontal">
-													<TextBlock Text=" - "/>
-													<TextBlock Text="{Binding }"/>
-												</StackPanel>
-											</DataTemplate>
-										</MenuItem.ItemTemplate>
-									</MenuItem>
-								
-									<MenuItem Name="CopyMenu" Header="Clipboard" Icon="{icxt:SymbolIconExtension Symbol=Clipboard}">
-										<MenuItem Name="FilenameCopyMenu" Header="Name" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextBulletListAdd}"/>
-										<MenuItem Name="FilepathCopyMenu" Header="Path" Command="{Binding CopyFilepathToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=AppsList}"/>
-										<MenuItem Name="ListviewCopyMenu" Header="Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TableLightning}"/>
-									</MenuItem>
-
-									<Separator></Separator>
-
-									<MenuItem Name="MarkFavorite" Header="Favorite" Icon="{icxt:SymbolIconExtension Symbol=Star}" Command="{Binding MarkFavorite}"/>
-
-									<MenuItem Name="TypeMenu" Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}">
-										<MenuItem.ItemTemplate>
-											<DataTemplate>
-												<StackPanel Orientation="Horizontal">
-													<TextBlock Text=" - "/>
-													<TextBlock Text="{Binding }"/>
-												</StackPanel>
-											</DataTemplate>
-										</MenuItem.ItemTemplate>
-									</MenuItem>
-
-								
-									<MenuItem Name="Tag" Header="Tag" Icon="{icxt:SymbolIconExtension Symbol=Tag}">
-										<MenuItem Name="ColorMainMenu" Header="Color" Icon="{icxt:SymbolIconExtension Symbol=Color}">
-											<MenuItem Name="WhiteMenu" Header="None" Tag ="" Click="EditColor"/>
-											<MenuItem Name="YellowMenu" Background="#FFD700" Opacity="0.6" Tag ="Yellow" Click="EditColor"/>
-											<MenuItem Name="OrangeMenu" Background="#FFA500" Opacity="0.6" Tag ="Orange" Click="EditColor"/>
-											<MenuItem Name="BrownMenu" Background="#8B4513" Opacity="0.6" Tag ="Brown" Click="EditColor"/>
-											<MenuItem Name="GreenMenu" Background="#228B22" Opacity="0.6" Tag ="Green" Click="EditColor"/>
-											<MenuItem Name="BlueMenu" Background="#1E90FF" Opacity="0.6" Tag ="Blue" Click="EditColor"/>
-											<MenuItem Name="RedMenu" Background="#B22222" Opacity="0.6" Tag ="Red" Click="EditColor"/>
-											<MenuItem Name="MagentaMenu" Background="#9400D3" Opacity="0.6" Tag ="Magenta" Click="EditColor"/>
-										</MenuItem>
-								
-										<MenuItem Name="TagMenu" Header="Text" Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextAdd}"/>
-
-										<MenuItem Name="ClearAllMenu" Header="Clear" Click="OnClearFiles" Icon="{icxt:SymbolIconExtension Symbol=TagDismiss}"/>
-									</MenuItem>
-
-
-									<Separator></Separator>
-
-									<MenuItem Header="Data" Icon="{icxt:SymbolIconExtension Symbol=ContentSettings}">
-										<MenuItem Name="MetaMenu" Header="Metadata" Icon="{icxt:SymbolIconExtension Symbol=Database}">
-											<MenuItem Name="FetchSingleMetadataMenu" Header="Fetch" Click="OnFetchSingleMeta" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-											<MenuItem Name="FetchMetadata" Header="Fetch All" Click="OnFetchFullMeta" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-											<MenuItem Name="EditMetadata" Header="Edit" Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
-											<MenuItem Name="ClearMetaMenu" Header="Clear" Command="{Binding ClearMeta}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-										</MenuItem>
-									
-										<MenuItem Name="ThumbnailMenu" Header="Thumbnail" Icon="{icxt:SymbolIconExtension Symbol=Image}">
-											<MenuItem Name="GetThumbnails" Header="Fetch" Command="{Binding GetThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-											<MenuItem Name="ClearThumbnails" Header="Clear" Command="{Binding ClearThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-										</MenuItem>
-
-										<MenuItem Name="ContentMenu" Header="Content" Icon="{icxt:SymbolIconExtension Symbol=Globe}">
-											<MenuItem Name="InspectContent" Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Table}"/>
-											<MenuItem Name="GetContent" Header="Fetch" Command="{Binding GetIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-											<MenuItem Name="ClearContent" Header="Clear" Command="{Binding ClearIndexedContent}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-										</MenuItem>		
-									
-									</MenuItem>
-
-									<MenuItem Header="Tools" Icon="{icxt:SymbolIconExtension Symbol=Toolbox}">
-										<MenuItem Name="StatusMenu" Header="Status" Icon="{icxt:SymbolIconExtension Symbol=Checkmark}">
-											<MenuItem Name="CheckSingleFile" Header="Check File" Click="OnCheckStatusSingleFile" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
-											<MenuItem Name="CheckProjectFiles" Header="Check All" Click="OnCheckProjectFiles" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
-										</MenuItem>
-
-										<MenuItem Name="InfoMenu" Header="File info" Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
-
-										<MenuItem Name="Watermark" Header="Watermark" Icon="{icxt:SymbolIconExtension Symbol=Warning}">
-											<MenuItem Header="Förhandskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia"/>
-											<MenuItem Header="Arbetskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}" Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia"/>
-										</MenuItem>
-
-										<MenuItem Name="RenameOriginal" Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Icon="{icxt:SymbolIconExtension Symbol=Rename}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}"/>
-								
-										<MenuItem Header="Placeholder" Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}"/>
-											
-									</MenuItem>
-
-
-									<Separator></Separator>
-
-									<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" Icon="{icxt:SymbolIconExtension Symbol=DocumentArrowRight}">
-										<MenuItem.ItemTemplate>
-											<DataTemplate>
-												<StackPanel Orientation="Horizontal">
-													<TextBlock Text=" - "/>
-													<TextBlock Text="{Binding Namn}"/>
-												</StackPanel>
-											</DataTemplate>
-										</MenuItem.ItemTemplate>
-									</MenuItem>
-
-									<MenuItem Name="RemoveFileMenu" Header="Remove" Click="OnRemoveFiles" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-								</ContextMenu>
-							</DataGrid.ContextMenu>
-						</DataGrid>
-
-
-						<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600" IsEnabled="{Binding FileSelected}">
-							
-							<DataGrid Grid.Column="0" Name="AppendixGrid" Padding="0" ItemsSource="{Binding CurrentFile.AppendedFiles, Mode=OneWay}" SelectionMode="Extended"
-									AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" CornerRadius="{Binding Storage.General.CornerRadius}">
-								<DataGrid.Styles>
-										
-									<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-										<Setter Property="IsVisible" Value="false"/>
-									</Style>
-								</DataGrid.Styles>
-
-								<DataGrid.Columns>
-									<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-									<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-								</DataGrid.Columns>
-								<DataGrid.ContextMenu>
-									<ContextMenu>
-										<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
-											<MenuItem Header="Open PDF" Click="OnOpenAppendedFile" Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
-											<MenuItem Header="Open Folder" Click="OnOpenAppendedFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
-										</MenuItem>
-										<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-									</ContextMenu>
-								</DataGrid.ContextMenu>
-							</DataGrid>
-
-							<DataGrid Grid.Column="1" Name="OtherFilesGrid" Padding="0" ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
-										AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" CornerRadius="{Binding Storage.General.CornerRadius}">
-								<DataGrid.Styles>
-										
-									<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-										<Setter Property="IsVisible" Value="false"/>
-									</Style>
-								</DataGrid.Styles>
-
-								<DataGrid.Columns>
-									<DataGridTemplateColumn>
-										<DataGridTemplateColumn.CellTemplate>
-											<DataTemplate>
-												<Image Source="{Binding Icon}" Height="20"/>
-											</DataTemplate>
-										</DataGridTemplateColumn.CellTemplate>
-									</DataGridTemplateColumn>
-									<DataGridTextColumn Binding="{Binding Name}" Header="Attached Files" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-									<DataGridTextColumn Binding="{Binding Type}"  Header="Type" Width="80" MinWidth="80" FontSize="{Binding Storage.General.FontSize}"/>
-									<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder" Width="1.2*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-
-								</DataGrid.Columns>
-								<DataGrid.ContextMenu>
-									<ContextMenu>
-										<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
-											<MenuItem Header="Open File" Click="OnOpenOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Document}"/>
-											<MenuItem Header="Open Folder" Click="OnOpenOtherFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
-										</MenuItem>
-										<MenuItem Header="Remove" Click="OnRemoveOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-
-									</ContextMenu>
-								</DataGrid.ContextMenu>
-							</DataGrid>
-
-						</Grid>
-
-
-
-	
-						<DataGrid Name="FolderGrid" Grid.Row="2" MinHeight="200" MaxHeight="600" IsVisible="{Binding ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}" SelectedItem="{Binding CurrentFolder}" CornerRadius="{Binding Storage.General.CornerRadius}" 
-									SelectionMode="Single" IsReadOnly="True" DragDrop.AllowDrop="True">
-
-							<DataGrid.Columns>
-								<DataGridTextColumn Binding="{Binding NameWithAttributes}"	Header="Name" Width="2*" FontSize="14"/>
-								<DataGridTextColumn Binding="{Binding Path}"				Header="Path" Width="5*" FontSize="14" FontStyle="Italic"/>
-								<DataGridTextColumn Binding="{Binding AttachToFile}"		Header="Attached to File" Width="2*" FontSize="14"/>
-								<DataGridTextColumn Binding="{Binding Types}"				Header="Types" Width="1.5*" FontSize="14"/>
-
-							</DataGrid.Columns>
-							<DataGrid.Styles>
-								<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-									<Setter Property="IsVisible" Value="false" />
-								</Style>
-							</DataGrid.Styles>
-
-							<DataGrid.ContextMenu>
-								<ContextMenu>
-									<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
-									<MenuItem Header="Sync All" Command="{Binding SyncAllFolders}" Icon="{icxt:SymbolIconExtension Symbol=CubeSync}"/>
-									<MenuItem Header="Delete" Click="OnRemoveFolder" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>	
-								</ContextMenu>
-							</DataGrid.ContextMenu>
-						</DataGrid>
-
-				</Grid>
-				<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2" Background="Transparent" ResizeDirection="Columns" Width="5" IsEnabled="{Binding PreviewEmbeddedOpen}"/>
-
-				<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,35,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
-
-					<DataGrid Grid.Row="0" Name="ProjectList" ItemsSource="{Binding Storage.General.TimeProjects}" SelectedItem="{Binding CurrentTimeSheetProject}" CornerRadius="{Binding Storage.General.CornerRadius}" IsReadOnly="True" >
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false" />
-							</Style>
-						</DataGrid.Styles>
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding Project}" Header="Projects" Width="*" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding W1}" Header="W1" Width="SizeToHeader" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding W2}" Header="W2" Width="SizeToHeader" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding W3}" Header="W3" Width="SizeToHeader" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding W4}" Header="W4" Width="SizeToHeader" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding W5}" Header="W5" Width="SizeToHeader" FontSize="14"/>
-						</DataGrid.Columns>
-					</DataGrid>
-
-					<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
-						
-						<StackPanel Grid.Row="2" Orientation="Horizontal">
-							<TextBox Name="InputName" Text="{Binding CurrentTimeSheetProject.Project}" MinWidth="0" VerticalContentAlignment="Stretch" VerticalAlignment="Stretch" Width="170" CornerRadius="{Binding Storage.General.CornerRadius}" Watermark="New Project"/>
-							<TextBox Name="ProjectNr" Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" VerticalContentAlignment="Stretch" VerticalAlignment="Stretch" Width="150" CornerRadius="{Binding Storage.General.CornerRadius}" Watermark="Project Nr"/>
-							<TextBox Name="Task" Text="{Binding CurrentTimeSheetProject.Task}" MinWidth="0" VerticalContentAlignment="Stretch" VerticalAlignment="Stretch" Width="100" CornerRadius="{Binding Storage.General.CornerRadius}" Watermark="Task"/>						
-						</StackPanel>
-
-						<Button Width="35" Click="NewTimeSheetProject">
-							<ic:SymbolIcon Symbol="Add" FontSize="18"/>
-						</Button>
-						<Button Width="35" Click="RemoveTimeSheetProject">
-							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
-						</Button>
-
-					</StackPanel>
-
-					<DataGrid Grid.Row="2" ItemsSource="{Binding MonthlyNotes}" CanUserSortColumns="False" CornerRadius="{Binding Storage.General.CornerRadius}">
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false" />
-							</Style>
-						</DataGrid.Styles>
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding DateString}" Header="Date" Width="Auto" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectTime}" Header="t" Width="50" MinWidth="50" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectDiary}" Header="Diary" Width="*" MinWidth="100" FontSize="14"/>
-						</DataGrid.Columns>
-					</DataGrid>
-
-				</Grid>
-
-				<Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,38,35,3*,2*,35,15*" IsVisible="{Binding CalendarOpen}" Width="320">
-					<Border Grid.Row="0" Margin="5" BoxShadow="{Binding Storage.General.Shadow}" CornerRadius="{Binding Storage.General.CornerRadius}" Background="{DynamicResource TextControlBackground}" Width="310" Height="345">
-						<StackPanel Orientation="Vertical">
-							<Calendar Grid.Column="0" Height="310" Background="Transparent" HorizontalAlignment="Center" DisplayDate="{Binding SelectedDateTime, Mode=TwoWay}" SelectedDate="{Binding SelectedDateTime, Mode=TwoWay}" BorderBrush="Transparent" FontSize="{Binding Storage.General.FontSize}">
-								<Calendar.Styles>
-									<Style Selector="CalendarDayButton">
-										<Setter Property="MinHeight" Value="35" />
-									</Style>
-		
-									<Style Selector="CalendarDayButton">
-										
-										<Style Selector="^ /template/ Border#Root">
-											<Setter Property="CornerRadius" Value="15" />
-										</Style>
-										
-										<Style Selector="^:pointerover /template/ Border#Border">
-											<Setter Property="CornerRadius" Value="15" />
-										</Style>
-
-										<Style Selector="^:selected">
-											<Style Selector="^ /template/ Border#Border">
-												<Setter Property="CornerRadius" Value="15" />
-											</Style>
-											<Style Selector="^ /template/ ContentPresenter">
-												<Setter Property="FontWeight" Value="Bold" />
-											</Style>
-											<Style Selector="^:pointerover /template/ Border#Border">
-												<Setter Property="CornerRadius" Value="15" />
-											</Style>
-										</Style>
-										
-										
-										<Style Selector="^:inactive">
-
-											<Style Selector="^ /template/ Border#Root">
-												<Setter Property="Background" Value="Transparent" />
-											</Style>
-											
-											<Style Selector="^ /template/ ContentPresenter">
-												<Setter Property="Foreground" Value="Gray" />
-											</Style>
-										</Style>
-								
-									</Style>
-								</Calendar.Styles>
-							</Calendar>
-							<Grid ColumnDefinitions="*,35">
-								<StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
-									<TextBlock Text="{Binding CurrentCalendarData.Date}" FontWeight="Bold"/>
-									<TextBlock Text="  |  "/>
-									<TextBlock Text="{Binding SelectedWeek}" FontWeight="Bold"/>
-								</StackPanel>
-
-								<Button Grid.Column="1" Width="35" Command="{Binding ResetDate}">
-									<ic:SymbolIcon Symbol="ArrowCircleLeft" FontSize="18"/>
-								</Button>
-							
-							</Grid>
-						</StackPanel>
-					</Border>
-
-					<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="2">
-						<ComboBox Width="72" Margin="0,0,0,0" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
-						<ComboBox Width="140" Margin="0,0,0,0" ItemsSource="{Binding Storage.General.TimeProjects}" SelectedValue="{Binding CurrentTimeSheet.Project}" SelectedValueBinding="{Binding Project}">						
-							<ComboBox.ItemTemplate>
-								<DataTemplate>
-									<TextBlock Text="{Binding Project}"/>
-								</DataTemplate>
-							</ComboBox.ItemTemplate>
-						</ComboBox>
-
-						<Button Width="30" Command="{Binding NewTimeSheet}">
-							<ic:SymbolIcon Symbol="Add" FontSize="18"/>
-						</Button>
-						<Button Width="30" Command="{Binding RemoveTimeSheet}">
-							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
-						</Button>
-						<ToggleButton Width="30" IsChecked="{Binding TimeSheetOpen}" Height="30" Padding="0">
-							<ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/>
-						</ToggleButton>
-					</StackPanel>
-
-					<TextBox Grid.Row="2" Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
-
-					<DataGrid  Grid.Row="3" Name="MontlyNotes" ItemsSource="{Binding CurrentCalendarData.TimeSheets}" SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}"
-								IsReadOnly="True" RowHeight="22" HeadersVisibility="None">
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false" />
-							</Style>
-						</DataGrid.Styles>
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding Hours}" Width="32" MinWidth="32" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding Project}" Width="Auto" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding Diary}" Width="*" FontSize="14"/>
-						</DataGrid.Columns>
-		
-					</DataGrid>
-
-					<TextBox Grid.Row="4" Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad" AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
-					
-					
-					<TextBox Grid.Row="5" Text="{Binding CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14"/>
-					
-					
-					<DataGrid Grid.Row="6" Name="TimeSheet" Padding="0" ItemsSource="{Binding MonthlyNotes}" SelectedItem="{Binding CurrentCalendarData, Mode=TwoWay}" SelectionMode="Single" AutoGenerateColumns="False"
-								IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" RowHeight="19" CanUserSortColumns="False">
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false" />
-							</Style>
-						</DataGrid.Styles>
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding DateStringIcon}" Header="Date" Width="Auto" FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding Reminder}" Header="Reminder" Width="*" MinWidth="100" Foreground="{DynamicResource SystemAccentColor}" FontSize="14"/>
-						</DataGrid.Columns>
-						<DataGrid.ContextMenu>
-							<ContextMenu>
-								<MenuItem Header="Remove" Command="{Binding RemoveCalendarNote}"/>
-								<MenuItem Header="Set Month" Command="{Binding SetCalendarMonth}"/>
-							</ContextMenu>
-						</DataGrid.ContextMenu>
-					</DataGrid>
-
-				</Grid>
-
-				<Grid Grid.Row="2" Grid.Column="6" Grid.ColumnSpan="1" IsVisible="{Binding TrayViewOpen}" Width="300">
-					<Grid.RowDefinitions>
-						<RowDefinition Height="{Binding Storage.General.TrayNote, Converter={StaticResource GridDefConverter}}"/>
-						<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
-						<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
-						<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
-						<RowDefinition Height="{Binding Storage.General.TrayBookmarks, Converter={StaticResource RowDefConverter}}"/>
-						<RowDefinition Height="{Binding Storage.General.TrayBookmarks, Converter={StaticResource GridDefConverter}}"/>
-						<RowDefinition Height="{Binding Storage.General.TrayRecent, Converter={StaticResource GridDefConverter}}"/>			
-					</Grid.RowDefinitions>
-
-					
-					<TextBox Grid.Row="0" IsVisible="{Binding Storage.General.TrayNote}" VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" Watermark="File Notepad" AcceptsReturn="True" VerticalAlignment="Stretch" AcceptsTab="True"/>
-					
-					<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" IsVisible="{Binding Storage.General.TrayCollections}">
-						<TextBox Name="CollectionInput" Width="170" Watermark="Add Collection"/>
-						<Button Width="35" Click="OnNewCollection">
-							<ic:SymbolIcon Symbol="Add" FontSize="18"/>
-						</Button>
-						<Button Name="RemoveCollection" Width="35" Command="{Binding RemoveCollection}">
-							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
-						</Button>
-						<Button Width="35" Name="RenameCollection" Click="OnRenameCollection">
-							<ic:SymbolIcon Symbol="Rename" FontSize="18"/>
-						</Button>
-					</StackPanel>
-
-					<DataGrid Grid.Row="2" IsVisible="{Binding Storage.General.TrayCollections}" Name="Collections" ItemsSource="{Binding Storage.General.Collections}" SelectedItem="{Binding CurrentCollection}" SelectionMode="Single" AutoGenerateColumns="False" 
-								IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false" />
-							</Style>
-						</DataGrid.Styles>
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-						</DataGrid.Columns>
-					</DataGrid>						
-
-					<DataGrid Grid.Row="3" IsVisible="{Binding Storage.General.TrayCollections}" Name="CollectionContent" ItemsSource="{Binding CollectionContent, Mode=OneWay}" SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True" 
-								LoadingRow="DataGrid_OnLoadingRow" ToolTip.ServiceEnabled="{Binding ShowThumbnails}">
-						<DataGrid.Styles>
-
-							<Style Selector="ToolTip">
-								<Setter Property="Template">
-									<Setter.Value>
-										<ControlTemplate>
-											<Panel Background="White">
-												<Image Source="{Binding (model:FileData).ThumbnailSource, Converter={StaticResource BitmapConverter}, Mode=OneWay}"/>
-											</Panel>
-										</ControlTemplate>
-									</Setter.Value>
-								</Setter>
-								<Setter Property="MaxWidth" Value="500"/>
-								<Setter Property="MaxHeight" Value="500"/>
-							</Style>
-
-							<Style Selector="DataGridRow">
-								<Setter Property="ToolTip.Tip" Value="{Binding (model:FileData).Namn}"/>
-							</Style>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false" />
-							</Style>
-						</DataGrid.Styles>
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding Namn}" Header="Content" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-						</DataGrid.Columns>
-						<DataGrid.ContextMenu>
-							<ContextMenu>
-								<MenuItem Header="Remove" Command="{Binding RemoveFileFromCollection}"/>
-							</ContextMenu>
-						</DataGrid.ContextMenu>
-					</DataGrid>
-
-					<Grid Grid.Row="4" Grid.Column="4" Grid.ColumnSpan="1" RowDefinitions="35,*,*,35,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
-						<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5">
-							<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="170"/>
-							<Button Width="35" Click="OnAddBookmark">
-								<ic:SymbolIcon Symbol="Add" FontSize="18"/>
-							</Button>
-							<Button Name="RemoveFavoritePage" Width="35" Click="OnRemoveBookmark">
-								<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
-							</Button>
-							<Button Width="35" Click="OnRenameBookmark">
-								<ic:SymbolIcon Symbol="Rename" FontSize="18"/>
-							</Button>
-						</StackPanel>
-					</Grid>
-
-					
-					<DataGrid IsVisible="{Binding Storage.General.TrayBookmarks}" Grid.Row="5" Name="BookmarkGrid" ItemsSource="{Binding PreviewVM.CurrentFile.FavPages, Mode=OneWay}" SelectionMode="Single"
-								AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false"/>
-							</Style>
-						</DataGrid.Styles>
-
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding PageNr, Converter={StaticResource AddOneConverter}}" Header="Page" Width="85" FontSize="{Binding Storage.General.FontSize}"/>
-							<DataGridTextColumn Binding="{Binding PageName}" Header="Bookmark" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
-						</DataGrid.Columns>
-					</DataGrid>
-
-					<DataGrid Grid.Row="6" Name="RecentGrid" ItemsSource="{Binding PreviewVM.RecentFiles}" SelectionMode="Single"
-								AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
-						<DataGrid.Styles>
-							<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
-								<Setter Property="IsVisible" Value="false"/>
-							</Style>
-						</DataGrid.Styles>
-
-						<DataGrid.Columns>
-							<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
-						</DataGrid.Columns>
-
-					</DataGrid>
-
-				</Grid>
-
-
-				<Grid Name="PreviewArea" Grid.Column="3" ClipToBounds="True" IsVisible="{Binding PreviewEmbeddedOpen}" Grid.Row="2" Margin="0 5 0 0">
-					<views:PreView Name="EmbeddedPreview"/>
-				</Grid>
-				
-
-
-				<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding TreeViewOpen}" Width="250">
-					<Border Name="TreeBorder" Margin="5" BoxShadow="{Binding Storage.General.Shadow}" Background="{DynamicResource TextControlBackground}">
-						<ScrollViewer>
-							<Grid RowDefinitions="31,*">
-								<TextBlock Text="Project Tree" Height="23" FontSize="14" FontWeight="Normal" FontStyle="Italic" Margin="16 8 0 0"/>
-								<TreeView Grid.Row="1" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected" >
-									<TreeView.ContextMenu>
-										<ContextMenu Name="TreeMenu">
-											<MenuItem Header="Add Files" Click="OnAddFiles" Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}"/>
-											<MenuItem Name="NewProjectMenu" Header="New Project" Icon="{icxt:SymbolIconExtension Symbol=FolderAdd}" Command="{Binding OpenProjectNewDia}" CommandParameter="{Binding $parent[Window]}"/>
-											<MenuItem Name="EditMenu" Header="Edit Project" Icon="{icxt:SymbolIconExtension Symbol=Edit}" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}"/>
-											<Separator></Separator>
-											<MenuItem Name="RemoveProjectMenu" Header="Remove" Click="OnRemoveProject" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
-										</ContextMenu>
-									</TreeView.ContextMenu>
-								</TreeView>
-							</Grid>
-						</ScrollViewer>
-					</Border>
-				</Grid>		
+					</Flyout>
+				</Button.Flyout>
+			</Button>
+
+			<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
+				<ToggleButton IsChecked="{Binding Storage.General.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"    IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding Storage.General.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding Storage.General.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"    IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding Storage.General.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- Center search bar -->
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
+			<Grid ColumnDefinitions="*,30,30">
+				<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch"/>
+				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
+					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
+				</Button>
+				<ToggleButton Grid.Column="2" ToolTip.Tip="Global Indexed Search: Ctrl + G" HotKey="Ctrl+G" Height="30" Width="30" IsChecked="{Binding IndexedSearch}">
+					<ic:SymbolIcon Symbol="Globe" IconVariant="Regular" FontSize="16" Padding="0"/>
+				</ToggleButton>
 			</Grid>
-	
+		</StackPanel>
+
+		<!-- Main toolbar -->
+		<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right"
+					Grid.Row="0" Grid.ColumnSpan="7" Margin="0,0,155,0">
+			<ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Tray: Ctrl + E"           HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" Height="30" Width="35" Padding="0"                           IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Folders: Ctrl + L"        HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Thumbnails: Ctrl + T"     HotKey="Ctrl+T" Height="30" Width="35" Padding="0"                           IsChecked="{Binding ShowThumbnails}">     <ic:SymbolIcon Symbol="Image"                             FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Preview Window: Ctrl + W" HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Preview: Ctrl + P"        HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Show Icons: Ctrl + I"     HotKey="Ctrl+I" Height="30" Width="35" Padding="0"                           IsChecked="{Binding Storage.General.ShowIcons}"><ic:SymbolIcon Symbol="Icons"   IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
+			<Button       ToolTip.Tip="Whiteboard"                               Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}"   CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Pen"   FontSize="18"/></Button>
+			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<Button       ToolTip.Tip="Info"                                     Height="30" Width="35" Padding="0" Command="{Binding OpenInfoDia}"      CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Info"  FontSize="18"/></Button>
+		</StackPanel>
+
+		<!-- ═══════════════════════════════════════════════ -->
+		<!-- Row 2: Main content area                       -->
+		<!-- ═══════════════════════════════════════════════ -->
+
+		<!-- File DataGrid + attached files + folders -->
+		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto">
+
+			<!-- Main file list -->
+			<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
+					  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
+					  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
+					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+					  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
+					  ToolTip.ServiceEnabled="{Binding ShowThumbnails}">
+
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Namn"          Width="Auto" MinWidth="120" IsVisible="{Binding Storage.General.ShowIcons}"  FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Namn}"              Header="Namn"          Width="Auto" MinWidth="120" IsVisible="{Binding !Storage.General.ShowIcons}" FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding FileStatus}"        Header="FileStatus"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_2}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Tagg}"              Header="Tagg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_5}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Färg}"              Header="Färg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_6}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Handling}"          Header="Handling"      Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_7}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Status}"            Header="Status"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_8}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Datum}"             Header="Datum"         Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_9}"     FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Ritningstyp}"       Header="Ritningstyp"   Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_10}"    FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning1}"      Header="Beskrivning 1" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_11}"    FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning2}"      Header="Beskrivning 2" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_12}"    FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning3}"      Header="Beskrivning 3" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_13}"    FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning4}"      Header="Beskrivning 4" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_14}"    FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Revidering}"        Header="Revidering"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_15}"/>
+					<DataGridTextColumn Binding="{Binding Sökväg}"            Header="Sökväg"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_16}"    FontSize="{Binding Storage.General.FontSize}"/>
+				</DataGrid.Columns>
+
+				<DataGrid.ContextMenu>
+					<ContextMenu Name="Menu">
+						<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
+							<MenuItem Header="Open PDF"      Command="{Binding OpenFile}" Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
+							<MenuItem Header="Open Folder"   Command="{Binding OpenPath}" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+							<MenuItem Header="Open Metafile" Command="{Binding OpenMeta}" Icon="{icxt:SymbolIconExtension Symbol=DocumentDataLink}"/>
+							<MenuItem Header="Open Docx"     Command="{Binding OpenDoc}"  Icon="{icxt:SymbolIconExtension Symbol=DocumentEdit}"/>
+							<MenuItem Header="Open Dwg"      Command="{Binding OpenDwg}"  Icon="{icxt:SymbolIconExtension Symbol=DocumentTableCube}"/>
+						</MenuItem>
+
+						<MenuItem Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Icon="{icxt:SymbolIconExtension Symbol=Collections}" Click="OnAddToCollection">
+							<MenuItem.ItemTemplate>
+								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+							</MenuItem.ItemTemplate>
+						</MenuItem>
+
+						<MenuItem Header="Clipboard" Icon="{icxt:SymbolIconExtension Symbol=Clipboard}">
+							<MenuItem Header="Name"  Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextBulletListAdd}"/>
+							<MenuItem Header="Path"  Command="{Binding CopyFilepathToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=AppsList}"/>
+							<MenuItem Header="Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TableLightning}"/>
+						</MenuItem>
+
+						<Separator/>
+
+						<MenuItem Header="Favorite" Command="{Binding MarkFavorite}" Icon="{icxt:SymbolIconExtension Symbol=Star}"/>
+
+						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}">
+							<MenuItem.ItemTemplate>
+								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+							</MenuItem.ItemTemplate>
+						</MenuItem>
+
+						<MenuItem Header="Tag" Icon="{icxt:SymbolIconExtension Symbol=Tag}">
+							<MenuItem Header="Color" Icon="{icxt:SymbolIconExtension Symbol=Color}">
+								<MenuItem Header="None" Tag=""        Click="EditColor"/>
+								<MenuItem Background="#FFD700" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
+								<MenuItem Background="#FFA500" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
+								<MenuItem Background="#8B4513" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
+								<MenuItem Background="#228B22" Opacity="0.6" Tag="Green"   Click="EditColor"/>
+								<MenuItem Background="#1E90FF" Opacity="0.6" Tag="Blue"    Click="EditColor"/>
+								<MenuItem Background="#B22222" Opacity="0.6" Tag="Red"     Click="EditColor"/>
+								<MenuItem Background="#9400D3" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
+							</MenuItem>
+							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextAdd}"/>
+							<MenuItem Header="Clear" Click="OnClearFiles" Icon="{icxt:SymbolIconExtension Symbol=TagDismiss}"/>
+						</MenuItem>
+
+						<Separator/>
+
+						<MenuItem Header="Data" Icon="{icxt:SymbolIconExtension Symbol=ContentSettings}">
+							<MenuItem Header="Metadata" Icon="{icxt:SymbolIconExtension Symbol=Database}">
+								<MenuItem Header="Fetch"     Click="OnFetchSingleMeta"                                                                      Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+								<MenuItem Header="Fetch All" Click="OnFetchFullMeta"                                                                         Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+								<MenuItem Header="Edit"      Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}"                Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
+								<MenuItem Header="Clear"     Command="{Binding ClearMeta}"                                                                   Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							</MenuItem>
+							<MenuItem Header="Thumbnail" Icon="{icxt:SymbolIconExtension Symbol=Image}">
+								<MenuItem Header="Fetch" Command="{Binding GetThumbnails}"   Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+								<MenuItem Header="Clear" Command="{Binding ClearThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							</MenuItem>
+							<MenuItem Header="Content" Icon="{icxt:SymbolIconExtension Symbol=Globe}">
+								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}"           CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Table}"/>
+								<MenuItem Header="Fetch"   Command="{Binding GetIndexedContent}"                                                 Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
+								<MenuItem Header="Clear"   Command="{Binding ClearIndexedContent}"                                               Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							</MenuItem>
+						</MenuItem>
+
+						<MenuItem Header="Tools" Icon="{icxt:SymbolIconExtension Symbol=Toolbox}">
+							<MenuItem Header="Status" Icon="{icxt:SymbolIconExtension Symbol=Checkmark}">
+								<MenuItem Header="Check File" Click="OnCheckStatusSingleFile" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
+								<MenuItem Header="Check All"  Click="OnCheckProjectFiles"     Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
+							</MenuItem>
+							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
+							<MenuItem Header="Watermark" Icon="{icxt:SymbolIconExtension Symbol=Warning}">
+								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}"/>
+								<MenuItem Header="Arbetskopia"   Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia"   Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}"/>
+							</MenuItem>
+							<MenuItem Header="Rename"      IsEnabled="{Binding CurrentFile.IsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Rename}"/>
+							<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}"/>
+						</MenuItem>
+
+						<Separator/>
+
+						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" Icon="{icxt:SymbolIconExtension Symbol=DocumentArrowRight}">
+							<MenuItem.ItemTemplate>
+								<DataTemplate><TextBlock Text="{Binding Namn, StringFormat=' - {0}'}"/></DataTemplate>
+							</MenuItem.ItemTemplate>
+						</MenuItem>
+						<MenuItem Header="Remove" Click="OnRemoveFiles" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+					</ContextMenu>
+				</DataGrid.ContextMenu>
+			</DataGrid>
+
+			<!-- Attached files panels -->
+			<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600" IsEnabled="{Binding FileSelected}">
+
+				<DataGrid Grid.Column="0" Name="AppendixGrid" Padding="0"
+						  ItemsSource="{Binding CurrentFile.AppendedFiles, Mode=OneWay}" SelectionMode="Extended"
+						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+						  LoadingRow="DataGrid_OnLoadingRow">
+					<DataGrid.Columns>
+						<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+					</DataGrid.Columns>
+					<DataGrid.ContextMenu>
+						<ContextMenu>
+							<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
+								<MenuItem Header="Open PDF"    Click="OnOpenAppendedFile"   Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
+								<MenuItem Header="Open Folder" Click="OnOpenAppendedFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+							</MenuItem>
+							<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+						</ContextMenu>
+					</DataGrid.ContextMenu>
+				</DataGrid>
+
+				<DataGrid Grid.Column="1" Name="OtherFilesGrid" Padding="0"
+						  ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
+						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+						  LoadingRow="DataGrid_OnLoadingRow">
+					<DataGrid.Columns>
+						<DataGridTemplateColumn>
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate><Image Source="{Binding Icon}" Height="20"/></DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
+						<DataGridTextColumn Binding="{Binding Name}"       Header="Attached Files" Width="3*"  MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding Type}"       Header="Type"           Width="80"  MinWidth="80"  FontSize="{Binding Storage.General.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder"         Width="1.2*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+					</DataGrid.Columns>
+					<DataGrid.ContextMenu>
+						<ContextMenu>
+							<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
+								<MenuItem Header="Open File"   Click="OnOpenOtherFile"   Icon="{icxt:SymbolIconExtension Symbol=Document}"/>
+								<MenuItem Header="Open Folder" Click="OnOpenOtherFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+							</MenuItem>
+							<MenuItem Header="Remove" Click="OnRemoveOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+						</ContextMenu>
+					</DataGrid.ContextMenu>
+				</DataGrid>
+			</Grid>
+
+			<!-- Folder sync grid -->
+			<DataGrid Name="FolderGrid" Grid.Row="2" MinHeight="200" MaxHeight="600"
+					  IsVisible="{Binding ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}"
+					  SelectedItem="{Binding CurrentFolder}" SelectionMode="Single" IsReadOnly="True"
+					  DragDrop.AllowDrop="True">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Name"             Width="2*"   FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic"/>
+					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to File" Width="2*"   FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Types}"              Header="Types"            Width="1.5*" FontSize="14"/>
+				</DataGrid.Columns>
+				<DataGrid.ContextMenu>
+					<ContextMenu>
+						<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
+						<MenuItem Header="Sync All"      Command="{Binding SyncAllFolders}"     Icon="{icxt:SymbolIconExtension Symbol=CubeSync}"/>
+						<MenuItem Header="Delete"        Click="OnRemoveFolder"                 Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+					</ContextMenu>
+				</DataGrid.ContextMenu>
+			</DataGrid>
+		</Grid>
+
+		<!-- Preview splitter -->
+		<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2"
+					  Background="Transparent" ResizeDirection="Columns" Width="5"
+					  IsEnabled="{Binding PreviewEmbeddedOpen}"/>
+
+		<!-- ═══════════════════════════════════════════════ -->
+		<!-- Side panels                                    -->
+		<!-- ═══════════════════════════════════════════════ -->
+
+		<!-- Timesheet panel -->
+		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,35,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
+			<DataGrid Grid.Row="0" Name="ProjectList"
+					  ItemsSource="{Binding Storage.General.TimeProjects}" SelectedItem="{Binding CurrentTimeSheetProject}"
+					  IsReadOnly="True">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding Project}" Header="Projects" Width="*"          FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding W1}"      Header="W1"       Width="SizeToHeader" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding W2}"      Header="W2"       Width="SizeToHeader" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding W3}"      Header="W3"       Width="SizeToHeader" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding W4}"      Header="W4"       Width="SizeToHeader" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding W5}"      Header="W5"       Width="SizeToHeader" FontSize="14"/>
+				</DataGrid.Columns>
+			</DataGrid>
+
+			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
+				<TextBox Text="{Binding CurrentTimeSheetProject.Project}"   MinWidth="0" Width="170" Watermark="New Project"/>
+				<TextBox Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="150" Watermark="Project Nr"/>
+				<TextBox Text="{Binding CurrentTimeSheetProject.Task}"      MinWidth="0" Width="100" Watermark="Task"/>
+				<Button Width="35" Click="NewTimeSheetProject">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
+				<Button Width="35" Click="RemoveTimeSheetProject"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
+			</StackPanel>
+
+			<DataGrid Grid.Row="2" ItemsSource="{Binding MonthlyNotes}" CanUserSortColumns="False">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding DateString}"                   Header="Date"  Width="Auto" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectTime}"   Header="t"     Width="50" MinWidth="50" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectDiary}"  Header="Diary" Width="*" MinWidth="100" FontSize="14"/>
+				</DataGrid.Columns>
+			</DataGrid>
+		</Grid>
+
+		<!-- Calendar panel -->
+		<Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,38,35,3*,2*,35,15*" IsVisible="{Binding CalendarOpen}" Width="320">
+			<Border Grid.Row="0" Margin="5" BoxShadow="{Binding Storage.General.Shadow}"
+					Background="{DynamicResource TextControlBackground}" Width="310" Height="345">
+				<StackPanel Orientation="Vertical">
+					<Calendar Height="310" Background="Transparent" HorizontalAlignment="Center"
+							  DisplayDate="{Binding SelectedDateTime, Mode=TwoWay}"
+							  SelectedDate="{Binding SelectedDateTime, Mode=TwoWay}"
+							  BorderBrush="Transparent" FontSize="{Binding Storage.General.FontSize}">
+						<Calendar.Styles>
+							<Style Selector="CalendarDayButton">
+								<Setter Property="MinHeight" Value="35"/>
+							</Style>
+							<Style Selector="CalendarDayButton /template/ Border#Root">
+								<Setter Property="CornerRadius" Value="15"/>
+							</Style>
+							<Style Selector="CalendarDayButton:pointerover /template/ Border#Border">
+								<Setter Property="CornerRadius" Value="15"/>
+							</Style>
+							<Style Selector="CalendarDayButton:selected /template/ Border#Border">
+								<Setter Property="CornerRadius" Value="15"/>
+							</Style>
+							<Style Selector="CalendarDayButton:selected /template/ ContentPresenter">
+								<Setter Property="FontWeight" Value="Bold"/>
+							</Style>
+							<Style Selector="CalendarDayButton:selected:pointerover /template/ Border#Border">
+								<Setter Property="CornerRadius" Value="15"/>
+							</Style>
+							<Style Selector="CalendarDayButton:inactive /template/ Border#Root">
+								<Setter Property="Background" Value="Transparent"/>
+							</Style>
+							<Style Selector="CalendarDayButton:inactive /template/ ContentPresenter">
+								<Setter Property="Foreground" Value="Gray"/>
+							</Style>
+						</Calendar.Styles>
+					</Calendar>
+					<Grid ColumnDefinitions="*,35">
+						<StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
+							<TextBlock Text="{Binding CurrentCalendarData.Date}" FontWeight="Bold"/>
+							<TextBlock Text="  |  "/>
+							<TextBlock Text="{Binding SelectedWeek}" FontWeight="Bold"/>
+						</StackPanel>
+						<Button Grid.Column="1" Width="35" Command="{Binding ResetDate}">
+							<ic:SymbolIcon Symbol="ArrowCircleLeft" FontSize="18"/>
+						</Button>
+					</Grid>
+				</StackPanel>
+			</Border>
+
+			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="2">
+				<ComboBox Width="72" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
+				<ComboBox Width="140" ItemsSource="{Binding Storage.General.TimeProjects}"
+						  SelectedValue="{Binding CurrentTimeSheet.Project}" SelectedValueBinding="{Binding Project}">
+					<ComboBox.ItemTemplate>
+						<DataTemplate><TextBlock Text="{Binding Project}"/></DataTemplate>
+					</ComboBox.ItemTemplate>
+				</ComboBox>
+				<Button       Width="30" Command="{Binding NewTimeSheet}">   <ic:SymbolIcon Symbol="Add"        FontSize="18"/></Button>
+				<Button       Width="30" Command="{Binding RemoveTimeSheet}"><ic:SymbolIcon Symbol="Delete"     FontSize="18"/></Button>
+				<ToggleButton Width="30" Height="30" Padding="0" IsChecked="{Binding TimeSheetOpen}"><ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/></ToggleButton>
+			</StackPanel>
+
+			<TextBox Grid.Row="2" Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
+
+			<DataGrid Grid.Row="3" ItemsSource="{Binding CurrentCalendarData.TimeSheets}"
+					  SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True"
+					  RowHeight="22" HeadersVisibility="None">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding Hours}"   Width="32"   MinWidth="32" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Project}" Width="Auto"               FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Diary}"   Width="*"                  FontSize="14"/>
+				</DataGrid.Columns>
+			</DataGrid>
+
+			<TextBox Grid.Row="4" Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad"
+					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
+			<TextBox Grid.Row="5" Text="{Binding CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14"/>
+
+			<DataGrid Grid.Row="6" Name="TimeSheet" Padding="0"
+					  ItemsSource="{Binding MonthlyNotes}" SelectedItem="{Binding CurrentCalendarData, Mode=TwoWay}"
+					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
+					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" RowHeight="19" CanUserSortColumns="False">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding DateStringIcon}" Header="Date"     Width="Auto" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Reminder}"       Header="Reminder" Width="*" MinWidth="100"
+										Foreground="{DynamicResource SystemAccentColor}" FontSize="14"/>
+				</DataGrid.Columns>
+				<DataGrid.ContextMenu>
+					<ContextMenu>
+						<MenuItem Header="Remove"    Command="{Binding RemoveCalendarNote}"/>
+						<MenuItem Header="Set Month" Command="{Binding SetCalendarMonth}"/>
+					</ContextMenu>
+				</DataGrid.ContextMenu>
+			</DataGrid>
+		</Grid>
+
+		<!-- Tray panel (notes, collections, bookmarks, recent) -->
+		<Grid Grid.Row="2" Grid.Column="6" IsVisible="{Binding TrayViewOpen}" Width="300" Classes="AnimatedPanel">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="{Binding Storage.General.TrayNote,        Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
+				<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding Storage.General.TrayBookmarks,   Converter={StaticResource RowDefConverter}}"/>
+				<RowDefinition Height="{Binding Storage.General.TrayBookmarks,   Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding Storage.General.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
+			</Grid.RowDefinitions>
+
+			<!-- File notepad -->
+			<TextBox Grid.Row="0" IsVisible="{Binding Storage.General.TrayNote}" VerticalContentAlignment="Top"
+					 Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
+					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
+
+			<!-- Collections toolbar -->
+			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" IsVisible="{Binding Storage.General.TrayCollections}">
+				<TextBox Name="CollectionInput" Width="170" Watermark="Add Collection"/>
+				<Button Width="35" Click="OnNewCollection">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
+				<Button Width="35" Command="{Binding RemoveCollection}"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
+				<Button Width="35" Click="OnRenameCollection"><ic:SymbolIcon Symbol="Rename" FontSize="18"/></Button>
+			</StackPanel>
+
+			<!-- Collections list -->
+			<DataGrid Grid.Row="2" IsVisible="{Binding Storage.General.TrayCollections}" Name="Collections"
+					  ItemsSource="{Binding Storage.General.Collections}" SelectedItem="{Binding CurrentCollection}"
+					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
+					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+				</DataGrid.Columns>
+			</DataGrid>
+
+			<!-- Collection content -->
+			<DataGrid Grid.Row="3" IsVisible="{Binding Storage.General.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
+					  ItemsSource="{Binding CollectionContent, Mode=OneWay}" SelectionMode="Single"
+					  AutoGenerateColumns="False" IsReadOnly="True" LoadingRow="DataGrid_OnLoadingRow"
+					  ToolTip.ServiceEnabled="{Binding ShowThumbnails}">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding Namn}" Header="Content" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+				</DataGrid.Columns>
+				<DataGrid.ContextMenu>
+					<ContextMenu>
+						<MenuItem Header="Remove" Command="{Binding RemoveFileFromCollection}"/>
+					</ContextMenu>
+				</DataGrid.ContextMenu>
+			</DataGrid>
+
+			<!-- Bookmarks toolbar -->
+			<Grid Grid.Row="4" RowDefinitions="35,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
+				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5">
+					<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="170"/>
+					<Button Width="35" Click="OnAddBookmark">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
+					<Button Width="35" Click="OnRemoveBookmark"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
+					<Button Width="35" Click="OnRenameBookmark"><ic:SymbolIcon Symbol="Rename" FontSize="18"/></Button>
+				</StackPanel>
+			</Grid>
+
+			<!-- Bookmarks list -->
+			<DataGrid IsVisible="{Binding Storage.General.TrayBookmarks}" Grid.Row="5" Name="BookmarkGrid"
+					  ItemsSource="{Binding PreviewVM.CurrentFile.FavPages, Mode=OneWay}" SelectionMode="Single"
+					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+					  LoadingRow="DataGrid_OnLoadingRow">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding PageNr, Converter={StaticResource AddOneConverter}}" Header="Page"     Width="85" FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding PageName}"                                            Header="Bookmark" Width="*"  FontSize="{Binding Storage.General.FontSize}"/>
+				</DataGrid.Columns>
+			</DataGrid>
+
+			<!-- Recent files -->
+			<DataGrid Grid.Row="6" Name="RecentGrid"
+					  ItemsSource="{Binding PreviewVM.RecentFiles}" SelectionMode="Single"
+					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+					  LoadingRow="DataGrid_OnLoadingRow">
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
+				</DataGrid.Columns>
+			</DataGrid>
+		</Grid>
+
+		<!-- Embedded preview -->
+		<Grid Name="PreviewArea" Grid.Column="3" Grid.Row="2" ClipToBounds="True"
+			  IsVisible="{Binding PreviewEmbeddedOpen}" Margin="0,5,0,0">
+			<views:PreView Name="EmbeddedPreview"/>
+		</Grid>
+
+		<!-- Tree view -->
+		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding TreeViewOpen}" Width="250" Classes="AnimatedPanel">
+			<Border Name="TreeBorder" Margin="5" BoxShadow="{Binding Storage.General.Shadow}"
+					Background="{DynamicResource TextControlBackground}">
+				<ScrollViewer>
+					<Grid RowDefinitions="31,*">
+						<TextBlock Text="Project Tree" Height="23" FontSize="14" FontWeight="Normal"
+								   FontStyle="Italic" Margin="16,8,0,0"/>
+						<TreeView Grid.Row="1" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
+								  ItemsSource="{Binding TreeNodes}"
+								  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
+							<TreeView.Styles>
+								<Style Selector="TreeViewItem" x:DataType="vm:TreeNodeData">
+									<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+								</Style>
+							</TreeView.Styles>
+							<TreeView.ItemTemplate>
+								<TreeDataTemplate ItemsSource="{Binding Children}">
+									<TextBlock Text="{Binding Header}"
+											   FontSize="{Binding FontSize}"
+											   FontWeight="{Binding FontWeight}"
+											   FontStyle="{Binding FontStyle}"/>
+								</TreeDataTemplate>
+							</TreeView.ItemTemplate>
+							<TreeView.ContextMenu>
+								<ContextMenu Name="TreeMenu">
+									<MenuItem Header="Add Files"    Click="OnAddFiles"    Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}"/>
+									<MenuItem Header="New Project"  Command="{Binding OpenProjectNewDia}"  CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=FolderAdd}"/>
+									<MenuItem Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
+									<Separator/>
+									<MenuItem Header="Remove" Click="OnRemoveProject" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+								</ContextMenu>
+							</TreeView.ContextMenu>
+						</TreeView>
+					</Grid>
+				</ScrollViewer>
+			</Border>
+		</Grid>
+	</Grid>
 </UserControl>
- 

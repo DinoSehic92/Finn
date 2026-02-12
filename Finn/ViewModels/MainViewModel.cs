@@ -32,7 +32,7 @@
 
     namespace Finn.ViewModels
     {
-        public class MainViewModel : ViewModelBase, INotifyPropertyChanged
+        public partial class MainViewModel : ViewModelBase, INotifyPropertyChanged
         {
             // Constants for magic strings
             private const string ALL_TYPES = "All Types";

@@ -5,322 +5,325 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Finn.Model
 {
     public class FileData : INotifyPropertyChanged
     {
         #region Constants
-        private const string FAVORITE_ICON = "⭐ ";
-        private const string SEPARATOR = "⠀";
-        private const string ATTACHMENT_ICON = "📎";
-        private const string BOOKMARK_ICON = "🔖";
-        private const string NOTE_ICON = " 📝";
-        private const string THUMBNAIL_ICON = " ؞";
-        private const string PLAINTEXT_ICON = "⠀🌐";
-        private const string FOLDER_ICON = "⠀🗀";
-        private const string PDF_EXTENSION = ".pdf";
+        private const string FavoriteIcon = "⭐ ";
+        private const string Separator = "⠀";
+        private const string AttachmentIcon = "📎";
+        private const string BookmarkIcon = "🔖";
+        private const string NoteIcon = " 📝";
+        private const string ThumbnailIcon = " ؞";
+        private const string PlaintextIcon = "⠀🌐";
+        private const string FolderIcon = "⠀🗀";
+        private const string PdfExtension = ".pdf";
         #endregion
 
         #region Fields
-        private string namn = string.Empty;
-        private string fileStatus = string.Empty;
-        private string tagg = string.Empty;
-        private string färg = string.Empty;
-        private string handling = string.Empty;
-        private string status = string.Empty;
-        private string datum = string.Empty;
-        private string ritningstyp = string.Empty;
-        private string beskrivning1 = string.Empty;
-        private string beskrivning2 = string.Empty;
-        private string beskrivning3 = string.Empty;
-        private string beskrivning4 = string.Empty;
-        private string uppdrag = string.Empty;
-        private string filtyp = string.Empty;
-        private string revidering = string.Empty;
-        private string sökväg = string.Empty;
-        private int defaultPage = 0;
-        private ObservableCollection<PageData> favPages = new();
-        private bool isFromFolder = false;
-        private string fromFolder = string.Empty;
-        private string? syncFolder = string.Empty;
-        private ObservableCollection<FileData> appendedFiles = new();
-        private ObservableCollection<OtherData> otherFiles = new();
-        private string note = string.Empty;
-        private bool favorite = false;
-        private List<string> partOfCollections = new();
-        private string thumbnailSource = string.Empty;
-        private bool hasPlainText = false;
+        private string _namn = string.Empty;
+        private string _fileStatus = string.Empty;
+        private string _tagg = string.Empty;
+        private string _färg = string.Empty;
+        private string _handling = string.Empty;
+        private string _status = string.Empty;
+        private string _datum = string.Empty;
+        private string _ritningstyp = string.Empty;
+        private string _beskrivning1 = string.Empty;
+        private string _beskrivning2 = string.Empty;
+        private string _beskrivning3 = string.Empty;
+        private string _beskrivning4 = string.Empty;
+        private string _uppdrag = string.Empty;
+        private string _filtyp = string.Empty;
+        private string _revidering = string.Empty;
+        private string _sökväg = string.Empty;
+        private int _defaultPage;
+        private ObservableCollection<PageData> _favPages = [];
+        private bool _isFromFolder;
+        private string _fromFolder = string.Empty;
+        private string? _syncFolder = string.Empty;
+        private ObservableCollection<FileData> _appendedFiles = [];
+        private ObservableCollection<OtherData> _otherFiles = [];
+        private string _note = string.Empty;
+        private bool _favorite;
+        private List<string> _partOfCollections = [];
+        private string _thumbnailSource = string.Empty;
+        private bool _hasPlainText;
+        private string? _cachedNameWithAttributes;
         #endregion
 
         #region Properties
         public string Namn
         {
-            get => namn;
-            set { SetProperty(ref namn, value); OnPropertyChanged(nameof(NameWithAttributes)); }
+            get => _namn;
+            set { SetProperty(ref _namn, value); InvalidateNameWithAttributes(); }
         }
 
         public string FileStatus
         {
-            get => fileStatus;
-            set => SetProperty(ref fileStatus, value);
+            get => _fileStatus;
+            set => SetProperty(ref _fileStatus, value);
         }
 
         public string Tagg
         {
-            get => tagg;
-            set => SetProperty(ref tagg, value);
+            get => _tagg;
+            set => SetProperty(ref _tagg, value);
         }
 
         public string Färg
         {
-            get => färg;
-            set => SetProperty(ref färg, value);
+            get => _färg;
+            set => SetProperty(ref _färg, value);
         }
 
         public string Handling
         {
-            get => handling;
-            set => SetProperty(ref handling, value);
+            get => _handling;
+            set => SetProperty(ref _handling, value);
         }
 
         public string Status
         {
-            get => status;
-            set => SetProperty(ref status, value);
+            get => _status;
+            set => SetProperty(ref _status, value);
         }
 
         public string Datum
         {
-            get => datum;
-            set => SetProperty(ref datum, value);
+            get => _datum;
+            set => SetProperty(ref _datum, value);
         }
 
         public string Ritningstyp
         {
-            get => ritningstyp;
-            set => SetProperty(ref ritningstyp, value);
+            get => _ritningstyp;
+            set => SetProperty(ref _ritningstyp, value);
         }
 
         public string Beskrivning1
         {
-            get => beskrivning1;
-            set => SetProperty(ref beskrivning1, value);
+            get => _beskrivning1;
+            set => SetProperty(ref _beskrivning1, value);
         }
 
         public string Beskrivning2
         {
-            get => beskrivning2;
-            set => SetProperty(ref beskrivning2, value);
+            get => _beskrivning2;
+            set => SetProperty(ref _beskrivning2, value);
         }
 
         public string Beskrivning3
         {
-            get => beskrivning3;
-            set => SetProperty(ref beskrivning3, value);
+            get => _beskrivning3;
+            set => SetProperty(ref _beskrivning3, value);
         }
 
         public string Beskrivning4
         {
-            get => beskrivning4;
-            set => SetProperty(ref beskrivning4, value);
+            get => _beskrivning4;
+            set => SetProperty(ref _beskrivning4, value);
         }
 
         public string Uppdrag
         {
-            get => uppdrag;
-            set => SetProperty(ref uppdrag, value);
+            get => _uppdrag;
+            set => SetProperty(ref _uppdrag, value);
         }
 
         public string Filtyp
         {
-            get => filtyp;
-            set => SetProperty(ref filtyp, value);
+            get => _filtyp;
+            set => SetProperty(ref _filtyp, value);
         }
 
         public string Revidering
         {
-            get => revidering;
-            set => SetProperty(ref revidering, value);
+            get => _revidering;
+            set => SetProperty(ref _revidering, value);
         }
 
         public string Sökväg
         {
-            get => sökväg;
-            set => SetProperty(ref sökväg, value);
+            get => _sökväg;
+            set => SetProperty(ref _sökväg, value);
         }
 
         public int DefaultPage
         {
-            get => defaultPage;
-            set => SetProperty(ref defaultPage, value);
+            get => _defaultPage;
+            set => SetProperty(ref _defaultPage, value);
         }
 
         public ObservableCollection<PageData> FavPages
         {
-            get => favPages;
-            set
-            {
-                SetProperty(ref favPages, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
-            }
+            get => _favPages;
+            set { SetProperty(ref _favPages, value); InvalidateNameWithAttributes(); }
         }
 
         public bool IsFromFolder
         {
-            get => isFromFolder;
-            set
-            {
-                SetProperty(ref isFromFolder, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
-            }
+            get => _isFromFolder;
+            set { SetProperty(ref _isFromFolder, value); InvalidateNameWithAttributes(); }
         }
 
         public string FromFolder
         {
-            get => fromFolder;
-            set => SetProperty(ref fromFolder, value);
+            get => _fromFolder;
+            set => SetProperty(ref _fromFolder, value);
         }
 
         public string? SyncFolder
         {
-            get => syncFolder;
-            set => SetProperty(ref syncFolder, value);
+            get => _syncFolder;
+            set => SetProperty(ref _syncFolder, value);
         }
 
-        public bool HasBookmarks => FavPages.Count > 0;
+        public bool HasBookmarks => _favPages.Count > 0;
 
         public ObservableCollection<FileData> AppendedFiles
         {
-            get => appendedFiles;
+            get => _appendedFiles;
             set
             {
-                SetProperty(ref appendedFiles, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
+                SetProperty(ref _appendedFiles, value);
+                InvalidateNameWithAttributes();
                 OnPropertyChanged(nameof(HasAppendedFiles));
             }
         }
 
         public ObservableCollection<OtherData> OtherFiles
         {
-            get => otherFiles;
+            get => _otherFiles;
             set
             {
-                SetProperty(ref otherFiles, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
+                SetProperty(ref _otherFiles, value);
+                InvalidateNameWithAttributes();
                 OnPropertyChanged(nameof(HasAppendedFiles));
             }
         }
 
-        public bool HasAppendedFiles => AppendedFiles.Count > 0 || OtherFiles.Count > 0;
+        public bool HasAppendedFiles => _appendedFiles.Count > 0 || _otherFiles.Count > 0;
 
         public string NameWithAttributes
         {
             get
             {
-                var nameBuilder = new System.Text.StringBuilder(Namn);
+                if (_cachedNameWithAttributes != null)
+                    return _cachedNameWithAttributes;
 
-                if (Favorite)
-                    nameBuilder.Insert(0, FAVORITE_ICON);
+                var sb = new StringBuilder(_namn.Length + 32);
 
-                if (HasAppendedFiles || HasBookmarks || HasNote || HasThumbnail)
-                    nameBuilder.Append(SEPARATOR);
+                if (_favorite)
+                    sb.Append(FavoriteIcon);
 
-                if (HasAppendedFiles) nameBuilder.Append(ATTACHMENT_ICON);
-                if (HasBookmarks) nameBuilder.Append(BOOKMARK_ICON);
-                if (HasNote) nameBuilder.Append(NOTE_ICON);
-                if (HasThumbnail) nameBuilder.Append(THUMBNAIL_ICON);
-                if (HasPlainText) nameBuilder.Append(PLAINTEXT_ICON);
-                if (IsFromFolder) nameBuilder.Append(FOLDER_ICON);
+                sb.Append(_namn);
 
-                return nameBuilder.ToString();
+                bool hasDecorations = HasAppendedFiles || HasBookmarks || HasNote || HasThumbnail;
+                if (hasDecorations)
+                    sb.Append(Separator);
+
+                if (HasAppendedFiles) sb.Append(AttachmentIcon);
+                if (HasBookmarks) sb.Append(BookmarkIcon);
+                if (HasNote) sb.Append(NoteIcon);
+                if (HasThumbnail) sb.Append(ThumbnailIcon);
+                if (_hasPlainText) sb.Append(PlaintextIcon);
+                if (_isFromFolder) sb.Append(FolderIcon);
+
+                _cachedNameWithAttributes = sb.ToString();
+                return _cachedNameWithAttributes;
             }
         }
 
         public string Note
         {
-            get => note;
+            get => _note;
             set
             {
-                SetProperty(ref note, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
+                SetProperty(ref _note, value);
+                InvalidateNameWithAttributes();
                 OnPropertyChanged(nameof(HasNote));
             }
         }
 
-        public bool HasNote => !string.IsNullOrEmpty(Note);
+        public bool HasNote => !string.IsNullOrEmpty(_note);
 
         public bool Favorite
         {
-            get => favorite;
-            set
-            {
-                SetProperty(ref favorite, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
-            }
+            get => _favorite;
+            set { SetProperty(ref _favorite, value); InvalidateNameWithAttributes(); }
         }
 
         public List<string> PartOfCollections
         {
-            get => partOfCollections;
-            set => SetProperty(ref partOfCollections, value);
+            get => _partOfCollections;
+            set => SetProperty(ref _partOfCollections, value);
         }
 
         public string ThumbnailSource
         {
-            get => thumbnailSource;
+            get => _thumbnailSource;
             set
             {
-                SetProperty(ref thumbnailSource, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
+                SetProperty(ref _thumbnailSource, value);
+                InvalidateNameWithAttributes();
                 OnPropertyChanged(nameof(HasThumbnail));
             }
         }
 
-        public bool HasThumbnail => !string.IsNullOrEmpty(ThumbnailSource);
+        public bool HasThumbnail => !string.IsNullOrEmpty(_thumbnailSource);
 
         public bool HasPlainText
         {
-            get => hasPlainText;
-            set
-            {
-                SetProperty(ref hasPlainText, value);
-                OnPropertyChanged(nameof(NameWithAttributes));
-            }
+            get => _hasPlainText;
+            set { SetProperty(ref _hasPlainText, value); InvalidateNameWithAttributes(); }
         }
         #endregion
 
         #region Methods
         public bool IsValidPdf()
         {
-            return File.Exists(Sökväg) &&
-                   Path.GetExtension(Sökväg).Equals(PDF_EXTENSION, StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrEmpty(_sökväg)
+                && _sökväg.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase)
+                && File.Exists(_sökväg);
         }
 
         public void RemoveThumbnail()
         {
-            if (HasThumbnail && File.Exists(thumbnailSource))
+            if (!HasThumbnail || !File.Exists(_thumbnailSource))
+                return;
+
+            try
             {
-                try
-                {
-                    File.Delete(thumbnailSource);
-                    ThumbnailSource = string.Empty;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error removing thumbnail: {ex.Message}");
-                }
+                File.Delete(_thumbnailSource);
+                ThumbnailSource = string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error removing thumbnail: {ex.Message}");
             }
         }
 
         public bool IsLocal()
         {
-            return !string.IsNullOrEmpty(Sökväg) &&
-                   Sökväg.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
+            return !string.IsNullOrEmpty(_sökväg)
+                && _sökväg.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
         }
         #endregion
 
         #region Property Changed Implementation
+        /// <summary>
+        /// Invalidates the cached display name and raises PropertyChanged.
+        /// </summary>
+        private void InvalidateNameWithAttributes()
+        {
+            _cachedNameWithAttributes = null;
+            OnPropertyChanged(nameof(NameWithAttributes));
+        }
+
         private bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, newValue))
