@@ -1,4 +1,4 @@
-using System.ComponentModel;
+ï»¿using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using MuPDFCore;
@@ -25,7 +25,7 @@ namespace Finn.ViewModels
         #region Constants
         private const int MAX_RECENT_FILES = 20;
         private const double ZOOM_LEVEL = 0.2;
-        private const int BUFFER_SIZE = 64 * 1024; // 64 KB — larger buffer = fewer syscalls
+        private const int BUFFER_SIZE = 64 * 1024; // 64 KB â€” larger buffer = fewer syscalls
         private const int PROGRESS_UPDATE_INTERVAL = 20;
         private const int RENDER_DELAY = 20;
         private const int POLLING_DELAY = 25;
@@ -182,6 +182,77 @@ namespace Finn.ViewModels
             get => rotation;
             set => SetProperty(ref rotation, value);
         }
+
+        private bool darkMode = false;
+        public bool DarkMode
+        {
+            get => darkMode;
+            set
+            {
+                if (SetProperty(ref darkMode, value))
+                {
+                    OnPropertyChanged(nameof(PreviewBackground));
+                    _ = SetMainPageAsync();
+                }
+            }
+        }
+
+        public void ToggleDarkMode() => DarkMode = !DarkMode;
+
+        /// <summary>
+        /// Background for the preview area. When DarkMode is on, this returns the
+        /// RGB-inverse of the actual theme background so that after the
+        /// InvertColorControl's Difference blend the visible result matches
+        /// the original theme color.
+        /// </summary>
+        public IBrush PreviewBackground
+        {
+            get
+            {
+                if (!DarkMode)
+                    return Brushes.Transparent;
+
+                // Read the actual theme background at runtime
+                Color bg = GetThemeBackgroundColor();
+
+                // Compute the RGB inverse: the Difference blend does |dst - src|
+                // with white (1,1,1), i.e. 1 - dst.  If we set dst = inverse(bg),
+                // the result is 1 - (1 - bg) = bg â€” the original theme color.
+                var inverted = Color.FromRgb(
+                    (byte)(255 - bg.R),
+                    (byte)(255 - bg.G),
+                    (byte)(255 - bg.B));
+
+                return new SolidColorBrush(inverted);
+            }
+        }
+
+        /// <summary>
+        /// Resolves the current Fluent theme's region/background color at runtime.
+        /// Falls back to white if the resource isn't found.
+        /// </summary>
+        private static Color GetThemeBackgroundColor()
+        {
+            if (Avalonia.Application.Current is { } app)
+            {
+                // Avalonia Fluent exposes RegionColor via the SystemRegionColor resource
+                if (app.TryFindResource("SystemRegionColor", app.ActualThemeVariant, out var res)
+                    && res is Color regionColor)
+                {
+                    return regionColor;
+                }
+
+                // Fallback: try the SolidColorBrush-based resource
+                if (app.TryFindResource("SystemRegionBrush", app.ActualThemeVariant, out var brushRes)
+                    && brushRes is ISolidColorBrush brush)
+                {
+                    return brush.Color;
+                }
+            }
+
+            // Ultimate fallback
+            return Colors.White;
+        }
         #endregion
 
         #region Renderer Properties
@@ -314,7 +385,7 @@ namespace Finn.ViewModels
         #region File Operations
         public async Task SetFileAsync(string? search = null, CancellationToken cancellationToken = default)
         {
-            if (disposed || RequestFile?.Sökväg == null)
+            if (disposed || RequestFile?.SÃ¶kvÃ¤g == null)
                 return;
 
             int myGeneration = Interlocked.Increment(ref fileGeneration);
@@ -345,7 +416,7 @@ namespace Finn.ViewModels
                 if (IsStale(myGeneration)) return;
 
                 // Read bytes on background thread
-                string path = RequestFile.Sökväg;
+                string path = RequestFile.SÃ¶kvÃ¤g;
                 bytes = await Task.Run(() => ReadFileBytes(path, token)).ConfigureAwait(false);
 
                 if (IsStale(myGeneration) || bytes == null) return;
@@ -364,7 +435,7 @@ namespace Finn.ViewModels
 
                 if (IsStale(myGeneration))
                 {
-                    // Another call superseded us — dispose what we just created
+                    // Another call superseded us â€” dispose what we just created
                     doc?.Dispose();
                     localContext?.Dispose();
                     return;
@@ -423,7 +494,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Quickly disposes the current document. Cancels search, releases
-        /// renderer resources, and disposes MuPDF objects — all on the UI
+        /// renderer resources, and disposes MuPDF objects â€” all on the UI
         /// thread in a single dispatch (no polling loops).
         /// </summary>
         private async Task DisposeCurrentDocumentAsync(CancellationToken token)
@@ -470,7 +541,7 @@ namespace Finn.ViewModels
         /// <summary>
         /// Reads file bytes synchronously (called via Task.Run) with
         /// cancellation support and progress reporting.
-        /// Returns null if cancelled or on error — caller checks for null.
+        /// Returns null if cancelled or on error â€” caller checks for null.
         /// </summary>
         private byte[]? ReadFileBytes(string path, CancellationToken token)
         {
@@ -485,7 +556,7 @@ namespace Finn.ViewModels
                 StatusMessage = $"Reading: {total / 1_000_000.0:F1} MB";
                 Progress = 0;
 
-                // Small files (< 10 MB): read all at once — fastest path
+                // Small files (< 10 MB): read all at once â€” fastest path
                 if (total < 10_000_000)
                 {
                     if (token.IsCancellationRequested) return null;
@@ -977,5 +1048,12 @@ namespace Finn.ViewModels
         public async Task SafeDispose() => await SafeDisposeAsync().ConfigureAwait(false);
         public async Task CloseRenderer() => await CloseRendererAsync().ConfigureAwait(false);
         #endregion
+
+        /// <summary>
+        /// Forces re-evaluation of <see cref="PreviewBackground"/> when the
+        /// app theme changes at runtime while dark mode is active.
+        /// </summary>
+        public void NotifyPreviewBackgroundChanged()
+            => OnPropertyChanged(nameof(PreviewBackground));
     }
 }

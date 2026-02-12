@@ -34,6 +34,15 @@ public partial class PreView : UserControl
         pwr.PropertyChanged += OnBindingPwr;
 
         SetRenderer();
+
+        if (Avalonia.Application.Current is { } app)
+        {
+            app.ActualThemeVariantChanged += (_, _) =>
+            {
+                if (pwr.DarkMode)
+                    pwr.NotifyPreviewBackgroundChanged();
+            };
+        }
     }
 
     public void OnBindingPwr(object sender, PropertyChangedEventArgs e)
