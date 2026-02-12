@@ -133,6 +133,11 @@
 		<Style Selector="DataGrid:empty /template/ Border#DataGridBorder">
 			<Setter Property="Opacity" Value="0.6"/>
 		</Style>
+
+		<!-- Add to UserControl.Styles -->
+		<Style Selector="DataGrid.ThumbnailGrid DataGridRow:pointerover">
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
 	</UserControl.Styles>
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
@@ -181,17 +186,21 @@
 
 		<!-- Project / file info -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
-			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="3">
-				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="25" FontSize="13" Opacity="0.7"/>
-				<TextBlock Text="{Binding CurrentProject.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
-				<TextBlock Text=" | Filtered: "                 FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
-				<TextBlock Text="{Binding NrFilteredFiles}"     FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
-				<TextBlock Text=" | Selected: "                 FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
-				<TextBlock Text="{Binding NrSelectedFiles}"     FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="1,0,1,0"/>
+			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="6">
+				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="13" Opacity="0.7"/>
+				<TextBlock FontStyle="Italic" FontSize="14" Opacity="0.7">
+					<TextBlock.Text>
+						<MultiBinding StringFormat="{}{0}  |  Filtered: {1}  |  Selected: {2}">
+							<Binding Path="CurrentProject.Namn"/>
+							<Binding Path="NrFilteredFiles"/>
+							<Binding Path="NrSelectedFiles"/>
+						</MultiBinding>
+					</TextBlock.Text>
+				</TextBlock>
 			</StackPanel>
-			<StackPanel Margin="8,0,0,0" Orientation="Horizontal">
-				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="25" FontSize="13" Opacity="0.7"/>
-				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7" Padding="3,0,1,0"/>
+			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6">
+				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="13" Opacity="0.7"/>
+				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
 			</StackPanel>
 		</StackPanel>
 
@@ -254,15 +263,25 @@
 		<!-- Main toolbar -->
 		<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right"
 					Grid.Row="0" Grid.ColumnSpan="7" Margin="0,0,155,0">
+
+			<!-- Layout group -->
 			<ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Tray: Ctrl + E"           HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" Height="30" Width="35" Padding="0"                           IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Folders: Ctrl + L"        HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+
+			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+
+			<!-- View group -->
 			<ToggleButton ToolTip.Tip="Thumbnails: Ctrl + T"     HotKey="Ctrl+T" Height="30" Width="35" Padding="0"                           IsChecked="{Binding ShowThumbnails}">     <ic:SymbolIcon Symbol="Image"                             FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Preview Window: Ctrl + W" HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Preview: Ctrl + P"        HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Show Icons: Ctrl + I"     HotKey="Ctrl+I" Height="30" Width="35" Padding="0"                           IsChecked="{Binding Storage.General.ShowIcons}"><ic:SymbolIcon Symbol="Icons"   IconVariant="Regular" FontSize="18"/></ToggleButton>
+
+			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+
+			<!-- Settings & tools group -->
+			<ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
 			<Button       ToolTip.Tip="Whiteboard"                               Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}"   CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Pen"   FontSize="18"/></Button>
 			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
@@ -571,15 +590,23 @@
 
 			<TextBox Grid.Row="2" Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
 
-			<DataGrid Grid.Row="3" ItemsSource="{Binding CurrentCalendarData.TimeSheets}"
-					  SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True"
-					  RowHeight="22" HeadersVisibility="None">
-				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Hours}"   Width="32"   MinWidth="32" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Project}" Width="Auto"               FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Diary}"   Width="*"                  FontSize="14"/>
-				</DataGrid.Columns>
-			</DataGrid>
+            <DataGrid Grid.Row="3" ItemsSource="{Binding CurrentCalendarData.TimeSheets}"
+                      SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True"
+                      RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
+                      BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Binding="{Binding Hours}"   Width="32"   MinWidth="32" FontSize="14"/>
+                    <DataGridTextColumn Binding="{Binding Project}" Width="Auto"               FontSize="14"/>
+                    <DataGridTextColumn Binding="{Binding Diary}"   Width="*"                  FontSize="14"/>
+                </DataGrid.Columns>
+                <DataGrid.Styles>
+                    <Style Selector="DataGrid /template/ Rectangle">
+                        <Setter Property="IsVisible" Value="False"/>
+                        <Setter Property="Height" Value="0"/>
+                        <Setter Property="MaxHeight" Value="0"/>
+                    </Style>
+                </DataGrid.Styles>
+            </DataGrid>
 
 			<TextBox Grid.Row="4" Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad"
 					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
@@ -621,11 +648,11 @@
 					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
 
 			<!-- Collections toolbar -->
-			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" IsVisible="{Binding Storage.General.TrayCollections}">
-				<TextBox Name="CollectionInput" Width="170" Watermark="Add Collection"/>
-				<Button Width="35" Click="OnNewCollection">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
-				<Button Width="35" Command="{Binding RemoveCollection}"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
-				<Button Width="35" Click="OnRenameCollection"><ic:SymbolIcon Symbol="Rename" FontSize="18"/></Button>
+			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3" IsVisible="{Binding Storage.General.TrayCollections}">
+				<TextBox Name="CollectionInput" Width="180" Watermark="Add Collection"/>
+				<Button Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+				<Button Width="30" Command="{Binding RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+				<Button Width="30" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
 			</StackPanel>
 
 			<!-- Collections list -->
@@ -655,11 +682,11 @@
 
 			<!-- Bookmarks toolbar -->
 			<Grid Grid.Row="4" RowDefinitions="35,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
-				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="5">
-					<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="170"/>
-					<Button Width="35" Click="OnAddBookmark">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
-					<Button Width="35" Click="OnRemoveBookmark"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
-					<Button Width="35" Click="OnRenameBookmark"><ic:SymbolIcon Symbol="Rename" FontSize="18"/></Button>
+				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
+					<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="180"/>
+					<Button Width="30" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+					<Button Width="30" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+					<Button Width="30" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
 				</StackPanel>
 			</Grid>
 
