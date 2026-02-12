@@ -128,6 +128,11 @@
 				</Transitions>
 			</Setter>
 		</Style>
+
+		<!-- Empty state hint when DataGrid has no rows -->
+		<Style Selector="DataGrid:empty /template/ Border#DataGridBorder">
+			<Setter Property="Opacity" Value="0.6"/>
+		</Style>
 	</UserControl.Styles>
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
@@ -200,25 +205,26 @@
 				</Grid>
 				<Button.Flyout>
 					<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
-						<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="140" Margin="0,5,0,10">
-							<ListBoxItem Height="30"><CheckBox Content="Name"          Height="30" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="FileStatus"    Height="30" IsChecked="{Binding CurrentProject.Meta_2, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Filtyp"        Height="30" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Uppdrag"       Height="30" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Tagg"          Height="30" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Färg"          Height="30" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Handling"      Height="30" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Status"        Height="30" IsChecked="{Binding CurrentProject.Meta_8, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Datum"         Height="30" IsChecked="{Binding CurrentProject.Meta_9, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Ritningstyp"   Height="30" IsChecked="{Binding CurrentProject.Meta_10, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 1" Height="30" IsChecked="{Binding CurrentProject.Meta_11, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 2" Height="30" IsChecked="{Binding CurrentProject.Meta_12, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 3" Height="30" IsChecked="{Binding CurrentProject.Meta_13, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Beskrivning 4" Height="30" IsChecked="{Binding CurrentProject.Meta_14, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Revidering"    Height="30" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/></ListBoxItem>
-							<ListBoxItem Height="30"><CheckBox Content="Sökväg"        Height="30" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/></ListBoxItem>
+						<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
+							<CheckBox Content="Name"          Height="28" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/>
+							<CheckBox Content="FileStatus"    Height="28" IsChecked="{Binding CurrentProject.Meta_2, Mode=TwoWay}"/>
+							<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
+							<CheckBox Content="Uppdrag"       Height="28" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/>
+							<CheckBox Content="Tagg"          Height="28" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/>
+							<CheckBox Content="Färg"          Height="28" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/>
+							<CheckBox Content="Handling"      Height="28" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/>
+							<CheckBox Content="Status"        Height="28" IsChecked="{Binding CurrentProject.Meta_8, Mode=TwoWay}"/>
+							<CheckBox Content="Datum"         Height="28" IsChecked="{Binding CurrentProject.Meta_9, Mode=TwoWay}"/>
+							<CheckBox Content="Ritningstyp"   Height="28" IsChecked="{Binding CurrentProject.Meta_10, Mode=TwoWay}"/>
+							<CheckBox Content="Beskrivning 1" Height="28" IsChecked="{Binding CurrentProject.Meta_11, Mode=TwoWay}"/>
+							<CheckBox Content="Beskrivning 2" Height="28" IsChecked="{Binding CurrentProject.Meta_12, Mode=TwoWay}"/>
+							<CheckBox Content="Beskrivning 3" Height="28" IsChecked="{Binding CurrentProject.Meta_13, Mode=TwoWay}"/>
+							<CheckBox Content="Beskrivning 4" Height="28" IsChecked="{Binding CurrentProject.Meta_14, Mode=TwoWay}"/>
+							<CheckBox Content="Revidering"    Height="28" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/>
+							<CheckBox Content="Sökväg"        Height="28" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/>
+							<Separator Height="1" Margin="0,4"/>
 							<Button Content="Set Default" HorizontalAlignment="Center" Width="120"
-									BorderBrush="{DynamicResource TextControlBorderBrush}" Command="{Binding CurrentProject.SetDefaultMeta}"/>
+									Classes="DialogAction" Command="{Binding CurrentProject.SetDefaultMeta}"/>
 						</StackPanel>
 					</Flyout>
 				</Button.Flyout>

@@ -19,15 +19,26 @@
 
 		<Style Selector="FlyoutPresenter.mySpecialClass">
 			<Setter Property="MaxWidth" Value="999" />
-			<Setter Property="Padding" Value="0" />
-			<Setter Property="CornerRadius" Value="0" />
+			<Setter Property="Padding" Value="4" />
+			<Setter Property="CornerRadius" Value="8" />
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
 
 		<Style Selector="TreeViewItem">
 			<Setter Property="Margin" Value="0"/>
-			<Setter Property="Padding" Value="0 0 0 0"/>
+			<Setter Property="Padding" Value="2,1"/>
 			<Setter Property="MaxWidth" Value="250"/>
-			<Setter Property="MinHeight" Value="24"/>
+			<Setter Property="MinHeight" Value="26"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+
+		<!-- Collapsed expand chevron is dimmer -->
+		<Style Selector="TreeViewItem:not(:expanded) /template/ ToggleButton#PART_ExpandCollapseChevron">
+			<Setter Property="Opacity" Value="0.5"/>
 		</Style>
 
 		<Style Selector="ListBox">
@@ -68,6 +79,15 @@
 			<Setter Property="Opacity" Value="0.7"/>
 		</Style>
 
+		<!-- Subtle checked indicator for toggle buttons -->
+		<Style Selector="ToggleButton:checked">
+			<Setter Property="Opacity" Value="1.0"/>
+		</Style>
+
+		<Style Selector="ToggleButton:unchecked">
+			<Setter Property="Opacity" Value="0.55"/>
+		</Style>
+
 		<Style Selector="ComboBox">
 			<Setter Property="MinHeight" Value="37"/>
 			<Setter Property="VerticalAlignment" Value="Top"/>
@@ -89,6 +109,18 @@
 		<Style Selector="MenuItem">
 			<Setter Property="MinHeight" Value="0"/>
 			<Setter Property="Height" Value="30"/>
+		</Style>
+
+		<!-- Separator lines in menus: subtle and thin -->
+		<Style Selector="ContextMenu Separator">
+			<Setter Property="Height" Value="1"/>
+			<Setter Property="Margin" Value="8,4"/>
+			<Setter Property="Background" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
+		</Style>
+
+		<!-- Context menu container -->
+		<Style Selector="ContextMenu">
+			<Setter Property="Padding" Value="2,4"/>
 		</Style>
 
 		<Style Selector="DataGridColumnHeader">
@@ -118,9 +150,17 @@
 			<Setter Property="IsVisible" Value="True" />
 		</Style>
 
+		<!-- Refined tooltips -->
+		<Style Selector="ToolTip">
+			<Setter Property="FontSize" Value="13"/>
+			<Setter Property="Padding" Value="8,5"/>
+			<Setter Property="CornerRadius" Value="6"/>
+		</Style>
+
 	</Application.Styles>
 		
 	
 </Application>
+
 
 

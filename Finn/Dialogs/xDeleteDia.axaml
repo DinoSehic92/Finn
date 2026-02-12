@@ -3,10 +3,10 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="180" d:DesignHeight="300"
-		MinWidth="190"
-		MinHeight="120"
-		MaxWidth="190"
-		MaxHeight="120"
+		MinWidth="220"
+		MinHeight="140"
+		MaxWidth="220"
+		MaxHeight="140"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialog.xDeleteDia"
         Title="xDeleteDia"
@@ -18,17 +18,16 @@
 
 	<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
-		<StackPanel Grid.Row="1" Width="210" Height="140" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
-			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Margin="10" Spacing="0">
-				<ic:SymbolIcon Symbol="Warning" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
-				<Label Content="Remove File?" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+		<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="14" HorizontalAlignment="Center" VerticalAlignment="Top">
+			<StackPanel Classes="DialogHeader" Orientation="Vertical">
+				<ic:SymbolIcon Symbol="Warning" HorizontalAlignment="Center" IconVariant="Regular" FontSize="28" Foreground="#FF6B6B"/>
+				<Label Content="Remove File?" HorizontalAlignment="Center"/>
 			</StackPanel>
-			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="5">
-				<Button Name="ConfirmButton" HotKey="Enter" Content="Confirm" Click="OnConfirm" Width="70" Background="{DynamicResource TextControlBackground}"/>
-				<Button Name="CancelButton" HotKey="Escape" Content="Cancel" Click="OnCancel" Width="70" Background="{DynamicResource TextControlBackground}"/>
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+				<Button Name="ConfirmButton" HotKey="Enter" Content="Confirm" Classes="DialogPrimary" Click="OnConfirm"/>
+				<Button Name="CancelButton" HotKey="Escape" Content="Cancel" Classes="DialogAction" Click="OnCancel"/>
 			</StackPanel>
 		</StackPanel>
 	</Grid>
 
-    
 </Window>
