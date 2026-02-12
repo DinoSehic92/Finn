@@ -558,7 +558,7 @@ public partial class MainView : UserControl, INotifyPropertyChanged
         SetPreviewRequest(file);
     }
 
-    private void SetPreviewRequest(FileData file)
+    private async void SetPreviewRequest(FileData file)
     {
         if (ctx.PreviewEmbeddedOpen || ctx.PreviewWindowOpen)
         {
@@ -575,17 +575,16 @@ public partial class MainView : UserControl, INotifyPropertyChanged
 
                 if (ctx.IndexedSearch && SearchText.Text != null)
                 {
-                    pwr.SetFile(SearchText.Text);
+                    await pwr.SetFileAsync(SearchText.Text);
                 }
                 else
                 {
-                    pwr.SetFile();
+                    await pwr.SetFileAsync();
                 }
             }
-
             else
             {
-                pwr.ClearRenderer();
+                await pwr.CloseRendererAsync();
             }
         }
     }

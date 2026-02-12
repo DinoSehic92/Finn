@@ -25,11 +25,11 @@ namespace Finn.ViewModels
         #region Constants
         private const int MAX_RECENT_FILES = 20;
         private const double ZOOM_LEVEL = 0.2;
-        private const int BUFFER_SIZE = 2 * 8192;
+        private const int BUFFER_SIZE = 64 * 1024; // 64 KB — larger buffer = fewer syscalls
         private const int PROGRESS_UPDATE_INTERVAL = 20;
         private const int RENDER_DELAY = 20;
         private const int POLLING_DELAY = 25;
-        private const int DISPOSE_POLLING_DELAY = 100;
+        private const int DISPOSE_POLLING_DELAY = 50;
         private const int MAX_RETRY_ATTEMPTS = 3;
         #endregion
 
@@ -37,25 +37,21 @@ namespace Finn.ViewModels
         private readonly SemaphoreSlim fileOperationSemaphore = new(1, 1);
         private readonly SemaphoreSlim renderSemaphore = new(1, 1);
         private bool disposed = false;
+        private int fileGeneration = 0;
         #endregion
 
-        #region Constructor - Enhanced
+        #region Constructor
         public PreviewViewModel(ILogger<PreviewViewModel>? logger = null) : base(logger)
         {
-            // Initialize collections
             recentFiles = new AvaloniaList<FileData>();
             searchPages = new AvaloniaList<int>();
             searchPagesText = new AvaloniaList<string>();
 
-            // Initialize cancellation tokens
             mainCts = new CancellationTokenSource();
             searchCts = new CancellationTokenSource();
 
-            // Set initial state
             statusMessage = "Ready!";
             linkedPageMode = true;
-
-            logger?.LogInformation("PreviewViewModel initialized");
         }
         #endregion
 
@@ -102,14 +98,16 @@ namespace Finn.ViewModels
             get => requestPage1;
             set
             {
-                if (PageInRange(value) && SetProperty(ref requestPage1, value))
-                {
-                    _ = SetMainPageAsync(); // Fire and forget with proper error handling
+                SetProperty(ref requestPage1, value);
 
-                    if (LinkedPageMode)
-                    {
-                        RequestPage2 = RequestPage1 + 1;
-                    }
+                if (PageInRange(requestPage1))
+                    _ = SetMainPageAsync();
+
+                if (LinkedPageMode)
+                {
+                    SetProperty(ref requestPage2, requestPage1 + 1);
+                    if (PageInRange(requestPage2))
+                        _ = SetSecondaryPageAsync();
                 }
             }
         }
@@ -120,10 +118,9 @@ namespace Finn.ViewModels
             get => requestPage2;
             set
             {
-                if (PageInRange(value) && SetProperty(ref requestPage2, value))
-                {
-                    _ = SetSecondaryPageAsync(); // Fire and forget with proper error handling
-                }
+                SetProperty(ref requestPage2, value);
+                if (PageInRange(requestPage2))
+                    _ = SetSecondaryPageAsync();
             }
         }
 
@@ -134,9 +131,7 @@ namespace Finn.ViewModels
             set
             {
                 if (SetProperty(ref currentPage1, value) && CurrentFile != null)
-                {
                     CurrentFile.DefaultPage = value;
-                }
             }
         }
 
@@ -177,9 +172,7 @@ namespace Finn.ViewModels
             set
             {
                 if (fileAvailable && SetProperty(ref dimmedBackground, value))
-                {
                     SetDimmedMode();
-                }
             }
         }
 
@@ -280,9 +273,7 @@ namespace Finn.ViewModels
                 var background = new SolidColorBrush(Colors.White);
 
                 if (this.mainRenderer != null)
-                {
                     this.mainRenderer.ReleaseResources();
-                }
 
                 this.mainRenderer = mainRenderer;
                 this.secondaryRenderer = secondaryRenderer;
@@ -291,9 +282,7 @@ namespace Finn.ViewModels
                 this.secondaryRenderer.PageBackground = background;
 
                 if (CurrentFile != null)
-                {
                     _ = SetMainPageAsync();
-                }
             }
             catch (Exception ex)
             {
@@ -318,176 +307,230 @@ namespace Finn.ViewModels
 
         public void SetupPage(int page = 0)
         {
-            requestPage1 = Math.Max(0, page);
+            RequestPage1 = Math.Max(0, page);
         }
         #endregion
 
-        #region File Operations - Enhanced
+        #region File Operations
         public async Task SetFileAsync(string? search = null, CancellationToken cancellationToken = default)
         {
             if (disposed || RequestFile?.Sökväg == null)
-            {
-                logger?.LogWarning("Cannot set file: ViewModel disposed or RequestFile is null");
                 return;
-            }
 
-            await ExecuteAsync(async () =>
+            int myGeneration = Interlocked.Increment(ref fileGeneration);
+
+            // Cancel previous load
+            try
             {
-                StatusMessage = "Setting File";
-                fileAvailable = false;
-
                 await mainCts.CancelAsync().ConfigureAwait(false);
                 mainCts.Dispose();
-                mainCts = new CancellationTokenSource();
+            }
+            catch { }
 
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken, mainCts.Token);
+            mainCts = new CancellationTokenSource();
 
-                FileWorkerBusy = true;
-                try
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, mainCts.Token);
+            var token = linkedCts.Token;
+
+            StatusMessage = "Setting File";
+            fileAvailable = false;
+            FileWorkerBusy = true;
+
+            try
+            {
+                // Dispose old document quickly on UI thread (no polling)
+                await DisposeCurrentDocumentAsync(token).ConfigureAwait(false);
+
+                if (IsStale(myGeneration)) return;
+
+                // Read bytes on background thread
+                string path = RequestFile.Sökväg;
+                bytes = await Task.Run(() => ReadFileBytes(path, token)).ConfigureAwait(false);
+
+                if (IsStale(myGeneration) || bytes == null) return;
+
+                var localBytes = bytes;
+
+                // Create PDF document on background thread
+                MuPDFContext localContext = null!;
+                MuPDFDocument doc = null!;
+                await Task.Run(() =>
                 {
-                    await SetMainFileAsync(linkedCts.Token).ConfigureAwait(false);
+                    if (token.IsCancellationRequested) return;
+                    localContext = new MuPDFContext();
+                    doc = new MuPDFDocument(localContext, localBytes, InputFileTypes.PDF);
+                }).ConfigureAwait(false);
 
-                    if (fileAvailable)
+                if (IsStale(myGeneration))
+                {
+                    // Another call superseded us — dispose what we just created
+                    doc?.Dispose();
+                    localContext?.Dispose();
+                    return;
+                }
+
+                // Swap fields atomically: capture old refs first
+                var oldDoc = MainPreviewFile;
+                var oldCtx = context;
+
+                MainPreviewFile = doc;
+                context = localContext;
+                Pagecount = doc.Pages.Count;
+                CurrentFile = RequestFile;
+
+                // Dispose old refs in correct order (document before context)
+                oldDoc?.Dispose();
+                oldCtx?.Dispose();
+
+                fileAvailable = true;
+
+                // Render on UI thread
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (IsStale(myGeneration)) return;
+
+                    LinkedPageMode = true;
+                    SetDefaultPage();
+
+                    if (!string.IsNullOrEmpty(search))
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            LinkedPageMode = true;
-                            SetDefaultPage();
-
-                            if (!string.IsNullOrEmpty(search))
-                            {
-                                SearchMode = true;
-                                _ = SearchAsync(search, linkedCts.Token);
-                            }
-                        }).GetTask().ConfigureAwait(false);
+                        SearchMode = true;
+                        _ = SearchAsync(search, token);
                     }
-                }
-                finally
-                {
+                }).GetTask().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                logger?.LogInformation("File load cancelled (gen {Generation})", myGeneration);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error in SetFileAsync");
+            }
+            finally
+            {
+                if (!IsStale(myGeneration))
                     FileWorkerBusy = false;
-                }
-            }, cancellationToken).ConfigureAwait(false);
+            }
         }
 
-        private async Task SetMainFileAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Returns true if a newer SetFileAsync call has superseded this one.
+        /// </summary>
+        private bool IsStale(int myGeneration)
+            => Volatile.Read(ref fileGeneration) != myGeneration;
+
+        /// <summary>
+        /// Quickly disposes the current document. Cancels search, releases
+        /// renderer resources, and disposes MuPDF objects — all on the UI
+        /// thread in a single dispatch (no polling loops).
+        /// </summary>
+        private async Task DisposeCurrentDocumentAsync(CancellationToken token)
         {
-            if (RequestFile?.Sökväg == null) return;
+            // Cancel any running search without polling
+            try
+            {
+                await searchCts.CancelAsync().ConfigureAwait(false);
+                searchCts.Dispose();
+            }
+            catch { }
+            searchCts = new CancellationTokenSource();
+            SearchBusy = false;
+            ClearSearch();
 
-            string path = RequestFile.Sökväg;
-            int retryCount = 0;
+            if (MainPreviewFile == null) return;
 
-            while (retryCount < MAX_RETRY_ATTEMPTS)
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 try
                 {
-                    bytes = await ReadBytesWithProgressAsync(path, cancellationToken).ConfigureAwait(false);
+                    if (mainRenderer?.HighlightedRegions != null)
+                        mainRenderer.HighlightedRegions = null;
+                    if (secondaryRenderer?.HighlightedRegions != null)
+                        secondaryRenderer.HighlightedRegions = null;
 
-                    if (RequestFile.Sökväg == path && bytes != null)
-                    {
-                        await SafeDisposeAsync().ConfigureAwait(false);
-                        await SetupMainFileAsync().ConfigureAwait(false);
-
-                        fileAvailable = true;
-                        return;
-                    }
-                    break;
+                    mainRenderer?.ReleaseResources();
+                    secondaryRenderer?.ReleaseResources();
+                    MainPreviewFile?.Dispose();
+                    context?.Dispose();
                 }
-                catch (IOException ex) when (retryCount < MAX_RETRY_ATTEMPTS - 1)
+                catch (Exception ex)
                 {
-                    logger?.LogWarning(ex, "File operation failed, retrying... Attempt {Attempt}", retryCount + 1);
-                    retryCount++;
-                    await Task.Delay(TimeSpan.FromMilliseconds(100 * retryCount), cancellationToken).ConfigureAwait(false);
+                    logger?.LogWarning(ex, "Error during quick dispose");
                 }
-                catch (OperationCanceledException)
-                {
-                    logger?.LogInformation("File operation cancelled");
-                    throw;
-                }
-            }
+            }).GetTask().ConfigureAwait(false);
 
-            // If we get here, all retries failed
-            logger?.LogWarning("Failed to set file after {MaxAttempts} attempts", MAX_RETRY_ATTEMPTS);
+            fileAvailable = false;
+            MainPreviewFile = null;
+            context = null;
+            bytes = null; // release memory early
         }
 
-        private async Task<byte[]?> ReadBytesWithProgressAsync(string path, CancellationToken cancellationToken)
+        /// <summary>
+        /// Reads file bytes synchronously (called via Task.Run) with
+        /// cancellation support and progress reporting.
+        /// Returns null if cancelled or on error — caller checks for null.
+        /// </summary>
+        private byte[]? ReadFileBytes(string path, CancellationToken token)
         {
             try
             {
+                if (token.IsCancellationRequested) return null;
+
+                var fileInfo = new FileInfo(path);
+                if (!fileInfo.Exists) return null;
+
+                long total = fileInfo.Length;
+                StatusMessage = $"Reading: {total / 1_000_000.0:F1} MB";
                 Progress = 0;
 
-                await using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                    BUFFER_SIZE, useAsync: true);
-                using var ms = new MemoryStream();
+                // Small files (< 10 MB): read all at once — fastest path
+                if (total < 10_000_000)
+                {
+                    if (token.IsCancellationRequested) return null;
+                    byte[] result = File.ReadAllBytes(path);
+                    Progress = 0;
+                    return token.IsCancellationRequested ? null : result;
+                }
 
-                long total = source.Length;
-                StatusMessage = $"Reading Bytes: {total / 1_000_000:F1} MB";
+                // Large files: buffered read with progress
+                using var source = new FileStream(path, FileMode.Open, FileAccess.Read,
+                    FileShare.Read, BUFFER_SIZE, FileOptions.SequentialScan);
+                using var ms = new MemoryStream((int)Math.Min(total, int.MaxValue));
 
                 byte[] buffer = new byte[BUFFER_SIZE];
-                int steps = (int)(total / buffer.Length);
+                int steps = Math.Max(1, (int)(total / buffer.Length));
                 int leap = Math.Max(1, steps / PROGRESS_UPDATE_INTERVAL);
                 int i = 0;
-
                 int bytesRead;
-                while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
-                {
-                    await ms.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
 
-                    if (leap > 0 && i % leap == 0)
-                    {
+                while ((bytesRead = source.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    if (token.IsCancellationRequested) return null;
+
+                    ms.Write(buffer, 0, bytesRead);
+
+                    if (i % leap == 0)
                         Progress = Math.Min(100, 100 * (i + 1) / steps);
-                    }
                     i++;
                 }
 
                 Progress = 0;
-                return ms.ToArray();
+                return token.IsCancellationRequested ? null : ms.ToArray();
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                logger?.LogInformation("Read bytes operation was cancelled");
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error reading file bytes from {Path}", path);
+                logger?.LogError(ex, "Error reading {Path}", path);
                 return null;
             }
         }
 
-        private async Task SetupMainFileAsync()
-        {
-            if (bytes == null) return;
-
-            await Task.Run(() =>
-            {
-                try
-                {
-                    context = new MuPDFContext();
-                    MainPreviewFile = new MuPDFDocument(context, bytes, InputFileTypes.PDF);
-                    Pagecount = MainPreviewFile.Pages.Count;
-                    CurrentFile = RequestFile;
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Error setting up main file");
-                    throw;
-                }
-            }).ConfigureAwait(false);
-        }
-
-        // Legacy method for compatibility
         [Obsolete("Use SetFileAsync instead")]
         public async void SetFile(string? search = null)
         {
-            try
-            {
-                await SetFileAsync(search).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error in legacy SetFile method");
-            }
+            try { await SetFileAsync(search).ConfigureAwait(false); }
+            catch (Exception ex) { logger?.LogError(ex, "Error in legacy SetFile"); }
         }
         #endregion
 
@@ -499,16 +542,12 @@ namespace Finn.ViewModels
             try
             {
                 if (RecentFiles.Contains(file))
-                {
                     RecentFiles.Remove(file);
-                }
 
                 RecentFiles.Insert(0, file);
 
                 while (RecentFiles.Count > MAX_RECENT_FILES)
-                {
                     RecentFiles.RemoveAt(RecentFiles.Count - 1);
-                }
             }
             catch (Exception ex)
             {
@@ -517,24 +556,22 @@ namespace Finn.ViewModels
         }
         #endregion
 
-        #region Page Navigation
+        #region Page Navigation & Default Page
         private void SetDefaultPage()
         {
             if (RequestFile == null || MainPreviewFile == null) return;
 
             try
             {
-                if (RequestFile.DefaultPage >= MainPreviewFile.Pages.Count)
-                {
-                    RequestPage1 = 0;
-                }
-                else
-                {
-                    RequestPage1 = Math.Max(0, RequestFile.DefaultPage);
-                }
+                int desired = Math.Clamp(RequestFile.DefaultPage, 0,
+                    Math.Max(0, MainPreviewFile.Pages.Count - 1));
 
-                CurrentPage1 = RequestPage1;
+                requestPage1 = desired;
+                OnPropertyChanged(nameof(RequestPage1));
+                CurrentPage1 = desired;
                 Rotation = 0;
+
+                _ = RenderCurrentPageAsync();
             }
             catch (Exception ex)
             {
@@ -542,58 +579,60 @@ namespace Finn.ViewModels
             }
         }
 
-        public void NextPage(bool secondPage = false)
+        private async Task RenderCurrentPageAsync()
         {
+            if (disposed || !PageInRange(requestPage1) || mainRenderer == null || MainPreviewFile == null)
+                return;
+
+            await renderSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!TwopageMode)
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    RequestPage1++;
-                }
-                else if (LinkedPageMode)
-                {
-                    RequestPage1 += 2;
-                }
-                else if (!secondPage)
-                {
-                    RequestPage1++;
-                }
-                else
-                {
-                    RequestPage2++;
-                }
+                    mainRenderer.IsVisible = false;
+                    mainRenderer.HighlightedRegions = null;
+                    mainRenderer.Initialize(MainPreviewFile, 1, requestPage1, ZOOM_LEVEL);
+                    mainRenderer.IsVisible = true;
+                    SetSearchResults();
+                    CurrentPage1 = requestPage1;
+
+                    if (LinkedPageMode && TwopageMode && PageInRange(requestPage1 + 1) && secondaryRenderer != null)
+                    {
+                        requestPage2 = requestPage1 + 1;
+                        OnPropertyChanged(nameof(RequestPage2));
+                        secondaryRenderer.IsVisible = false;
+                        secondaryRenderer.HighlightedRegions = null;
+                        secondaryRenderer.Initialize(MainPreviewFile, 1, requestPage2, ZOOM_LEVEL);
+                        secondaryRenderer.IsVisible = true;
+                        SetSecondarySearchResults();
+                        CurrentPage2 = requestPage2;
+                    }
+                }).GetTask().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                logger?.LogError(ex, "Error navigating to next page");
+                logger?.LogError(ex, "Error in RenderCurrentPageAsync");
             }
+            finally
+            {
+                renderSemaphore.Release();
+            }
+        }
+
+        public void NextPage(bool secondPage = false)
+        {
+            if (!TwopageMode) RequestPage1++;
+            else if (LinkedPageMode) RequestPage1 += 2;
+            else if (!secondPage) RequestPage1++;
+            else RequestPage2++;
         }
 
         public void PrevPage(bool secondPage = false)
         {
-            try
-            {
-                if (!TwopageMode)
-                {
-                    RequestPage1--;
-                }
-                else if (LinkedPageMode)
-                {
-                    RequestPage1 -= 2;
-                }
-                else if (!secondPage)
-                {
-                    RequestPage1--;
-                }
-                else
-                {
-                    RequestPage2--;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error navigating to previous page");
-            }
+            if (!TwopageMode) RequestPage1--;
+            else if (LinkedPageMode) RequestPage1 -= 2;
+            else if (!secondPage) RequestPage1--;
+            else RequestPage2--;
         }
 
         public bool PageInRange(int pageNr) => pageNr >= 0 && pageNr < Pagecount;
@@ -607,9 +646,7 @@ namespace Finn.ViewModels
                 await Task.Delay(RENDER_DELAY).ConfigureAwait(false);
 
                 if (TwopageMode && RequestPage1 % 2 != 0)
-                {
                     requestPage1 = RequestPage1 - 1;
-                }
 
                 requestPage2 = requestPage1 + 1;
                 await SetMainPageAsync().ConfigureAwait(false);
@@ -617,17 +654,13 @@ namespace Finn.ViewModels
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     mainRenderer?.Contain();
-
                     if (TwopageMode)
                     {
                         _ = SetSecondaryPageAsync();
                         secondaryRenderer?.Contain();
                     }
-
                     if (!LinkedPageMode)
-                    {
                         LinkedPageMode = true;
-                    }
                 }).GetTask().ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -636,96 +669,53 @@ namespace Finn.ViewModels
             }
         }
 
-        public void ToggleDimmed()
-        {
-            DimmedBackground = !DimmedBackground;
-        }
+        public void ToggleDimmed() => DimmedBackground = !DimmedBackground;
 
         public void SetDimmedMode()
         {
-            try
-            {
-                var backgroundColor = DimmedBackground ?
-                    new SolidColorBrush(Colors.AntiqueWhite) :
-                    new SolidColorBrush(Colors.White);
+            var bg = DimmedBackground
+                ? new SolidColorBrush(Colors.AntiqueWhite)
+                : new SolidColorBrush(Colors.White);
 
-                if (mainRenderer != null) mainRenderer.PageBackground = backgroundColor;
-                if (secondaryRenderer != null) secondaryRenderer.PageBackground = backgroundColor;
+            if (mainRenderer != null) mainRenderer.PageBackground = bg;
+            if (secondaryRenderer != null) secondaryRenderer.PageBackground = bg;
 
-                _ = SetMainPageAsync();
-
-                if (TwopageMode)
-                {
-                    _ = SetSecondaryPageAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error setting dimmed mode");
-            }
+            _ = SetMainPageAsync();
+            if (TwopageMode) _ = SetSecondaryPageAsync();
         }
 
         public void ToggleLinkedMode()
         {
-            try
+            if (LinkedPageMode)
             {
-                if (LinkedPageMode)
-                {
-                    if (CurrentPage1 % 2 != 0)
-                    {
-                        RequestPage1 = CurrentPage1 - 1;
-                    }
-
-                    RequestPage2 = CurrentPage1 + 1;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error toggling linked mode");
+                if (CurrentPage1 % 2 != 0)
+                    RequestPage1 = CurrentPage1 - 1;
+                RequestPage2 = CurrentPage1 + 1;
             }
         }
 
         public void ToggleVisibility(bool isVisible)
         {
-            try
-            {
-                if (TwopageMode)
-                {
-                    if (mainRenderer != null) mainRenderer.IsVisible = isVisible;
-                    if (secondaryRenderer != null) secondaryRenderer.IsVisible = isVisible;
-                }
-                else
-                {
-                    if (mainRenderer != null) mainRenderer.IsVisible = isVisible;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error toggling visibility");
-            }
+            if (mainRenderer != null) mainRenderer.IsVisible = isVisible;
+            if (TwopageMode && secondaryRenderer != null) secondaryRenderer.IsVisible = isVisible;
         }
 
-        // Legacy method for compatibility
         public async void ToggleDualView() => await ToggleDualViewAsync().ConfigureAwait(false);
         #endregion
 
-        #region Page Rendering - Enhanced
+        #region Page Rendering
         private async Task SetMainPageAsync()
         {
             if (disposed || FileWorkerBusy || SearchBusy || !PageInRange(RequestPage1) || mainRenderer == null)
                 return;
 
             await renderSemaphore.WaitAsync().ConfigureAwait(false);
-
             try
             {
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    logger?.LogDebug("Setting main page to {Page}", RequestPage1);
-
                     mainRenderer.IsVisible = false;
                     mainRenderer.HighlightedRegions = null;
-
                     if (MainPreviewFile != null)
                     {
                         mainRenderer.Initialize(MainPreviewFile, 1, RequestPage1, ZOOM_LEVEL);
@@ -752,16 +742,12 @@ namespace Finn.ViewModels
                 return;
 
             await renderSemaphore.WaitAsync().ConfigureAwait(false);
-
             try
             {
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    logger?.LogDebug("Setting secondary page to {Page}", RequestPage2);
-
                     secondaryRenderer.IsVisible = false;
                     secondaryRenderer.HighlightedRegions = null;
-
                     if (MainPreviewFile != null)
                     {
                         secondaryRenderer.Initialize(MainPreviewFile, 1, RequestPage2, ZOOM_LEVEL);
@@ -782,26 +768,27 @@ namespace Finn.ViewModels
         }
         #endregion
 
-        #region Search Methods - Enhanced
+        #region Search Methods
         public async Task SearchAsync(string text, CancellationToken cancellationToken = default)
         {
             if (!fileAvailable || string.IsNullOrWhiteSpace(text) || disposed || MainPreviewFile == null)
                 return;
 
-            await ExecuteAsync(async () =>
-            {
-                ClearSearch();
-                regex = new Regex(text, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            ClearSearch();
+            regex = new Regex(text, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+            try
+            {
                 await searchCts.CancelAsync().ConfigureAwait(false);
                 searchCts.Dispose();
-                searchCts = new CancellationTokenSource();
+            }
+            catch { }
+            searchCts = new CancellationTokenSource();
 
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken, searchCts.Token);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, searchCts.Token);
 
-                await SearchDocumentAsync(linkedCts.Token).ConfigureAwait(false);
-            }, cancellationToken).ConfigureAwait(false);
+            await SearchDocumentAsync(linkedCts.Token).ConfigureAwait(false);
         }
 
         private async Task SearchDocumentAsync(CancellationToken cancellationToken)
@@ -811,7 +798,6 @@ namespace Finn.ViewModels
             try
             {
                 SearchBusy = true;
-                await Dispatcher.UIThread.InvokeAsync(() => SearchPagesText.Clear()).GetTask().ConfigureAwait(false);
 
                 var foundPages = new List<(int pageIndex, int matchCount)>();
 
@@ -820,17 +806,13 @@ namespace Finn.ViewModels
                     for (int i = 0; i < Pagecount; i++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-
                         try
                         {
                             using var disposable = MainPreviewFile.GetStructuredTextPage(i);
                             var structuredPage = (MuPDFStructuredTextPage)disposable;
                             int matchCount = structuredPage.Search(regex!).Count();
-
                             if (matchCount > 0)
-                            {
                                 foundPages.Add((i, matchCount));
-                            }
                         }
                         catch (Exception ex)
                         {
@@ -841,14 +823,13 @@ namespace Finn.ViewModels
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    SearchPagesText.Clear();
                     foreach (var (pageIndex, matchCount) in foundPages)
                     {
                         SearchPages.Add(pageIndex);
                         SearchPagesText.Add($"Page: {pageIndex + 1} - {matchCount} items");
                     }
-
                     SearchItems = foundPages.Count;
-
                     if (SearchItems > 0)
                     {
                         SearchPageIndex = 0;
@@ -857,10 +838,7 @@ namespace Finn.ViewModels
                     }
                 }).GetTask().ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                logger?.LogInformation("Search operation was cancelled");
-            }
+            catch (OperationCanceledException) { }
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Error during document search");
@@ -874,25 +852,19 @@ namespace Finn.ViewModels
         public void NextSearchPage()
         {
             if (regex != null && SearchPages != null && SearchPageIndex < SearchPages.Count - 1)
-            {
                 SearchPageIndex++;
-            }
         }
 
         public void PrevSearchPage()
         {
             if (regex != null && SearchPages != null && SearchPageIndex > 0)
-            {
                 SearchPageIndex--;
-            }
         }
 
         private void SetSearchPage()
         {
             if (SearchMode && SearchItems != 0 && SearchPages.Count > SearchPageIndex)
-            {
                 RequestPage1 = SearchPages[SearchPageIndex];
-            }
         }
 
         private void SetSearchResults()
@@ -918,15 +890,11 @@ namespace Finn.ViewModels
         public async Task StopSearchAsync()
         {
             if (!SearchBusy) return;
-
             try
             {
                 await searchCts.CancelAsync().ConfigureAwait(false);
-
                 while (SearchBusy)
-                {
                     await Task.Delay(POLLING_DELAY).ConfigureAwait(false);
-                }
             }
             catch (Exception ex)
             {
@@ -936,33 +904,19 @@ namespace Finn.ViewModels
 
         public void ClearSearch()
         {
-            try
-            {
-                SearchItems = 0;
-                SearchPageIndex = 0;
-                SearchPagesText.Clear();
-                SearchPages.Clear();
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error clearing search");
-            }
+            SearchItems = 0;
+            SearchPageIndex = 0;
+            SearchPagesText.Clear();
+            SearchPages.Clear();
         }
 
-        // Legacy methods for compatibility
         [Obsolete("Use SearchAsync instead")]
         public void Search(string text)
         {
             _ = Task.Run(async () =>
             {
-                try
-                {
-                    await SearchAsync(text).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogError(ex, "Error in legacy Search method");
-                }
+                try { await SearchAsync(text).ConfigureAwait(false); }
+                catch (Exception ex) { logger?.LogError(ex, "Error in legacy Search"); }
             });
         }
 
@@ -972,36 +926,25 @@ namespace Finn.ViewModels
         #region Clipboard Operations
         public void CopyToClipboard(Avalonia.Visual window)
         {
-            try
+            if (CurrentFile != null && mainRenderer != null)
             {
-                if (CurrentFile != null && mainRenderer != null)
-                {
-                    string selectedText = mainRenderer.GetSelectedText();
-                    if (!string.IsNullOrEmpty(selectedText))
-                    {
-                        TopLevel.GetTopLevel(window)?.Clipboard?.SetTextAsync(selectedText);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error copying to clipboard");
+                string selectedText = mainRenderer.GetSelectedText();
+                if (!string.IsNullOrEmpty(selectedText))
+                    TopLevel.GetTopLevel(window)?.Clipboard?.SetTextAsync(selectedText);
             }
         }
         #endregion
 
-        #region Cleanup and Disposal - Enhanced
+        #region Cleanup and Disposal
         protected override async ValueTask DisposeAsyncCore()
         {
             if (disposed) return;
-
             try
             {
-                await SafeDisposeAsync().ConfigureAwait(false);
+                await DisposeCurrentDocumentAsync(CancellationToken.None).ConfigureAwait(false);
 
                 await mainCts.CancelAsync().ConfigureAwait(false);
                 await searchCts.CancelAsync().ConfigureAwait(false);
-
                 mainCts.Dispose();
                 searchCts.Dispose();
                 fileOperationSemaphore.Dispose();
@@ -1021,61 +964,7 @@ namespace Finn.ViewModels
         public async Task SafeDisposeAsync()
         {
             if (disposed) return;
-
-            try
-            {
-                StatusMessage = "Disposing File";
-                await StopSearchAsync().ConfigureAwait(false);
-                ClearSearch();
-
-                while (renderWorkerBusy || SearchBusy)
-                {
-                    logger?.LogDebug("Waiting for workers to finish...");
-                    await Task.Delay(DISPOSE_POLLING_DELAY).ConfigureAwait(false);
-                }
-
-                if (MainPreviewFile != null)
-                {
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        DisposeHighlight();
-                        mainRenderer?.ReleaseResources();
-                        secondaryRenderer?.ReleaseResources();
-                        MainPreviewFile?.Dispose();
-                        context?.Dispose();
-                    }).GetTask().ConfigureAwait(false);
-
-                    fileAvailable = false;
-                    MainPreviewFile = null;
-                    context = null;
-                }
-
-                StatusMessage = "File Disposed";
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error during safe dispose");
-            }
-        }
-
-        private void DisposeHighlight()
-        {
-            try
-            {
-                if (mainRenderer?.HighlightedRegions != null)
-                {
-                    mainRenderer.HighlightedRegions = null;
-                }
-
-                if (secondaryRenderer?.HighlightedRegions != null)
-                {
-                    secondaryRenderer.HighlightedRegions = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error disposing highlights");
-            }
+            await DisposeCurrentDocumentAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
         public async Task CloseRendererAsync()
@@ -1085,7 +974,6 @@ namespace Finn.ViewModels
             await SafeDisposeAsync().ConfigureAwait(false);
         }
 
-        // Legacy methods for compatibility
         public async Task SafeDispose() => await SafeDisposeAsync().ConfigureAwait(false);
         public async Task CloseRenderer() => await CloseRendererAsync().ConfigureAwait(false);
         #endregion
