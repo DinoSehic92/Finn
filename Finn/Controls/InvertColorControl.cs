@@ -18,15 +18,25 @@ public class InvertColorControl : Control
     public static readonly StyledProperty<bool> IsInvertedProperty =
         AvaloniaProperty.Register<InvertColorControl, bool>(nameof(IsInverted));
 
+    public static readonly StyledProperty<Color> BackgroundColorProperty =
+        AvaloniaProperty.Register<InvertColorControl, Color>(nameof(BackgroundColor), Colors.Transparent);
+
     public bool IsInverted
     {
         get => GetValue(IsInvertedProperty);
         set => SetValue(IsInvertedProperty, value);
     }
 
+    public Color BackgroundColor
+    {
+        get => GetValue(BackgroundColorProperty);
+        set => SetValue(BackgroundColorProperty, value);
+    }
+
     static InvertColorControl()
     {
         AffectsRender<InvertColorControl>(IsInvertedProperty);
+        AffectsRender<InvertColorControl>(BackgroundColorProperty);
     }
 
     public override void Render(DrawingContext context)
@@ -34,10 +44,10 @@ public class InvertColorControl : Control
         if (!IsInverted)
             return;
 
-        context.Custom(new InvertDrawOperation(new Rect(Bounds.Size)));
+        context.Custom(new InvertDrawOperation(new Rect(Bounds.Size), BackgroundColor));
     }
 
-    private sealed class InvertDrawOperation(Rect bounds) : ICustomDrawOperation
+    private sealed class InvertDrawOperation(Rect bounds, Color backgroundColor) : ICustomDrawOperation
     {
         public Rect Bounds => bounds;
         public void Dispose() { }
@@ -52,8 +62,7 @@ public class InvertColorControl : Control
             using var lease = leaseFeature.Lease();
             var canvas = lease.SkCanvas;
 
-            // Difference with white: |dst - 1| = 1 - dst (inversion)
-            using var paint = new SKPaint
+            using var invertPaint = new SKPaint
             {
                 Color = SKColors.White,
                 BlendMode = SKBlendMode.Difference
@@ -63,7 +72,15 @@ public class InvertColorControl : Control
 
             canvas.Save();
             canvas.ClipRect(rect);
-            canvas.DrawRect(rect, paint);
+            canvas.DrawRect(rect, invertPaint);
+
+            using var alphaPaint = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, backgroundColor.A),
+                BlendMode = SKBlendMode.DstIn
+            };
+
+            canvas.DrawRect(rect, alphaPaint);
             canvas.Restore();
         }
     }

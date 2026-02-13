@@ -211,9 +211,14 @@ namespace Finn.ViewModels
             set
             {
                 if (SetProperty(ref themeRegionColor, value))
+                {
                     OnPropertyChanged(nameof(PreviewBackground));
+                    OnPropertyChanged(nameof(UiBackground));
+                }
             }
         }
+
+        public IBrush UiBackground => new SolidColorBrush(ThemeRegionColor);
 
         /// <summary>
         /// Background for the preview area. When DarkMode is on, this returns the

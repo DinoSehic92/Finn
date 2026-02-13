@@ -67,6 +67,7 @@
 					<!-- Inversion overlay: renders LAST, spans all columns, passes input through -->
 					<ctrl:InvertColorControl Grid.ColumnSpan="3"
 						IsInverted="{Binding PreviewVM.DarkMode}"
+						BackgroundColor="{Binding PreviewVM.ThemeRegionColor}"
 						IsHitTestVisible="False" />
 				</Grid>
 			</LayoutTransformControl>
