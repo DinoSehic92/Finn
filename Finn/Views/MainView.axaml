@@ -10,8 +10,7 @@
 			 xmlns:anim="clr-namespace:Avalonia.Animation;assembly=MuPDFCore.MuPDFRenderer"
 			 xmlns:converter="clr-namespace:Finn.Converters"
 			 xmlns:ic="using:FluentIcons.Avalonia" 
-			 xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions" 
-			 mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+			 mc:Ignorable="d"
              x:Class="Finn.Views.MainView"
 			 x:DataType="vm:MainViewModel">
 
@@ -153,13 +152,23 @@
 		<DockPanel Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Left">
 			<Menu DockPanel.Dock="Top" FontSize="15" FontFamily="Default">
 				<MenuItem Header="File">
-					<MenuItem Header="Load"    Click="OnLoadFile"                          Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+					<MenuItem Header="Load"    Click="OnLoadFile">
+						<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+					</MenuItem>
 					<Separator/>
-					<MenuItem Header="Save"    HotKey="Ctrl+S" Click="OnSaveFileAuto"      Icon="{icxt:SymbolIconExtension Symbol=Save}"/>
-					<MenuItem Header="Save As" Click="OnSaveFile"                          Icon="{icxt:SymbolIconExtension Symbol=SaveEdit}"/>
+					<MenuItem Header="Save"    HotKey="Ctrl+S" Click="OnSaveFileAuto">
+						<MenuItem.Icon><ic:SymbolIcon Symbol="Save"/></MenuItem.Icon>
+					</MenuItem>
+					<MenuItem Header="Save As" Click="OnSaveFile">
+						<MenuItem.Icon><ic:SymbolIcon Symbol="SaveEdit"/></MenuItem.Icon>
+					</MenuItem>
 					<Separator/>
-					<MenuItem Header="Backup"  Command="{Binding BackupSaveFile}"           Icon="{icxt:SymbolIconExtension Symbol=ArrowCircleUp}"/>
-					<MenuItem Header="Reset"   Command="{Binding ResetPreviewer}"           Icon="{icxt:SymbolIconExtension Symbol=ArrowReset}"/>
+					<MenuItem Header="Backup"  Command="{Binding BackupSaveFile}">
+						<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowCircleUp"/></MenuItem.Icon>
+					</MenuItem>
+					<MenuItem Header="Reset"   Command="{Binding ResetPreviewer}">
+						<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowReset"/></MenuItem.Icon>
+					</MenuItem>
 				</MenuItem>
 			</Menu>
 		</DockPanel>
@@ -325,39 +334,63 @@
 
 				<DataGrid.ContextMenu>
 					<ContextMenu Name="Menu">
-						<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
-							<MenuItem Header="Open PDF"      Command="{Binding OpenFile}" Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
-							<MenuItem Header="Open Folder"   Command="{Binding OpenPath}" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
-							<MenuItem Header="Open Metafile" Command="{Binding OpenMeta}" Icon="{icxt:SymbolIconExtension Symbol=DocumentDataLink}"/>
-							<MenuItem Header="Open Docx"     Command="{Binding OpenDoc}"  Icon="{icxt:SymbolIconExtension Symbol=DocumentEdit}"/>
-							<MenuItem Header="Open Dwg"      Command="{Binding OpenDwg}"  Icon="{icxt:SymbolIconExtension Symbol=DocumentTableCube}"/>
+						<MenuItem Header="Open">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
+							<MenuItem Header="Open PDF"      Command="{Binding OpenFile}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Open Folder"   Command="{Binding OpenPath}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Open Metafile" Command="{Binding OpenMeta}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentDataLink"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Open Docx"     Command="{Binding OpenDoc}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentEdit"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Open Dwg"      Command="{Binding OpenDwg}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentTableCube"/></MenuItem.Icon>
+							</MenuItem>
 						</MenuItem>
 
-						<MenuItem Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Icon="{icxt:SymbolIconExtension Symbol=Collections}" Click="OnAddToCollection">
+						<MenuItem Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Click="OnAddToCollection">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Collections"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
 							</MenuItem.ItemTemplate>
 						</MenuItem>
 
-						<MenuItem Header="Clipboard" Icon="{icxt:SymbolIconExtension Symbol=Clipboard}">
-							<MenuItem Header="Name"  Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextBulletListAdd}"/>
-							<MenuItem Header="Path"  Command="{Binding CopyFilepathToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=AppsList}"/>
-							<MenuItem Header="Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TableLightning}"/>
+						<MenuItem Header="Clipboard">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Clipboard"/></MenuItem.Icon>
+							<MenuItem Header="Name"  Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="TextBulletListAdd"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Path"  Command="{Binding CopyFilepathToClipboard}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="AppsList"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="TableLightning"/></MenuItem.Icon>
+							</MenuItem>
 						</MenuItem>
 
 						<Separator/>
 
-						<MenuItem Header="Favorite" Command="{Binding MarkFavorite}" Icon="{icxt:SymbolIconExtension Symbol=Star}"/>
+						<MenuItem Header="Favorite" Command="{Binding MarkFavorite}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Star"/></MenuItem.Icon>
+						</MenuItem>
 
-						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" Icon="{icxt:SymbolIconExtension Symbol=Folder}">
+						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Folder"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
 							</MenuItem.ItemTemplate>
 						</MenuItem>
 
-						<MenuItem Header="Tag" Icon="{icxt:SymbolIconExtension Symbol=Tag}">
-							<MenuItem Header="Color" Icon="{icxt:SymbolIconExtension Symbol=Color}">
-								<MenuItem Header="None" Tag=""        Click="EditColor"/>
+						<MenuItem Header="Tag">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
+							<MenuItem Header="Color">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
+								<MenuItem Header="None"        Tag=""        Click="EditColor"/>
 								<MenuItem Background="#FFD700" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
 								<MenuItem Background="#FFA500" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
 								<MenuItem Background="#8B4513" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
@@ -366,52 +399,98 @@
 								<MenuItem Background="#B22222" Opacity="0.6" Tag="Red"     Click="EditColor"/>
 								<MenuItem Background="#9400D3" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
 							</MenuItem>
-							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=TextAdd}"/>
-							<MenuItem Header="Clear" Click="OnClearFiles" Icon="{icxt:SymbolIconExtension Symbol=TagDismiss}"/>
+							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Clear" Click="OnClearFiles">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="TagDismiss"/></MenuItem.Icon>
+							</MenuItem>
 						</MenuItem>
 
 						<Separator/>
 
-						<MenuItem Header="Data" Icon="{icxt:SymbolIconExtension Symbol=ContentSettings}">
-							<MenuItem Header="Metadata" Icon="{icxt:SymbolIconExtension Symbol=Database}">
-								<MenuItem Header="Fetch"     Click="OnFetchSingleMeta"                                                                      Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-								<MenuItem Header="Fetch All" Click="OnFetchFullMeta"                                                                         Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-								<MenuItem Header="Edit"      Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}"                Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
-								<MenuItem Header="Clear"     Command="{Binding ClearMeta}"                                                                   Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+						<MenuItem Header="Data">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="ContentSettings"/></MenuItem.Icon>
+							<MenuItem Header="Metadata">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Database"/></MenuItem.Icon>
+								<MenuItem Header="Fetch"     Click="OnFetchSingleMeta">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Fetch All" Click="OnFetchFullMeta">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Edit"      Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Clear"     Command="{Binding ClearMeta}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
-							<MenuItem Header="Thumbnail" Icon="{icxt:SymbolIconExtension Symbol=Image}">
-								<MenuItem Header="Fetch" Command="{Binding GetThumbnails}"   Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-								<MenuItem Header="Clear" Command="{Binding ClearThumbnails}" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							<MenuItem Header="Thumbnail">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Image"/></MenuItem.Icon>
+								<MenuItem Header="Fetch" Command="{Binding GetThumbnails}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Clear" Command="{Binding ClearThumbnails}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
-							<MenuItem Header="Content" Icon="{icxt:SymbolIconExtension Symbol=Globe}">
-								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}"           CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Table}"/>
-								<MenuItem Header="Fetch"   Command="{Binding GetIndexedContent}"                                                 Icon="{icxt:SymbolIconExtension Symbol=ArrowDownload}"/>
-								<MenuItem Header="Clear"   Command="{Binding ClearIndexedContent}"                                               Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							<MenuItem Header="Content">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Globe"/></MenuItem.Icon>
+								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Table"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Fetch"   Command="{Binding GetIndexedContent}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Clear"   Command="{Binding ClearIndexedContent}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
 						</MenuItem>
 
-						<MenuItem Header="Tools" Icon="{icxt:SymbolIconExtension Symbol=Toolbox}">
-							<MenuItem Header="Status" Icon="{icxt:SymbolIconExtension Symbol=Checkmark}">
-								<MenuItem Header="Check File" Click="OnCheckStatusSingleFile" Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
-								<MenuItem Header="Check All"  Click="OnCheckProjectFiles"     Icon="{icxt:SymbolIconExtension Symbol=CheckboxChecked}"/>
+						<MenuItem Header="Tools">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
+							<MenuItem Header="Status">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
+								<MenuItem Header="Check File" Click="OnCheckStatusSingleFile">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Check All"  Click="OnCheckProjectFiles">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
-							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Question}"/>
-							<MenuItem Header="Watermark" Icon="{icxt:SymbolIconExtension Symbol=Warning}">
-								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia" Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}"/>
-								<MenuItem Header="Arbetskopia"   Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia"   Icon="{icxt:SymbolIconExtension Symbol=CircleSmall}"/>
+							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Rename"      IsEnabled="{Binding CurrentFile.IsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Rename}"/>
-							<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}"/>
+							<MenuItem Header="Watermark">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Warning"/></MenuItem.Icon>
+								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Arbetskopia"   Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
+								</MenuItem>
+							</MenuItem>
+							<MenuItem Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
+							</MenuItem>
 						</MenuItem>
 
 						<Separator/>
 
-						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" Icon="{icxt:SymbolIconExtension Symbol=DocumentArrowRight}">
+						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding Namn, StringFormat=' - {0}'}"/></DataTemplate>
 							</MenuItem.ItemTemplate>
 						</MenuItem>
-						<MenuItem Header="Remove" Click="OnRemoveFiles" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+						<MenuItem Header="Remove" Click="OnRemoveFiles">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+						</MenuItem>
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
@@ -429,11 +508,18 @@
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>
-							<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
-								<MenuItem Header="Open PDF"    Click="OnOpenAppendedFile"   Icon="{icxt:SymbolIconExtension Symbol=DocumentPdf}"/>
-								<MenuItem Header="Open Folder" Click="OnOpenAppendedFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+							<MenuItem Header="Open">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
+								<MenuItem Header="Open PDF"    Click="OnOpenAppendedFile">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Open Folder" Click="OnOpenAppendedFolder">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
-							<MenuItem Header="Remove" Click="OnRemoveAttachedFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							<MenuItem Header="Remove" Click="OnRemoveAttachedFile">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+							</MenuItem>
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
@@ -454,11 +540,18 @@
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>
-							<MenuItem Header="Open" Icon="{icxt:SymbolIconExtension Symbol=Open}">
-								<MenuItem Header="Open File"   Click="OnOpenOtherFile"   Icon="{icxt:SymbolIconExtension Symbol=Document}"/>
-								<MenuItem Header="Open Folder" Click="OnOpenOtherFolder" Icon="{icxt:SymbolIconExtension Symbol=FolderOpen}"/>
+							<MenuItem Header="Open">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
+								<MenuItem Header="Open File"   Click="OnOpenOtherFile">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Document"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Open Folder" Click="OnOpenOtherFolder">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
-							<MenuItem Header="Remove" Click="OnRemoveOtherFile" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+							<MenuItem Header="Remove" Click="OnRemoveOtherFile">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+							</MenuItem>
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
@@ -477,9 +570,15 @@
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
-						<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}" Icon="{icxt:SymbolIconExtension Symbol=ArrowSync}"/>
-						<MenuItem Header="Sync All"      Command="{Binding SyncAllFolders}"     Icon="{icxt:SymbolIconExtension Symbol=CubeSync}"/>
-						<MenuItem Header="Delete"        Click="OnRemoveFolder"                 Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+						<MenuItem Header="Sync Selected" Command="{Binding SyncSelectedFolder}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Sync All" Command="{Binding SyncAllFolders}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="CubeSync"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Delete" Click="OnRemoveFolder">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+						</MenuItem>
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
@@ -744,11 +843,19 @@
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>
 								<ContextMenu Name="TreeMenu">
-									<MenuItem Header="Add Files"    Click="OnAddFiles"    Icon="{icxt:SymbolIconExtension Symbol=DocumentAdd}"/>
-									<MenuItem Header="New Project"  Command="{Binding OpenProjectNewDia}"  CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=FolderAdd}"/>
-									<MenuItem Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}" Icon="{icxt:SymbolIconExtension Symbol=Edit}"/>
+									<MenuItem Header="Add Files" Click="OnAddFiles">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="New Project" Command="{Binding OpenProjectNewDia}" CommandParameter="{Binding $parent[Window]}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
+									</MenuItem>
 									<Separator/>
-									<MenuItem Header="Remove" Click="OnRemoveProject" Icon="{icxt:SymbolIconExtension Symbol=Delete}"/>
+									<MenuItem Header="Remove" Click="OnRemoveProject">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+									</MenuItem>
 								</ContextMenu>
 							</TreeView.ContextMenu>
 						</TreeView>

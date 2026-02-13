@@ -5,7 +5,6 @@
              xmlns:vm="clr-namespace:Finn.ViewModels"
 			 xmlns:mupdf="clr-namespace:MuPDFCore.MuPDFRenderer;assembly=MuPDFCore.MuPDFRenderer"
 			 xmlns:ic="using:FluentIcons.Avalonia" 
-			 xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions" 
 			 xmlns:anim="clr-namespace:Avalonia.Animation;assembly=MuPDFCore.MuPDFRenderer"
 			 xmlns:converter="clr-namespace:Finn.Converters"
 			 xmlns:ctrl="clr-namespace:Finn.Controls"
@@ -47,7 +46,9 @@
 			   ZoomIncrement="1.3" ClipToBounds="True" PointerEventHandlersType="PanHighlight">
 						<mupdf:PDFRenderer.ContextMenu>
 							<ContextMenu>
-								<MenuItem Header="Copy" Icon="{icxt:SymbolIconExtension Symbol=Clipboard}" Command="{Binding PreviewVM.CopyToClipboard}" CommandParameter="{Binding $parent[Window]}"/>
+								<MenuItem Header="Copy" Command="{Binding PreviewVM.CopyToClipboard}" CommandParameter="{Binding $parent[Window]}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Clipboard"/></MenuItem.Icon>
+								</MenuItem>
 							</ContextMenu>
 						</mupdf:PDFRenderer.ContextMenu>
 					</mupdf:PDFRenderer>
@@ -57,7 +58,9 @@
 			   ZoomIncrement="1.3" ClipToBounds="True" PointerEventHandlersType="PanHighlight" IsVisible="{Binding PreviewVM.TwopageMode}">
 						<mupdf:PDFRenderer.ContextMenu>
 							<ContextMenu>
-								<MenuItem Header="Copy" Icon="{icxt:SymbolIconExtension Symbol=Clipboard}" Command="{Binding PreviewVM.CopyToClipboard}" CommandParameter="{Binding $parent[Window]}"/>
+								<MenuItem Header="Copy" Command="{Binding PreviewVM.CopyToClipboard}" CommandParameter="{Binding $parent[Window]}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Clipboard"/></MenuItem.Icon>
+								</MenuItem>
 							</ContextMenu>
 						</mupdf:PDFRenderer.ContextMenu>
 					</mupdf:PDFRenderer>
