@@ -1,10 +1,6 @@
-﻿using Avalonia.Media;
-using Newtonsoft.Json.Bson;
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
-using System.Drawing;
 using System.Globalization;
 using System.Linq;
 

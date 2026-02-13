@@ -199,6 +199,22 @@ namespace Finn.ViewModels
 
         public void ToggleDarkMode() => DarkMode = !DarkMode;
 
+        private Color themeRegionColor = Colors.White;
+        /// <summary>
+        /// The current theme region/background color, set externally by MainViewModel
+        /// when UI colors change. Used by <see cref="PreviewBackground"/> to compute
+        /// the correct inverse for the Difference blend.
+        /// </summary>
+        public Color ThemeRegionColor
+        {
+            get => themeRegionColor;
+            set
+            {
+                if (SetProperty(ref themeRegionColor, value))
+                    OnPropertyChanged(nameof(PreviewBackground));
+            }
+        }
+
         /// <summary>
         /// Background for the preview area. When DarkMode is on, this returns the
         /// RGB-inverse of the actual theme background so that after the
@@ -212,46 +228,16 @@ namespace Finn.ViewModels
                 if (!DarkMode)
                     return Brushes.Transparent;
 
-                // Read the actual theme background at runtime
-                Color bg = GetThemeBackgroundColor();
-
                 // Compute the RGB inverse: the Difference blend does |dst - src|
                 // with white (1,1,1), i.e. 1 - dst.  If we set dst = inverse(bg),
                 // the result is 1 - (1 - bg) = bg — the original theme color.
                 var inverted = Color.FromRgb(
-                    (byte)(255 - bg.R),
-                    (byte)(255 - bg.G),
-                    (byte)(255 - bg.B));
+                    (byte)(255 - ThemeRegionColor.R),
+                    (byte)(255 - ThemeRegionColor.G),
+                    (byte)(255 - ThemeRegionColor.B));
 
                 return new SolidColorBrush(inverted);
             }
-        }
-
-        /// <summary>
-        /// Resolves the current Fluent theme's region/background color at runtime.
-        /// Falls back to white if the resource isn't found.
-        /// </summary>
-        private static Color GetThemeBackgroundColor()
-        {
-            if (Avalonia.Application.Current is { } app)
-            {
-                // Avalonia Fluent exposes RegionColor via the SystemRegionColor resource
-                if (app.TryFindResource("SystemRegionColor", app.ActualThemeVariant, out var res)
-                    && res is Color regionColor)
-                {
-                    return regionColor;
-                }
-
-                // Fallback: try the SolidColorBrush-based resource
-                if (app.TryFindResource("SystemRegionBrush", app.ActualThemeVariant, out var brushRes)
-                    && brushRes is ISolidColorBrush brush)
-                {
-                    return brush.Color;
-                }
-            }
-
-            // Ultimate fallback
-            return Colors.White;
         }
         #endregion
 
@@ -1052,10 +1038,10 @@ namespace Finn.ViewModels
         #endregion
 
         /// <summary>
-        /// Forces re-evaluation of <see cref="PreviewBackground"/> when the
-        /// app theme changes at runtime while dark mode is active.
+        /// Updates the theme region color and forces re-evaluation of
+        /// <see cref="PreviewBackground"/>.
         /// </summary>
-        public void NotifyPreviewBackgroundChanged()
-            => OnPropertyChanged(nameof(PreviewBackground));
+        public void UpdateThemeRegionColor(Color color)
+            => ThemeRegionColor = color;
     }
 }

@@ -1,7 +1,4 @@
-﻿using Avalonia.Controls;
-using Avalonia.Media;
-using iText.Forms.Exceptions;
-using System;
+﻿using Avalonia.Media;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;

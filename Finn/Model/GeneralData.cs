@@ -2,8 +2,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Media;
-using System.Collections.Generic;
-using Avalonia.Controls.Primitives;
 using Avalonia.Styling;
 
 namespace Finn.Model

@@ -3,7 +3,6 @@
     using Finn.Views;
     using Avalonia;
     using Avalonia.Controls;
-    using Avalonia.Controls.Documents;
     using Avalonia.Platform.Storage;
     using Avalonia.Styling;
     using Avalonia.Themes.Fluent;
@@ -28,7 +27,6 @@
     using System.Linq;
     using System.Text;
     using System.Threading.Tasks;
-    using System.Transactions;
 
     namespace Finn.ViewModels
     {
@@ -191,7 +189,7 @@
             public bool PreviewEmbeddedOpen
             {
                 get { return previewEmbeddedOpen; }
-                set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); NewPreviewContext(); if (PreviewEmbeddedOpen) { PreviewWindowOpen = false; }; }
+                set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); if (PreviewEmbeddedOpen) { PreviewWindowOpen = false; }; }
             }
 
             private bool treeViewOpen = true;
@@ -690,10 +688,6 @@
                 window.ShowDialog(mainWindow);
             }
 
-            private void NewPreviewContext()
-            {
-            }
-
             private void SignalFontChanged(object sender, SelectionChangedEventArgs e)
             {
                 OnPropertyChanged("FontChanged");
@@ -797,7 +791,21 @@
                 if (val == "Color1" || val == "Color2" || val == "Color3" || val == "Color4")
                 {
                     SetWindowColors();
+                    SyncPreviewRegionColor();
                 }
+
+                if (val == "DarkMode")
+                {
+                    SyncPreviewRegionColor();
+                }
+            }
+
+            private void SyncPreviewRegionColor()
+            {
+                var color = Storage.General.DarkMode
+                    ? Storage.General.Color1
+                    : Storage.General.Color3;
+                PreviewVM.UpdateThemeRegionColor(color);
             }
 
             public void TrySetPage()
@@ -1093,6 +1101,7 @@
                 SetWindowColors();
                 SetWindowBorders();
                 GetGroups();
+                SyncPreviewRegionColor();
             }
 
             public async Task SaveFile(Avalonia.Visual window)
@@ -1228,35 +1237,20 @@
                 foreach (FileData file in CurrentFiles)
                 {
                     if (CurrentProject.Meta_1 == true) { store += file.Namn + "\t"; }
-                    ;
                     if (CurrentProject.Meta_2 == true) { store += file.Filtyp + "\t"; }
-                    ;
                     if (CurrentProject.Meta_3 == true) { store += file.Uppdrag + "\t"; }
-                    ;
                     if (CurrentProject.Meta_4 == true) { store += file.Tagg + "\t"; }
-                    ;
                     if (CurrentProject.Meta_5 == true) { store += file.Färg + "\t"; }
-                    ;
                     if (CurrentProject.Meta_6 == true) { store += file.Handling + "\t"; }
-                    ;
                     if (CurrentProject.Meta_7 == true) { store += file.Status + "\t"; }
-                    ;
                     if (CurrentProject.Meta_8 == true) { store += file.Datum + "\t"; }
-                    ;
                     if (CurrentProject.Meta_9 == true) { store += file.Ritningstyp + "\t"; }
-                    ;
                     if (CurrentProject.Meta_10 == true) { store += file.Beskrivning1 + "\t"; }
-                    ;
                     if (CurrentProject.Meta_11 == true) { store += file.Beskrivning2 + "\t"; }
-                    ;
                     if (CurrentProject.Meta_12 == true) { store += file.Beskrivning3 + "\t"; }
-                    ;
                     if (CurrentProject.Meta_13 == true) { store += file.Beskrivning4 + "\t"; }
-                    ;
                     if (CurrentProject.Meta_14 == true) { store += file.Revidering + "\t"; }
-                    ;
                     if (CurrentProject.Meta_15 == true) { store += file.Sökväg + "\t"; }
-                    ;
 
                     store += Environment.NewLine;
                 }
@@ -1365,7 +1359,7 @@
                 }
                 else
                 {
-                    SeachFiles();
+                    SearchFiles();
                 }
 
                 OnPropertyChanged("UpdateColumns");
@@ -1777,7 +1771,7 @@
                 }
             }
 
-            public async Task SelectProjectAsync(ProjectData project)
+            public void SelectProjectAsync(ProjectData project)
             {
                 CurrentProject = project;
             }
@@ -1959,7 +1953,7 @@
                 file.OtherFiles = new ObservableCollection<OtherData>(tempList);
             }
 
-            public void SeachFiles()
+            public void SearchFiles()
             {
                 FilteredFiles.Clear();
                 CurrentProject = new ProjectData() { Namn = SearchText, Category = "Search" };

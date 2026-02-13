@@ -2,11 +2,9 @@
 using Avalonia.Media.Imaging;
 using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace Finn.Model
 {

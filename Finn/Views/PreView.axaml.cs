@@ -39,8 +39,10 @@ public partial class PreView : UserControl
         {
             app.ActualThemeVariantChanged += (_, _) =>
             {
-                if (pwr.DarkMode)
-                    pwr.NotifyPreviewBackgroundChanged();
+                var color = ctx.Storage.General.DarkMode
+                    ? ctx.Storage.General.Color1
+                    : ctx.Storage.General.Color3;
+                pwr.UpdateThemeRegionColor(color);
             };
         }
     }
