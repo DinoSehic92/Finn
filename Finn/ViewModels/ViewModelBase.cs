@@ -99,6 +99,12 @@ namespace Finn.ViewModels
             }
         }
 
+        // Ensure exceptions from async dispose are logged to the file fallback
+        public override string ToString()
+        {
+            return GetType().FullName ?? base.ToString();
+        }
+
         public async ValueTask DisposeAsync()
         {
             await DisposeAsyncCore().ConfigureAwait(false);

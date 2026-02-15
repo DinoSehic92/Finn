@@ -937,7 +937,9 @@ namespace Finn.ViewModels
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
+                // Log to both the injected logger and the file-based fallback
                 logger?.LogError(ex, "Error during document search");
+                Finn.Utils.ErrorLogger.Log(ex, "PreviewViewModel.SearchDocumentAsync");
             }
             finally
             {

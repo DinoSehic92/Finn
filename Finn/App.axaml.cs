@@ -1,6 +1,8 @@
 ﻿using Finn.ViewModels;
 using Finn.Views;
 
+using System;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
@@ -35,6 +37,18 @@ public partial class App : Application
                 DataContext = new MainViewModel()
             };
         }
+
+        // Global exception handlers to capture unexpected errors from UI or background threads
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            Finn.Utils.ErrorLogger.Log(e.ExceptionObject as Exception, "AppDomain.UnhandledException");
+        };
+
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            Finn.Utils.ErrorLogger.Log(e.Exception, "TaskScheduler.UnobservedTaskException");
+            e.SetObserved();
+        };
 
         base.OnFrameworkInitializationCompleted();
     }
