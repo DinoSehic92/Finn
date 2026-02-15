@@ -857,48 +857,80 @@ namespace Finn.ViewModels
 
         private async Task SearchDocumentAsync(CancellationToken cancellationToken)
         {
-            if (MainPreviewFile == null || disposed) return;
+            // Capture current document reference to avoid races with SetFileAsync disposing
+            var doc = MainPreviewFile;
+            if (doc == null || disposed) return;
 
             try
             {
                 SearchBusy = true;
 
-                var foundPages = new List<(int pageIndex, int matchCount)>();
+                // run search against the captured document instance
+                List<(int pageIndex, int matchCount)> foundPagesLocal = new();
+                int localPageCount = Pagecount;
 
-                await Task.Run(() =>
+                // MuPDF structured-text APIs are not always safe to call from background threads
+                // — run each page extraction/search on the UI thread to avoid crashes.
+                var localResults = new List<(int pageIndex, int matchCount)>();
+                for (int i = 0; i < localPageCount; i++)
                 {
-                    for (int i = 0; i < Pagecount; i++)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        try
+                        // Execute the GetStructuredTextPage + Search on the UI thread
+                        int matchCount = await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            using var disposable = MainPreviewFile.GetStructuredTextPage(i);
+                            using var disposable = doc.GetStructuredTextPage(i);
                             var structuredPage = (MuPDFStructuredTextPage)disposable;
-                            int matchCount = structuredPage.Search(regex!).Count();
-                            if (matchCount > 0)
-                                foundPages.Add((i, matchCount));
-                        }
-                        catch (Exception ex)
-                        {
-                            logger?.LogWarning(ex, "Error searching page {Page}", i);
-                        }
+                            return structuredPage.Search(regex!).Count();
+                        }).GetTask().ConfigureAwait(false);
+
+                        if (matchCount > 0)
+                            localResults.Add((i, matchCount));
                     }
-                }, cancellationToken).ConfigureAwait(false);
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log and continue — individual page failures shouldn't crash the whole search
+                        logger?.LogWarning(ex, "Error searching page {Page}", i);
+                    }
+                }
+
+                foundPagesLocal = localResults;
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    // If the underlying document has changed while the background task ran,
+                    // abort updating search results for this captured document.
+                    if (MainPreviewFile != doc)
+                    {
+                        // Document changed — ignore these results
+                        return;
+                    }
+
                     SearchPagesText.Clear();
-                    foreach (var (pageIndex, matchCount) in foundPages)
+                    foreach (var (pageIndex, matchCount) in foundPagesLocal)
                     {
                         SearchPages.Add(pageIndex);
                         SearchPagesText.Add($"Page: {pageIndex + 1} - {matchCount} items");
                     }
-                    SearchItems = foundPages.Count;
+                    SearchItems = foundPagesLocal.Count;
                     if (SearchItems > 0)
                     {
                         SearchPageIndex = 0;
                         RequestPage1 = SearchPages[SearchPageIndex];
-                        mainRenderer?.Search(regex!);
+                        try
+                        {
+                            mainRenderer?.Search(regex!);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Guard against renderer errors (e.g. resource race) — log and continue
+                            logger?.LogWarning(ex, "Renderer search failed after indexed search result navigation");
+                        }
                     }
                 }).GetTask().ConfigureAwait(false);
             }
