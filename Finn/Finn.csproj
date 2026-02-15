@@ -48,6 +48,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Dialogs\xReinDia.axaml.cs">
+      <DependentUpon>xReinDia.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Dialogs\xProgDia.axaml.cs">
       <DependentUpon>xProgDia.axaml</DependentUpon>
     </Compile>

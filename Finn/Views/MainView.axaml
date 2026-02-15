@@ -291,6 +291,7 @@
 			<ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
 			<Button       ToolTip.Tip="Whiteboard"                               Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}"   CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Pen"   FontSize="18"/></Button>
+<Button       ToolTip.Tip="Reinforcement Calculator"                 Height="30" Width="35" Padding="0" Command="{Binding OpenReinforcementCalculator}"   CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Calculator"   FontSize="18"/></Button>
 			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="Info"                                     Height="30" Width="35" Padding="0" Command="{Binding OpenInfoDia}"      CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Info"  FontSize="18"/></Button>
 		</StackPanel>

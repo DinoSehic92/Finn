@@ -2,14 +2,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="210"
+        mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="230"
 		MinWidth="350"
-		MinHeight="210"
+		MinHeight="230"
 		MaxWidth="350"
-		MaxHeight="210"
+		MaxHeight="230"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialog.xProgDia"
-        Title="xProgDia"
+        Title="Info"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
@@ -19,10 +19,14 @@
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Width="300" Height="210" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
-				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
-					<ic:SymbolIcon Symbol="Info" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
-					<Label Content="Info" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
-				</StackPanel>
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,10,0,16">
+                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+                    <ContentControl>
+                        <ic:SymbolIcon Symbol="Info" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </ContentControl>
+                </Border>
+                <TextBlock Text="Info" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            </StackPanel>
 				<Grid Name="Info" HorizontalAlignment="Center" ColumnDefinitions="150,150" RowDefinitions="35,35,35,35">
 					
 					<Label Grid.Row="0" Grid.Column="0" Content="Compiled Date" VerticalAlignment="Center"/>

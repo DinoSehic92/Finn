@@ -662,6 +662,13 @@
                 window.Show();
             }
 
+            public void OpenReinforcementCalculator(Window mainWindow)
+            {
+                var window = new xReinDia();
+                ConfigureWindow(window, mainWindow);
+                window.Show();
+            }
+
             public void OpenPreviewWindow(ThemeVariant theme)
             {
                 PreviewWindow = new PreWindow()

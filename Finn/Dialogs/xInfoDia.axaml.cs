@@ -16,6 +16,11 @@ public partial class xInfoDia : TemplateWindow
         Loaded += SetupInfo;
     }
 
+    private void OnClose(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     private void SetupInfo(object sender, RoutedEventArgs e)
     {
 

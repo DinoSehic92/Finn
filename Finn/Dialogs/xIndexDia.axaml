@@ -18,12 +18,15 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-	<Grid RowDefinitions="70,*" ColumnDefinitions="*,*" VerticalAlignment="Top" Margin="5">
+	<Grid RowDefinitions="130,*" ColumnDefinitions="*,*" VerticalAlignment="Top" Margin="5">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
-			
-			<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center" Spacing="0" Margin="10">
-				<ic:SymbolIcon Symbol="Globe" VerticalAlignment="Center" HorizontalAlignment="Center" IconVariant="Regular" FontSize="30"/>
-				<Label Content="Indexed Content" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
+			<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,36,0,0">
+				<Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+					<ContentControl>
+						<ic:SymbolIcon Symbol="Globe" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+					</ContentControl>
+				</Border>
+				<TextBlock Text="Plain Text" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 			</StackPanel>
 
 			<DataGrid Name="IndexGrid" Grid.Column="0" Grid.Row="1" ItemsSource="{Binding IndexedContent}" SelectionMode="Single" SelectedItem="{Binding SelectedIndexedContent}"
