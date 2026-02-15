@@ -161,19 +161,19 @@
 						</StackPanel>
 					</Button>
 
-					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}">
+					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" Padding="5" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}">
 						<StackPanel>
 							<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
 						</StackPanel>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding TwopageMode}" IsChecked="{Binding LinkedPageMode}">
+					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" Padding="5" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding TwopageMode}" IsChecked="{Binding LinkedPageMode}">
 						<StackPanel>
 							<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
 						</StackPanel>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
+					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" Padding="5" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
 						<StackPanel>
 							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" IsVisible="{Binding !SearchMode}"/>
 							<ic:SymbolIcon Symbol="DocumentSearch" IconVariant="Regular" FontSize="16" IsVisible="{Binding SearchMode}"/>

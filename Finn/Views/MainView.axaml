@@ -54,16 +54,27 @@
 	</UserControl.Resources>
 
 	<UserControl.Styles>
+       <!-- Compact flyout presenter for toolbox popup -->
+		<Style Selector="FlyoutPresenter.compact">
+			<Setter Property="Padding" Value="2"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="MinWidth" Value="0"/>
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+		</Style>
 		<Style Selector="Border">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 		</Style>
 
 		<Style Selector="Button">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="ToggleButton">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="TextBox">
@@ -287,13 +298,32 @@
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-			<!-- Settings & tools group -->
+            <!-- Settings & tools group -->
 			<ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
-			<Button       ToolTip.Tip="Whiteboard"                               Height="30" Width="35" Padding="0" Command="{Binding OpenWhiteboard}"   CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Pen"   FontSize="18"/></Button>
-<Button       ToolTip.Tip="Reinforcement Calculator"                 Height="30" Width="35" Padding="0" Command="{Binding OpenReinforcementCalculator}"   CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Calculator"   FontSize="18"/></Button>
+
+            <!-- Toolbox: grouped tools (compact icon-only flyout) -->
+			<Button ToolTip.Tip="Toolbox" Height="30" Width="35" Padding="0">
+				<ic:SymbolIcon Symbol="Toolbox" FontSize="18"/>
+				<Button.Flyout>
+                    <Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
+                        <!-- compact vertical flyout with same-size buttons as toolbar -->
+						<StackPanel Orientation="Vertical" Width="38" Margin="1" Spacing="1">
+							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" Padding="0">
+								<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
+							</Button>
+							<Button ToolTip.Tip="Reinforcement" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenReinforcementCalculator}" CommandParameter="{Binding $parent[Window]}" Padding="0">
+								<ic:SymbolIcon Symbol="Calculator" FontSize="18"/>
+							</Button>
+							<Button ToolTip.Tip="Info" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenInfoDia}" CommandParameter="{Binding $parent[Window]}" Padding="0">
+								<ic:SymbolIcon Symbol="Info" FontSize="18"/>
+							</Button>
+						</StackPanel>
+					</Flyout>
+				</Button.Flyout>
+			</Button>
+
 			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<Button       ToolTip.Tip="Info"                                     Height="30" Width="35" Padding="0" Command="{Binding OpenInfoDia}"      CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Info"  FontSize="18"/></Button>
 		</StackPanel>
 
 		<!-- ═══════════════════════════════════════════════ -->

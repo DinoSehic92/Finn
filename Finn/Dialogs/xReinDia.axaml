@@ -65,7 +65,7 @@
                     <ic:SymbolIcon Symbol="Calculator" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </ContentControl>
             </Border>
-            <TextBlock Text="Reinforcement calculator" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            <TextBlock Text="Reinforcement calculator" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
