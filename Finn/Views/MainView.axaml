@@ -7,6 +7,7 @@
 			 xmlns:model="using:Finn.Model"
 			 xmlns:mupdf="clr-namespace:MuPDFCore.MuPDFRenderer;assembly=MuPDFCore.MuPDFRenderer"
 			 xmlns:converter="clr-namespace:Finn.Converters"
+			 xmlns:controls="clr-namespace:Finn.Controls"
 			 xmlns:ic="using:FluentIcons.Avalonia" 
 			 mc:Ignorable="d"
              x:Class="Finn.Views.MainView"
@@ -185,9 +186,9 @@
 		<!-- Center status message -->
 		<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
 					Spacing="4">
-			<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
-			<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
-					   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
+        <ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
+        <TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
+                   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
 		</StackPanel>
 
 		<!-- Progress bar -->
@@ -309,6 +310,9 @@
                     <Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
                         <!-- compact vertical flyout with same-size buttons as toolbar -->
 						<StackPanel Orientation="Vertical" Width="38" Margin="1" Spacing="1">
+                           <Button ToolTip.Tip="Analog Clock" Width="35" Height="30" Classes="rounded-default" Click="OnOpenAnalogClock" Padding="0">
+                               <ic:SymbolIcon Symbol="Clock" FontSize="18"/>
+                           </Button>
 							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" Padding="0">
 								<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
 							</Button>

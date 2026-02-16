@@ -12,6 +12,7 @@ using Finn.Model;
 using System.IO;
 using Avalonia.Styling;
 using System.Diagnostics;
+using Avalonia.VisualTree;
 
 namespace Finn.Views;
 
@@ -52,6 +53,20 @@ public partial class MainView : UserControl
         HoursCombo.AddHandler(ComboBox.SelectionChangedEvent, OnUpdateTotalTime);
 
         InitMetaworker();
+    }
+
+    private async void OnOpenAnalogClock(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var dialog = new Finn.Dialogs.AnalogWatchDialog();
+        if (this.FindAncestorOfType<Window>() is Window owner)
+        {
+            dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            await dialog.ShowDialog(owner);
+        }
+        else
+        {
+            dialog.Show(); // Not awaited, just show the window
+        }
     }
 
     #region Initialization
