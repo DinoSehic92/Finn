@@ -144,7 +144,7 @@
 
 		<!-- Add to UserControl.Styles -->
 		<Style Selector="DataGrid.ThumbnailGrid DataGridRow:pointerover">
-			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Cursor" Value="Arrow"/>
 		</Style>
 	</UserControl.Styles>
 
