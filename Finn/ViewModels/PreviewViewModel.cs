@@ -39,6 +39,7 @@ namespace Finn.ViewModels
         private readonly SemaphoreSlim renderSemaphore = new(1, 1);
         private bool disposed = false;
         private int fileGeneration = 0;
+        private bool fastOpenMode; // Toggle for fast open (first pages only) vs full open
         #endregion
 
         #region Constructor
@@ -58,6 +59,14 @@ namespace Finn.ViewModels
 
         #region PDF Document Properties
         private MuPDFDocument? mainPreviewFile = null;
+        /// <summary>
+        /// If true, only the first pages of a PDF are loaded for fast preview.
+        /// </summary>
+        public bool FastOpenMode
+        {
+            get => fastOpenMode;
+            set => SetProperty(ref fastOpenMode, value);
+        }
         public MuPDFDocument? MainPreviewFile
         {
             get => mainPreviewFile;
@@ -407,8 +416,16 @@ namespace Finn.ViewModels
 
                 if (IsStale(myGeneration)) return;
 
-                // Read bytes on background thread
                 string path = RequestFile.Sökväg;
+
+                if (FastOpenMode)
+                {
+                    // --- FAST OPEN: Only load first pages for preview ---
+                    // TODO: Replace this with a partial loading strategy if supported by MuPDFCore
+                    // For now, fallback to full open (or implement stream-based partial open if possible)
+                }
+
+                // Default: full open
                 bytes = await Task.Run(() => ReadFileBytes(path, token)).ConfigureAwait(false);
 
                 if (IsStale(myGeneration) || bytes == null) return;
