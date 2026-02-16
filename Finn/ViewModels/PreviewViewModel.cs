@@ -207,8 +207,6 @@ namespace Finn.ViewModels
             }
         }
 
-        public void ToggleDarkMode() => DarkMode = !DarkMode;
-
         private Color themeRegionColor = Colors.White;
         /// <summary>
         /// The current theme region/background color, set externally by MainViewModel

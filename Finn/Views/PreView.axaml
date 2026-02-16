@@ -126,10 +126,9 @@
 			<Border Grid.Column="1" BoxShadow="{Binding Storage.General.Shadow}"
 					Background="{DynamicResource TextControlBackground}" Margin="5"
 					Padding="4,0">
-				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}" Width="">
-
-                    <ToggleSwitch ToolTip.Tip="Fast Open (First Pages Only)" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="36" Height="20" Margin="0,0,8,0"/>
-                    <Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
+				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}">
+                   
+					<Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
                             TickFrequency="1" Maximum="{Binding Pagecount}" Value="{Binding RequestPage1, Mode=OneWay, Converter={StaticResource AddOneConverter}}"/>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -154,31 +153,24 @@
 						<ic:SymbolIcon Symbol="RotateRight" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-
-					<Button ToolTip.Tip="Toggle Dimmed Background, Ctrl + G" HotKey="Ctrl+G" FontWeight="Normal" Name="DimmedMode" Command="{Binding ToggleDarkMode}" ToolTip.Placement="Right">
-						<StackPanel>
-							<ic:SymbolIcon Symbol="WeatherMoonOff" IconVariant="Regular" FontSize="16" IsVisible="{Binding !DarkMode}"/>
-							<ic:SymbolIcon Symbol="WeatherMoon" IconVariant="Regular" FontSize="16" IsVisible="{Binding DarkMode}"/>
-						</StackPanel>
-					</Button>
-
-					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" Padding="5" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}">
-						<StackPanel>
-							<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
-						</StackPanel>
+					<ToggleButton ToolTip.Tip="Fast Open (First Pages Only)" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
+						<ic:SymbolIcon Symbol="FastAcceleration" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" Padding="5" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding TwopageMode}" IsChecked="{Binding LinkedPageMode}">
-						<StackPanel>
-							<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
-						</StackPanel>
+					<ToggleButton ToolTip.Tip="Toggle Dimmed Background, Ctrl + G" HotKey="Ctrl+G" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
+						<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" Padding="5" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
-						<StackPanel>
-							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" IsVisible="{Binding !SearchMode}"/>
-							<ic:SymbolIcon Symbol="DocumentSearch" IconVariant="Regular" FontSize="16" IsVisible="{Binding SearchMode}"/>
-						</StackPanel>
+					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}">
+						<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
+					</ToggleButton>
+
+					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding TwopageMode}" IsChecked="{Binding LinkedPageMode}">
+						<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
+					</ToggleButton>
+
+					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
+						<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" IsVisible="{Binding SearchMode}"/>
 					</ToggleButton>
 
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10 0 5 0">
