@@ -14,6 +14,17 @@ namespace Finn.Model
     /// </summary>
     public class GeneralData : INotifyPropertyChanged
     {
+        // Central default values — update here to change defaults across the app
+        // Dark mode defaults (background, accent)
+        public static readonly Avalonia.Media.Color DefaultColor1 = Avalonia.Media.Color.Parse("#1F2933");
+        public static readonly Avalonia.Media.Color DefaultColor2 = Avalonia.Media.Color.Parse("#0A84FF");
+        // Light mode defaults (background, accent) — slightly darker for better contrast
+        public static readonly Avalonia.Media.Color DefaultColor3 = Avalonia.Media.Color.Parse("#E9EEF5");
+        public static readonly Avalonia.Media.Color DefaultColor4 = Avalonia.Media.Color.Parse("#0066C0");
+
+        public static readonly string DefaultFontName = "Roboto";
+        public static readonly int DefaultFontSize = 15;
+
         private string savePath = "C:\\FIlePathManager";
         /// <summary>
         /// Gets or sets the save path.
@@ -24,7 +35,7 @@ namespace Finn.Model
             set { savePath = value; RaisePropertyChanged(nameof(SavePath)); }
         }
 
-        private Color color1 = Color.Parse("#333333");
+        private Color color1 = DefaultColor1;
         /// <summary>
         /// Gets or sets the first color.
         /// </summary>
@@ -34,7 +45,7 @@ namespace Finn.Model
             set { color1 = value; RaisePropertyChanged(nameof(Color1)); }
         }
 
-        private Color color2 = Color.Parse("#444444");
+        private Color color2 = DefaultColor2;
         /// <summary>
         /// Gets or sets the second color.
         /// </summary>
@@ -44,7 +55,7 @@ namespace Finn.Model
             set { color2 = value; RaisePropertyChanged(nameof(Color2)); }
         }
 
-        private Color color3 = Color.Parse("#dfe6e9");
+        private Color color3 = DefaultColor3;
         /// <summary>
         /// Gets or sets the third color.
         /// </summary>
@@ -54,7 +65,7 @@ namespace Finn.Model
             set { color3 = value; RaisePropertyChanged(nameof(Color3)); }
         }
 
-        private Color color4 = Color.Parse("#999999");
+        private Color color4 = DefaultColor4;
         /// <summary>
         /// Gets or sets the fourth color.
         /// </summary>
@@ -117,14 +128,14 @@ namespace Finn.Model
             set { shadowVal = value; RaisePropertyChanged("ShadowVal"); SetShadow(); }
         }
 
-        private int fontSize = 16;
+        private int fontSize = DefaultFontSize;
         public int FontSize
         {
             get { return fontSize; }
             set { fontSize = value; RaisePropertyChanged("FontSize"); RaisePropertyChanged("RowHeight");}
         }
 
-        private string font = "Default";
+        private string font = DefaultFontName;
         public string Font
         {
             get { return font; }

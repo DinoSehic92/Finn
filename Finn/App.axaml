@@ -6,10 +6,12 @@
 			 x:Class="Finn.App">
 
 	<Application.Styles>
-		<FluentTheme>
+       <FluentTheme>
 			<FluentTheme.Palettes>
-				<ColorPaletteResources x:Key="Light" Accent="#999999" RegionColor="#dfe6e9"/>
-				<ColorPaletteResources x:Key="Dark" Accent="#444444" RegionColor="#333333" />
+				<!-- Light mode: neutral surfaces with a vivid blue accent -->
+              <ColorPaletteResources x:Key="Light" Accent="#0066C0" RegionColor="#E9EEF5" />
+				<!-- Dark mode: deep charcoal surfaces with a brighter accent for contrast -->
+				<ColorPaletteResources x:Key="Dark" Accent="#0A84FF" RegionColor="#1F2933" />
 			</FluentTheme.Palettes>
 		</FluentTheme>
 

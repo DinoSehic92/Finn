@@ -30,20 +30,20 @@ public partial class xColorDia : TemplateWindow
 
     public void ResetDark(object sender, RoutedEventArgs e)
     {
-        BackgroundColorPickerDark.Color = Color.Parse("#333333");
-        AccentColorPickerDark.Color = Color.Parse("#444444");
+        BackgroundColorPickerDark.Color = Model.GeneralData.DefaultColor1;
+        AccentColorPickerDark.Color = Model.GeneralData.DefaultColor2;
     }
 
     public void ResetLight(object sender, RoutedEventArgs e)
     {
-        BackgroundColorPickerLight.Color = Color.Parse("#dfe6e9");
-        AccentColorPickerLight.Color = Color.Parse("#999999");
+        BackgroundColorPickerLight.Color = Model.GeneralData.DefaultColor3;
+        AccentColorPickerLight.Color = Model.GeneralData.DefaultColor4;
     }
 
     public void ResetFonts(object sender, RoutedEventArgs e)
     {
-        FontCombo.SelectedItem = "Roboto";
-        FontSizeCombo.SelectedValue = 15;
+        FontCombo.SelectedItem = Model.GeneralData.DefaultFontName;
+        FontSizeCombo.SelectedValue = Model.GeneralData.DefaultFontSize;
     }
 
     private void CloseKey(object sender, KeyEventArgs e)
