@@ -173,8 +173,8 @@
 						<MenuItem.Icon><ic:SymbolIcon Symbol="SaveEdit"/></MenuItem.Icon>
 					</MenuItem>
 					<Separator/>
-					<MenuItem Header="Backup"  Command="{Binding BackupSaveFile}">
-						<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowCircleUp"/></MenuItem.Icon>
+                    <MenuItem Header="Backup"  Command="{Binding BackupSaveFile}">
+						<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowUp"/></MenuItem.Icon>
 					</MenuItem>
 					<MenuItem Header="Reset"   Command="{Binding ResetPreviewer}">
 						<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowReset"/></MenuItem.Icon>
@@ -300,7 +300,7 @@
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
             <!-- Settings & tools group -->
-			<ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="WeatherSunny" IconVariant="Regular" FontSize="18"/></ToggleButton>
+            <ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
 
             <!-- Toolbox: grouped tools (compact icon-only flyout) -->
@@ -483,6 +483,12 @@
 						</MenuItem>
 
 						<MenuItem Header="Tools">
+							<MenuItem Header="Debugger">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Bug"/></MenuItem.Icon>
+								<MenuItem Header="Benchmark Fast Open" Click="OnBenchmarkFastOpen">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Clock"/></MenuItem.Icon>
+								</MenuItem>
+							</MenuItem>
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
 							<MenuItem Header="Status">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
@@ -496,8 +502,8 @@
 							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Watermark">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Warning"/></MenuItem.Icon>
+                            <MenuItem Header="Watermark">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
 								</MenuItem>

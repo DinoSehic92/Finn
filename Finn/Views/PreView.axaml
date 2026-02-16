@@ -153,8 +153,8 @@
 						<ic:SymbolIcon Symbol="RotateRight" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-					<ToggleButton ToolTip.Tip="Fast Open (First Pages Only)" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
-						<ic:SymbolIcon Symbol="FastAcceleration" IconVariant="Regular" FontSize="16"/>
+                    <ToggleButton ToolTip.Tip="Fast Open (First Pages Only)" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
+						<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
 					<ToggleButton ToolTip.Tip="Toggle Dimmed Background, Ctrl + G" HotKey="Ctrl+G" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">

@@ -11,10 +11,12 @@ using Avalonia.Collections;
 using MuPDFCore;
 using Avalonia.Threading;
 using System.IO;
+using System.Net.Http;
 using System.Collections.Generic;
 using MuPDFCore.StructuredText;
 using System.Linq;
 using Avalonia.Controls;
+using System.Diagnostics;
 
 namespace Finn.ViewModels
 {
@@ -418,12 +420,64 @@ namespace Finn.ViewModels
 
                 if (FastOpenMode)
                 {
-                    // --- FAST OPEN: Only load first pages for preview ---
-                    // TODO: Replace this with a partial loading strategy if supported by MuPDFCore
-                    // For now, fallback to full open (or implement stream-based partial open if possible)
+                    // FAST OPEN: open document by filepath rather than reading whole file into memory.
+                    // Opening by path lets the native renderer perform on-demand reads which
+                    // works better for slow servers and avoids large managed allocations.
+                    MuPDFContext previewContext = null!;
+                    MuPDFDocument previewDoc = null!;
+
+                    await Task.Run(() =>
+                    {
+                        if (token.IsCancellationRequested) return;
+                        previewContext = new MuPDFContext();
+                        // Use file-based constructor when available — this delegates IO to native layer
+                        // and avoids buffering the entire file in managed memory.
+                        previewDoc = new MuPDFDocument(previewContext, path);
+                    }).ConfigureAwait(false);
+
+                    if (IsStale(myGeneration))
+                    {
+                        // Another call superseded us — dispose what we just created
+                        previewDoc?.Dispose();
+                        previewContext?.Dispose();
+                        return;
+                    }
+
+                    // Swap fields atomically: capture old refs first
+                    var prevDoc = MainPreviewFile;
+                    var prevCtx = context;
+
+                    MainPreviewFile = previewDoc;
+                    context = previewContext;
+                    Pagecount = previewDoc.Pages.Count;
+                    CurrentFile = RequestFile;
+
+                    // Dispose old refs in correct order (document before context)
+                    prevDoc?.Dispose();
+                    prevCtx?.Dispose();
+
+                    fileAvailable = true;
+
+                    // Render on UI thread
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (IsStale(myGeneration)) return;
+
+                        LinkedPageMode = true;
+                        SetDefaultPage();
+
+                        if (!string.IsNullOrEmpty(search))
+                        {
+                            SearchMode = true;
+                            _ = SearchAsync(search, token);
+                        }
+                    }).GetTask().ConfigureAwait(false);
+
+                    // Fast-open path complete
+                    return;
                 }
 
-                // Default: full open
+                // Default: full open (read into memory and create from bytes)
                 bytes = await Task.Run(() => ReadFileBytes(path, token)).ConfigureAwait(false);
 
                 if (IsStale(myGeneration) || bytes == null) return;
@@ -1098,5 +1152,106 @@ namespace Finn.ViewModels
         /// </summary>
         public void UpdateThemeRegionColor(Color color)
             => ThemeRegionColor = color;
+
+        /// <summary>
+        /// Benchmark the two open strategies (file-path vs in-memory) by timing
+        /// MuPDF document creation using the current RequestFile path.
+        /// Results are logged and the StatusMessage is updated. This should be
+        /// invoked manually (e.g. from a debug command) — it performs UI-thread
+        /// work to safely construct native MuPDF objects.
+        /// </summary>
+        public async Task BenchmarkFastOpenAsync(int iterations = 3, CancellationToken cancellationToken = default)
+        {
+            if (RequestFile?.Sökväg == null)
+            {
+                logger?.LogWarning("No request file to benchmark");
+                return;
+            }
+
+            string path = RequestFile.Sökväg;
+            var fileTimes = new List<long>();
+            var memTimes = new List<long>();
+
+            try
+            {
+                for (int i = 0; i < Math.Max(1, iterations); i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    StatusMessage = $"Benchmark iteration {i + 1}/{iterations}: file open...";
+
+                    var sw = Stopwatch.StartNew();
+                    MuPDFContext? ctxF = null;
+                    MuPDFDocument? docF = null;
+
+                    // Create on UI thread for safety
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ctxF = new MuPDFContext();
+                        docF = new MuPDFDocument(ctxF, path);
+                    }).GetTask().ConfigureAwait(false);
+
+                    sw.Stop();
+                    fileTimes.Add(sw.ElapsedMilliseconds);
+
+                    // Dispose created preview objects on UI thread
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        try { docF?.Dispose(); ctxF?.Dispose(); }
+                        catch (Exception ex) { logger?.LogWarning(ex, "Error disposing benchmark file doc"); }
+                    }).GetTask().ConfigureAwait(false);
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    StatusMessage = $"Benchmark iteration {i + 1}/{iterations}: memory open (read + create)...";
+
+                    var sw2 = Stopwatch.StartNew();
+
+                    // Read bytes off-ui-thread
+                    var data = await Task.Run(() => ReadFileBytes(path, cancellationToken)).ConfigureAwait(false);
+
+                    if (data == null)
+                    {
+                        logger?.LogWarning("Benchmark cancelled or failed to read bytes");
+                        break;
+                    }
+
+                    MuPDFContext? ctxM = null;
+                    MuPDFDocument? docM = null;
+                    // Create from bytes on UI thread as well
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        ctxM = new MuPDFContext();
+                        docM = new MuPDFDocument(ctxM, data, InputFileTypes.PDF);
+                    }).GetTask().ConfigureAwait(false);
+
+                    sw2.Stop();
+                    memTimes.Add(sw2.ElapsedMilliseconds);
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        try { docM?.Dispose(); ctxM?.Dispose(); }
+                        catch (Exception ex) { logger?.LogWarning(ex, "Error disposing benchmark memory doc"); }
+                    }).GetTask().ConfigureAwait(false);
+                }
+
+                // Summarize
+                long avgFile = fileTimes.Count > 0 ? (long)fileTimes.Average() : 0;
+                long avgMem = memTimes.Count > 0 ? (long)memTimes.Average() : 0;
+
+                logger?.LogInformation("Benchmark results for {Path}: file-based avg {FileMs} ms, memory-based avg {MemMs} ms", path, avgFile, avgMem);
+                StatusMessage = $"Benchmark complete: file {avgFile} ms, memory {avgMem} ms";
+            }
+            catch (OperationCanceledException)
+            {
+                logger?.LogInformation("Benchmark cancelled");
+                StatusMessage = "Benchmark cancelled";
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error during benchmark");
+                StatusMessage = "Benchmark error";
+            }
+        }
     }
 }

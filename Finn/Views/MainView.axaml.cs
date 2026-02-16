@@ -12,6 +12,7 @@ using Finn.Model;
 using System.IO;
 using Avalonia.Styling;
 using System.Diagnostics;
+using System.Threading;
 using Avalonia.VisualTree;
 
 namespace Finn.Views;
@@ -53,6 +54,22 @@ public partial class MainView : UserControl
         HoursCombo.AddHandler(ComboBox.SelectionChangedEvent, OnUpdateTotalTime);
 
         InitMetaworker();
+    }
+
+    private async void OnBenchmarkFastOpen(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_pwr == null) return;
+            // Run small benchmark (3 iterations) and show a short message when done
+            var cts = new CancellationTokenSource();
+            await _pwr.BenchmarkFastOpenAsync(3, cts.Token);
+            // Show a simple info dialog via logger and status binding — StatusMessage is updated by the benchmark
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
     }
 
     private async void OnOpenAnalogClock(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
