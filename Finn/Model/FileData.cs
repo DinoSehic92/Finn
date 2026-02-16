@@ -62,6 +62,9 @@ namespace Finn.Model
         /// <summary>
         /// Gets or sets the file name.
         /// </summary>
+        /// <summary>
+        /// Gets or sets the file name.
+        /// </summary>
         public string Namn
         {
             get => _namn;
@@ -71,12 +74,18 @@ namespace Finn.Model
         /// <summary>
         /// Gets or sets the file status.
         /// </summary>
+        /// <summary>
+        /// Gets or sets the file status.
+        /// </summary>
         public string FileStatus
         {
             get => _fileStatus;
             set => SetProperty(ref _fileStatus, value);
         }
 
+        /// <summary>
+        /// Gets or sets the file tag.
+        /// </summary>
         /// <summary>
         /// Gets or sets the file tag.
         /// </summary>

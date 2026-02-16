@@ -6,180 +6,177 @@ using System.Linq;
 
 namespace Finn.Model
 {
+    /// <summary>
+    /// Represents a calendar entry with notes, reminders, and timesheet data.
+    /// </summary>
     public class CalendarData : INotifyPropertyChanged
     {
 
         private DateOnly date;
+        /// <summary>
+        /// Gets or sets the date for this calendar entry.
+        /// </summary>
         public DateOnly Date
         {
-            get { return date; }
-            set { date = value; RaisePropertyChanged("Date"); }
+            get => date;
+            set { date = value; RaisePropertyChanged(nameof(Date)); }
         }
 
+        /// <summary>
+        /// Gets the week of the month for this date.
+        /// </summary>
         public int WeekOfMonth
         {
-            get 
+            get
             {
-
                 int firstWeek = ISOWeek.GetWeekOfYear(new DateTime(Date.Year, Date.Month, 1));
                 int currentWeek = ISOWeek.GetWeekOfYear(new DateTime(Date.Year, Date.Month, Date.Day));
-
                 return currentWeek - firstWeek;
             }
         }
 
+        /// <summary>
+        /// Gets a string representation of the date, or " - " for weekends.
+        /// </summary>
         public string DateString
         {
             get
             {
                 string text = date.ToString();
-
                 if (Date.DayOfWeek == DayOfWeek.Saturday || Date.DayOfWeek == DayOfWeek.Sunday)
                 {
                     text = " - ";
                 }
-
                 return text;
             }
         }
 
+        /// <summary>
+        /// Gets a string with icons for notes and time, or " - " for weekends.
+        /// </summary>
         public string DateStringIcon
         {
             get
             {
                 string text = date.ToString() + "⠀";
-
                 if (HasNote)
-                {
-                    text = text + "📝 ";
-                }
-
+                    text += "📝 ";
                 if (HasTime)
-                {
-                    text = text + "🕑 ";
-                }
-
+                    text += "🕑 ";
                 if (Date.DayOfWeek == DayOfWeek.Saturday || Date.DayOfWeek == DayOfWeek.Sunday)
-                {
                     text = " - ";
-                }
                 else
-                {
-                    text = text + " " + TotalTime;
-                }
-
+                    text += " " + TotalTime;
                 return text;
             }
         }
 
 
         private string note1 = string.Empty;
+        /// <summary>
+        /// Gets or sets the first note.
+        /// </summary>
         public string Note1
         {
-            get { return note1; }
-            set { note1 = value; RaisePropertyChanged("Note1"); RaisePropertyChanged("DateString"); RaisePropertyChanged("DateStringIcon"); }
+            get => note1;
+            set { note1 = value; RaisePropertyChanged(nameof(Note1)); RaisePropertyChanged(nameof(DateString)); RaisePropertyChanged(nameof(DateStringIcon)); }
         }
 
         private string note2 = string.Empty;
+        /// <summary>
+        /// Gets or sets the second note.
+        /// </summary>
         public string Note2
         {
-            get { return note2; }
-            set { note2 = value; RaisePropertyChanged("Note2"); RaisePropertyChanged("DateString"); RaisePropertyChanged("DateStringIcon"); }
+            get => note2;
+            set { note2 = value; RaisePropertyChanged(nameof(Note2)); RaisePropertyChanged(nameof(DateString)); RaisePropertyChanged(nameof(DateStringIcon)); }
         }
 
         private string reminder = string.Empty;
+        /// <summary>
+        /// Gets or sets the reminder.
+        /// </summary>
         public string Reminder
         {
-            get { return reminder; }
-            set { reminder = value; RaisePropertyChanged("Reminder"); RaisePropertyChanged("DateString"); RaisePropertyChanged("DateStringIcon"); }
+            get => reminder;
+            set { reminder = value; RaisePropertyChanged(nameof(Reminder)); RaisePropertyChanged(nameof(DateString)); RaisePropertyChanged(nameof(DateStringIcon)); }
         }
 
+        /// <summary>
+        /// Gets the total time from all timesheets, or null if none.
+        /// </summary>
         public int? TotalTime
         {
-            get {
-                int? time = null;
-                if (TimeSheets.Select(x => x.Hours).Sum() != 0)
-                {
-                    return TimeSheets.Select(x => x.Hours).Sum();
-                }
-                else
-                {
-                    return null;
-                }
+            get
+            {
+                int sum = TimeSheets.Select(x => x.Hours).Sum();
+                return sum != 0 ? sum : null;
             }
         }
 
-        private ObservableCollection<TimeSheetData> timeSheets = new ObservableCollection<TimeSheetData>();
-
+        private ObservableCollection<TimeSheetData> timeSheets = new();
+        /// <summary>
+        /// Gets or sets the collection of timesheets.
+        /// </summary>
         public ObservableCollection<TimeSheetData> TimeSheets
         {
-            get { return timeSheets; }
-            set { timeSheets = value; RaisePropertyChanged("TimeSheets");}
+            get => timeSheets;
+            set { timeSheets = value; RaisePropertyChanged(nameof(TimeSheets)); }
         }
 
         private string currentTimeSheetProjectDiary = string.Empty;
+        /// <summary>
+        /// Gets or sets the diary for the current timesheet project.
+        /// </summary>
         public string CurrentTimeSheetProjectDiary
         {
-            get { return currentTimeSheetProjectDiary; }
-            set { currentTimeSheetProjectDiary = value; RaisePropertyChanged("CurrentTimeSheetProjectDiary"); }
+            get => currentTimeSheetProjectDiary;
+            set { currentTimeSheetProjectDiary = value; RaisePropertyChanged(nameof(CurrentTimeSheetProjectDiary)); }
         }
 
         private int? currentTimeSheetProjectTime = null;
+        /// <summary>
+        /// Gets or sets the time for the current timesheet project.
+        /// </summary>
         public int? CurrentTimeSheetProjectTime
         {
-            get { return currentTimeSheetProjectTime; }
-            set { currentTimeSheetProjectTime = value; RaisePropertyChanged("CurrentTimeSheetProjectTime"); }
+            get => currentTimeSheetProjectTime;
+            set { currentTimeSheetProjectTime = value; RaisePropertyChanged(nameof(CurrentTimeSheetProjectTime)); }
         }
 
+        /// <summary>
+        /// Triggers property change notifications for date string properties.
+        /// </summary>
         public void TriggerDateStringUpdate()
         {
-            RaisePropertyChanged("DateString");
-            RaisePropertyChanged("DateStringIcon");
+            RaisePropertyChanged(nameof(DateString));
+            RaisePropertyChanged(nameof(DateStringIcon));
         }
 
-        public bool HasNote
-        {
-            get
-            {
-                if (Note1.Length > 0 || Note2.Length > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
+        /// <summary>
+        /// Gets whether this entry has a note.
+        /// </summary>
+        public bool HasNote => Note1.Length > 0 || Note2.Length > 0;
 
-        public bool HasTime
-        {
-            get
-            {
-                if (TimeSheets.Count > 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
+        /// <summary>
+        /// Gets whether this entry has time data.
+        /// </summary>
+        public bool HasTime => TimeSheets.Count > 0;
 
 
+        /// <summary>
+        /// Sets the diary and time for the current timesheet project.
+        /// </summary>
         public void SetCurrentTimeSheetProjectDiary(string text)
         {
-
-            if (TimeSheets.Where(x => x.Project == text).Count() > 0)
+            if (TimeSheets.Any(x => x.Project == text))
             {
                 string diary = string.Empty;
                 int time = 0;
-
                 foreach (TimeSheetData timeSheet in TimeSheets.Where(x => x.Project == text))
                 {
-                    diary = diary + timeSheet.Diary;
-                    time = time + timeSheet.Hours;
+                    diary += timeSheet.Diary;
+                    time += timeSheet.Hours;
                 }
                 CurrentTimeSheetProjectDiary = diary;
                 CurrentTimeSheetProjectTime = time;
@@ -189,16 +186,13 @@ namespace Finn.Model
                 CurrentTimeSheetProjectDiary = string.Empty;
                 CurrentTimeSheetProjectTime = null;
             }
-
-
         }
 
 
         private void RaisePropertyChanged(string propName)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

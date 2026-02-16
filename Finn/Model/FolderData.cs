@@ -6,6 +6,9 @@ namespace Finn.Model
     /// <summary>
     /// Represents a folder and its metadata.
     /// </summary>
+    /// <summary>
+    /// Represents a folder and its metadata.
+    /// </summary>
     public class FolderData : INotifyPropertyChanged
     {
         private string name = string.Empty;
@@ -21,19 +24,18 @@ namespace Finn.Model
         /// <summary>
         /// Gets the folder name with attributes (valid/invalid).
         /// </summary>
+        /// <summary>
+        /// Gets the folder name with attributes (valid/invalid).
+        /// </summary>
         public string NameWithAttributes
         {
             get
             {
                 string nameWithAttributes = Name;
                 if (IsValid())
-                {
                     nameWithAttributes += "⠀✓";
-                }
                 else
-                {
                     nameWithAttributes += "⠀✗";
-                }
                 return nameWithAttributes;
             }
         }
@@ -81,6 +83,6 @@ namespace Finn.Model
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

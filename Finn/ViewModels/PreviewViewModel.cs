@@ -1,25 +1,26 @@
 ﻿using System.ComponentModel;
 using System.Threading.Tasks;
-using System.Diagnostics;
-using MuPDFCore;
 using System.Threading;
-using System.IO;
 using Finn.Model;
 using System;
-using Avalonia.Threading;
-using MuPDFCore.MuPDFRenderer;
-using Avalonia.Media;
-using System.Text.RegularExpressions;
-using System.Linq;
-using Avalonia.Collections;
-using Avalonia.Controls;
-using MuPDFCore.StructuredText;
 using Microsoft.Extensions.Logging;
+using Avalonia.Media;
+using MuPDFCore.MuPDFRenderer;
+using System.Text.RegularExpressions;
+using Avalonia.Collections;
+using MuPDFCore;
+using Avalonia.Threading;
+using System.IO;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+using MuPDFCore.StructuredText;
+using System.Linq;
+using Avalonia.Controls;
 
 namespace Finn.ViewModels
 {
+    /// <summary>
+    /// View model for previewing files and handling PDF rendering.
+    /// </summary>
     public class PreviewViewModel : ViewModelBase, IAsyncDisposable
     {
         #region Constants

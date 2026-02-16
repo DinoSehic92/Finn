@@ -2,13 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Finn.ViewModels
 {
+    /// <summary>
+    /// Base class for all view models, provides property change and async support.
+    /// </summary>
     public abstract class ViewModelBase : ObservableObject, IAsyncDisposable
     {
         #region Fields

@@ -1,35 +1,38 @@
-﻿    using Finn.Dialog;
-    using Finn.Model;
-    using Finn.Views;
-    using Avalonia;
-    using Avalonia.Controls;
-    using Avalonia.Platform.Storage;
-    using Avalonia.Styling;
-    using Avalonia.Themes.Fluent;
-    using iText.IO.Font;
-    using iText.IO.Font.Constants;
-    using iText.Kernel.Colors;
-    using iText.Kernel.Font;
-    using iText.Kernel.Pdf;
-    using iText.Kernel.Pdf.Canvas;
-    using iText.Layout;
-    using iText.Layout.Element;
-    using iText.Layout.Properties;
-    using MuPDFCore;
-    using Newtonsoft.Json;
-    using System;
-    using System.Collections.Generic;
+﻿    using Finn.Model;
     using System.Collections.ObjectModel;
     using System.ComponentModel;
-    using System.Diagnostics;
-    using System.Globalization;
-    using System.IO;
+    using System;
     using System.Linq;
-    using System.Text;
     using System.Threading.Tasks;
+using System.Collections.Generic;
+using Avalonia.Controls;
+using System.IO;
+using System.Globalization;
+using Finn.Dialog;
+using Avalonia.Styling;
+using Finn.Views;
+using MuPDFCore;
+using Newtonsoft.Json;
+using Avalonia;
+using Avalonia.Platform.Storage;
+using Avalonia.Themes.Fluent;
+using System.Text;
+using System.Diagnostics;
+using iText.Kernel.Pdf;
+using iText.Kernel.Font;
+using iText.Layout;
+using iText.IO.Font;
+using iText.IO.Font.Constants;
+using iText.Kernel.Pdf.Canvas;
+using iText.Layout.Element;
+using iText.Kernel.Colors;
+using iText.Layout.Properties;
 
-    namespace Finn.ViewModels
+namespace Finn.ViewModels
     {
+        /// <summary>
+        /// Main view model for the application, handles core logic and state.
+        /// </summary>
         public partial class MainViewModel : ViewModelBase, INotifyPropertyChanged
         {
             // Constants for magic strings
@@ -51,11 +54,14 @@
                 SetDefaultType();
             }
 
-            private PreviewViewModel previewVM = new();
+            private PreviewViewModel _previewVM = new();
+            /// <summary>
+            /// Gets or sets the preview view model.
+            /// </summary>
             public PreviewViewModel PreviewVM
             {
-                get { return previewVM; }
-                set { previewVM = value; OnPropertyChanged(nameof(PreviewVM)); }
+                get => _previewVM;
+                set { _previewVM = value; OnPropertyChanged(nameof(PreviewVM)); }
             }
 
             public List<string[]> MetaStore = new();

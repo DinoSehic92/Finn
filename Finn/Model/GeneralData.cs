@@ -9,6 +9,9 @@ namespace Finn.Model
     /// <summary>
     /// Represents general application data and color settings.
     /// </summary>
+    /// <summary>
+    /// Represents general application data and color settings.
+    /// </summary>
     public class GeneralData : INotifyPropertyChanged
     {
         private string savePath = "C:\\FIlePathManager";
@@ -215,6 +218,6 @@ namespace Finn.Model
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

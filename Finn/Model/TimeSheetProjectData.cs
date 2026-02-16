@@ -5,6 +5,7 @@ namespace Finn.Model
     /// <summary>
     /// Represents a timesheet project and its associated data.
     /// </summary>
+    /// 
     public class TimeSheetProjectData : INotifyPropertyChanged
     {
         private string project = string.Empty;
@@ -91,6 +92,6 @@ namespace Finn.Model
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

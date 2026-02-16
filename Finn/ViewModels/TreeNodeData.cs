@@ -8,6 +8,9 @@ namespace Finn.ViewModels
     /// <summary>
     /// Lightweight data model for tree view nodes, replacing direct TreeViewItem creation in code-behind.
     /// </summary>
+    /// <summary>
+    /// Lightweight data model for tree view nodes, replacing direct TreeViewItem creation in code-behind.
+    /// </summary>
     public class TreeNodeData : INotifyPropertyChanged
     {
         public string Header { get; init; } = string.Empty;

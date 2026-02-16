@@ -11,6 +11,9 @@ namespace Finn.Model
     /// <summary>
     /// Represents other file data, including icon and folder info.
     /// </summary>
+    /// <summary>
+    /// Represents other file data, including icon and folder info.
+    /// </summary>
     public class OtherData : INotifyPropertyChanged
     {
         private string name = string.Empty;
@@ -86,6 +89,9 @@ namespace Finn.Model
         /// <summary>
         /// Gets the Avalonia bitmap for the icon.
         /// </summary>
+        /// <summary>
+        /// Gets the Avalonia bitmap for the icon.
+        /// </summary>
         public Avalonia.Media.Imaging.Bitmap? Icon => GetAvaloniaBitmap();
 
 
@@ -131,6 +137,6 @@ namespace Finn.Model
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }
