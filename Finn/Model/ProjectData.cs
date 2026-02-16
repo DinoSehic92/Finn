@@ -6,63 +6,58 @@ using System.Linq;
 
 namespace Finn.Model
 {
+    /// <summary>
+    /// Represents a project and its associated metadata, files, and folders.
+    /// </summary>
     public class ProjectData : INotifyPropertyChanged
     {
         private ObservableCollection<FileData> storedFiles = new ObservableCollection<FileData>();
-        public ObservableCollection<FileData> StoredFiles
-        {
-            get { return storedFiles; }
-            set { storedFiles = value; RaisePropertyChanged("StoredFiles"); }
-        }
+        /// <summary>
+        /// Gets or sets the collection of stored files for the project.
+        /// </summary>
+        public ObservableCollection<FileData> StoredFiles { get; set; } = new ObservableCollection<FileData>();
 
         private string namn = string.Empty;
-        public string Namn
-        {
-            get { return namn; }
-            set { namn = value; RaisePropertyChanged("Namn"); }
-        }
+        /// <summary>
+        /// Gets or sets the project name.
+        /// </summary>
+        public string Namn { get; set; } = string.Empty;
 
         private string category = "Project";
-        public string Category
-        {
-            get { return category; }
-            set { category = value; RaisePropertyChanged("Category"); RaisePropertyChanged("AllowedTypes"); }
-        }
+        /// <summary>
+        /// Gets or sets the project category.
+        /// </summary>
+        public string Category { get; set; } = "Project";
 
         private string parent = null;
-        public string Parent
-        {
-            get { return parent; }
-            set { parent = value; RaisePropertyChanged("Parent"); }
-        }
+        /// <summary>
+        /// Gets or sets the parent project name.
+        /// </summary>
+        public string? Parent { get; set; }
 
         private Color foreground = Color.Parse("#FFFFFFFF");
-        public Color Foreground
-        {
-            get { return foreground; }
-            set { foreground = value; RaisePropertyChanged("Foreground"); }
-        }
+        /// <summary>
+        /// Gets or sets the foreground color for the project.
+        /// </summary>
+        public Color Foreground { get; set; } = Color.Parse("#FFFFFFFF");
 
         private List<string> filetypes = new List<string>();
-        public List<string> Filetypes
-        {
-            get { return filetypes; }
-            set { filetypes = value; RaisePropertyChanged("Filetypes"); }
-        }
+        /// <summary>
+        /// Gets or sets the list of file types in the project.
+        /// </summary>
+        public List<string> Filetypes { get; set; } = new();
 
         private ObservableCollection<string> filetypesTree = new ObservableCollection<string>();
-        public ObservableCollection<string> FiletypesTree
-        {
-            get { return filetypesTree; }
-            set { filetypesTree = value; RaisePropertyChanged("FiletypesTree"); }
-        }
+        /// <summary>
+        /// Gets or sets the tree of file types in the project.
+        /// </summary>
+        public ObservableCollection<string> FiletypesTree { get; set; } = new();
 
         private ObservableCollection<FolderData> folders = new ObservableCollection<FolderData>();
-        public ObservableCollection<FolderData> Folders
-        {
-            get { return folders; }
-            set { folders = value; RaisePropertyChanged("Folders"); }
-        }
+        /// <summary>
+        /// Gets or sets the collection of folders in the project.
+        /// </summary>
+        public ObservableCollection<FolderData> Folders { get; set; } = new();
 
         private bool meta_1 = true;
         private bool meta_2 = false;
@@ -81,86 +76,70 @@ namespace Finn.Model
         private bool meta_15 = false;
         private bool meta_16 = false;
 
-        public bool Meta_1
-        {
-            get { return meta_1; }
-            set { meta_1 = value; RaisePropertyChanged("Meta_1"); }
-        }
-        public bool Meta_2
-        {
-            get { return meta_2; }
-            set { meta_2 = value; RaisePropertyChanged("Meta_2"); }
-        }
-        public bool Meta_3
-        {
-            get { return meta_3; }
-            set { meta_3 = value; RaisePropertyChanged("Meta_3"); }
-        }
-        public bool Meta_4
-        {
-            get { return meta_4; }
-            set { meta_4 = value; RaisePropertyChanged("Meta_4"); }
-        }
-        public bool Meta_5
-        {
-            get { return meta_5; }
-            set { meta_5 = value; RaisePropertyChanged("Meta_5"); }
-        }
-        public bool Meta_6
-        {
-            get { return meta_6; }
-            set { meta_6 = value; RaisePropertyChanged("Meta_6"); }
-        }
-        public bool Meta_7
-        {
-            get { return meta_7; }
-            set { meta_7 = value; RaisePropertyChanged("Meta_7"); }
-        }
-        public bool Meta_8
-        {
-            get { return meta_8; }
-            set { meta_8 = value; RaisePropertyChanged("Meta_8"); }
-        }
-        public bool Meta_9
-        {
-            get { return meta_9; }
-            set { meta_9 = value; RaisePropertyChanged("Meta_9"); }
-        }
-        public bool Meta_10
-        {
-            get { return meta_10; }
-            set { meta_10 = value; RaisePropertyChanged("Meta_10"); }
-        }
-        public bool Meta_11
-        {
-            get { return meta_11; }
-            set { meta_11 = value; RaisePropertyChanged("Meta_11"); }
-        }
-        public bool Meta_12
-        {
-            get { return meta_12; }
-            set { meta_12 = value; RaisePropertyChanged("Meta_12"); }
-        }
-        public bool Meta_13
-        {
-            get { return meta_13; }
-            set { meta_13 = value; RaisePropertyChanged("Meta_13"); }
-        }
-        public bool Meta_14
-        {
-            get { return meta_14; }
-            set { meta_14 = value; RaisePropertyChanged("Meta_14"); }
-        }
-        public bool Meta_15
-        {
-            get { return meta_15; }
-            set { meta_15 = value; RaisePropertyChanged("Meta_15"); }
-        }
-        public bool Meta_16
-        {
-            get { return meta_16; }
-            set { meta_16 = value; RaisePropertyChanged("Meta_16"); }
-        }
+        /// <summary>
+        /// Gets or sets Meta_1 property.
+        /// </summary>
+        public bool Meta_1 { get { return meta_1; } set { meta_1 = value; RaisePropertyChanged(nameof(Meta_1)); } }
+        /// <summary>
+        /// Gets or sets Meta_2 property.
+        /// </summary>
+        public bool Meta_2 { get { return meta_2; } set { meta_2 = value; RaisePropertyChanged(nameof(Meta_2)); } }
+        /// <summary>
+        /// Gets or sets Meta_3 property.
+        /// </summary>
+        public bool Meta_3 { get { return meta_3; } set { meta_3 = value; RaisePropertyChanged(nameof(Meta_3)); } }
+        /// <summary>
+        /// Gets or sets Meta_4 property.
+        /// </summary>
+        public bool Meta_4 { get { return meta_4; } set { meta_4 = value; RaisePropertyChanged(nameof(Meta_4)); } }
+        /// <summary>
+        /// Gets or sets Meta_5 property.
+        /// </summary>
+        public bool Meta_5 { get { return meta_5; } set { meta_5 = value; RaisePropertyChanged(nameof(Meta_5)); } }
+        /// <summary>
+        /// Gets or sets Meta_6 property.
+        /// </summary>
+        public bool Meta_6 { get { return meta_6; } set { meta_6 = value; RaisePropertyChanged(nameof(Meta_6)); } }
+        /// <summary>
+        /// Gets or sets Meta_7 property.
+        /// </summary>
+        public bool Meta_7 { get { return meta_7; } set { meta_7 = value; RaisePropertyChanged(nameof(Meta_7)); } }
+        /// <summary>
+        /// Gets or sets Meta_8 property.
+        /// </summary>
+        public bool Meta_8 { get { return meta_8; } set { meta_8 = value; RaisePropertyChanged(nameof(Meta_8)); } }
+        /// <summary>
+        /// Gets or sets Meta_9 property.
+        /// </summary>
+        public bool Meta_9 { get { return meta_9; } set { meta_9 = value; RaisePropertyChanged(nameof(Meta_9)); } }
+        /// <summary>
+        /// Gets or sets Meta_10 property.
+        /// </summary>
+        public bool Meta_10 { get { return meta_10; } set { meta_10 = value; RaisePropertyChanged(nameof(Meta_10)); } }
+        /// <summary>
+        /// Gets or sets Meta_11 property.
+        /// </summary>
+        public bool Meta_11 { get { return meta_11; } set { meta_11 = value; RaisePropertyChanged(nameof(Meta_11)); } }
+        /// <summary>
+        /// Gets or sets Meta_12 property.
+        /// </summary>
+        public bool Meta_12 { get { return meta_12; } set { meta_12 = value; RaisePropertyChanged(nameof(Meta_12)); } }
+        /// <summary>
+        /// Gets or sets Meta_13 property.
+        /// </summary>
+        public bool Meta_13 { get { return meta_13; } set { meta_13 = value; RaisePropertyChanged(nameof(Meta_13)); } }
+        /// <summary>
+        /// Gets or sets Meta_14 property.
+        /// </summary>
+        public bool Meta_14 { get { return meta_14; } set { meta_14 = value; RaisePropertyChanged(nameof(Meta_14)); } }
+        /// <summary>
+        /// Gets or sets Meta_15 property.
+        /// </summary>
+        public bool Meta_15 { get { return meta_15; } set { meta_15 = value; RaisePropertyChanged(nameof(Meta_15)); } }
+        /// <summary>
+        /// Gets or sets Meta_16 property.
+        /// </summary>
+        public bool Meta_16 { get { return meta_16; } set { meta_16 = value; RaisePropertyChanged(nameof(Meta_16)); } }
 
         public bool[] MetaCheckDefault = { true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false };
 
@@ -249,8 +228,7 @@ namespace Finn.Model
 
         private void RaisePropertyChanged(string propName)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
         public event PropertyChangedEventHandler PropertyChanged;
     }

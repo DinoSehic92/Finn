@@ -1,46 +1,64 @@
 ﻿using Avalonia;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Media;
 using Avalonia.Styling;
+using System.Collections.ObjectModel;
 
 namespace Finn.Model
 {
+    /// <summary>
+    /// Represents general application data and color settings.
+    /// </summary>
     public class GeneralData : INotifyPropertyChanged
     {
         private string savePath = "C:\\FIlePathManager";
+        /// <summary>
+        /// Gets or sets the save path.
+        /// </summary>
         public string SavePath
         {
-            get { return savePath; }
-            set { savePath = value; RaisePropertyChanged("SavePath"); }
+            get => savePath;
+            set { savePath = value; RaisePropertyChanged(nameof(SavePath)); }
         }
 
         private Color color1 = Color.Parse("#333333");
+        /// <summary>
+        /// Gets or sets the first color.
+        /// </summary>
         public Color Color1
         {
-            get { return color1; }
-            set { color1 = value; RaisePropertyChanged("Color1"); }
+            get => color1;
+            set { color1 = value; RaisePropertyChanged(nameof(Color1)); }
         }
 
         private Color color2 = Color.Parse("#444444");
+        /// <summary>
+        /// Gets or sets the second color.
+        /// </summary>
         public Color Color2
         {
-            get { return color2; }
-            set { color2 = value; RaisePropertyChanged("Color2"); }
+            get => color2;
+            set { color2 = value; RaisePropertyChanged(nameof(Color2)); }
         }
 
         private Color color3 = Color.Parse("#dfe6e9");
+        /// <summary>
+        /// Gets or sets the third color.
+        /// </summary>
         public Color Color3
         {
-            get { return color3; }
-            set { color3 = value; RaisePropertyChanged("Color3"); }
+            get => color3;
+            set { color3 = value; RaisePropertyChanged(nameof(Color3)); }
         }
 
         private Color color4 = Color.Parse("#999999");
+        /// <summary>
+        /// Gets or sets the fourth color.
+        /// </summary>
         public Color Color4
         {
-            get { return color4; }
-            set { color4 = value; RaisePropertyChanged("Color4"); }
+            get => color4;
+            set { color4 = value; RaisePropertyChanged(nameof(Color4)); }
         }
 
 
@@ -195,8 +213,7 @@ namespace Finn.Model
 
         private void RaisePropertyChanged(string propName)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
         public event PropertyChangedEventHandler PropertyChanged;
     }

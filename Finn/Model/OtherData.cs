@@ -8,63 +8,85 @@ using System.IO;
 
 namespace Finn.Model
 {
+    /// <summary>
+    /// Represents other file data, including icon and folder info.
+    /// </summary>
     public class OtherData : INotifyPropertyChanged
     {
-
         private string name = string.Empty;
+        /// <summary>
+        /// Gets or sets the name of the file.
+        /// </summary>
         public string Name
         {
-            get { return name; }
-            set { name = value; RaisePropertyChanged("Name"); }
+            get => name;
+            set { name = value; RaisePropertyChanged(nameof(Name)); }
         }
 
         private string filepath = string.Empty;
+        /// <summary>
+        /// Gets or sets the file path.
+        /// </summary>
         public string Filepath
         {
-            get { return filepath; }
-            set { filepath = value; RaisePropertyChanged("Filepath"); }
+            get => filepath;
+            set { filepath = value; RaisePropertyChanged(nameof(Filepath)); }
         }
 
-        private string type;
+        private string type = string.Empty;
+        /// <summary>
+        /// Gets or sets the file type.
+        /// </summary>
         public string Type
         {
-            get { return type; }
-            set { type = value; RaisePropertyChanged("Type"); }
+            get => type;
+            set { type = value; RaisePropertyChanged(nameof(Type)); }
         }
 
-
-        private bool isFromFolder = false;
+        private bool isFromFolder;
+        /// <summary>
+        /// Gets or sets whether the file is from a folder.
+        /// </summary>
         public bool IsFromFolder
         {
-            get { return isFromFolder; }
-            set { isFromFolder = value; RaisePropertyChanged("IsFromFolder"); RaisePropertyChanged("NameWithAttributes"); }
+            get => isFromFolder;
+            set { isFromFolder = value; RaisePropertyChanged(nameof(IsFromFolder)); }
         }
 
         private string fromFolder = string.Empty;
+        /// <summary>
+        /// Gets or sets the folder the file is from.
+        /// </summary>
         public string FromFolder
         {
-            get { return fromFolder; }
-            set { fromFolder = value; RaisePropertyChanged("FromFolder"); }
+            get => fromFolder;
+            set { fromFolder = value; RaisePropertyChanged(nameof(FromFolder)); }
         }
 
         private string? syncFolder = string.Empty;
+        /// <summary>
+        /// Gets or sets the sync folder.
+        /// </summary>
         public string? SyncFolder
         {
-            get { return syncFolder; }
-            set { syncFolder = value; RaisePropertyChanged("SyncFolder"); }
+            get => syncFolder;
+            set { syncFolder = value; RaisePropertyChanged(nameof(SyncFolder)); }
         }
 
-        private byte[] iconBytes;
+        private byte[] iconBytes = Array.Empty<byte>();
+        /// <summary>
+        /// Gets or sets the icon bytes.
+        /// </summary>
         public byte[] IconBytes
         {
-            get { return iconBytes; }
-            set { iconBytes = value; RaisePropertyChanged("IconBytes"); }
+            get => iconBytes;
+            set { iconBytes = value; RaisePropertyChanged(nameof(IconBytes)); }
         }
 
-        public Avalonia.Media.Imaging.Bitmap? Icon
-        {
-            get { return GetAvaloniaBitmap(); }
-        }
+        /// <summary>
+        /// Gets the Avalonia bitmap for the icon.
+        /// </summary>
+        public Avalonia.Media.Imaging.Bitmap? Icon => GetAvaloniaBitmap();
 
 
         public void SetFile()
@@ -107,8 +129,7 @@ namespace Finn.Model
 
         private void RaisePropertyChanged(string propName)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
         public event PropertyChangedEventHandler PropertyChanged;
     }

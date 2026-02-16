@@ -1,55 +1,64 @@
-﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
+﻿using System.ComponentModel;
 using System.IO;
 
 namespace Finn.Model
 {
+    /// <summary>
+    /// Represents a folder and its metadata.
+    /// </summary>
     public class FolderData : INotifyPropertyChanged
     {
         private string name = string.Empty;
+        /// <summary>
+        /// Gets or sets the folder name.
+        /// </summary>
         public string Name
         {
-            get { return name; }
-            set { name = value; RaisePropertyChanged("Name"); RaisePropertyChanged("NameWithAttributes"); }
+            get => name;
+            set { name = value; RaisePropertyChanged(nameof(Name)); RaisePropertyChanged(nameof(NameWithAttributes)); }
         }
 
+        /// <summary>
+        /// Gets the folder name with attributes (valid/invalid).
+        /// </summary>
         public string NameWithAttributes
         {
             get
             {
                 string nameWithAttributes = Name;
-
-
                 if (IsValid())
                 {
-                    nameWithAttributes = nameWithAttributes + "⠀✓";
+                    nameWithAttributes += "⠀✓";
                 }
                 else
                 {
-                    nameWithAttributes = nameWithAttributes + "⠀✗";
+                    nameWithAttributes += "⠀✗";
                 }
-
-                    return nameWithAttributes;
+                return nameWithAttributes;
             }
         }
 
         private string path = string.Empty;
+        /// <summary>
+        /// Gets or sets the folder path.
+        /// </summary>
         public string Path
         {
-            get { return path; }
-            set { path = value; RaisePropertyChanged("Path"); RaisePropertyChanged("NameWithAttributes"); }
+            get => path;
+            set { path = value; RaisePropertyChanged(nameof(Path)); RaisePropertyChanged(nameof(NameWithAttributes)); }
         }
 
         private string types = string.Empty;
+        /// <summary>
+        /// Gets or sets the folder types.
+        /// </summary>
         public string Types
         {
-            get { return types; }
-            set { types = value; RaisePropertyChanged("Types"); }
+            get => types;
+            set { types = value; RaisePropertyChanged(nameof(Types)); }
         }
 
-        private string? attachToFile = null;
+        private string? attachToFile;
         public string? AttachToFile
         {
             get { return attachToFile; }
@@ -70,8 +79,7 @@ namespace Finn.Model
 
         private void RaisePropertyChanged(string propName)
         {
-            if (PropertyChanged != null)
-                PropertyChanged(this, new PropertyChangedEventArgs(propName));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }
         public event PropertyChangedEventHandler PropertyChanged;
     }

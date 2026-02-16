@@ -9,6 +9,9 @@ using System.Text;
 
 namespace Finn.Model
 {
+    /// <summary>
+    /// Represents a file and its associated metadata, status, and collections.
+    /// </summary>
     public class FileData : INotifyPropertyChanged
     {
         #region Constants
@@ -41,33 +44,42 @@ namespace Finn.Model
         private string _revidering = string.Empty;
         private string _sökväg = string.Empty;
         private int _defaultPage;
-        private ObservableCollection<PageData> _favPages = [];
+        private ObservableCollection<PageData> _favPages = new();
         private bool _isFromFolder;
         private string _fromFolder = string.Empty;
         private string? _syncFolder = string.Empty;
-        private ObservableCollection<FileData> _appendedFiles = [];
-        private ObservableCollection<OtherData> _otherFiles = [];
+        private ObservableCollection<FileData> _appendedFiles = new();
+        private ObservableCollection<OtherData> _otherFiles = new();
         private string _note = string.Empty;
         private bool _favorite;
-        private List<string> _partOfCollections = [];
+        private List<string> _partOfCollections = new();
         private string _thumbnailSource = string.Empty;
         private bool _hasPlainText;
         private string? _cachedNameWithAttributes;
         #endregion
 
         #region Properties
+        /// <summary>
+        /// Gets or sets the file name.
+        /// </summary>
         public string Namn
         {
             get => _namn;
             set { SetProperty(ref _namn, value); InvalidateNameWithAttributes(); }
         }
 
+        /// <summary>
+        /// Gets or sets the file status.
+        /// </summary>
         public string FileStatus
         {
             get => _fileStatus;
             set => SetProperty(ref _fileStatus, value);
         }
 
+        /// <summary>
+        /// Gets or sets the file tag.
+        /// </summary>
         public string Tagg
         {
             get => _tagg;
