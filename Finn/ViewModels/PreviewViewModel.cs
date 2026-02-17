@@ -342,6 +342,7 @@ namespace Finn.ViewModels
         {
             try
             {
+                
                 var background = new SolidColorBrush(Colors.White);
 
                 if (this.mainRenderer != null)
@@ -408,6 +409,7 @@ namespace Finn.ViewModels
             StatusMessage = "Setting File";
             fileAvailable = false;
             FileWorkerBusy = true;
+            var swTotal = Stopwatch.StartNew();
 
             try
             {
@@ -426,20 +428,23 @@ namespace Finn.ViewModels
                     MuPDFContext previewContext = null!;
                     MuPDFDocument previewDoc = null!;
 
-                    await Task.Run(() =>
+                    // Create MuPDF objects on the UI thread for safety (native interop sometimes
+                    // requires UI-thread affinity). Use Dispatcher to keep this async-friendly.
+                    var sw = Stopwatch.StartNew();
+                    await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         if (token.IsCancellationRequested) return;
                         previewContext = new MuPDFContext();
                         // Use file-based constructor when available — this delegates IO to native layer
                         // and avoids buffering the entire file in managed memory.
                         previewDoc = new MuPDFDocument(previewContext, path);
-                    }).ConfigureAwait(false);
+                    }).GetTask().ConfigureAwait(false);
 
-                    if (IsStale(myGeneration))
+                    if (token.IsCancellationRequested || IsStale(myGeneration))
                     {
-                        // Another call superseded us — dispose what we just created
-                        previewDoc?.Dispose();
-                        previewContext?.Dispose();
+                        // Another call superseded us or cancellation requested — dispose what we just created
+                        try { previewDoc?.Dispose(); } catch { }
+                        try { previewContext?.Dispose(); } catch { }
                         return;
                     }
 
@@ -458,26 +463,45 @@ namespace Finn.ViewModels
 
                     fileAvailable = true;
 
-                    // Render on UI thread
+                    // Set UI state for default page on UI thread
+                    if (IsStale(myGeneration))
+                    {
+                        try { previewDoc?.Dispose(); } catch { }
+                        try { previewContext?.Dispose(); } catch { }
+                        return;
+                    }
+
+                    int desired = Math.Clamp(RequestFile.DefaultPage, 0,
+                        Math.Max(0, MainPreviewFile.Pages.Count - 1));
+
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (IsStale(myGeneration)) return;
-
                         LinkedPageMode = true;
-                        SetDefaultPage();
-
-                        if (!string.IsNullOrEmpty(search))
-                        {
-                            SearchMode = true;
-                            _ = SearchAsync(search, token);
-                        }
+                        requestPage1 = desired;
+                        OnPropertyChanged(nameof(RequestPage1));
+                        CurrentPage1 = desired;
+                        Rotation = 0;
                     }).GetTask().ConfigureAwait(false);
+
+                    if (!string.IsNullOrEmpty(search))
+                    {
+                        SearchMode = true;
+                        _ = SearchAsync(search, token);
+                    }
+
+                    // Await first-page render to measure end-to-end time
+                    await RenderCurrentPageAsync().ConfigureAwait(false);
+
+                    sw.Stop();
+                    swTotal.Stop();
+                    StatusMessage = $"Opened (file) create {sw.ElapsedMilliseconds} ms, first-render {swTotal.ElapsedMilliseconds} ms";
 
                     // Fast-open path complete
                     return;
                 }
 
                 // Default: full open (read into memory and create from bytes)
+                var sw2 = Stopwatch.StartNew();
                 bytes = await Task.Run(() => ReadFileBytes(path, token)).ConfigureAwait(false);
 
                 if (IsStale(myGeneration) || bytes == null) return;
@@ -517,20 +541,37 @@ namespace Finn.ViewModels
 
                 fileAvailable = true;
 
-                // Render on UI thread
+                if (IsStale(myGeneration))
+                {
+                    doc?.Dispose();
+                    localContext?.Dispose();
+                    return;
+                }
+
+                int desired2 = Math.Clamp(RequestFile.DefaultPage, 0,
+                    Math.Max(0, MainPreviewFile.Pages.Count - 1));
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    if (IsStale(myGeneration)) return;
-
                     LinkedPageMode = true;
-                    SetDefaultPage();
-
-                    if (!string.IsNullOrEmpty(search))
-                    {
-                        SearchMode = true;
-                        _ = SearchAsync(search, token);
-                    }
+                    requestPage1 = desired2;
+                    OnPropertyChanged(nameof(RequestPage1));
+                    CurrentPage1 = desired2;
+                    Rotation = 0;
                 }).GetTask().ConfigureAwait(false);
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    SearchMode = true;
+                    _ = SearchAsync(search, token);
+                }
+
+                // Await first-page render to measure end-to-end time
+                await RenderCurrentPageAsync().ConfigureAwait(false);
+
+                sw2.Stop();
+                swTotal.Stop();
+                StatusMessage = $"Opened (memory) create {sw2.ElapsedMilliseconds} ms, first-render {swTotal.ElapsedMilliseconds} ms";
             }
             catch (OperationCanceledException)
             {

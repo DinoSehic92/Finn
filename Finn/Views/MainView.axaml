@@ -193,8 +193,8 @@
 
 		<!-- Progress bar -->
 		<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6">
-			<ProgressBar Name="ProgressBar" Width="200" VerticalAlignment="Center" Value="{Binding PreviewVM.Progress}"
-						 Height="4" MinHeight="4" CornerRadius="2"/>
+			<ProgressBar Name="ProgressBar" Width="200" VerticalAlignment="Center" Value="0"
+					 Height="4" MinHeight="4" CornerRadius="2" IsVisible="False" />
 			<Label Name="ProgressStatus" Width="200" Height="35" VerticalContentAlignment="Center"
 				   IsHitTestVisible="False" FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="4,0"/>
 		</StackPanel>
@@ -461,7 +461,7 @@
 							</MenuItem>
 							<MenuItem Header="Thumbnail">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Image"/></MenuItem.Icon>
-								<MenuItem Header="Fetch" Command="{Binding GetThumbnails}">
+                                <MenuItem Header="Fetch" Click="OnFetchThumbnails">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 								</MenuItem>
 								<MenuItem Header="Clear" Command="{Binding ClearThumbnails}">

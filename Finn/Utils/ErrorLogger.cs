@@ -11,9 +11,25 @@ namespace Finn.Utils
         {
             try
             {
+                // Try to write logs next to the executable. If that is not writable
+                // (single-file publish or protected install dir), fall back to
+                // LocalApplicationData which is per-user and writable.
                 var baseDir = AppContext.BaseDirectory ?? Environment.CurrentDirectory;
                 var logDir = Path.Combine(baseDir, "logs");
-                Directory.CreateDirectory(logDir);
+
+                try
+                {
+                    Directory.CreateDirectory(logDir);
+                }
+                catch
+                {
+                    // Fallback to per-user local app data
+                    var localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                    baseDir = Path.Combine(localApp, "Finn");
+                    logDir = Path.Combine(baseDir, "logs");
+                    Directory.CreateDirectory(logDir);
+                }
+
                 var path = Path.Combine(logDir, "crash.log");
 
                 lock (_sync)

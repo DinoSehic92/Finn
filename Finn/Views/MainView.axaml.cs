@@ -555,6 +555,49 @@ public partial class MainView : UserControl
         _metaWorker.DoWork += MetaWorkerDoWork;
         _metaWorker.ProgressChanged += MetaWorkerProgress;
         _metaWorker.RunWorkerCompleted += MetaWorkerRunWorkerCompleted;
+
+        // Hook up thumbnail worker events (reuse background worker for simplicity)
+        _metaWorker.DoWork += ThumbnailWorkerDoWork;
+        _metaWorker.ProgressChanged += ThumbnailWorkerProgress;
+        _metaWorker.RunWorkerCompleted += ThumbnailWorkerRunWorkerCompleted;
+    }
+
+    private void OnFetchThumbnails(object? sender, RoutedEventArgs e)
+    {
+        ProgressStatus.Content = "Generating Thumbnails";
+        ProgressBar.IsVisible = true;
+        // Start thumbnail work on the background worker; it will call back into the shared progress handlers
+        _metaWorker.RunWorkerAsync("thumbnails");
+    }
+
+    private void ThumbnailWorkerDoWork(object? sender, DoWorkEventArgs e)
+    {
+        if (e.Argument is string arg && arg == "thumbnails")
+        {
+            var vm = _ctx;
+            int total = vm.CurrentFiles?.Count ?? 0;
+            string thumbnailPath = $"{vm.Storage.General.SavePath}\\Thumbnails\\";
+
+            for (int i = 0; i < total; i++)
+            {
+                var file = vm.CurrentFiles[i];
+                vm.GenerateThumbnail(file, thumbnailPath);
+                _metaWorker.ReportProgress((i + 1) * 100 / Math.Max(1, total));
+            }
+        }
+    }
+
+    private void ThumbnailWorkerProgress(object? sender, ProgressChangedEventArgs e)
+    {
+        // Use same progress bar for meta/thumbnail work
+        ProgressBar.Value = e.ProgressPercentage;
+    }
+
+    private void ThumbnailWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
+    {
+        ProgressStatus.Content = "";
+        ProgressBar.Value = 0;
+        ProgressBar.IsVisible = false;
     }
 
     private void OnFetchSingleMeta(object? sender, RoutedEventArgs e) => RunMetaWorker(singleFile: true);
@@ -564,6 +607,7 @@ public partial class MainView : UserControl
     {
         ProgressStatus.Content = "Fetching Metadata";
         _ctx.SelectFilesForMetaworker(singleFile);
+        ProgressBar.IsVisible = true;
         _metaWorker.RunWorkerAsync();
     }
 
@@ -585,6 +629,7 @@ public partial class MainView : UserControl
         _ctx.SetMeta();
         ProgressStatus.Content = "";
         ProgressBar.Value = 0;
+        ProgressBar.IsVisible = false;
     }
 
     #endregion

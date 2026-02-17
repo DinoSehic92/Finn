@@ -1,9 +1,10 @@
-﻿    using Finn.Model;
-    using System.Collections.ObjectModel;
-    using System.ComponentModel;
-    using System;
-    using System.Linq;
-    using System.Threading.Tasks;
+﻿using Finn.Model;
+using Microsoft.Extensions.Logging;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using System.IO;
@@ -948,6 +949,37 @@ namespace Finn.ViewModels
                 foreach (FileData file in CurrentFiles)
                 {
                     file.RemoveThumbnail();
+                }
+            }
+
+            /// <summary>
+            /// Generate a thumbnail for a single file and save it to the thumbnail directory.
+            /// This is extracted so callers can run per-file generation on background threads
+            /// and report progress from the UI layer.
+            /// </summary>
+            public void GenerateThumbnail(FileData file, string thumbnailDir)
+            {
+                try
+                {
+                    if (!file.IsValidPdf())
+                        return;
+
+                    if (!Directory.Exists(thumbnailDir))
+                        Directory.CreateDirectory(thumbnailDir);
+
+                    file.RemoveThumbnail();
+
+                    byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+                    using var doc = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
+
+                    string target = Path.Combine(thumbnailDir, file.Namn + ".jpeg");
+                    file.ThumbnailSource = target;
+                    doc.SaveImageAsJPEG(0, 1, target, 20);
+                }
+                catch (Exception ex)
+                {
+                    // Log and continue — don't let one failure abort the whole batch
+                    logger?.LogError(ex, "Failed to generate thumbnail for {Path}", file?.Sökväg);
                 }
             }
 

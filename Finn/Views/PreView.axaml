@@ -70,6 +70,15 @@
 						IsInverted="{Binding PreviewVM.DarkMode}"
 						BackgroundColor="{Binding PreviewVM.ThemeRegionColor}"
 						IsHitTestVisible="False" />
+
+					<!-- Loading overlay shown while previewer is busy -->
+					<Grid Grid.ColumnSpan="3" IsVisible="{Binding PreviewVM.FileWorkerBusy}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+						<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+							<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="36" Foreground="White"/>
+							<TextBlock Text="{Binding PreviewVM.StatusMessage}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
+							<ProgressBar Width="200" Height="6" Minimum="0" Maximum="100" Value="{Binding PreviewVM.Progress}"/>
+						</StackPanel>
+					</Grid>
 				</Grid>
 			</LayoutTransformControl>
 		</Grid>
