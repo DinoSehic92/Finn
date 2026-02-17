@@ -99,7 +99,7 @@
 						</Grid>
 					</Border>
 
-					<Border Grid.Row="2" BorderBrush="Gray" BorderThickness="0 0 0 1">
+					<Border Grid.Row="2" BorderBrush="Gray" BorderThickness="0 0 0 1" CornerRadius="0">
 						<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
 							<Button ToolTip.Tip="Prev Search" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.PrevSearchPage}">
 								<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
@@ -179,7 +179,7 @@
 					</ToggleButton>
 
 					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
-						<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" IsVisible="{Binding SearchMode}"/>
+						<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10 0 5 0">

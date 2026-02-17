@@ -619,7 +619,7 @@
 					  SelectedItem="{Binding CurrentFolder}" SelectionMode="Single" IsReadOnly="True"
 					  DragDrop.AllowDrop="True">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Name"             Width="2*"   FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Folder"             Width="2*"   FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic"/>
 					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to File" Width="2*"   FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Types}"              Header="Types"            Width="1.5*" FontSize="14"/>
