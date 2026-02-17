@@ -56,21 +56,7 @@ public partial class MainView : UserControl
         InitMetaworker();
     }
 
-    private async void OnBenchmarkFastOpen(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (_pwr == null) return;
-            // Run small benchmark (3 iterations) and show a short message when done
-            var cts = new CancellationTokenSource();
-            await _pwr.BenchmarkFastOpenAsync(3, cts.Token);
-            // Show a simple info dialog via logger and status binding — StatusMessage is updated by the benchmark
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine(ex);
-        }
-    }
+    // Removed file-open debugger / benchmark command and handler
 
     private async void OnOpenAnalogClock(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -570,19 +556,45 @@ public partial class MainView : UserControl
         _metaWorker.RunWorkerAsync("thumbnails");
     }
 
+    private void OnFetchIndex(object? sender, RoutedEventArgs e)
+    {
+        ProgressStatus.Content = "Indexing Files";
+        ProgressBar.IsVisible = true;
+        // Start indexing work on the background worker; handled in the same worker loop
+        _metaWorker.RunWorkerAsync("index");
+    }
+
     private void ThumbnailWorkerDoWork(object? sender, DoWorkEventArgs e)
     {
-        if (e.Argument is string arg && arg == "thumbnails")
+        if (e.Argument is string arg)
         {
-            var vm = _ctx;
-            int total = vm.CurrentFiles?.Count ?? 0;
-            string thumbnailPath = $"{vm.Storage.General.SavePath}\\Thumbnails\\";
-
-            for (int i = 0; i < total; i++)
+            if (arg == "thumbnails")
             {
-                var file = vm.CurrentFiles[i];
-                vm.GenerateThumbnail(file, thumbnailPath);
-                _metaWorker.ReportProgress((i + 1) * 100 / Math.Max(1, total));
+                var vm = _ctx;
+                int total = vm.CurrentFiles?.Count ?? 0;
+                string thumbnailPath = $"{vm.Storage.General.SavePath}\\Thumbnails\\";
+
+                for (int i = 0; i < total; i++)
+                {
+                    var file = vm.CurrentFiles[i];
+                    vm.GenerateThumbnail(file, thumbnailPath);
+                    _metaWorker.ReportProgress((i + 1) * 100 / Math.Max(1, total));
+                }
+            }
+            else if (arg == "index")
+            {
+                // Run indexing using the async method, report progress back to background worker
+                try
+                {
+                    // Pass a progress reporter that forwards to the background worker
+                    var progress = new Progress<int>(p => _metaWorker.ReportProgress(p));
+                    // Call the async indexing and wait for completion on this background thread
+                    _ctx.GetIndexedContentAsync(progress).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex);
+                }
             }
         }
     }
@@ -631,6 +643,8 @@ public partial class MainView : UserControl
         ProgressBar.Value = 0;
         ProgressBar.IsVisible = false;
     }
+
+    
 
     #endregion
 

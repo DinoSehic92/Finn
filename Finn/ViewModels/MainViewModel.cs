@@ -793,6 +793,26 @@ namespace Finn.ViewModels
 
             public void OnIndexDia(Window mainWindow)
             {
+                // Load existing indexed content from disk so the inspect dialog
+                // shows previously indexed entries immediately.
+                try
+                {
+                    string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
+                    if (System.IO.File.Exists(indexPath))
+                    {
+                        LoadIndexFile(indexPath);
+                    }
+                    else
+                    {
+                        IndexedContent ??= new ObservableCollection<ContentData>();
+                    }
+                }
+                catch
+                {
+                    // If loading fails, ensure collection is non-null so the dialog can bind to it.
+                    IndexedContent ??= new ObservableCollection<ContentData>();
+                }
+
                 var window = new xIndexDia();
                 ConfigureWindow(window, mainWindow);
                 window.ShowDialog(mainWindow);
@@ -855,7 +875,7 @@ namespace Finn.ViewModels
                 }
             }
 
-            public void GetIndexedContent()
+            public async Task GetIndexedContentAsync(IProgress<int>? progress = null)
             {
                 string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
 
@@ -866,27 +886,64 @@ namespace Finn.ViewModels
 
                 IndexedContent ??= new ObservableCollection<ContentData>();
 
-                foreach (FileData file in CurrentFiles)
+                var files = CurrentFiles?.ToList() ?? new List<FileData>();
+                var results = new List<ContentData>();
+
+                await Task.Run(() =>
                 {
-                    if (file.IsValidPdf())
+                    int total = files.Count;
+                    for (int i = 0; i < total; i++)
                     {
-                        byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
-
-                        MuPDFDocument fileDocument = new(new MuPDFContext(), bytes, InputFileTypes.PDF);
-                        ContentData existing = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
-
-                        IndexedContent.Remove(existing);
-
-                        ContentData content = new()
+                        var file = files[i];
+                        try
                         {
-                            Name = file.Namn,
-                            Filepath = file.Sökväg,
-                            PlainText = fileDocument.ExtractText()
-                        };
+                            if (file.IsValidPdf())
+                            {
+                                byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+                                using var fileDocument = new MuPDFDocument(new MuPDFContext(), bytes, InputFileTypes.PDF);
+                                var content = new ContentData
+                                {
+                                    Name = file.Namn,
+                                    Filepath = file.Sökväg,
+                                    PlainText = fileDocument.ExtractText()
+                                };
 
-                        IndexedContent.Add(content);
-                        file.HasPlainText = true;
-                        fileDocument.Dispose();
+                                lock (results)
+                                {
+                                    results.Add(content);
+                                }
+                            }
+                        }
+                        catch (Exception)
+                        {
+                            // Ignore individual failures and continue indexing other files
+                        }
+
+                        int percent = (i + 1) * 100 / Math.Max(1, total);
+                        progress?.Report(percent);
+                    }
+                });
+
+                // Update UI-bound collections on the calling (UI) thread after background processing
+                foreach (var content in results)
+                {
+                    ContentData? existing = IndexedContent.FirstOrDefault(x => x.Filepath == content.Filepath);
+                    if (existing != null)
+                    {
+                        IndexedContent.Remove(existing);
+                    }
+                    IndexedContent.Add(content);
+
+                    // Mark files that have been indexed
+                    foreach (ProjectData project in Storage.StoredProjects)
+                    {
+                        foreach (FileData file in project.StoredFiles)
+                        {
+                            if (file.Sökväg == content.Filepath) { continue; }
+                            {
+                                file.HasPlainText = true;
+                            }
+                        }
                     }
                 }
 

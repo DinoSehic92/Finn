@@ -473,7 +473,7 @@
 								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Table"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Fetch"   Command="{Binding GetIndexedContent}">
+                                <MenuItem Header="Fetch"   Click="OnFetchIndex">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 								</MenuItem>
 								<MenuItem Header="Clear"   Command="{Binding ClearIndexedContent}">
@@ -482,14 +482,8 @@
 							</MenuItem>
 						</MenuItem>
 
-						<MenuItem Header="Tools">
-							<MenuItem Header="Debugger">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Bug"/></MenuItem.Icon>
-								<MenuItem Header="Benchmark Fast Open" Click="OnBenchmarkFastOpen">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Clock"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
-							<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
+				<MenuItem Header="Tools">
+					<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
 							<MenuItem Header="Status">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
 								<MenuItem Header="Check File" Click="OnCheckStatusSingleFile">
