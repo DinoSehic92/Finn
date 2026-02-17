@@ -23,7 +23,7 @@
 			<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,36,0,0">
 				<Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
 					<ContentControl>
-						<ic:SymbolIcon Symbol="Globe" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+						<ic:SymbolIcon Symbol="BookDatabase" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 					</ContentControl>
 				</Border>
 				<TextBlock Text="Extracted Text" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>

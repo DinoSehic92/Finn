@@ -162,7 +162,7 @@
 						<ic:SymbolIcon Symbol="RotateRight" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-                    <ToggleButton ToolTip.Tip="Fast Open (First Pages Only)" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
+                    <ToggleButton ToolTip.Tip="Open file in place" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
 						<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
