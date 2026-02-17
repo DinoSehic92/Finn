@@ -745,15 +745,16 @@
 
 			<TextBox Grid.Row="2" Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
 
+            <!-- TimeSheets grid: fill available width of the calendar panel -->
             <DataGrid Grid.Row="3" ItemsSource="{Binding CurrentCalendarData.TimeSheets}"
-                      SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True"
-                      RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
-                      BorderThickness="0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Binding="{Binding Hours}"   Width="32"   MinWidth="32" FontSize="14"/>
-                    <DataGridTextColumn Binding="{Binding Project}" Width="Auto"               FontSize="14"/>
-                    <DataGridTextColumn Binding="{Binding Diary}"   Width="*"                  FontSize="14"/>
-                </DataGrid.Columns>
+					  SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True" MinWidth="0"
+					  RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
+					  BorderThickness="0" HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False" >
+				<DataGrid.Columns>
+					<DataGridTextColumn Binding="{Binding Hours}"   Width="SizeToCells" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Project}" Width="SizeToCells" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Diary}"   Width="*" FontSize="14" MinWidth="100"/>
+				</DataGrid.Columns>
                 <DataGrid.Styles>
                     <Style Selector="DataGrid /template/ Rectangle">
                         <Setter Property="IsVisible" Value="False"/>
@@ -771,10 +772,22 @@
 					  ItemsSource="{Binding MonthlyNotes}" SelectedItem="{Binding CurrentCalendarData, Mode=TwoWay}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" RowHeight="19" CanUserSortColumns="False">
-				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding DateStringIcon}" Header="Date"     Width="Auto" FontSize="14"/>
+              <DataGrid.Columns>
+					<!-- Icons-only column: bind each icon visibility to boolean properties on CalendarData -->
+					<DataGridTemplateColumn Width="SizeToCells" MinWidth="0" MaxWidth="80">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,0,5,0" Spacing="5">
+									<ic:SymbolIcon Symbol="Notebook" IsVisible="{Binding HasNote}" IconVariant="Regular" FontSize="14" />
+									<ic:SymbolIcon Symbol="Timer" IsVisible="{Binding HasTime}" IconVariant="Regular" FontSize="14" />
+								</StackPanel>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+
+					<DataGridTextColumn Binding="{Binding DateString}"      Header="Date"     Width="Auto" FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Reminder}"       Header="Reminder" Width="*" MinWidth="100"
-										Foreground="{DynamicResource SystemAccentColor}" FontSize="14"/>
+									Foreground="{DynamicResource SystemAccentColor}" FontSize="14"/>
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>

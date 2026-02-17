@@ -12,6 +12,12 @@ namespace Finn.Model
     public class CalendarData : INotifyPropertyChanged
     {
 
+        public CalendarData()
+        {
+            // Ensure we notify when the timesheets collection changes
+            timeSheets.CollectionChanged += TimeSheets_CollectionChanged;
+        }
+
         private DateOnly date;
         /// <summary>
         /// Gets or sets the date for this calendar entry.
@@ -19,7 +25,12 @@ namespace Finn.Model
         public DateOnly Date
         {
             get => date;
-            set { date = value; RaisePropertyChanged(nameof(Date)); }
+            set
+            {
+                date = value;
+                RaisePropertyChanged(nameof(Date));
+                RaisePropertyChanged(nameof(DateString));
+            }
         }
 
         /// <summary>
@@ -42,31 +53,12 @@ namespace Finn.Model
         {
             get
             {
-                string text = date.ToString();
+                // Show month-day in MM-DD format
+                string text = date.ToString("MM-dd");
                 if (Date.DayOfWeek == DayOfWeek.Saturday || Date.DayOfWeek == DayOfWeek.Sunday)
                 {
                     text = " - ";
                 }
-                return text;
-            }
-        }
-
-        /// <summary>
-        /// Gets a string with icons for notes and time, or " - " for weekends.
-        /// </summary>
-        public string DateStringIcon
-        {
-            get
-            {
-                string text = date.ToString() + "⠀";
-                if (HasNote)
-                    text += "📝 ";
-                if (HasTime)
-                    text += "🕑 ";
-                if (Date.DayOfWeek == DayOfWeek.Saturday || Date.DayOfWeek == DayOfWeek.Sunday)
-                    text = " - ";
-                else
-                    text += " " + TotalTime;
                 return text;
             }
         }
@@ -79,7 +71,13 @@ namespace Finn.Model
         public string Note1
         {
             get => note1;
-            set { note1 = value; RaisePropertyChanged(nameof(Note1)); RaisePropertyChanged(nameof(DateString)); RaisePropertyChanged(nameof(DateStringIcon)); }
+            set
+            {
+                note1 = value;
+                RaisePropertyChanged(nameof(Note1));
+                RaisePropertyChanged(nameof(DateString));
+                RaisePropertyChanged(nameof(HasNote));
+            }
         }
 
         private string note2 = string.Empty;
@@ -89,7 +87,13 @@ namespace Finn.Model
         public string Note2
         {
             get => note2;
-            set { note2 = value; RaisePropertyChanged(nameof(Note2)); RaisePropertyChanged(nameof(DateString)); RaisePropertyChanged(nameof(DateStringIcon)); }
+            set
+            {
+                note2 = value;
+                RaisePropertyChanged(nameof(Note2));
+                RaisePropertyChanged(nameof(DateString));
+                RaisePropertyChanged(nameof(HasNote));
+            }
         }
 
         private string reminder = string.Empty;
@@ -99,7 +103,12 @@ namespace Finn.Model
         public string Reminder
         {
             get => reminder;
-            set { reminder = value; RaisePropertyChanged(nameof(Reminder)); RaisePropertyChanged(nameof(DateString)); RaisePropertyChanged(nameof(DateStringIcon)); }
+            set
+            {
+                reminder = value;
+                RaisePropertyChanged(nameof(Reminder));
+                RaisePropertyChanged(nameof(DateString));
+            }
         }
 
         /// <summary>
@@ -121,7 +130,29 @@ namespace Finn.Model
         public ObservableCollection<TimeSheetData> TimeSheets
         {
             get => timeSheets;
-            set { timeSheets = value; RaisePropertyChanged(nameof(TimeSheets)); }
+            set
+            {
+                if (ReferenceEquals(timeSheets, value))
+                    return;
+
+                if (timeSheets != null)
+                    timeSheets.CollectionChanged -= TimeSheets_CollectionChanged;
+
+                timeSheets = value ?? new ObservableCollection<TimeSheetData>();
+                timeSheets.CollectionChanged += TimeSheets_CollectionChanged;
+
+                RaisePropertyChanged(nameof(TimeSheets));
+                RaisePropertyChanged(nameof(HasTime));
+                RaisePropertyChanged(nameof(TotalTime));
+                RaisePropertyChanged(nameof(DateString));
+            }
+        }
+
+        private void TimeSheets_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            RaisePropertyChanged(nameof(HasTime));
+            RaisePropertyChanged(nameof(TotalTime));
+            RaisePropertyChanged(nameof(DateString));
         }
 
         private string currentTimeSheetProjectDiary = string.Empty;
@@ -150,7 +181,6 @@ namespace Finn.Model
         public void TriggerDateStringUpdate()
         {
             RaisePropertyChanged(nameof(DateString));
-            RaisePropertyChanged(nameof(DateStringIcon));
         }
 
         /// <summary>
