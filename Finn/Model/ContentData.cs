@@ -29,7 +29,7 @@ namespace Finn.Model
 
         private string plainText = string.Empty;
         /// <summary>
-        /// Gets or sets the plain text content.
+        /// Gets or sets the extracted text content.
         /// </summary>
         public string PlainText
         {

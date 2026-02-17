@@ -273,8 +273,8 @@
 				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
-				<ToggleButton Grid.Column="2" ToolTip.Tip="Global Indexed Search: Ctrl + G" HotKey="Ctrl+G" Height="30" Width="30" IsChecked="{Binding IndexedSearch}">
-					<ic:SymbolIcon Symbol="Globe" IconVariant="Regular" FontSize="16" Padding="0"/>
+				<ToggleButton Grid.Column="2" ToolTip.Tip="Stored Content Search" Height="30" Width="30" IsChecked="{Binding IndexedSearch}">
+					<ic:SymbolIcon Symbol="BookDatabase" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</ToggleButton>
 			</Grid>
 		</StackPanel>
@@ -469,7 +469,7 @@
 								</MenuItem>
 							</MenuItem>
 							<MenuItem Header="Content">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Globe"/></MenuItem.Icon>
+								<MenuItem.Icon><ic:SymbolIcon Symbol="BookDatabase"/></MenuItem.Icon>
 								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Table"/></MenuItem.Icon>
 								</MenuItem>

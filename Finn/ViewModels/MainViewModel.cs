@@ -813,7 +813,7 @@ namespace Finn.ViewModels
                     IndexedContent ??= new ObservableCollection<ContentData>();
                 }
 
-                var window = new xIndexDia();
+                var window = new xContentDia();
                 ConfigureWindow(window, mainWindow);
                 window.ShowDialog(mainWindow);
             }

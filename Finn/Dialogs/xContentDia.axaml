@@ -10,8 +10,8 @@
 		MinWidth="600"
 		MinHeight="500"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xIndexDia"
-        Title="xIndexDia"
+        x:Class="Finn.Dialog.xContentDia"
+        Title="Content"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"
@@ -26,7 +26,7 @@
 						<ic:SymbolIcon Symbol="Globe" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 					</ContentControl>
 				</Border>
-				<TextBlock Text="Plain Text" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+				<TextBlock Text="Extracted Text" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 			</StackPanel>
 
 			<DataGrid Name="IndexGrid" Grid.Column="0" Grid.Row="1" ItemsSource="{Binding IndexedContent}" SelectionMode="Single" SelectedItem="{Binding SelectedIndexedContent}"

@@ -71,8 +71,8 @@
       <SubType>Code</SubType>
       <DependentUpon>xRenameDia.axaml</DependentUpon>
     </Compile>
-    <Compile Update="Dialogs\xIndexDia.axaml.cs">
-      <DependentUpon>xIndexDia.axaml</DependentUpon>
+    <Compile Update="Dialogs\xContentDia.axaml.cs">
+      <DependentUpon>xContentDia.axaml</DependentUpon>
     </Compile>
     <Compile Update="Dialogs\xPlaceholderDia.axaml.cs">
       <DependentUpon>xPlaceholderDia.axaml</DependentUpon>

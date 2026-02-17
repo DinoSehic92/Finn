@@ -7,9 +7,9 @@ using System.ComponentModel;
 
 namespace Finn.Dialog;
 
-public partial class xIndexDia : TemplateWindow
+public partial class xContentDia : TemplateWindow
 {
-    public xIndexDia()
+    public xContentDia()
     {
         InitializeComponent();
 
