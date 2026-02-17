@@ -22,6 +22,7 @@
 		<converter:AddOneConverter x:Key="AddOneConverter" />
 		<converter:AddPageConverter x:Key="AddPageConverter" />
 		<converter:BitmapConverter x:Key="BitmapConverter" />
+		<converter:ByteArrayToBitmapConverter x:Key="ByteArrayToBitmapConverter" />
 		<converter:GridDefConverter x:Key="GridDefConverter" />
 		<converter:RowDefConverter x:Key="RowDefConverter" />
 
@@ -564,7 +565,9 @@
 					<DataGrid.Columns>
 						<DataGridTemplateColumn>
 							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate><Image Source="{Binding Icon}" Height="20"/></DataTemplate>
+								<DataTemplate>
+									<Image Height="20" Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
+								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
 						<DataGridTextColumn Binding="{Binding Name}"       Header="Attached Files" Width="3*"  MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>

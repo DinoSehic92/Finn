@@ -79,10 +79,29 @@ namespace Finn.Model
         private byte[] iconBytes = Array.Empty<byte>();
         /// <summary>
         /// Gets or sets the icon bytes.
+        /// If empty, attempts to extract the associated icon from the file path and caches it.
         /// </summary>
         public byte[] IconBytes
         {
-            get => iconBytes;
+            get
+            {
+                if ((iconBytes == null || iconBytes.Length == 0) && !string.IsNullOrEmpty(filepath) && File.Exists(filepath))
+                {
+                    try
+                    {
+                        System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath).ToBitmap();
+                        iconBytes = BitmapToByteArray(bitmap);
+                        // Notify listeners that the bytes have been populated
+                        RaisePropertyChanged(nameof(IconBytes));
+                    }
+                    catch
+                    {
+                        // Ignore extraction errors and return empty array
+                        iconBytes = Array.Empty<byte>();
+                    }
+                }
+                return iconBytes;
+            }
             set { iconBytes = value; RaisePropertyChanged(nameof(IconBytes)); }
         }
 
