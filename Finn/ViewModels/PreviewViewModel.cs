@@ -508,15 +508,18 @@ namespace Finn.ViewModels
 
                 var localBytes = bytes;
 
-                // Create PDF document on background thread
+                // Create PDF document on the UI thread. Native MuPDF objects have
+                // UI-thread affinity in some builds — constructing them on a
+                // background thread can cause use-after-free / access violations
+                // when documents are disposed or rendered concurrently.
                 MuPDFContext localContext = null!;
                 MuPDFDocument doc = null!;
-                await Task.Run(() =>
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (token.IsCancellationRequested) return;
                     localContext = new MuPDFContext();
                     doc = new MuPDFDocument(localContext, localBytes, InputFileTypes.PDF);
-                }).ConfigureAwait(false);
+                }).GetTask().ConfigureAwait(false);
 
                 if (IsStale(myGeneration))
                 {
@@ -614,30 +617,41 @@ namespace Finn.ViewModels
 
             if (MainPreviewFile == null) return;
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            // Ensure no render is in progress while disposing native resources.
+            // Acquire the render semaphore so RenderCurrentPageAsync / SetMainPageAsync
+            // cannot start an Initialize while we dispose the document and context.
+            await renderSemaphore.WaitAsync(token).ConfigureAwait(false);
+            try
             {
-                try
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    if (mainRenderer?.HighlightedRegions != null)
-                        mainRenderer.HighlightedRegions = null;
-                    if (secondaryRenderer?.HighlightedRegions != null)
-                        secondaryRenderer.HighlightedRegions = null;
+                    try
+                    {
+                        if (mainRenderer?.HighlightedRegions != null)
+                            mainRenderer.HighlightedRegions = null;
+                        if (secondaryRenderer?.HighlightedRegions != null)
+                            secondaryRenderer.HighlightedRegions = null;
 
-                    mainRenderer?.ReleaseResources();
-                    secondaryRenderer?.ReleaseResources();
-                    MainPreviewFile?.Dispose();
-                    context?.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    logger?.LogWarning(ex, "Error during quick dispose");
-                }
-            }).GetTask().ConfigureAwait(false);
+                        mainRenderer?.ReleaseResources();
+                        secondaryRenderer?.ReleaseResources();
+                        MainPreviewFile?.Dispose();
+                        context?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Error during quick dispose");
+                    }
+                }).GetTask().ConfigureAwait(false);
 
-            fileAvailable = false;
-            MainPreviewFile = null;
-            context = null;
-            bytes = null; // release memory early
+                fileAvailable = false;
+                MainPreviewFile = null;
+                context = null;
+                bytes = null; // release memory early
+            }
+            finally
+            {
+                renderSemaphore.Release();
+            }
         }
 
         /// <summary>
@@ -762,23 +776,48 @@ namespace Finn.ViewModels
             {
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    mainRenderer.IsVisible = false;
-                    mainRenderer.HighlightedRegions = null;
-                    mainRenderer.Initialize(MainPreviewFile, 1, requestPage1, ZOOM_LEVEL);
-                    mainRenderer.IsVisible = true;
-                    SetSearchResults();
-                    CurrentPage1 = requestPage1;
+                    try
+                    {
+                        if (mainRenderer == null || MainPreviewFile == null)
+                            return;
+
+                        mainRenderer.IsVisible = false;
+                        mainRenderer.HighlightedRegions = null;
+                        mainRenderer.Initialize(MainPreviewFile, 1, requestPage1, ZOOM_LEVEL);
+                        mainRenderer.IsVisible = true;
+                        SetSearchResults();
+                        CurrentPage1 = requestPage1;
+                    }
+                    catch (NullReferenceException nre)
+                    {
+                        // Defensive: log the NRE and abort this render attempt
+                        logger?.LogError(nre, "NullReference in RenderCurrentPageAsync UI invoke");
+                        Finn.Utils.ErrorLogger.Log(nre, "RenderCurrentPageAsync.UI");
+                        return;
+                    }
 
                     if (LinkedPageMode && TwopageMode && PageInRange(requestPage1 + 1) && secondaryRenderer != null)
                     {
-                        requestPage2 = requestPage1 + 1;
-                        OnPropertyChanged(nameof(RequestPage2));
-                        secondaryRenderer.IsVisible = false;
-                        secondaryRenderer.HighlightedRegions = null;
-                        secondaryRenderer.Initialize(MainPreviewFile, 1, requestPage2, ZOOM_LEVEL);
-                        secondaryRenderer.IsVisible = true;
-                        SetSecondarySearchResults();
-                        CurrentPage2 = requestPage2;
+                        try
+                        {
+                            if (secondaryRenderer == null || MainPreviewFile == null)
+                                return;
+
+                            requestPage2 = requestPage1 + 1;
+                            OnPropertyChanged(nameof(RequestPage2));
+                            secondaryRenderer.IsVisible = false;
+                            secondaryRenderer.HighlightedRegions = null;
+                            secondaryRenderer.Initialize(MainPreviewFile, 1, requestPage2, ZOOM_LEVEL);
+                            secondaryRenderer.IsVisible = true;
+                            SetSecondarySearchResults();
+                            CurrentPage2 = requestPage2;
+                        }
+                        catch (NullReferenceException nre)
+                        {
+                            logger?.LogError(nre, "NullReference in RenderCurrentPageAsync secondary UI invoke");
+                            Finn.Utils.ErrorLogger.Log(nre, "RenderCurrentPageAsync.UI.secondary");
+                            return;
+                        }
                     }
                 }).GetTask().ConfigureAwait(false);
             }
@@ -891,12 +930,20 @@ namespace Finn.ViewModels
                 {
                     mainRenderer.IsVisible = false;
                     mainRenderer.HighlightedRegions = null;
-                    if (MainPreviewFile != null)
+                    try
                     {
-                        mainRenderer.Initialize(MainPreviewFile, 1, RequestPage1, ZOOM_LEVEL);
-                        mainRenderer.IsVisible = true;
-                        SetSearchResults();
-                        CurrentPage1 = RequestPage1;
+                        if (MainPreviewFile != null && mainRenderer != null)
+                        {
+                            mainRenderer.Initialize(MainPreviewFile, 1, RequestPage1, ZOOM_LEVEL);
+                            mainRenderer.IsVisible = true;
+                            SetSearchResults();
+                            CurrentPage1 = RequestPage1;
+                        }
+                    }
+                    catch (NullReferenceException nre)
+                    {
+                        logger?.LogError(nre, "NullReference in SetMainPageAsync UI invoke");
+                        Finn.Utils.ErrorLogger.Log(nre, "SetMainPageAsync.UI");
                     }
                 }).GetTask().ConfigureAwait(false);
             }
@@ -923,12 +970,20 @@ namespace Finn.ViewModels
                 {
                     secondaryRenderer.IsVisible = false;
                     secondaryRenderer.HighlightedRegions = null;
-                    if (MainPreviewFile != null)
+                    try
                     {
-                        secondaryRenderer.Initialize(MainPreviewFile, 1, RequestPage2, ZOOM_LEVEL);
-                        secondaryRenderer.IsVisible = true;
-                        SetSecondarySearchResults();
-                        CurrentPage2 = RequestPage2;
+                        if (MainPreviewFile != null && secondaryRenderer != null)
+                        {
+                            secondaryRenderer.Initialize(MainPreviewFile, 1, RequestPage2, ZOOM_LEVEL);
+                            secondaryRenderer.IsVisible = true;
+                            SetSecondarySearchResults();
+                            CurrentPage2 = RequestPage2;
+                        }
+                    }
+                    catch (NullReferenceException nre)
+                    {
+                        logger?.LogError(nre, "NullReference in SetSecondaryPageAsync UI invoke");
+                        Finn.Utils.ErrorLogger.Log(nre, "SetSecondaryPageAsync.UI");
                     }
                 }).GetTask().ConfigureAwait(false);
             }
