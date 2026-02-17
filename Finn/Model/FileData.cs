@@ -15,15 +15,32 @@ namespace Finn.Model
     public class FileData : INotifyPropertyChanged
     {
         #region Constants
-        private const string FavoriteIcon = "⭐ ";
-        private const string Separator = "⠀";
-        private const string AttachmentIcon = "📎";
-        private const string BookmarkIcon = "🔖";
-        private const string NoteIcon = " 📝";
-        private const string ThumbnailIcon = " ؞";
-        private const string PlaintextIcon = "⠀🌐";
-        private const string FolderIcon = "⠀🗀";
         private const string PdfExtension = ".pdf";
+        #endregion
+
+        #region Construction
+        public FileData()
+        {
+            // Ensure we react to collection changes so icon/name caches update when items are added/removed.
+            _favPages.CollectionChanged += FavPages_CollectionChanged;
+            _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
+            _otherFiles.CollectionChanged += OtherFiles_CollectionChanged;
+        }
+
+        private void FavPages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(HasBookmarks));
+        }
+
+        private void AppendedFiles_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(HasAppendedFiles));
+        }
+
+        private void OtherFiles_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(HasAppendedFiles));
+        }
         #endregion
 
         #region Fields
@@ -55,7 +72,7 @@ namespace Finn.Model
         private List<string> _partOfCollections = new();
         private string _thumbnailSource = string.Empty;
         private bool _hasPlainText;
-        private string? _cachedNameWithAttributes;
+
         #endregion
 
         #region Properties
@@ -68,7 +85,7 @@ namespace Finn.Model
         public string Namn
         {
             get => _namn;
-            set { SetProperty(ref _namn, value); InvalidateNameWithAttributes(); }
+            set { SetProperty(ref _namn, value); }
         }
 
         /// <summary>
@@ -182,13 +199,26 @@ namespace Finn.Model
         public ObservableCollection<PageData> FavPages
         {
             get => _favPages;
-            set { SetProperty(ref _favPages, value); InvalidateNameWithAttributes(); }
+            set
+            {
+                if (EqualityComparer<ObservableCollection<PageData>>.Default.Equals(_favPages, value))
+                    return;
+
+                if (_favPages != null)
+                    _favPages.CollectionChanged -= FavPages_CollectionChanged;
+
+                _favPages = value ?? new ObservableCollection<PageData>();
+                _favPages.CollectionChanged += FavPages_CollectionChanged;
+
+                OnPropertyChanged(nameof(FavPages));
+                OnPropertyChanged(nameof(HasBookmarks));
+            }
         }
 
         public bool IsFromFolder
         {
             get => _isFromFolder;
-            set { SetProperty(ref _isFromFolder, value); InvalidateNameWithAttributes(); }
+            set { SetProperty(ref _isFromFolder, value); }
         }
 
         public string FromFolder
@@ -210,8 +240,16 @@ namespace Finn.Model
             get => _appendedFiles;
             set
             {
-                SetProperty(ref _appendedFiles, value);
-                InvalidateNameWithAttributes();
+                if (EqualityComparer<ObservableCollection<FileData>>.Default.Equals(_appendedFiles, value))
+                    return;
+
+                if (_appendedFiles != null)
+                    _appendedFiles.CollectionChanged -= AppendedFiles_CollectionChanged;
+
+                _appendedFiles = value ?? new ObservableCollection<FileData>();
+                _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
+
+                OnPropertyChanged(nameof(AppendedFiles));
                 OnPropertyChanged(nameof(HasAppendedFiles));
             }
         }
@@ -221,43 +259,21 @@ namespace Finn.Model
             get => _otherFiles;
             set
             {
-                SetProperty(ref _otherFiles, value);
-                InvalidateNameWithAttributes();
+                if (EqualityComparer<ObservableCollection<OtherData>>.Default.Equals(_otherFiles, value))
+                    return;
+
+                if (_otherFiles != null)
+                    _otherFiles.CollectionChanged -= OtherFiles_CollectionChanged;
+
+                _otherFiles = value ?? new ObservableCollection<OtherData>();
+                _otherFiles.CollectionChanged += OtherFiles_CollectionChanged;
+
+                OnPropertyChanged(nameof(OtherFiles));
                 OnPropertyChanged(nameof(HasAppendedFiles));
             }
         }
 
         public bool HasAppendedFiles => _appendedFiles.Count > 0 || _otherFiles.Count > 0;
-
-        public string NameWithAttributes
-        {
-            get
-            {
-                if (_cachedNameWithAttributes != null)
-                    return _cachedNameWithAttributes;
-
-                var sb = new StringBuilder(_namn.Length + 32);
-
-                if (_favorite)
-                    sb.Append(FavoriteIcon);
-
-                sb.Append(_namn);
-
-                bool hasDecorations = HasAppendedFiles || HasBookmarks || HasNote || HasThumbnail;
-                if (hasDecorations)
-                    sb.Append(Separator);
-
-                if (HasAppendedFiles) sb.Append(AttachmentIcon);
-                if (HasBookmarks) sb.Append(BookmarkIcon);
-                if (HasNote) sb.Append(NoteIcon);
-                if (HasThumbnail) sb.Append(ThumbnailIcon);
-                if (_hasPlainText) sb.Append(PlaintextIcon);
-                if (_isFromFolder) sb.Append(FolderIcon);
-
-                _cachedNameWithAttributes = sb.ToString();
-                return _cachedNameWithAttributes;
-            }
-        }
 
         public string Note
         {
@@ -265,7 +281,6 @@ namespace Finn.Model
             set
             {
                 SetProperty(ref _note, value);
-                InvalidateNameWithAttributes();
                 OnPropertyChanged(nameof(HasNote));
             }
         }
@@ -275,7 +290,7 @@ namespace Finn.Model
         public bool Favorite
         {
             get => _favorite;
-            set { SetProperty(ref _favorite, value); InvalidateNameWithAttributes(); }
+            set { SetProperty(ref _favorite, value); }
         }
 
         public List<string> PartOfCollections
@@ -290,7 +305,6 @@ namespace Finn.Model
             set
             {
                 SetProperty(ref _thumbnailSource, value);
-                InvalidateNameWithAttributes();
                 OnPropertyChanged(nameof(HasThumbnail));
             }
         }
@@ -300,7 +314,7 @@ namespace Finn.Model
         public bool HasPlainText
         {
             get => _hasPlainText;
-            set { SetProperty(ref _hasPlainText, value); InvalidateNameWithAttributes(); }
+            set { SetProperty(ref _hasPlainText, value); }
         }
         #endregion
 
@@ -336,14 +350,6 @@ namespace Finn.Model
         #endregion
 
         #region Property Changed Implementation
-        /// <summary>
-        /// Invalidates the cached display name and raises PropertyChanged.
-        /// </summary>
-        private void InvalidateNameWithAttributes()
-        {
-            _cachedNameWithAttributes = null;
-            OnPropertyChanged(nameof(NameWithAttributes));
-        }
 
         private bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
         {

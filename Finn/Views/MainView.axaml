@@ -275,7 +275,7 @@
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
 				<ToggleButton Grid.Column="2" ToolTip.Tip="Stored Content Search" Height="30" Width="30" IsChecked="{Binding IndexedSearch}">
-					<ic:SymbolIcon Symbol="BookDatabase" IconVariant="Regular" FontSize="16" Padding="0"/>
+					<ic:SymbolIcon Symbol="Text" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</ToggleButton>
 			</Grid>
 		</StackPanel>
@@ -346,9 +346,29 @@
 					  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
 					  ToolTip.ServiceEnabled="{Binding ShowThumbnails}">
 
-				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Namn"          Width="Auto" MinWidth="120" IsVisible="{Binding Storage.General.ShowIcons}"  FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Namn}"              Header="Namn"          Width="Auto" MinWidth="120" IsVisible="{Binding !Storage.General.ShowIcons}" FontSize="{Binding Storage.General.FontSize}"/>
+                <DataGrid.Columns>
+                    <!-- Icons-only column: render Fluent SymbolIcons for each symbol name in IconSymbols -->
+                    <!-- Let the column size itself to the cells so it grows/shrinks with the visible icons -->
+					<DataGridTemplateColumn Width="SizeToCells" CanUserResize="False" CanUserReorder="False" MinWidth="24" MaxWidth="120" IsVisible="{Binding Storage.General.ShowIcons}">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+                                <!-- No outer margin so measured width matches content; small spacing between icons -->
+								<StackPanel Orientation="Horizontal" Margin="5" Spacing="3" HorizontalAlignment="Center">
+									<ic:SymbolIcon Symbol="Star"		IsVisible="{Binding Favorite}"			IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"	IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"		IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"			IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="Text"		IsVisible="{Binding HasPlainText}"		IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="Folder"		IsVisible="{Binding IsFromFolder}"		IconVariant="Regular" FontSize="14"/>
+								</StackPanel>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+
+					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
+
+					<!-- Name-only column when icons are disabled -->
+					<DataGridTextColumn Binding="{Binding Namn}"			  Header="Namn"			 Width="Auto" MinWidth="120"												 FontSize="{Binding Storage.General.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding FileStatus}"        Header="FileStatus"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_2}"     FontSize="{Binding Storage.General.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding Storage.General.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding Storage.General.FontSize}"/>
@@ -362,7 +382,7 @@
 					<DataGridTextColumn Binding="{Binding Beskrivning2}"      Header="Beskrivning 2" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_12}"    FontSize="{Binding Storage.General.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Beskrivning3}"      Header="Beskrivning 3" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_13}"    FontSize="{Binding Storage.General.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Beskrivning4}"      Header="Beskrivning 4" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_14}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Revidering}"        Header="Revidering"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_15}"/>
+					<DataGridTextColumn Binding="{Binding Revidering}"        Header="Revidering"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_15}"    FontSize="{Binding Storage.General.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Sökväg}"            Header="Sökväg"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_16}"    FontSize="{Binding Storage.General.FontSize}"/>
 				</DataGrid.Columns>
 
@@ -470,7 +490,7 @@
 								</MenuItem>
 							</MenuItem>
 							<MenuItem Header="Content">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="BookDatabase"/></MenuItem.Icon>
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Text"/></MenuItem.Icon>
 								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Table"/></MenuItem.Icon>
 								</MenuItem>
@@ -537,7 +557,7 @@
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  LoadingRow="DataGrid_OnLoadingRow">
 					<DataGrid.Columns>
-						<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding Namn}"			   Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
