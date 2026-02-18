@@ -12,99 +12,92 @@
 
 	<Window.Styles>
 
+		<Style Selector="FlyoutPresenter.compact">
+			<Setter Property="Padding" Value="2"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="MinWidth" Value="0"/>
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+		</Style>
 		<Style Selector="Border">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 		</Style>
 
+		<!-- Shadow-only border: use Classes="shadow" on a Border to get only the shadow with rounded corners -->
+		<Style Selector="Border.shadow">
+			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<!-- ensure no extra margin so caller controls spacing -->
+			<Setter Property="Margin" Value="5"/>
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="ClipToBounds" Value="False"/>
+		</Style>
+
 		<Style Selector="Button">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="ToggleButton">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="TextBox">
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="5,9,5,9"/>
-		</Style>
-		<Style Selector="TextBox /template/ ContentPresenter">
+			<Setter Property="Padding" Value="5"/>
 			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<Style Selector="ComboBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="5"/>
-		</Style>
-		<Style Selector="ComboBox /template/ ContentControl#ContentPresenter">
-			<Setter Property="Padding" Value="10,0,0,0"/>
-		</Style>
-		<Style Selector="ComboBox /template/ Border#Background">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Margin" Value="5"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinHeight" Value="30"/>
 		</Style>
 
 		<Style Selector="DataGrid">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
-		<!-- Dialog action buttons: distinct from toolbar icon buttons -->
-		<Style Selector="Button.DialogAction">
-			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="Padding" Value="16,6"/>
-			<Setter Property="MinWidth" Value="80"/>
-			<Setter Property="FontSize" Value="14"/>
+		<!-- Global style: hide focus visual on all DataGridCells -->
+		<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+			<Setter Property="IsVisible" Value="false"/>
 		</Style>
 
-		<Style Selector="Button.DialogAction:pointerover">
-			<Setter Property="Opacity" Value="0.85"/>
+		<!-- Smooth opacity for toggled panels -->
+		<Style Selector="Grid.AnimatedPanel">
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+				</Transitions>
+			</Setter>
 		</Style>
 
-		<!-- Primary action gets accent highlight -->
-		<Style Selector="Button.DialogPrimary">
-			<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="HorizontalContentAlignment" Value="Center"/>
-			<Setter Property="Padding" Value="16,6"/>
-			<Setter Property="MinWidth" Value="80"/>
-			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-		</Style>
-
-		<Style Selector="Button.DialogPrimary:pointerover">
-			<Setter Property="Opacity" Value="0.85"/>
-		</Style>
-
-		<!-- Dialog header icon -->
-		<Style Selector="StackPanel.DialogHeader">
-			<Setter Property="HorizontalAlignment" Value="Center"/>
-			<Setter Property="Spacing" Value="4"/>
-			<Setter Property="Margin" Value="0,8,0,12"/>
-		</Style>
-
-		<Style Selector="StackPanel.DialogHeader > Label">
-			<Setter Property="FontSize" Value="16"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="HorizontalAlignment" Value="Center"/>
-		</Style>
-
-		<!-- Read-only fields in dialogs: dimmed -->
-		<Style Selector="TextBox.ReadOnly">
-			<Setter Property="IsReadOnly" Value="True"/>
+		<!-- Empty state hint when DataGrid has no rows -->
+		<Style Selector="DataGrid:empty /template/ Border#DataGridBorder">
 			<Setter Property="Opacity" Value="0.6"/>
+		</Style>
+
+		<!-- Add to UserControl.Styles -->
+		<Style Selector="DataGrid.ThumbnailGrid DataGridRow:pointerover">
+			<Setter Property="Cursor" Value="Arrow"/>
 		</Style>
 
 	</Window.Styles>

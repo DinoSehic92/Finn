@@ -11,7 +11,8 @@
 			 xmlns:ic="using:FluentIcons.Avalonia" 
 			 mc:Ignorable="d"
              x:Class="Finn.Views.MainView"
-			 x:DataType="vm:MainViewModel">
+             x:DataType="vm:MainViewModel"
+             ClipToBounds="False">
 
 	<Design.DataContext>
 		<vm:MainViewModel />
@@ -69,6 +70,17 @@
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 		</Style>
 
+		<!-- Shadow-only border: use Classes="shadow" on a Border to get only the shadow with rounded corners -->
+		<Style Selector="Border.shadow">
+			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<!-- ensure no extra margin so caller controls spacing -->
+			<Setter Property="Margin" Value="5"/>
+			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="ClipToBounds" Value="False"/>
+		</Style>
+
 		<Style Selector="Button">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="0"/>
@@ -80,39 +92,34 @@
 		</Style>
 
 		<Style Selector="TextBox">
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="5,9,5,9"/>
-		</Style>
-		<Style Selector="TextBox /template/ ContentPresenter">
+			<Setter Property="Padding" Value="5"/>
 			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<Style Selector="ComboBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="5"/>
-		</Style>
-		<Style Selector="ComboBox /template/ ContentControl#ContentPresenter">
-			<Setter Property="Padding" Value="10,0,0,0"/>
-		</Style>
-		<Style Selector="ComboBox /template/ Border#Background">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Margin" Value="5"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinHeight" Value="30"/>
 		</Style>
 
 		<Style Selector="DataGrid">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<!-- Global style: hide focus visual on all DataGridCells -->
@@ -153,7 +160,8 @@
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
 		  ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto"
 		  RowDefinitions="35,35,*"
-		  Margin="5">
+		  Margin="5"
+		  ClipToBounds="False">
 
 		<!-- ═══════════════════════════════════════════════ -->
 		<!-- Row 0: Top bar (menu, status, toolbar)         -->
@@ -225,39 +233,41 @@
 		</StackPanel>
 
 		<!-- Right-aligned row 1: metadata flyout + tray toggles -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="10" Margin="5,5,4,5">
-			<Button Name="Columns" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
-				<Grid ColumnDefinitions="30,*,30" FlowDirection="LeftToRight" Width="140">
-					<ic:SymbolIcon Grid.Column="0" Symbol="Database" IconVariant="Regular" FontSize="20"/>
-					<Label Grid.Column="1" Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-					<ic:SymbolIcon Grid.Column="2" Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
-				</Grid>
-				<Button.Flyout>
-					<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
-						<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
-							<CheckBox Content="Name"          Height="28" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/>
-							<CheckBox Content="FileStatus"    Height="28" IsChecked="{Binding CurrentProject.Meta_2, Mode=TwoWay}"/>
-							<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
-							<CheckBox Content="Uppdrag"       Height="28" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/>
-							<CheckBox Content="Tagg"          Height="28" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/>
-							<CheckBox Content="Färg"          Height="28" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/>
-							<CheckBox Content="Handling"      Height="28" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/>
-							<CheckBox Content="Status"        Height="28" IsChecked="{Binding CurrentProject.Meta_8, Mode=TwoWay}"/>
-							<CheckBox Content="Datum"         Height="28" IsChecked="{Binding CurrentProject.Meta_9, Mode=TwoWay}"/>
-							<CheckBox Content="Ritningstyp"   Height="28" IsChecked="{Binding CurrentProject.Meta_10, Mode=TwoWay}"/>
-							<CheckBox Content="Beskrivning 1" Height="28" IsChecked="{Binding CurrentProject.Meta_11, Mode=TwoWay}"/>
-							<CheckBox Content="Beskrivning 2" Height="28" IsChecked="{Binding CurrentProject.Meta_12, Mode=TwoWay}"/>
-							<CheckBox Content="Beskrivning 3" Height="28" IsChecked="{Binding CurrentProject.Meta_13, Mode=TwoWay}"/>
-							<CheckBox Content="Beskrivning 4" Height="28" IsChecked="{Binding CurrentProject.Meta_14, Mode=TwoWay}"/>
-							<CheckBox Content="Revidering"    Height="28" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/>
-							<CheckBox Content="Sökväg"        Height="28" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/>
-							<Separator Height="1" Margin="0,4"/>
-							<Button Content="Set Default" HorizontalAlignment="Center" Width="120"
-									Classes="DialogAction" Command="{Binding CurrentProject.SetDefaultMeta}"/>
-						</StackPanel>
-					</Flyout>
-				</Button.Flyout>
-			</Button>
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft">
+			<Border Classes="shadow">
+				<Button Name="Columns" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
+					<Grid ColumnDefinitions="30,*,30" FlowDirection="LeftToRight" Width="140">
+						<ic:SymbolIcon Grid.Column="0" Symbol="Database" IconVariant="Regular" FontSize="20"/>
+						<Label Grid.Column="1" Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+						<ic:SymbolIcon Grid.Column="2" Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
+					</Grid>
+					<Button.Flyout>
+						<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
+							<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
+								<CheckBox Content="Name"          Height="28" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/>
+								<CheckBox Content="FileStatus"    Height="28" IsChecked="{Binding CurrentProject.Meta_2, Mode=TwoWay}"/>
+								<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
+								<CheckBox Content="Uppdrag"       Height="28" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/>
+								<CheckBox Content="Tagg"          Height="28" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/>
+								<CheckBox Content="Färg"          Height="28" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/>
+								<CheckBox Content="Handling"      Height="28" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/>
+								<CheckBox Content="Status"        Height="28" IsChecked="{Binding CurrentProject.Meta_8, Mode=TwoWay}"/>
+								<CheckBox Content="Datum"         Height="28" IsChecked="{Binding CurrentProject.Meta_9, Mode=TwoWay}"/>
+								<CheckBox Content="Ritningstyp"   Height="28" IsChecked="{Binding CurrentProject.Meta_10, Mode=TwoWay}"/>
+								<CheckBox Content="Beskrivning 1" Height="28" IsChecked="{Binding CurrentProject.Meta_11, Mode=TwoWay}"/>
+								<CheckBox Content="Beskrivning 2" Height="28" IsChecked="{Binding CurrentProject.Meta_12, Mode=TwoWay}"/>
+								<CheckBox Content="Beskrivning 3" Height="28" IsChecked="{Binding CurrentProject.Meta_13, Mode=TwoWay}"/>
+								<CheckBox Content="Beskrivning 4" Height="28" IsChecked="{Binding CurrentProject.Meta_14, Mode=TwoWay}"/>
+								<CheckBox Content="Revidering"    Height="28" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/>
+								<CheckBox Content="Sökväg"        Height="28" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/>
+								<Separator Height="1" Margin="0,4"/>
+								<Button Content="Set Default" HorizontalAlignment="Center" Width="120"
+										Classes="DialogAction" Command="{Binding CurrentProject.SetDefaultMeta}"/>
+							</StackPanel>
+						</Flyout>
+					</Button.Flyout>
+				</Button>
+			</Border>
 
 			<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
 				<ToggleButton IsChecked="{Binding Storage.General.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"    IconVariant="Regular" FontSize="15"/></ToggleButton>
@@ -269,8 +279,10 @@
 
 		<!-- Center search bar -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
-			<Grid ColumnDefinitions="*,30,30">
-				<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch"/>
+                <Grid ColumnDefinitions="*,30,30">
+                 	<Border Classes="shadow">
+                		<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch" BorderThickness="0" Margin="0"/>
+                	</Border>
 				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
@@ -665,9 +677,15 @@
 			</DataGrid>
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
-				<TextBox Text="{Binding CurrentTimeSheetProject.Project}"   MinWidth="0" Width="170" Watermark="New Project"/>
-				<TextBox Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="150" Watermark="Project Nr"/>
-				<TextBox Text="{Binding CurrentTimeSheetProject.Task}"      MinWidth="0" Width="100" Watermark="Task"/>
+				<Border Classes="shadow">
+					<TextBox Text="{Binding CurrentTimeSheetProject.Project}"   MinWidth="0" Width="170" Watermark="New Project" BorderThickness="0" Margin="0"/>
+				</Border>
+				<Border Classes="shadow">
+					<TextBox Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="150" Watermark="Project Nr" BorderThickness="0" Margin="0"/>
+				</Border>
+				<Border Classes="shadow">
+					<TextBox Text="{Binding CurrentTimeSheetProject.Task}"      MinWidth="0" Width="100" Watermark="Task" BorderThickness="0" Margin="0"/>
+				</Border>
 				<Button Width="35" Click="NewTimeSheetProject">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
 				<Button Width="35" Click="RemoveTimeSheetProject"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
 			</StackPanel>
@@ -730,20 +748,26 @@
 				</StackPanel>
 			</Border>
 
-			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="2">
-				<ComboBox Width="72" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
-				<ComboBox Width="140" ItemsSource="{Binding Storage.General.TimeProjects}"
+			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="0">
+				<Border Classes="shadow">
+					<ComboBox Width="72" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
+				</Border>
+				<Border Classes="shadow">
+					<ComboBox Width="140" ItemsSource="{Binding Storage.General.TimeProjects}"
 						  SelectedValue="{Binding CurrentTimeSheet.Project}" SelectedValueBinding="{Binding Project}">
 					<ComboBox.ItemTemplate>
 						<DataTemplate><TextBlock Text="{Binding Project}"/></DataTemplate>
 					</ComboBox.ItemTemplate>
 				</ComboBox>
+				</Border>
 				<Button       Width="30" Command="{Binding NewTimeSheet}">   <ic:SymbolIcon Symbol="Add"        FontSize="18"/></Button>
 				<Button       Width="30" Command="{Binding RemoveTimeSheet}"><ic:SymbolIcon Symbol="Delete"     FontSize="18"/></Button>
 				<ToggleButton Width="30" Height="30" Padding="0" IsChecked="{Binding TimeSheetOpen}"><ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/></ToggleButton>
 			</StackPanel>
 
-			<TextBox Grid.Row="2" Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
+			<Border Grid.Row="2" Classes="shadow">
+				<TextBox Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary" BorderThickness="0" Margin="0"/>
+			</Border>
 
             <!-- TimeSheets grid: fill available width of the calendar panel -->
             <DataGrid Grid.Row="3" ItemsSource="{Binding CurrentCalendarData.TimeSheets}"
@@ -764,9 +788,13 @@
                 </DataGrid.Styles>
             </DataGrid>
 
-			<TextBox Grid.Row="4" Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad"
-					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
-			<TextBox Grid.Row="5" Text="{Binding CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14"/>
+		<Border Grid.Row="4" Classes="shadow">
+			<TextBox Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad" 
+					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch" BorderThickness="0" Margin="0"/>
+			</Border>
+		<Border Grid.Row="5" Classes="shadow">
+				<TextBox Text="{Binding CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14" BorderThickness="0" Margin="0"/>
+			</Border>
 
 			<DataGrid Grid.Row="6" Name="TimeSheet" Padding="0"
 					  ItemsSource="{Binding MonthlyNotes}" SelectedItem="{Binding CurrentCalendarData, Mode=TwoWay}"
@@ -810,14 +838,17 @@
 				<RowDefinition Height="{Binding Storage.General.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
 			</Grid.RowDefinitions>
 
-			<!-- File notepad -->
-			<TextBox Grid.Row="0" IsVisible="{Binding Storage.General.TrayNote}" VerticalContentAlignment="Top"
-					 Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
-					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
+            <!-- File notepad (wrapped in shadow-only border) -->
+                <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding Storage.General.TrayNote}">
+				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
+					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch" BorderThickness="0"/>
+			</Border>
 
 			<!-- Collections toolbar -->
 			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3" IsVisible="{Binding Storage.General.TrayCollections}">
-				<TextBox Name="CollectionInput" Width="180" Watermark="Add Collection"/>
+                <Border Classes="shadow">
+                    <TextBox Name="CollectionInput" Width="180" Watermark="Add Collection" BorderThickness="0" Margin="0"/>
+                </Border>
 				<Button Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
 				<Button Width="30" Command="{Binding RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 				<Button Width="30" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
@@ -851,7 +882,9 @@
 			<!-- Bookmarks toolbar -->
 			<Grid Grid.Row="4" RowDefinitions="35,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
 				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
-					<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="180"/>
+					<Border Classes="shadow">
+						<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="180"/>
+					</Border>
 					<Button Width="30" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
 					<Button Width="30" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 					<Button Width="30" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
