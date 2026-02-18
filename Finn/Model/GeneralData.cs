@@ -90,8 +90,8 @@ namespace Finn.Model
             set { cornerRadius = value; RaisePropertyChanged("CornerRadius"); }
         }
 
-        // Larger multi-layer shadow (made bigger to diagnose clipping/visibility issues)
-        private BoxShadows shadow = BoxShadows.Parse("0 6 20 0 #33000000, 0 12 30 0 #22000000");
+        // Modern, softer multi-layer shadow
+        private BoxShadows shadow = BoxShadows.Parse("0 2 6 0 #22000000, 0 8 24 0 #11000000");
 
         public BoxShadows Shadow
         {
@@ -218,8 +218,8 @@ namespace Finn.Model
         {
             if (ShadowVal)
             {
-                // Use a larger multi-layer shadow to make clipping issues more visible
-                Shadow = BoxShadows.Parse("0 6 20 0 #33000000, 0 12 30 0 #22000000");
+                // Use a modern, softer multi-layer shadow
+                Shadow = BoxShadows.Parse("0 2 6 0 #22000000, 0 8 24 0 #11000000");
             }
             else
             {

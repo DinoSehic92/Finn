@@ -11,6 +11,7 @@
         Title="Template">
 
 	<Window.Styles>
+       <!-- Compact flyout presenter for toolbox popup -->
 		<Style Selector="FlyoutPresenter.compact">
 			<Setter Property="Padding" Value="2"/>
 			<Setter Property="Margin" Value="0"/>
@@ -48,7 +49,7 @@
 		<Style Selector="TextBox">
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="10,5,5,5"/>
+			<Setter Property="Padding" Value="10,7,5,5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="ClipToBounds" Value="False"/>
@@ -60,7 +61,8 @@
 
 		<Style Selector="ComboBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="10,0,0,0"/>
+			<!-- Add left padding so the selected content is indented a bit -->
+			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="MinHeight" Value="30"/>
 		</Style>
 

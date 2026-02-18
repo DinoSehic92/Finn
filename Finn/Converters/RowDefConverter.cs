@@ -11,7 +11,7 @@ namespace Finn.Converters
         {
             if ((bool)value)
             {
-                return new GridLength(35, GridUnitType.Pixel);
+                return new GridLength(40, GridUnitType.Pixel);
             }
             else
             {

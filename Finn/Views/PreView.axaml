@@ -83,13 +83,15 @@
 			</LayoutTransformControl>
 		</Grid>
 
-		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="True" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
+		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
 			<Border Name="SearchGridBorder" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}" BoxShadow="{Binding Storage.General.Shadow}" CornerRadius="{Binding Storage.General.CornerRadius}">
-				<Grid RowDefinitions="10,35,30,*">
+				<Grid RowDefinitions="10,40,30,*">
 
 					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
 						<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">
-							<TextBox Grid.Column="0" Watermark="Seach String" Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
+							<Border Grid.Column="0" Classes="shadow">
+								<TextBox Watermark="Seach String" Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
+							</Border>
 							<Button Grid.Column="1" Margin="0" Click="OnSeachRegex" BorderThickness="0" IsEnabled="{Binding !PreviewVM.SearchBusy}">
 								<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 							</Button>

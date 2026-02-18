@@ -95,7 +95,7 @@
 		<Style Selector="TextBox">
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
-			<Setter Property="Padding" Value="10,5,5,5"/>
+			<Setter Property="Padding" Value="10,7,5,5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="ClipToBounds" Value="False"/>
@@ -108,7 +108,7 @@
 		<Style Selector="ComboBox">
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<!-- Add left padding so the selected content is indented a bit -->
-			<Setter Property="Padding" Value="10,0,0,0"/>
+			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="MinHeight" Value="30"/>
 		</Style>
 
@@ -162,7 +162,7 @@
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
 		  ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto"
-		  RowDefinitions="35,35,*"
+		  RowDefinitions="35,40,*"
 		  Margin="5"
 		  ClipToBounds="False">
 
@@ -235,15 +235,15 @@
 			</StackPanel>
 		</StackPanel>
 
-		<!-- Right-aligned row 1: metadata flyout + tray toggles -->
+		<!-- Right-aligned row 1: Headers flyout + tray toggles -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft">
-			<Border Classes="shadow" Height="28">
-				<Button Name="Columns" Height="28" MinHeight="28" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
-					<StackPanel Orientation="Horizontal" Height="28">
-						<ic:SymbolIcon Symbol="Database" IconVariant="Regular" FontSize="20"/>
-						<Label Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-						<ic:SymbolIcon Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
-					</StackPanel>
+			<Border Classes="shadow" Height="30">
+				<Button Name="Columns" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
+					<Grid ColumnDefinitions="25,*,20" Height="30">
+						<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
+						<Label Grid.Column="1" Content="Headers" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+						<ic:SymbolIcon Grid.Column="2" Symbol="DocumentHeaderArrowDown" IconVariant="Regular" FontSize="18"/>
+					</Grid>
 					<Button.Flyout>
 						<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
 							<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
@@ -507,7 +507,7 @@
 							<MenuItem Header="Content">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Text"/></MenuItem.Icon>
 								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Table"/></MenuItem.Icon>
+									<MenuItem.Icon><ic:SymbolIcon Symbol="BookOpen"/></MenuItem.Icon>
 								</MenuItem>
                                 <MenuItem Header="Fetch"   Click="OnFetchIndex">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
@@ -665,7 +665,7 @@
 		<!-- ═══════════════════════════════════════════════ -->
 
 		<!-- Timesheet panel -->
-		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,35,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
+		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,40,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
 			<DataGrid Grid.Row="0" Name="ProjectList"
 					  ItemsSource="{Binding Storage.General.TimeProjects}" SelectedItem="{Binding CurrentTimeSheetProject}"
 					  IsReadOnly="True">
@@ -703,17 +703,17 @@
 		</Grid>
 
 		<!-- Calendar panel -->
-		<Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,38,35,3*,2*,35,15*" IsVisible="{Binding CalendarOpen}" Width="320">
+		<Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding CalendarOpen}" Width="320">
 			<Border Grid.Row="0" Margin="5" BoxShadow="{Binding Storage.General.Shadow}"
-					Background="{DynamicResource TextControlBackground}" Width="310" Height="345">
+					Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
 				<StackPanel Orientation="Vertical">
-					<Calendar Height="310" Background="Transparent" HorizontalAlignment="Center"
+					<Calendar Height="295" Background="Transparent" HorizontalAlignment="Center"
 							  DisplayDate="{Binding SelectedDateTime, Mode=TwoWay}"
 							  SelectedDate="{Binding SelectedDateTime, Mode=TwoWay}"
 							  BorderBrush="Transparent" FontSize="{Binding Storage.General.FontSize}">
 						<Calendar.Styles>
 							<Style Selector="CalendarDayButton">
-								<Setter Property="MinHeight" Value="35"/>
+								<Setter Property="MinHeight" Value="32"/>
 							</Style>
 							<Style Selector="CalendarDayButton /template/ Border#Root">
 								<Setter Property="CornerRadius" Value="15"/>
@@ -738,13 +738,25 @@
 							</Style>
 						</Calendar.Styles>
 					</Calendar>
-					<Grid ColumnDefinitions="*,35">
-						<StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center">
-							<TextBlock Text="{Binding CurrentCalendarData.Date}" FontWeight="Bold"/>
-							<TextBlock Text="  |  "/>
-							<TextBlock Text="{Binding SelectedWeek}" FontWeight="Bold"/>
+					<Grid ColumnDefinitions="40,*,40">
+                    <Border  Name="SelectedDateWeek" Grid.Column="1"
+						BorderBrush="{DynamicResource SystemAccentColor}"
+						CornerRadius="{Binding Storage.General.CornerRadius}"
+						BorderThickness="1"
+
+						Padding="8,3,8,3" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
+							<TextBlock Text="{Binding CurrentCalendarData.Date}"
+								FontWeight="SemiBold"
+								FontSize="{Binding Storage.General.FontSize}"/>
+							<TextBlock Text="| week" FontSize="{Binding Storage.General.FontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+							<TextBlock Text="{Binding SelectedWeek}"
+								FontWeight="SemiBold"
+								FontSize="{Binding Storage.General.FontSize}"/>
+
 						</StackPanel>
-						<Button Grid.Column="1" Width="35" Command="{Binding ResetDate}">
+					</Border>
+						<Button Grid.Column="2" Width="35" Command="{Binding ResetDate}">
 							<ic:SymbolIcon Symbol="ArrowCircleLeft" FontSize="18"/>
 						</Button>
 					</Grid>
@@ -778,8 +790,8 @@
 					  RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
 					  BorderThickness="0" HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False" >
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Hours}"   Width="SizeToCells" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Project}" Width="SizeToCells" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Hours}"   Width="35" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Project}" Width="100" FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Diary}"   Width="*" FontSize="14" MinWidth="100"/>
 				</DataGrid.Columns>
                 <DataGrid.Styles>
@@ -817,8 +829,7 @@
 					</DataGridTemplateColumn>
 
 					<DataGridTextColumn Binding="{Binding DateString}"      Header="Date"     Width="Auto" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Reminder}"       Header="Reminder" Width="*" MinWidth="100"
-									Foreground="{DynamicResource SystemAccentColor}" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Reminder}"       Header="Reminder" Width="*" MinWidth="100" FontSize="14"/>
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
@@ -883,7 +894,7 @@
 			</DataGrid>
 
 			<!-- Bookmarks toolbar -->
-			<Grid Grid.Row="4" RowDefinitions="35,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
+			<Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
 				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 					<Border Classes="shadow">
 						<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="180"/>
