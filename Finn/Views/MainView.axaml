@@ -62,7 +62,7 @@
 			<Setter Property="Padding" Value="2"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="MinWidth" Value="0"/>
-			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="MinHeight" Value="30"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
@@ -75,6 +75,7 @@
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinHeight" Value="25"/>
 			<!-- ensure no extra margin so caller controls spacing -->
 			<Setter Property="Margin" Value="5"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
@@ -95,7 +96,8 @@
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
-			<Setter Property="Margin" Value="5"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
@@ -234,13 +236,13 @@
 
 		<!-- Right-aligned row 1: metadata flyout + tray toggles -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft">
-			<Border Classes="shadow">
-				<Button Name="Columns" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
-					<Grid ColumnDefinitions="30,*,30" FlowDirection="LeftToRight" Width="140">
-						<ic:SymbolIcon Grid.Column="0" Symbol="Database" IconVariant="Regular" FontSize="20"/>
-						<Label Grid.Column="1" Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-						<ic:SymbolIcon Grid.Column="2" Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
-					</Grid>
+			<Border Classes="shadow" Height="28">
+				<Button Name="Columns" Height="28" MinHeight="28" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
+					<StackPanel Orientation="Horizontal" Height="28">
+						<ic:SymbolIcon Symbol="Database" IconVariant="Regular" FontSize="20"/>
+						<Label Content="Metadata" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+						<ic:SymbolIcon Symbol="CaretDown" IconVariant="Regular" FontSize="20"/>
+					</StackPanel>
 					<Button.Flyout>
 						<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
 							<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
@@ -678,10 +680,10 @@
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
 				<Border Classes="shadow">
-					<TextBox Text="{Binding CurrentTimeSheetProject.Project}"   MinWidth="0" Width="170" Watermark="New Project" BorderThickness="0" Margin="0"/>
+					<TextBox Text="{Binding CurrentTimeSheetProject.Project}"   MinWidth="0" Width="160" Watermark="New Project" BorderThickness="0" Margin="0"/>
 				</Border>
 				<Border Classes="shadow">
-					<TextBox Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="150" Watermark="Project Nr" BorderThickness="0" Margin="0"/>
+					<TextBox Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="135" Watermark="Project Nr" BorderThickness="0" Margin="0"/>
 				</Border>
 				<Border Classes="shadow">
 					<TextBox Text="{Binding CurrentTimeSheetProject.Task}"      MinWidth="0" Width="100" Watermark="Task" BorderThickness="0" Margin="0"/>
@@ -750,7 +752,7 @@
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="0">
 				<Border Classes="shadow">
-					<ComboBox Width="72" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
+					<ComboBox Width="65" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
 				</Border>
 				<Border Classes="shadow">
 					<ComboBox Width="140" ItemsSource="{Binding Storage.General.TimeProjects}"
@@ -789,8 +791,8 @@
             </DataGrid>
 
 		<Border Grid.Row="4" Classes="shadow">
-			<TextBox Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad" 
-					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch" BorderThickness="0" Margin="0"/>
+			<TextBox Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad"
+					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
 			</Border>
 		<Border Grid.Row="5" Classes="shadow">
 				<TextBox Text="{Binding CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14" BorderThickness="0" Margin="0"/>

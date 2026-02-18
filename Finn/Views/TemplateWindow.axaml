@@ -11,12 +11,11 @@
         Title="Template">
 
 	<Window.Styles>
-
 		<Style Selector="FlyoutPresenter.compact">
 			<Setter Property="Padding" Value="2"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="MinWidth" Value="0"/>
-			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="MinHeight" Value="30"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
@@ -29,6 +28,7 @@
 			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinHeight" Value="25"/>
 			<!-- ensure no extra margin so caller controls spacing -->
 			<Setter Property="Margin" Value="5"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
@@ -49,7 +49,8 @@
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
-			<Setter Property="Margin" Value="5"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
