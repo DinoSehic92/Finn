@@ -951,10 +951,11 @@
 							</TreeView.Styles>
 							<TreeView.ItemTemplate>
 								<TreeDataTemplate ItemsSource="{Binding Children}">
-									<TextBlock Text="{Binding Header}"
-											   FontSize="{Binding FontSize}"
-											   FontWeight="{Binding FontWeight}"
-											   FontStyle="{Binding FontStyle}"/>
+                                    <TextBlock Text="{Binding Header}"
+                                               FontSize="{Binding FontSize}"
+                                               FontWeight="{Binding FontWeight}"
+                                               FontStyle="{Binding FontStyle}"
+                                               Foreground="{Binding ForegroundBrush}"/>
 								</TreeDataTemplate>
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>

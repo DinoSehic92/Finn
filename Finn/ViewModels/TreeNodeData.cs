@@ -34,6 +34,12 @@ namespace Finn.ViewModels
         public FontWeight FontWeight { get; init; } = FontWeight.Normal;
         public FontStyle FontStyle { get; init; } = FontStyle.Normal;
         public Color? Foreground { get; init; }
+
+        // Avalonia TextBlock.Foreground expects a Brush. Expose a brush property
+        // so the view can bind directly to it (avoids needing a converter in XAML).
+        // If Foreground is null, return a default brush so the tree items always have a visible color.
+        private static readonly Color DefaultForegroundColor = Colors.White;
+        public IBrush ForegroundBrush => new SolidColorBrush(Foreground ?? DefaultForegroundColor);
         public List<TreeNodeData> Children { get; init; } = [];
 
         public event PropertyChangedEventHandler? PropertyChanged;
