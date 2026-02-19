@@ -21,16 +21,22 @@ public partial class xReinDia : TemplateWindow
         KeyDown += CloseKey;
 
         foreach (var rb in GroupA1.Children.OfType<RadioButton>())
-            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorA1, () => UpdateResult(ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
+            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorA1, () => UpdateResult(ResultText1, ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
 
-        foreach (var rb in GroupB1.Children.OfType<RadioButton>())
-            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorB1, () => UpdateResult(ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
+        foreach (var rb in GroupB1_1.Children.OfType<RadioButton>())
+            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorB1, () => UpdateResult(ResultText1, ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
+
+        foreach (var rb in GroupB1_2.Children.OfType<RadioButton>())
+            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorB1, () => UpdateResult(ResultText1, ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
 
         foreach (var rb in GroupA2.Children.OfType<RadioButton>())
-            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorA2, () => UpdateResult(ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
+            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorA2, () => UpdateResult(ResultText1, ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
 
-        foreach (var rb in GroupB2.Children.OfType<RadioButton>())
-            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorB2, () => UpdateResult(ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
+        foreach (var rb in GroupB2_1.Children.OfType<RadioButton>())
+            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorB2, () => UpdateResult(ResultText1, ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
+
+        foreach (var rb in GroupB2_2.Children.OfType<RadioButton>())
+            rb.IsCheckedChanged += (s, e) => OnFactorChanged(s, ref _factorB2, () => UpdateResult(ResultText1, ResultText2, _factorA1, _factorB1, _factorA2, _factorB2));
     }
 
     private void CloseKey(object? sender, KeyEventArgs e)
@@ -48,11 +54,12 @@ public partial class xReinDia : TemplateWindow
         }
     }
 
-    private static void UpdateResult(TextBlock target, int factorA1, int factorB1, int factorA2, int factorB2)
+    private static void UpdateResult(TextBlock target1, TextBlock target2, int factorA1, int factorB1, int factorA2, int factorB2)
     {
         double As1 = 10 * Math.PI * (factorA1 / 2.0) * (factorA1 / 2.0) / factorB1;
         double As2 = 10 * Math.PI * (factorA2 / 2.0) * (factorA2 / 2.0) / factorB2;
 
-        target.Text = Math.Round(As1 + As2, 2).ToString();
+        target1.Text = Math.Round(As1, 2).ToString() + " + " + Math.Round(As2, 2).ToString() + " = ";
+        target2.Text = Math.Round(As1 + As2, 2).ToString();
     }
 }
