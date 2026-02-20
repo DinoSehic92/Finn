@@ -18,12 +18,12 @@
 
 	    <Window.Styles>
 			<Style Selector="Button.normal">
-				<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 				<Setter Property="FontWeight" Value="SemiBold"/>
 				<Setter Property="FontSize" Value="15"/>
 			</Style>
 			<Style Selector="Button.accent">
-				<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 				<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
 				<Setter Property="FontWeight" Value="SemiBold"/>
 				<Setter Property="FontSize" Value="15"/>

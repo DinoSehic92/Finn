@@ -20,7 +20,7 @@
 
 	<UserControl.Styles>
 		<Style Selector="Border">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 		</Style>
 	</UserControl.Styles>
 
@@ -84,7 +84,7 @@
 		</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
-			<Border Name="SearchGridBorder" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}" BoxShadow="{Binding Storage.General.Shadow}" CornerRadius="{Binding Storage.General.CornerRadius}">
+			<Border Name="SearchGridBorder" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}" BoxShadow="{Binding UI.Shadow}" CornerRadius="{Binding UI.CornerRadius}">
 				<Grid RowDefinitions="10,40,30,*">
 
 					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
@@ -134,7 +134,7 @@
 		</Grid>
 
 		<Grid ColumnDefinitions="*,Auto,*" Grid.Row="1" Grid.ColumnSpan="2">
-			<Border Grid.Column="1" BoxShadow="{Binding Storage.General.Shadow}"
+			<Border Grid.Column="1" BoxShadow="{Binding UI.Shadow}"
 					Background="{DynamicResource TextControlBackground}" Margin="5"
 					Padding="4,0">
 				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}">

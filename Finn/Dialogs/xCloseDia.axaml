@@ -18,7 +18,7 @@
 
     <Window.Styles>
         <Style Selector="Button.accent">
-            <Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
             <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -28,7 +28,7 @@
             <Setter Property="BorderThickness" Value="0"/>
         </Style>
         <Style Selector="Button.default">
-            <Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
             <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>

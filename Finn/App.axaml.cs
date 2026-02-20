@@ -4,6 +4,7 @@ using Finn.Views;
 using System;
 using System.Threading.Tasks;
 using Avalonia;
+using Finn.Services;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
@@ -25,16 +26,25 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            var vm = new MainViewModel();
+            // Initialize UI service to apply theme/resources centrally
+            var uiService = new UIService();
+            uiService.Initialize(vm);
+
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainViewModel()
+                DataContext = vm
             };
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
+            var vm = new MainViewModel();
+            var uiService = new UIService();
+            uiService.Initialize(vm);
+
             singleViewPlatform.MainView = new MainView
             {
-                DataContext = new MainViewModel()
+                DataContext = vm
             };
         }
 

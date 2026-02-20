@@ -19,7 +19,7 @@
 
     <Window.Styles>
         <Style Selector="Button.accent">
-            <Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
             <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -82,17 +82,17 @@
 				<Label Grid.Column="0" Grid.Row="11" Content="Size" VerticalAlignment="Center"/>
 
 
-				<ColorPicker Grid.Column="1" Grid.Row="1" Color="{Binding Storage.General.Color1}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerDark"/>
-				<ColorPicker Grid.Column="1" Grid.Row="2" Color="{Binding Storage.General.Color2}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerDark"/>
+				<ColorPicker Grid.Column="1" Grid.Row="1" Color="{Binding UI.Color1}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerDark"/>
+				<ColorPicker Grid.Column="1" Grid.Row="2" Color="{Binding UI.Color2}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerDark"/>
 
-				<ColorPicker Grid.Column="1" Grid.Row="4" Color="{Binding Storage.General.Color3}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerLight"/>
-				<ColorPicker Grid.Column="1" Grid.Row="5" Color="{Binding Storage.General.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
+				<ColorPicker Grid.Column="1" Grid.Row="4" Color="{Binding UI.Color3}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerLight"/>
+				<ColorPicker Grid.Column="1" Grid.Row="5" Color="{Binding UI.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
 
-				<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding Storage.General.ShadowVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-				<ToggleSwitch Grid.Column="1" Grid.Row="8" IsChecked="{Binding Storage.General.CornerRadiusVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+				<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding UI.ShadowVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+				<ToggleSwitch Grid.Column="1" Grid.Row="8" IsChecked="{Binding UI.CornerRadiusVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
-				<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" SelectedValue="{Binding Storage.General.Font}"/>
-				<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" SelectedValue="{Binding Storage.General.FontSize}"/>
+				<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" SelectedValue="{Binding UI.Font}"/>
+				<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" SelectedValue="{Binding UI.FontSize}"/>
 
 				<Button Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Classes="accent" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
 			</Grid>

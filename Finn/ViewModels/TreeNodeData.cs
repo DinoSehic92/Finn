@@ -37,9 +37,9 @@ namespace Finn.ViewModels
 
         // Avalonia TextBlock.Foreground expects a Brush. Expose a brush property
         // so the view can bind directly to it (avoids needing a converter in XAML).
-        // If Foreground is null, return a default brush so the tree items always have a visible color.
-        private static readonly Color DefaultForegroundColor = Colors.White;
-        public IBrush ForegroundBrush => new SolidColorBrush(Foreground ?? DefaultForegroundColor);
+        // If Foreground is null, return null so the view can fall back to a theme resource
+        // (use TargetNullValue in XAML to bind to the system foreground brush).
+        public IBrush? ForegroundBrush => Foreground.HasValue ? new SolidColorBrush(Foreground.Value) : null;
         public List<TreeNodeData> Children { get; init; } = [];
 
         public event PropertyChangedEventHandler? PropertyChanged;

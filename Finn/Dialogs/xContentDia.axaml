@@ -38,7 +38,7 @@
 				</DataGrid.Styles>
 
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
 

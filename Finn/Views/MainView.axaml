@@ -67,60 +67,60 @@
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
 		<Style Selector="Border">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 		</Style>
 
 		<!-- Shadow-only border: use Classes="shadow" on a Border to get only the shadow with rounded corners -->
 		<Style Selector="Border.shadow">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="BoxShadow" Value="{Binding UI.Shadow}"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<!-- ensure no extra margin so caller controls spacing -->
 			<Setter Property="Margin" Value="5"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<Style Selector="Button">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="ToggleButton">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="TextBox">
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="10,7,5,5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<Style Selector="ComboBox">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<!-- Add left padding so the selected content is indented a bit -->
 			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="MinHeight" Value="30"/>
 		</Style>
 
 		<Style Selector="DataGrid">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="BoxShadow" Value="{Binding UI.Shadow}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Margin" Value="5"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
@@ -272,11 +272,11 @@
 				</Button>
 			</Border>
 
-			<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
-				<ToggleButton IsChecked="{Binding Storage.General.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"    IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding Storage.General.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding Storage.General.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"    IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding Storage.General.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+                <StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
+                <ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"    IconVariant="Regular" FontSize="15"/></ToggleButton>
+                <ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/></ToggleButton>
+                <ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"    IconVariant="Regular" FontSize="15"/></ToggleButton>
+                <ToggleButton IsChecked="{Binding UI.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"       IconVariant="Regular" FontSize="15"/></ToggleButton>
 			</StackPanel>
 		</StackPanel>
 
@@ -300,23 +300,23 @@
 					Grid.Row="0" Grid.ColumnSpan="7" Margin="0,0,155,0">
 
 			<!-- Layout group -->
-			<ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
+            <ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Tray: Ctrl + E"           HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" Height="30" Width="35" Padding="0"                           IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Folders: Ctrl + L"        HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+            <ToggleButton ToolTip.Tip="Folders: Ctrl + L"        HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
 			<!-- View group -->
-			<ToggleButton ToolTip.Tip="Thumbnails: Ctrl + T"     HotKey="Ctrl+T" Height="30" Width="35" Padding="0"                           IsChecked="{Binding ShowThumbnails}">     <ic:SymbolIcon Symbol="Image"                             FontSize="18"/></ToggleButton>
+            <ToggleButton ToolTip.Tip="Thumbnails: Ctrl + T"     HotKey="Ctrl+T" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowThumbnails}">     <ic:SymbolIcon Symbol="Image"                             FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Preview Window: Ctrl + W" HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Preview: Ctrl + P"        HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Show Icons: Ctrl + I"     HotKey="Ctrl+I" Height="30" Width="35" Padding="0"                           IsChecked="{Binding Storage.General.ShowIcons}"><ic:SymbolIcon Symbol="Icons"   IconVariant="Regular" FontSize="18"/></ToggleButton>
+            <ToggleButton ToolTip.Tip="Show Icons: Ctrl + I"     HotKey="Ctrl+I" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowIcons}"><ic:SymbolIcon Symbol="Icons"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
             <!-- Settings & tools group -->
-            <ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !Storage.General.DarkMode}"><ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="18"/></ToggleButton>
+            <ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !UI.DarkMode}"><ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
 
             <!-- Toolbox: grouped tools (compact icon-only flyout) -->
@@ -343,7 +343,7 @@
 				</Button.Flyout>
 			</Button>
 
-			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
 		</StackPanel>
 
 		<!-- ═══════════════════════════════════════════════ -->
@@ -359,12 +359,12 @@
 					  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
-					  ToolTip.ServiceEnabled="{Binding ShowThumbnails}">
+                      ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 
                 <DataGrid.Columns>
                     <!-- Icons-only column: render Fluent SymbolIcons for each symbol name in IconSymbols -->
                     <!-- Let the column size itself to the cells so it grows/shrinks with the visible icons -->
-					<DataGridTemplateColumn Width="SizeToCells" CanUserResize="False" CanUserReorder="False" MinWidth="24" MaxWidth="120" IsVisible="{Binding Storage.General.ShowIcons}">
+                    <DataGridTemplateColumn Width="SizeToCells" CanUserResize="False" CanUserReorder="False" MinWidth="24" MaxWidth="120" IsVisible="{Binding UI.ShowIcons}">
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>
                                 <!-- No outer margin so measured width matches content; small spacing between icons -->
@@ -383,22 +383,22 @@
 					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
 
 					<!-- Name-only column when icons are disabled -->
-					<DataGridTextColumn Binding="{Binding Namn}"			  Header="Namn"			 Width="Auto" MinWidth="120"												 FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding FileStatus}"        Header="FileStatus"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_2}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Tagg}"              Header="Tagg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_5}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Färg}"              Header="Färg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_6}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Handling}"          Header="Handling"      Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_7}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Status}"            Header="Status"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_8}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Datum}"             Header="Datum"         Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_9}"     FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Ritningstyp}"       Header="Ritningstyp"   Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_10}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Beskrivning1}"      Header="Beskrivning 1" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_11}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Beskrivning2}"      Header="Beskrivning 2" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_12}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Beskrivning3}"      Header="Beskrivning 3" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_13}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Beskrivning4}"      Header="Beskrivning 4" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_14}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Revidering}"        Header="Revidering"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_15}"    FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding Sökväg}"            Header="Sökväg"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_16}"    FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Namn}"			  Header="Namn"			 Width="Auto" MinWidth="120"												 FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding FileStatus}"        Header="FileStatus"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_2}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Tagg}"              Header="Tagg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_5}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Färg}"              Header="Färg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_6}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Handling}"          Header="Handling"      Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_7}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Status}"            Header="Status"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_8}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Datum}"             Header="Datum"         Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_9}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Ritningstyp}"       Header="Ritningstyp"   Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_10}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning1}"      Header="Beskrivning 1" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_11}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning2}"      Header="Beskrivning 2" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_12}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning3}"      Header="Beskrivning 3" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_13}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Beskrivning4}"      Header="Beskrivning 4" Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_14}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Revidering}"        Header="Revidering"    Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_15}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Sökväg}"            Header="Sökväg"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_16}"    FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 
 				<DataGrid.ContextMenu>
@@ -572,8 +572,8 @@
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  LoadingRow="DataGrid_OnLoadingRow">
 					<DataGrid.Columns>
-						<DataGridTextColumn Binding="{Binding Namn}"			   Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding Namn}"			   Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>
@@ -605,9 +605,9 @@
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
-						<DataGridTextColumn Binding="{Binding Name}"       Header="Attached Files" Width="3*"  MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding Type}"       Header="Type"           Width="80"  MinWidth="80"  FontSize="{Binding Storage.General.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder"         Width="1.2*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding Name}"       Header="Attached Files" Width="3*"  MinWidth="120" FontSize="{Binding UI.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding Type}"       Header="Type"           Width="80"  MinWidth="80"  FontSize="{Binding UI.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder"         Width="1.2*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>
@@ -630,7 +630,7 @@
 
 			<!-- Folder sync grid -->
 			<DataGrid Name="FolderGrid" Grid.Row="2" MinHeight="200" MaxHeight="600"
-					  IsVisible="{Binding ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}"
+					  IsVisible="{Binding UI.ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}"
 					  SelectedItem="{Binding CurrentFolder}" SelectionMode="Single" IsReadOnly="True"
 					  DragDrop.AllowDrop="True">
 				<DataGrid.Columns>
@@ -665,7 +665,7 @@
 		<!-- ═══════════════════════════════════════════════ -->
 
 		<!-- Timesheet panel -->
-		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,40,*" IsVisible="{Binding TimeSheetOpen}" Width="500">
+		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,40,*" IsVisible="{Binding UI.TimeSheetOpen}" Width="500">
 			<DataGrid Grid.Row="0" Name="ProjectList"
 					  ItemsSource="{Binding Storage.General.TimeProjects}" SelectedItem="{Binding CurrentTimeSheetProject}"
 					  IsReadOnly="True">
@@ -702,15 +702,15 @@
 			</DataGrid>
 		</Grid>
 
-		<!-- Calendar panel -->
-		<Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding CalendarOpen}" Width="320">
-			<Border Grid.Row="0" Margin="5" BoxShadow="{Binding Storage.General.Shadow}"
+        <!-- Calendar panel -->
+        <Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding UI.CalendarOpen}" Width="320">
+			<Border Grid.Row="0" Margin="5" BoxShadow="{Binding UI.Shadow}"
 					Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
 				<StackPanel Orientation="Vertical">
 					<Calendar Height="295" Background="Transparent" HorizontalAlignment="Center"
 							  DisplayDate="{Binding SelectedDateTime, Mode=TwoWay}"
 							  SelectedDate="{Binding SelectedDateTime, Mode=TwoWay}"
-							  BorderBrush="Transparent" FontSize="{Binding Storage.General.FontSize}">
+							  BorderBrush="Transparent" FontSize="{Binding UI.FontSize}">
 						<Calendar.Styles>
 							<Style Selector="CalendarDayButton">
 								<Setter Property="MinHeight" Value="32"/>
@@ -741,18 +741,18 @@
 					<Grid ColumnDefinitions="40,*,40">
                     <Border  Name="SelectedDateWeek" Grid.Column="1"
 						BorderBrush="{DynamicResource SystemAccentColor}"
-						CornerRadius="{Binding Storage.General.CornerRadius}"
+						CornerRadius="{Binding UI.CornerRadius}"
 						BorderThickness="1"
 
 						Padding="8,3,8,3" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">
 						<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
 							<TextBlock Text="{Binding CurrentCalendarData.Date}"
 								FontWeight="SemiBold"
-								FontSize="{Binding Storage.General.FontSize}"/>
-							<TextBlock Text="| week" FontSize="{Binding Storage.General.FontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+								FontSize="{Binding UI.FontSize}"/>
+							<TextBlock Text="| week" FontSize="{Binding UI.FontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
 							<TextBlock Text="{Binding SelectedWeek}"
 								FontWeight="SemiBold"
-								FontSize="{Binding Storage.General.FontSize}"/>
+								FontSize="{Binding UI.FontSize}"/>
 
 						</StackPanel>
 					</Border>
@@ -777,7 +777,7 @@
 				</Border>
 				<Button       Width="30" Command="{Binding NewTimeSheet}">   <ic:SymbolIcon Symbol="Add"        FontSize="18"/></Button>
 				<Button       Width="30" Command="{Binding RemoveTimeSheet}"><ic:SymbolIcon Symbol="Delete"     FontSize="18"/></Button>
-				<ToggleButton Width="30" Height="30" Padding="0" IsChecked="{Binding TimeSheetOpen}"><ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/></ToggleButton>
+                <ToggleButton Width="30" Height="30" Padding="0" IsChecked="{Binding UI.TimeSheetOpen}"><ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/></ToggleButton>
 			</StackPanel>
 
 			<Border Grid.Row="2" Classes="shadow">
@@ -843,23 +843,23 @@
 		<!-- Tray panel (notes, collections, bookmarks, recent) -->
 		<Grid Grid.Row="2" Grid.Column="6" IsVisible="{Binding TrayViewOpen}" Width="300" Classes="AnimatedPanel">
 			<Grid.RowDefinitions>
-				<RowDefinition Height="{Binding Storage.General.TrayNote,        Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
-				<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding Storage.General.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding Storage.General.TrayBookmarks,   Converter={StaticResource RowDefConverter}}"/>
-				<RowDefinition Height="{Binding Storage.General.TrayBookmarks,   Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding Storage.General.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource RowDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
 			</Grid.RowDefinitions>
 
             <!-- File notepad (wrapped in shadow-only border) -->
-                <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding Storage.General.TrayNote}">
+                <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding UI.TrayNote}">
 				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
 					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch" BorderThickness="0"/>
 			</Border>
 
 			<!-- Collections toolbar -->
-			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3" IsVisible="{Binding Storage.General.TrayCollections}">
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3" IsVisible="{Binding UI.TrayCollections}">
                 <Border Classes="shadow">
                     <TextBox Name="CollectionInput" Width="180" Watermark="Add Collection" BorderThickness="0" Margin="0"/>
                 </Border>
@@ -869,22 +869,22 @@
 			</StackPanel>
 
 			<!-- Collections list -->
-			<DataGrid Grid.Row="2" IsVisible="{Binding Storage.General.TrayCollections}" Name="Collections"
+            <DataGrid Grid.Row="2" IsVisible="{Binding UI.TrayCollections}" Name="Collections"
 					  ItemsSource="{Binding Storage.General.Collections}" SelectedItem="{Binding CurrentCollection}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
 
 			<!-- Collection content -->
-			<DataGrid Grid.Row="3" IsVisible="{Binding Storage.General.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
+            <DataGrid Grid.Row="3" IsVisible="{Binding UI.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
 					  ItemsSource="{Binding CollectionContent, Mode=OneWay}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" LoadingRow="DataGrid_OnLoadingRow"
-					  ToolTip.ServiceEnabled="{Binding ShowThumbnails}">
+                      ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Namn}" Header="Content" Width="*" MinWidth="120" FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Namn}" Header="Content" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
@@ -894,7 +894,7 @@
 			</DataGrid>
 
 			<!-- Bookmarks toolbar -->
-			<Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding Storage.General.TrayBookmarks}">
+            <Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding UI.TrayBookmarks}">
 				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 					<Border Classes="shadow">
 						<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="180"/>
@@ -906,13 +906,13 @@
 			</Grid>
 
 			<!-- Bookmarks list -->
-			<DataGrid IsVisible="{Binding Storage.General.TrayBookmarks}" Grid.Row="5" Name="BookmarkGrid"
+            <DataGrid IsVisible="{Binding UI.TrayBookmarks}" Grid.Row="5" Name="BookmarkGrid"
 					  ItemsSource="{Binding PreviewVM.CurrentFile.FavPages, Mode=OneWay}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding PageNr, Converter={StaticResource AddOneConverter}}" Header="Page"     Width="85" FontSize="{Binding Storage.General.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding PageName}"                                            Header="Bookmark" Width="*"  FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding PageNr, Converter={StaticResource AddOneConverter}}" Header="Page"     Width="85" FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding PageName}"                                            Header="Bookmark" Width="*"  FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
 
@@ -922,7 +922,7 @@
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding Storage.General.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
 		</Grid>
@@ -934,8 +934,8 @@
 		</Grid>
 
 		<!-- Tree view -->
-		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding TreeViewOpen}" Width="250" Classes="AnimatedPanel">
-			<Border Name="TreeBorder" Margin="5" BoxShadow="{Binding Storage.General.Shadow}"
+		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="250" Classes="AnimatedPanel">
+			<Border Name="TreeBorder" Margin="5" BoxShadow="{Binding UI.Shadow}"
 					Background="{DynamicResource TextControlBackground}">
 				<ScrollViewer>
 					<Grid RowDefinitions="31,*">
@@ -955,7 +955,7 @@
                                                FontSize="{Binding FontSize}"
                                                FontWeight="{Binding FontWeight}"
                                                FontStyle="{Binding FontStyle}"
-                                               Foreground="{Binding ForegroundBrush}"/>
+                                               Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
 								</TreeDataTemplate>
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>

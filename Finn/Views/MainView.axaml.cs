@@ -123,8 +123,9 @@ public partial class MainView : UserControl
         var window = TopLevel.GetTopLevel(this);
         if (window == null) return;
 
-        window.FontFamily = (FontFamily)Resources[_ctx.Storage.General.Font]!;
-        window.FontSize = _ctx.Storage.General.FontSize;
+        // Read font settings from the UI viewmodel
+        window.FontFamily = (FontFamily)Resources[_ctx.UI.Font]!;
+        window.FontSize = _ctx.UI.FontSize;
     }
 
     #endregion

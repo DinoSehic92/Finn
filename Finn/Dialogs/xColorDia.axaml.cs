@@ -30,20 +30,20 @@ public partial class xColorDia : TemplateWindow
 
     public void ResetDark(object sender, RoutedEventArgs e)
     {
-        BackgroundColorPickerDark.Color = Model.GeneralData.DefaultColor1;
-        AccentColorPickerDark.Color = Model.GeneralData.DefaultColor2;
+        BackgroundColorPickerDark.Color = Finn.Services.UIDefaults.DefaultColor1;
+        AccentColorPickerDark.Color = Finn.Services.UIDefaults.DefaultColor2;
     }
 
     public void ResetLight(object sender, RoutedEventArgs e)
     {
-        BackgroundColorPickerLight.Color = Model.GeneralData.DefaultColor3;
-        AccentColorPickerLight.Color = Model.GeneralData.DefaultColor4;
+        BackgroundColorPickerLight.Color = Finn.Services.UIDefaults.DefaultColor3;
+        AccentColorPickerLight.Color = Finn.Services.UIDefaults.DefaultColor4;
     }
 
     public void ResetFonts(object sender, RoutedEventArgs e)
     {
-        FontCombo.SelectedItem = Model.GeneralData.DefaultFontName;
-        FontSizeCombo.SelectedValue = Model.GeneralData.DefaultFontSize;
+        FontCombo.SelectedItem = Finn.Services.UIDefaults.DefaultFontName;
+        FontSizeCombo.SelectedValue = Finn.Services.UIDefaults.DefaultFontSize;
     }
 
     private void CloseKey(object sender, KeyEventArgs e)

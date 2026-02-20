@@ -6,7 +6,7 @@
         xmlns:views="clr-namespace:Finn.Views"
         x:Class="Finn.Views.TemplateWindow"
         Icon="/Assets/folder.ico"
-		RequestedThemeVariant="{Binding Storage.General.Theme}"
+		RequestedThemeVariant="{Binding UI.Theme}"
 		x:DataType="vm:MainViewModel"
         Title="Template">
 
@@ -21,60 +21,60 @@
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
 		<Style Selector="Border">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 		</Style>
 
 		<!-- Shadow-only border: use Classes="shadow" on a Border to get only the shadow with rounded corners -->
 		<Style Selector="Border.shadow">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
+			<Setter Property="BoxShadow" Value="{Binding UI.Shadow}"/>
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<!-- ensure no extra margin so caller controls spacing -->
 			<Setter Property="Margin" Value="5"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<Style Selector="Button">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="ToggleButton">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="0"/>
 		</Style>
 
 		<Style Selector="TextBox">
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="10,7,5,5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 
 		<Style Selector="ComboBox">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<!-- Add left padding so the selected content is indented a bit -->
 			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="MinHeight" Value="30"/>
 		</Style>
 
 		<Style Selector="DataGrid">
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Padding" Value="5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
-			<Setter Property="BoxShadow" Value="{Binding Storage.General.Shadow}"/>
-			<Setter Property="CornerRadius" Value="{Binding Storage.General.CornerRadius}"/>
+			<Setter Property="BoxShadow" Value="{Binding UI.Shadow}"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 			<Setter Property="Margin" Value="5"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Finn.Dialog;
 using System.ComponentModel;
 using System.Diagnostics;
+using Org.BouncyCastle.Crypto.Signers;
 
 
 namespace Finn.Views;
@@ -19,21 +20,25 @@ public partial class MainWindow : TemplateWindow, INotifyPropertyChanged
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-        if (confirmLeave)
-        {
-            e.Cancel = true;
-            OpenClosingDia();
-        }
-        else
-        {
-            MainViewModel ctx = (MainViewModel)this.DataContext;
+        MainViewModel ctx = (MainViewModel)this.DataContext;
 
-            if (ctx.PreviewWindowOpen)
+        if (ctx.IsStorageDifferentFromFile())
+        {
+            if (confirmLeave)
             {
-                ctx.PreviewWindowOpen = false;
+                e.Cancel = true;
+                OpenClosingDia();
             }
+            else
+            {
 
-            e.Cancel = false;
+                if (ctx.PreviewWindowOpen)
+                {
+                    ctx.PreviewWindowOpen = false;
+                }
+
+                e.Cancel = false;
+            }
         }
     }
 

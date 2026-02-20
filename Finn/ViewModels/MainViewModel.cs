@@ -14,6 +14,7 @@ using Avalonia.Styling;
 using Finn.Views;
 using MuPDFCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Avalonia;
 using Avalonia.Platform.Storage;
 using Avalonia.Themes.Fluent;
@@ -53,6 +54,10 @@ namespace Finn.ViewModels
                 SetProjectlist();
                 SetProject("New Project");
                 SetDefaultType();
+                // Theme/resource updates handled by UIService (centralized).
+
+                // React to UI visibility changes persisted in UISettingsViewModel
+                UI.PropertyChanged += OnUISettingsChanged;
             }
 
             private PreviewViewModel _previewVM = new();
@@ -119,7 +124,24 @@ namespace Finn.ViewModels
             public StoreData Storage
             {
                 get { return storage; }
-                set { storage = value; OnPropertyChanged(nameof(Storage)); Storage.General.PropertyChanged += OnGeneralChanged; }
+                set { storage = value; OnPropertyChanged(nameof(Storage)); }
+            }
+
+            // Track the path of the currently loaded/saved Projects file so comparisons use the
+            // correct file when the user loads or saves to a custom location.
+            private string? _currentProjectsFilePath;
+            public string? CurrentProjectsFilePath
+            {
+                get => _currentProjectsFilePath;
+                set { _currentProjectsFilePath = value; OnPropertyChanged(nameof(CurrentProjectsFilePath)); }
+            }
+
+            // Runtime UI settings viewmodel (separate from persisted DTO)
+            private UISettingsViewModel _ui = new UISettingsViewModel();
+            public UISettingsViewModel UI
+            {
+                get => _ui;
+                set { _ui = value; OnPropertyChanged(nameof(UI)); }
             }
 
             private List<string> projectList = new();
@@ -198,35 +220,6 @@ namespace Finn.ViewModels
                 get { return previewEmbeddedOpen; }
                 set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); if (PreviewEmbeddedOpen) { PreviewWindowOpen = false; }; }
             }
-
-            private bool treeViewOpen = true;
-            public bool TreeViewOpen
-            {
-                get { return treeViewOpen; }
-                set { treeViewOpen = value; OnPropertyChanged(nameof(TreeViewOpen)); }
-            }
-
-            private bool calendarOpen = false;
-            public bool CalendarOpen
-            {
-                get { return calendarOpen; }
-                set { calendarOpen = value; OnPropertyChanged(nameof(CalendarOpen)); }
-            }
-
-            private bool timeSheetOpen = false;
-            public bool TimeSheetOpen
-            {
-                get { return timeSheetOpen; }
-                set { timeSheetOpen = value; OnPropertyChanged(nameof(TimeSheetOpen)); WeeklyTimeSummary(); }
-            }
-
-            private bool showFolders = false;
-            public bool ShowFolders
-            {
-                get { return showFolders; }
-                set { showFolders = value; OnPropertyChanged(nameof(ShowFolders)); }
-            }
-
             private bool trayViewOpen = false;
             public bool TrayViewOpen
             {
@@ -234,12 +227,6 @@ namespace Finn.ViewModels
                 set { trayViewOpen = value; OnPropertyChanged(nameof(TrayViewOpen)); }
             }
 
-            private bool showThumbnails = false;
-            public bool ShowThumbnails
-            {
-                get { return showThumbnails; }
-                set { showThumbnails = value; OnPropertyChanged(nameof(ShowThumbnails)); }
-            }
 
             private string searchText = string.Empty;
             public string SearchText
@@ -556,7 +543,7 @@ namespace Finn.ViewModels
 
             private void WeeklyTimeSummary()
             {
-                if (TimeSheetOpen && CurrentCalendarData != null)
+                if (UI.TimeSheetOpen && CurrentCalendarData != null)
                 {
                     foreach (TimeSheetProjectData project in Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT))
                     {
@@ -818,29 +805,20 @@ namespace Finn.ViewModels
                 window.ShowDialog(mainWindow);
             }
 
-            private void OnGeneralChanged(object sender, PropertyChangedEventArgs e)
-            {
-                string val = e.PropertyName;
-
-                if (val == "Color1" || val == "Color2" || val == "Color3" || val == "Color4")
-                {
-                    SetWindowColors();
-                    SyncPreviewRegionColor();
-                }
-
-                if (val == "DarkMode")
-                {
-                    SyncPreviewRegionColor();
-                }
-            }
-
             private void SyncPreviewRegionColor()
             {
-                var color = Storage.General.DarkMode
-                    ? Storage.General.Color1
-                    : Storage.General.Color3;
+                // Use UI viewmodel for theme colors
+                var color = UI.DarkMode ? UI.Color1 : UI.Color3;
                 PreviewVM.UpdateThemeRegionColor(color);
             }
+
+        private void OnUISettingsChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(UISettingsViewModel.TimeSheetOpen))
+            {
+                WeeklyTimeSummary();
+            }
+        }
 
             public void TrySetPage()
             {
@@ -1170,6 +1148,9 @@ namespace Finn.ViewModels
 
                 if (files.Count > 0)
                 {
+                    // Remember the loaded file path so comparisons target the correct file
+                    try { CurrentProjectsFilePath = files[0].Path.LocalPath; } catch { CurrentProjectsFilePath = null; }
+
                     await using var stream = await files[0].OpenReadAsync();
                     using var streamReader = new StreamReader(stream);
                     string fileContent = await streamReader.ReadToEndAsync();
@@ -1179,7 +1160,10 @@ namespace Finn.ViewModels
 
             public void LoadFileAuto()
             {
-                using StreamReader streamReader = new($"{Storage.General.SavePath}\\Projects.json");
+                string path = $"{Storage.General.SavePath}\\Projects.json";
+                try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
+
+                using StreamReader streamReader = new(path);
                 string fileContent = streamReader.ReadToEnd();
                 DeserializeLoadFile(fileContent);
             }
@@ -1200,8 +1184,6 @@ namespace Finn.ViewModels
 
                 SetProjectlist();
                 SetDefaultSelection();
-                SetWindowColors();
-                SetWindowBorders();
                 GetGroups();
                 SyncPreviewRegionColor();
             }
@@ -1222,6 +1204,9 @@ namespace Finn.ViewModels
 
                 if (file is not null)
                 {
+                    // Remember the path the user chose for future comparisons
+                    try { CurrentProjectsFilePath = file.Path.LocalPath; } catch { CurrentProjectsFilePath = null; }
+
                     await using var stream = await file.OpenWriteAsync();
                     using var streamWriter = new StreamWriter(stream);
                     var data = JsonConvert.SerializeObject(Storage);
@@ -1236,9 +1221,102 @@ namespace Finn.ViewModels
                     Directory.CreateDirectory(Storage.General.SavePath);
                 }
 
-                using StreamWriter streamWriter = new($"{Storage.General.SavePath}\\Projects.json");
+                string path = $"{Storage.General.SavePath}\\Projects.json";
+                try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
+
+                using StreamWriter streamWriter = new(path);
                 var data = JsonConvert.SerializeObject(Storage);
                 await streamWriter.WriteLineAsync(data);
+            }
+
+            /// <summary>
+            /// Compare the in-memory Storage (Projects) with the on-disk Projects.json file.
+            /// Returns true when the two are different (i.e. there are unsaved changes).
+            /// </summary>
+            public bool IsStorageDifferentFromFile(string? projectsFilePath = null)
+            {
+                try
+                {
+                    string path;
+                    if (!string.IsNullOrWhiteSpace(projectsFilePath))
+                        path = projectsFilePath;
+                    else if (!string.IsNullOrWhiteSpace(CurrentProjectsFilePath))
+                        path = CurrentProjectsFilePath;
+                    else
+                        path = Path.Combine(Storage.General.SavePath, "Projects.json");
+
+                    Debug.WriteLine($"Comparing storage to file: '{path}'");
+                    if (!File.Exists(path))
+                    {
+                        // No file on disk -> consider storage different (unsaved)
+                        return true;
+                    }
+
+                    string fileContent = File.ReadAllText(path);
+
+                    // Parse saved JSON
+                    JToken saved = JToken.Parse(fileContent);
+
+                    // Prune transient UI-related fields that may exist in older save files
+                    // but are no longer part of StoreData. This avoids false positives when
+                    // comparing the in-memory model to an on-disk file from an older format.
+                    PruneTransientUiFields(saved);
+
+                    // Serialize current storage using same JsonConvert pipeline as Save to avoid
+                    // differences caused by serializer variations (null vs omitted, converters, etc.)
+                    string currentJson = JsonConvert.SerializeObject(Storage);
+                    var current = JToken.Parse(currentJson);
+
+                    // Prune transient fields from the current representation as well
+                    PruneTransientUiFields(current);
+
+                    return !JToken.DeepEquals(saved, current);
+                }
+                catch
+                {
+                    // If comparison fails for any reason, assume changed so caller can decide to save.
+                    return true;
+                }
+            }
+
+            // Remove transient UI fields that used to be stored in Projects.json but
+            // are now part of UISettings.json / UI viewmodel. This prevents the
+            // comparison from treating those legacy fields as meaningful differences.
+            private static readonly string[] TransientPropertyNames = new[]
+            {
+                "ThumbnailSource",
+                "HasPlainText",
+                "FileStatus",
+                "HasThumbnail",
+            };
+
+            private static void PruneTransientUiFields(JToken? token)
+            {
+                if (token == null) return;
+
+                // Recursively remove any properties with names considered transient.
+                void Recurse(JToken t)
+                {
+                    if (t.Type == JTokenType.Object)
+                    {
+                        var obj = (JObject)t;
+                        // Collect properties to remove to avoid modifying collection during enumeration
+                        var toRemove = obj.Properties().Where(p => TransientPropertyNames.Contains(p.Name)).ToList();
+                        foreach (var p in toRemove)
+                            p.Remove();
+
+                        // Recurse into remaining properties
+                        foreach (var child in obj.Properties())
+                            Recurse(child.Value);
+                    }
+                    else if (t.Type == JTokenType.Array)
+                    {
+                        foreach (var item in (JArray)t)
+                            Recurse(item);
+                    }
+                }
+
+                Recurse(token);
             }
 
             public void BackupSaveFile()
@@ -1273,12 +1351,13 @@ namespace Finn.ViewModels
 
             public void SetWindowColors()
             {
+                // Use UI viewmodel colors (runtime types) when creating the FluentTheme
                 var theme = new FluentTheme()
                 {
                     Palettes =
                     {
-                        [ThemeVariant.Dark] = new ColorPaletteResources() {RegionColor = Storage.General.Color1, Accent = Storage.General.Color2},
-                        [ThemeVariant.Light] = new ColorPaletteResources() {RegionColor = Storage.General.Color3, Accent = Storage.General.Color4 }
+                        [ThemeVariant.Dark] = new ColorPaletteResources() {RegionColor = UI.Color1, Accent = UI.Color2},
+                        [ThemeVariant.Light] = new ColorPaletteResources() {RegionColor = UI.Color3, Accent = UI.Color4 }
                     }
                 };
 
@@ -1287,8 +1366,9 @@ namespace Finn.ViewModels
 
             public void SetWindowBorders()
             {
-                Storage.General.CornerRadiusVal = Storage.General.CornerRadiusVal;
-                Storage.General.ShadowVal = Storage.General.ShadowVal;
+                // Borders and corner radius are applied via bindings to the UI viewmodel in XAML.
+                // This method is kept for compatibility and called when UI settings change so any
+                // additional runtime work can be added here if needed in the future.
             }
 
             public void AddFilesDrag(string path)
