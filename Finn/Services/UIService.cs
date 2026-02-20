@@ -4,6 +4,10 @@ using Newtonsoft.Json.Linq;
 using System.IO;
 using System.Threading.Tasks;
 using Finn.ViewModels;
+using Avalonia.Themes.Fluent;
+using Avalonia.Styling;
+using Avalonia.Media;
+using Avalonia;
 using Newtonsoft.Json;
 
 namespace Finn.Services
@@ -79,6 +83,9 @@ namespace Finn.Services
                             _vm.UI.TimeSheetOpen = ui.TimeSheetOpen;
                             _vm.UI.ShowFolders = ui.ShowFolders;
                             _vm.UI.ShowThumbnails = ui.ShowThumbnails;
+                            _vm.UI.PreviewEmbeddedOpen = ui.PreviewEmbeddedOpen;
+                            _vm.UI.TrayViewOpen = ui.TrayViewOpen;
+
                         }
                         catch
                         {
@@ -106,8 +113,7 @@ namespace Finn.Services
             if (_vm == null) return;
 
             // Apply colors and border settings using existing viewmodel helpers
-            _vm.SetWindowColors();
-            _vm.SetWindowBorders();
+            SetWindowColors();
         }
 
         private async void OnUIChanged(object? sender, PropertyChangedEventArgs e)
@@ -117,13 +123,7 @@ namespace Finn.Services
             // If color or theme related values changed, apply resources
             if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
             {
-                _vm.SetWindowColors();
-            }
-
-            // If border or shadow settings changed, apply them
-            if (e.PropertyName == "CornerRadiusVal" || e.PropertyName == "ShadowVal")
-            {
-                _vm.SetWindowBorders();
+                SetWindowColors();
             }
 
             // Persist UI-only settings to disk (fire-and-forget).
@@ -177,6 +177,8 @@ namespace Finn.Services
                     ui.TimeSheetOpen = _vm.UI.TimeSheetOpen;
                     ui.ShowFolders = _vm.UI.ShowFolders;
                     ui.ShowThumbnails = _vm.UI.ShowThumbnails;
+                    ui.TrayViewOpen = _vm.UI.TrayViewOpen;
+                    ui.PreviewEmbeddedOpen = _vm.UI.PreviewEmbeddedOpen;
                 }
                 catch
                 {
@@ -191,6 +193,29 @@ namespace Finn.Services
             {
                 // Swallow IO/serialization errors here — do not crash UI thread
             }
+        }
+
+        // Move theme application here — UIService owns application-wide theming
+        public void SetWindowColors()
+        {
+            if (_vm == null) return;
+
+            var theme = new FluentTheme()
+            {
+                Palettes =
+                {
+                    [ThemeVariant.Dark] = new ColorPaletteResources() { RegionColor = _vm.UI.Color1, Accent = _vm.UI.Color2 },
+                    [ThemeVariant.Light] = new ColorPaletteResources() { RegionColor = _vm.UI.Color3, Accent = _vm.UI.Color4 }
+                }
+            };
+
+            App.Current.Resources = theme.Resources;
+        }
+
+        public void SetWindowBorders()
+        {
+            // Borders and corner radius are applied via bindings to the UI viewmodel in XAML.
+            // This method remains for compatibility and future runtime work.
         }
     }
 }

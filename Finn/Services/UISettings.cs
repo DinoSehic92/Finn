@@ -33,5 +33,7 @@ namespace Finn.Services
         public bool TimeSheetOpen { get; set; }
         public bool ShowFolders { get; set; }
         public bool ShowThumbnails { get; set; }
+        public bool TrayViewOpen { get; set; }
+        public bool PreviewEmbeddedOpen { get; set; }
     }
 }

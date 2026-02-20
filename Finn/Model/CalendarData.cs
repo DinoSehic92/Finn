@@ -1,4 +1,5 @@
 ﻿using System;
+using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -36,6 +37,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets the week of the month for this date.
         /// </summary>
+        [JsonIgnore]
         public int WeekOfMonth
         {
             get
@@ -49,6 +51,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets a string representation of the date, or " - " for weekends.
         /// </summary>
+        [JsonIgnore]
         public string DateString
         {
             get
@@ -114,6 +117,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets the total time from all timesheets, or null if none.
         /// </summary>
+        [JsonIgnore]
         public int? TotalTime
         {
             get
@@ -159,6 +163,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets or sets the diary for the current timesheet project.
         /// </summary>
+        [JsonIgnore]
         public string CurrentTimeSheetProjectDiary
         {
             get => currentTimeSheetProjectDiary;
@@ -169,6 +174,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets or sets the time for the current timesheet project.
         /// </summary>
+        [JsonIgnore]
         public int? CurrentTimeSheetProjectTime
         {
             get => currentTimeSheetProjectTime;
@@ -186,11 +192,13 @@ namespace Finn.Model
         /// <summary>
         /// Gets whether this entry has a note.
         /// </summary>
+        [JsonIgnore]
         public bool HasNote => Note1.Length > 0 || Note2.Length > 0;
 
         /// <summary>
         /// Gets whether this entry has time data.
         /// </summary>
+        [JsonIgnore]
         public bool HasTime => TimeSheets.Count > 0;
 
 

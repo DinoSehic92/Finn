@@ -211,22 +211,8 @@ namespace Finn.ViewModels
             public bool PreviewWindowOpen
             {
                 get { return previewWindowOpen; }
-                set { previewWindowOpen = value; OnPropertyChanged(nameof(PreviewWindowOpen)); if (PreviewWindowOpen) { PreviewEmbeddedOpen = false; }; }
+                set { previewWindowOpen = value; OnPropertyChanged(nameof(PreviewWindowOpen)); if (PreviewWindowOpen) { UI.PreviewEmbeddedOpen = false; }; }
             }
-
-            private bool previewEmbeddedOpen = false;
-            public bool PreviewEmbeddedOpen
-            {
-                get { return previewEmbeddedOpen; }
-                set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); if (PreviewEmbeddedOpen) { PreviewWindowOpen = false; }; }
-            }
-            private bool trayViewOpen = false;
-            public bool TrayViewOpen
-            {
-                get { return trayViewOpen; }
-                set { trayViewOpen = value; OnPropertyChanged(nameof(TrayViewOpen)); }
-            }
-
 
             private string searchText = string.Empty;
             public string SearchText
@@ -269,6 +255,12 @@ namespace Finn.ViewModels
                 get { return currentCalendarData; }
                 set { currentCalendarData = value; OnPropertyChanged(nameof(CurrentCalendarData)); SelectDateTime(); WeeklyTimeSummary(); }
             }
+
+            // Keep a weak subscription to the currently selected CalendarData so we can
+            // promote a transient calendar entry into persisted storage only when the
+            // user actually edits it (note, reminder or timesheet). This prevents
+            // showing the calendar from creating empty storage entries.
+            private CalendarData? _subscribedCalendarData;
 
             private TimeSheetData currentTimeSheet = new();
             public TimeSheetData CurrentTimeSheet
@@ -586,16 +578,27 @@ namespace Finn.ViewModels
             {
                 if (SelectedDateTime != null)
                 {
-                    CurrentCalendarData = Storage.General.CalendarList.FirstOrDefault(x => x.Date == DateOnly.FromDateTime(SelectedDateTime));
-                    if (CurrentCalendarData == null)
-                    {
-                        CalendarData newData = new()
-                        {
-                            Date = DateOnly.FromDateTime(SelectedDateTime)
-                        };
+                    // Do not create a persistent calendar entry just by selecting a date.
+                    // Only bind a transient CalendarData instance and subscribe to its
+                    // property changes — when the user makes a meaningful edit we will
+                    // then add it to Storage.General.CalendarList.
+                    var date = DateOnly.FromDateTime(SelectedDateTime);
 
-                        Storage.General.CalendarList.Add(newData);
-                        CurrentCalendarData = newData;
+                    var existing = Storage.General.CalendarList.FirstOrDefault(x => x.Date == date);
+                    if (existing != null)
+                    {
+                        CurrentCalendarData = existing;
+                        _subscribedCalendarData = existing;
+                    }
+                    else
+                    {
+                        // Create a transient calendar entry (not added to Storage yet)
+                        CalendarData transient = new() { Date = date };
+                        CurrentCalendarData = transient;
+                        _subscribedCalendarData = transient;
+
+                        // Listen for changes that indicate the user actually edited this day.
+                        transient.PropertyChanged += TransientCalendar_PropertyChanged;
                     }
                 }
             }
@@ -612,6 +615,31 @@ namespace Finn.ViewModels
                 }
 
                 UpdateMonthly();
+            }
+
+            // Called when a transient CalendarData instance is edited — promote it into
+            // persisted storage so it will be saved with the rest of Storage.
+            private void TransientCalendar_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+            {
+                if (sender is CalendarData cal && _subscribedCalendarData == cal)
+                {
+                    // Only persist when a non-UI, meaningful property changes (note, reminder, timesheet)
+                    if (e.PropertyName == nameof(CalendarData.Note1) || e.PropertyName == nameof(CalendarData.Note2) ||
+                        e.PropertyName == nameof(CalendarData.Reminder) || e.PropertyName == nameof(CalendarData.TimeSheets))
+                    {
+                        // Unsubscribe from transient notifications
+                        try { cal.PropertyChanged -= TransientCalendar_PropertyChanged; } catch { }
+
+                        // If there isn't an existing entry for this date, add it
+                        if (!Storage.General.CalendarList.Any(x => x.Date == cal.Date))
+                        {
+                            Storage.General.CalendarList.Add(cal);
+                        }
+
+                        _subscribedCalendarData = null;
+                        UpdateMonthly();
+                    }
+                }
             }
 
             public static List<DateTime> GetDates(int year, int month)
@@ -1288,6 +1316,19 @@ namespace Finn.ViewModels
                 "HasPlainText",
                 "FileStatus",
                 "HasThumbnail",
+                // Derived / UI-only properties that should not affect storage equality
+                "HasNote",
+                "HasBookmarks",
+                "HasAppendedFiles",
+                "FiletypesTree",
+                // Folder/Calendar derived UI properties
+                "NameWithAttributes",
+                "DateString",
+                "WeekOfMonth",
+                "TotalTime",
+                "HasTime",
+                "CurrentTimeSheetProjectDiary",
+                "CurrentTimeSheetProjectTime"
             };
 
             private static void PruneTransientUiFields(JToken? token)
@@ -1349,27 +1390,7 @@ namespace Finn.ViewModels
                 }
             }
 
-            public void SetWindowColors()
-            {
-                // Use UI viewmodel colors (runtime types) when creating the FluentTheme
-                var theme = new FluentTheme()
-                {
-                    Palettes =
-                    {
-                        [ThemeVariant.Dark] = new ColorPaletteResources() {RegionColor = UI.Color1, Accent = UI.Color2},
-                        [ThemeVariant.Light] = new ColorPaletteResources() {RegionColor = UI.Color3, Accent = UI.Color4 }
-                    }
-                };
-
-                App.Current.Resources = theme.Resources;
-            }
-
-            public void SetWindowBorders()
-            {
-                // Borders and corner radius are applied via bindings to the UI viewmodel in XAML.
-                // This method is kept for compatibility and called when UI settings change so any
-                // additional runtime work can be added here if needed in the future.
-            }
+            // Theme/resource updates handled by UIService
 
             public void AddFilesDrag(string path)
             {

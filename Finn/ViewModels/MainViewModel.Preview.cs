@@ -15,7 +15,7 @@ namespace Finn.ViewModels
         /// </summary>
         public async Task RequestPreviewAsync(FileData? file, string? searchText = null)
         {
-            if (!PreviewEmbeddedOpen && !PreviewWindowOpen)
+            if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
                 return;
 
             CheckSingleFile();

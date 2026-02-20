@@ -272,7 +272,7 @@
 				</Button>
 			</Border>
 
-                <StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding TrayViewOpen}">
+                <StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding UI.TrayViewOpen}">
                 <ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"    IconVariant="Regular" FontSize="15"/></ToggleButton>
                 <ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/></ToggleButton>
                 <ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"    IconVariant="Regular" FontSize="15"/></ToggleButton>
@@ -301,7 +301,7 @@
 
 			<!-- Layout group -->
             <ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Tray: Ctrl + E"           HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Tray: Ctrl + E"           HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" Height="30" Width="35" Padding="0"                           IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
             <ToggleButton ToolTip.Tip="Folders: Ctrl + L"        HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
@@ -310,7 +310,7 @@
 			<!-- View group -->
             <ToggleButton ToolTip.Tip="Thumbnails: Ctrl + T"     HotKey="Ctrl+T" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowThumbnails}">     <ic:SymbolIcon Symbol="Image"                             FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Preview Window: Ctrl + W" HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Preview: Ctrl + P"        HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Preview: Ctrl + P"        HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
             <ToggleButton ToolTip.Tip="Show Icons: Ctrl + I"     HotKey="Ctrl+I" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowIcons}"><ic:SymbolIcon Symbol="Icons"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
@@ -658,7 +658,7 @@
 		<!-- Preview splitter -->
 		<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2"
 					  Background="Transparent" ResizeDirection="Columns" Width="5"
-					  IsEnabled="{Binding PreviewEmbeddedOpen}"/>
+					  IsEnabled="{Binding UI.PreviewEmbeddedOpen}"/>
 
 		<!-- ═══════════════════════════════════════════════ -->
 		<!-- Side panels                                    -->
@@ -841,7 +841,7 @@
 		</Grid>
 
 		<!-- Tray panel (notes, collections, bookmarks, recent) -->
-		<Grid Grid.Row="2" Grid.Column="6" IsVisible="{Binding TrayViewOpen}" Width="300" Classes="AnimatedPanel">
+		<Grid Grid.Row="2" Grid.Column="6" IsVisible="{Binding UI.TrayViewOpen}" Width="300" Classes="AnimatedPanel">
 			<Grid.RowDefinitions>
 				<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
@@ -929,7 +929,7 @@
 
 		<!-- Embedded preview -->
 		<Grid Name="PreviewArea" Grid.Column="3" Grid.Row="2" ClipToBounds="True"
-			  IsVisible="{Binding PreviewEmbeddedOpen}" Margin="0,5,0,0">
+			  IsVisible="{Binding UI.PreviewEmbeddedOpen}" Margin="0,5,0,0">
 			<views:PreView Name="EmbeddedPreview"/>
 		</Grid>
 

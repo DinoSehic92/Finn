@@ -27,6 +27,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets the folder name with attributes (valid/invalid).
         /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
         public string NameWithAttributes
         {
             get

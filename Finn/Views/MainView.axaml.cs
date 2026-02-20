@@ -103,7 +103,7 @@ public partial class MainView : UserControl
             case "Color3":
                 UpdateRowColor();
                 break;
-            case nameof(MainViewModel.PreviewEmbeddedOpen):
+            case nameof(MainViewModel.UI.PreviewEmbeddedOpen):
                 UpdateMainGrid();
                 break;
             case nameof(MainViewModel.PreviewWindowOpen):
@@ -148,7 +148,7 @@ public partial class MainView : UserControl
 
     private void UpdateMainGrid()
     {
-        if (_ctx.PreviewEmbeddedOpen)
+        if (_ctx.UI.PreviewEmbeddedOpen)
         {
             MainGrid.ColumnDefinitions[2] = new ColumnDefinition(5, GridUnitType.Pixel);
             MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star);
@@ -653,13 +653,13 @@ public partial class MainView : UserControl
 
     private void BookmarkSelected(object? sender, RoutedEventArgs e)
     {
-        if ((_ctx.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen) && BookmarkGrid.SelectedItem is PageData page)
+        if ((_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen) && BookmarkGrid.SelectedItem is PageData page)
             _ctx.SetBookmark(page);
     }
 
     private void OnAddBookmark(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen)
+        if (_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen)
         {
             _ctx.AddBookmark(BookmarkInput.Text);
             BookmarkInput.Clear();

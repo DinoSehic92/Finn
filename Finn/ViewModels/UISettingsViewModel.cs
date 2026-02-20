@@ -40,6 +40,8 @@ namespace Finn.ViewModels
             TimeSheetOpen = false;
             ShowFolders = false;
             ShowThumbnails = false;
+            TrayViewOpen = false;
+            PreviewEmbeddedOpen = false;
         }
 
         private bool treeViewOpen;
@@ -106,6 +108,12 @@ namespace Finn.ViewModels
 
         private bool trayRecent;
         public bool TrayRecent { get => trayRecent; set { trayRecent = value; RaisePropertyChanged(nameof(TrayRecent)); } }
+
+        private bool trayViewOpen;
+        public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; RaisePropertyChanged(nameof(TrayViewOpen)); } }
+
+        private bool previewEmbeddedOpen;
+        public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; RaisePropertyChanged(nameof(PreviewEmbeddedOpen)); } }
 
         private void SetCornerRadius()
         {
