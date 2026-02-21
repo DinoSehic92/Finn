@@ -15,6 +15,7 @@ namespace Finn.Services
     public class UIService : IUIService
     {
         private MainViewModel? _vm;
+        private CalendarService? _calendarService;
 
         public UIService()
         {
@@ -35,6 +36,17 @@ namespace Finn.Services
 
             // Subscribe to future UI changes
             vm.UI.PropertyChanged += OnUIChanged;
+
+            // Initialize calendar persistence service (give service the calendar VM and save path)
+            _calendarService = new CalendarService();
+            try
+            {
+                _calendarService.Initialize(vm.Calendar, vm.Storage.General.SavePath);
+            }
+            catch (Exception ex)
+            {
+                Finn.Utils.ErrorLogger.Log(ex, "UIService.Initialize.CalendarService");
+            }
         }
 
         private async Task LoadOrCreateUISettingsAsync()

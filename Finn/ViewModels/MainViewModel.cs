@@ -56,8 +56,8 @@ namespace Finn.ViewModels
                 SetDefaultType();
                 // Theme/resource updates handled by UIService (centralized).
 
-                // React to UI visibility changes persisted in UISettingsViewModel
-                UI.PropertyChanged += OnUISettingsChanged;
+                // Initialize calendar VM and give it ownership of its own store
+                Calendar = new CalendarViewModel(() => UI);
             }
 
             private PreviewViewModel _previewVM = new();
@@ -125,6 +125,14 @@ namespace Finn.ViewModels
             {
                 get { return storage; }
                 set { storage = value; OnPropertyChanged(nameof(Storage)); }
+            }
+
+            // Calendar viewmodel extracted to keep calendar logic separate
+            private CalendarViewModel _calendar;
+            public CalendarViewModel Calendar
+            {
+                get => _calendar;
+                set { _calendar = value; OnPropertyChanged(nameof(Calendar)); }
             }
 
             // Track the path of the currently loaded/saved Projects file so comparisons use the
@@ -228,60 +236,7 @@ namespace Finn.ViewModels
                 set { indexedSearch = value; OnPropertyChanged(nameof(IndexedSearch)); }
             }
 
-            private DateTime selectedDateTime = new();
-            public DateTime SelectedDateTime
-            {
-                get { return selectedDateTime; }
-                set { selectedDateTime = value; OnPropertyChanged(nameof(SelectedDateTime)); UpdateMonthly(); SetCurrentCalendarData(); }
-            }
-
-            private int selectedWeek = 0;
-            public int SelectedWeek
-            {
-                get { return selectedWeek; }
-                set { selectedWeek = value; OnPropertyChanged(nameof(SelectedWeek)); }
-            }
-
-            private ObservableCollection<CalendarData> monthlyNotes = new();
-            public ObservableCollection<CalendarData> MonthlyNotes
-            {
-                get { return monthlyNotes; }
-                set { monthlyNotes = value; OnPropertyChanged(nameof(MonthlyNotes)); }
-            }
-
-            private CalendarData currentCalendarData = new();
-            public CalendarData CurrentCalendarData
-            {
-                get { return currentCalendarData; }
-                set { currentCalendarData = value; OnPropertyChanged(nameof(CurrentCalendarData)); SelectDateTime(); WeeklyTimeSummary(); }
-            }
-
-            // Keep a weak subscription to the currently selected CalendarData so we can
-            // promote a transient calendar entry into persisted storage only when the
-            // user actually edits it (note, reminder or timesheet). This prevents
-            // showing the calendar from creating empty storage entries.
-            private CalendarData? _subscribedCalendarData;
-
-            private TimeSheetData currentTimeSheet = new();
-            public TimeSheetData CurrentTimeSheet
-            {
-                get { return currentTimeSheet; }
-                set { currentTimeSheet = value; OnPropertyChanged(nameof(CurrentTimeSheet)); }
-            }
-
-            private ObservableCollection<int> hours = new() { 1, 2, 3, 4, 5, 6, 7, 8 };
-            public ObservableCollection<int> Hours
-            {
-                get { return hours; }
-                set { hours = value; OnPropertyChanged(nameof(Hours)); }
-            }
-
-            private TimeSheetProjectData currentTimeSheetProject;
-            public TimeSheetProjectData CurrentTimeSheetProject
-            {
-                get { return currentTimeSheetProject; }
-                set { currentTimeSheetProject = value; OnPropertyChanged(nameof(CurrentTimeSheetProject)); UpdateTimeSheetSummary(); }
-            }
+            // Calendar-related properties moved to CalendarViewModel
 
             private FolderData currentFolder;
             public FolderData CurrentFolder
@@ -513,164 +468,7 @@ namespace Finn.ViewModels
                 OnPropertyChanged("TreeViewUpdate");
             }
 
-            public void NewTimeSheet()
-            {
-                CurrentCalendarData.TimeSheets.Add(new TimeSheetData() { Hours = 1, Project = NEW_TYPE });
-                CurrentCalendarData.TriggerDateStringUpdate();
-            }
-
-            public void RemoveTimeSheet()
-            {
-                CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
-                CurrentCalendarData.TriggerDateStringUpdate();
-            }
-
-            private void UpdateTimeSheetSummary()
-            {
-                foreach (CalendarData calendarData in MonthlyNotes)
-                {
-                    calendarData.SetCurrentTimeSheetProjectDiary(CurrentTimeSheetProject.Project);
-                }
-            }
-
-            private void WeeklyTimeSummary()
-            {
-                if (UI.TimeSheetOpen && CurrentCalendarData != null)
-                {
-                    foreach (TimeSheetProjectData project in Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT))
-                    {
-                        project.W1 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 0).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                        project.W2 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 1).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                        project.W3 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 2).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                        project.W4 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 3).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                        project.W5 = Storage.General.CalendarList.Where(x => x.Date.Month == CurrentCalendarData.Date.Month).Where(x => x.WeekOfMonth == 4).SelectMany(x => x.TimeSheets).Where(x => x.Project == project.Project).Sum(x => x.Hours);
-                    }
-
-                    TimeSheetProjectData summarySheet = Storage.General.TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
-
-                    if (summarySheet != null)
-                    {
-                        summarySheet.W1 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W1);
-                        summarySheet.W2 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W2);
-                        summarySheet.W3 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W3);
-                        summarySheet.W4 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W4);
-                        summarySheet.W5 = Storage.General.TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Sum(x => x.W5);
-                    }
-                }
-            }
-
-            private void UpdateMonthly()
-            {
-                if (SelectedDateTime != null)
-                {
-                    SelectedWeek = ISOWeek.GetWeekOfYear(SelectedDateTime);
-
-                    MonthlyNotes.Clear();
-
-                    foreach (CalendarData data in Storage.General.CalendarList.Where(x => x.Date.Month == SelectedDateTime.Month).Where(x => x.Date.Year == SelectedDateTime.Year).OrderBy(x => x.Date))
-                    {
-                        MonthlyNotes.Add(data);
-                    }
-                }
-            }
-
-            private void SetCurrentCalendarData()
-            {
-                if (SelectedDateTime != null)
-                {
-                    // Do not create a persistent calendar entry just by selecting a date.
-                    // Only bind a transient CalendarData instance and subscribe to its
-                    // property changes — when the user makes a meaningful edit we will
-                    // then add it to Storage.General.CalendarList.
-                    var date = DateOnly.FromDateTime(SelectedDateTime);
-
-                    var existing = Storage.General.CalendarList.FirstOrDefault(x => x.Date == date);
-                    if (existing != null)
-                    {
-                        CurrentCalendarData = existing;
-                        _subscribedCalendarData = existing;
-                    }
-                    else
-                    {
-                        // Create a transient calendar entry (not added to Storage yet)
-                        CalendarData transient = new() { Date = date };
-                        CurrentCalendarData = transient;
-                        _subscribedCalendarData = transient;
-
-                        // Listen for changes that indicate the user actually edited this day.
-                        transient.PropertyChanged += TransientCalendar_PropertyChanged;
-                    }
-                }
-            }
-
-            public void SetCalendarMonth()
-            {
-                foreach (DateTime datetime in GetDates(SelectedDateTime.Year, SelectedDateTime.Month))
-                {
-                    DateOnly date = DateOnly.FromDateTime(datetime);
-                    if (!Storage.General.CalendarList.Any(x => x.Date == date))
-                    {
-                        Storage.General.CalendarList.Add(new CalendarData() { Date = date });
-                    }
-                }
-
-                UpdateMonthly();
-            }
-
-            // Called when a transient CalendarData instance is edited — promote it into
-            // persisted storage so it will be saved with the rest of Storage.
-            private void TransientCalendar_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-            {
-                if (sender is CalendarData cal && _subscribedCalendarData == cal)
-                {
-                    // Only persist when a non-UI, meaningful property changes (note, reminder, timesheet)
-                    if (e.PropertyName == nameof(CalendarData.Note1) || e.PropertyName == nameof(CalendarData.Note2) ||
-                        e.PropertyName == nameof(CalendarData.Reminder) || e.PropertyName == nameof(CalendarData.TimeSheets))
-                    {
-                        // Unsubscribe from transient notifications
-                        try { cal.PropertyChanged -= TransientCalendar_PropertyChanged; } catch { }
-
-                        // If there isn't an existing entry for this date, add it
-                        if (!Storage.General.CalendarList.Any(x => x.Date == cal.Date))
-                        {
-                            Storage.General.CalendarList.Add(cal);
-                        }
-
-                        _subscribedCalendarData = null;
-                        UpdateMonthly();
-                    }
-                }
-            }
-
-            public static List<DateTime> GetDates(int year, int month)
-            {
-                return Enumerable.Range(1, DateTime.DaysInMonth(year, month))
-                                 .Select(day => new DateTime(year, month, day))
-                                 .ToList();
-            }
-
-            public void RemoveCalendarNote()
-            {
-                Storage.General.CalendarList.Remove(CurrentCalendarData);
-                CurrentCalendarData = Storage.General.CalendarList.FirstOrDefault() ?? new CalendarData();
-                UpdateMonthly();
-            }
-
-            public void ResetDate()
-            {
-                SelectedDateTime = DateTime.Now;
-            }
-
-            private void SelectDateTime()
-            {
-                if (CurrentCalendarData != null)
-                {
-                    if (CurrentCalendarData.Date != DateOnly.FromDateTime(SelectedDateTime.Date))
-                    {
-                        SelectedDateTime = CurrentCalendarData.Date.ToDateTime(TimeOnly.Parse("10:00 PM"));
-                    }
-                }
-            }
+            // Calendar logic now lives in CalendarViewModel (Calendar property)
 
             public void ResetPreviewer()
             {
@@ -840,13 +638,6 @@ namespace Finn.ViewModels
                 PreviewVM.UpdateThemeRegionColor(color);
             }
 
-        private void OnUISettingsChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(UISettingsViewModel.TimeSheetOpen))
-            {
-                WeeklyTimeSummary();
-            }
-        }
 
             public void TrySetPage()
             {

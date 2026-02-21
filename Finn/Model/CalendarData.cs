@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Globalization;
 using System.Linq;
 
@@ -15,8 +16,8 @@ namespace Finn.Model
 
         public CalendarData()
         {
-            // Ensure we notify when the timesheets collection changes
-            timeSheets.CollectionChanged += TimeSheets_CollectionChanged;
+            // Ensure initial timesheet collection is hooked up via the property setter
+            TimeSheets = timeSheets;
         }
 
         private DateOnly date;
@@ -29,8 +30,8 @@ namespace Finn.Model
             set
             {
                 date = value;
-                RaisePropertyChanged(nameof(Date));
-                RaisePropertyChanged(nameof(DateString));
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DateString));
             }
         }
 
@@ -77,9 +78,9 @@ namespace Finn.Model
             set
             {
                 note1 = value;
-                RaisePropertyChanged(nameof(Note1));
-                RaisePropertyChanged(nameof(DateString));
-                RaisePropertyChanged(nameof(HasNote));
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DateString));
+                OnPropertyChanged(nameof(HasNote));
             }
         }
 
@@ -93,9 +94,9 @@ namespace Finn.Model
             set
             {
                 note2 = value;
-                RaisePropertyChanged(nameof(Note2));
-                RaisePropertyChanged(nameof(DateString));
-                RaisePropertyChanged(nameof(HasNote));
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DateString));
+                OnPropertyChanged(nameof(HasNote));
             }
         }
 
@@ -109,8 +110,8 @@ namespace Finn.Model
             set
             {
                 reminder = value;
-                RaisePropertyChanged(nameof(Reminder));
-                RaisePropertyChanged(nameof(DateString));
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(DateString));
             }
         }
 
@@ -122,7 +123,7 @@ namespace Finn.Model
         {
             get
             {
-                int sum = TimeSheets.Select(x => x.Hours).Sum();
+                int sum = TimeSheets.Sum(x => x.Hours);
                 return sum != 0 ? sum : null;
             }
         }
@@ -136,27 +137,25 @@ namespace Finn.Model
             get => timeSheets;
             set
             {
-                if (ReferenceEquals(timeSheets, value))
-                    return;
-
+                // Unsubscribe previous and attach to the new collection (even if same instance)
                 if (timeSheets != null)
                     timeSheets.CollectionChanged -= TimeSheets_CollectionChanged;
 
                 timeSheets = value ?? new ObservableCollection<TimeSheetData>();
                 timeSheets.CollectionChanged += TimeSheets_CollectionChanged;
 
-                RaisePropertyChanged(nameof(TimeSheets));
-                RaisePropertyChanged(nameof(HasTime));
-                RaisePropertyChanged(nameof(TotalTime));
-                RaisePropertyChanged(nameof(DateString));
+                OnPropertyChanged(nameof(TimeSheets));
+                OnPropertyChanged(nameof(HasTime));
+                OnPropertyChanged(nameof(TotalTime));
+                OnPropertyChanged(nameof(DateString));
             }
         }
 
         private void TimeSheets_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            RaisePropertyChanged(nameof(HasTime));
-            RaisePropertyChanged(nameof(TotalTime));
-            RaisePropertyChanged(nameof(DateString));
+            OnPropertyChanged(nameof(HasTime));
+            OnPropertyChanged(nameof(TotalTime));
+            OnPropertyChanged(nameof(DateString));
         }
 
         private string currentTimeSheetProjectDiary = string.Empty;
@@ -167,7 +166,7 @@ namespace Finn.Model
         public string CurrentTimeSheetProjectDiary
         {
             get => currentTimeSheetProjectDiary;
-            set { currentTimeSheetProjectDiary = value; RaisePropertyChanged(nameof(CurrentTimeSheetProjectDiary)); }
+            set { currentTimeSheetProjectDiary = value; OnPropertyChanged(nameof(CurrentTimeSheetProjectDiary)); }
         }
 
         private int? currentTimeSheetProjectTime = null;
@@ -178,7 +177,7 @@ namespace Finn.Model
         public int? CurrentTimeSheetProjectTime
         {
             get => currentTimeSheetProjectTime;
-            set { currentTimeSheetProjectTime = value; RaisePropertyChanged(nameof(CurrentTimeSheetProjectTime)); }
+            set { currentTimeSheetProjectTime = value; OnPropertyChanged(nameof(CurrentTimeSheetProjectTime)); }
         }
 
         /// <summary>
@@ -186,7 +185,7 @@ namespace Finn.Model
         /// </summary>
         public void TriggerDateStringUpdate()
         {
-            RaisePropertyChanged(nameof(DateString));
+            OnPropertyChanged(nameof(DateString));
         }
 
         /// <summary>
@@ -207,17 +206,11 @@ namespace Finn.Model
         /// </summary>
         public void SetCurrentTimeSheetProjectDiary(string text)
         {
-            if (TimeSheets.Any(x => x.Project == text))
+            var items = TimeSheets.Where(x => x.Project == text).ToList();
+            if (items.Count > 0)
             {
-                string diary = string.Empty;
-                int time = 0;
-                foreach (TimeSheetData timeSheet in TimeSheets.Where(x => x.Project == text))
-                {
-                    diary += timeSheet.Diary;
-                    time += timeSheet.Hours;
-                }
-                CurrentTimeSheetProjectDiary = diary;
-                CurrentTimeSheetProjectTime = time;
+                CurrentTimeSheetProjectDiary = string.Join(", ", items.Select(i => i.Diary));
+                CurrentTimeSheetProjectTime = items.Sum(i => i.Hours);
             }
             else
             {
@@ -227,7 +220,7 @@ namespace Finn.Model
         }
 
 
-        private void RaisePropertyChanged(string propName)
+        protected void OnPropertyChanged([CallerMemberName] string? propName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
         }

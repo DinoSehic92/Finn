@@ -86,7 +86,8 @@ public partial class MainView : UserControl
         {
             _ctx.LoadFileAuto();
             UpdateFont();
-            _ctx.SelectedDateTime = DateTime.Now;
+            // initialize calendar selected date on separate viewmodel
+            _ctx.Calendar.SelectedDateTime = DateTime.Now;
         }
         catch { }
     }
@@ -711,13 +712,13 @@ public partial class MainView : UserControl
     #region Timesheet
 
     private void NewTimeSheetProject(object? sender, RoutedEventArgs e) =>
-        _ctx.Storage.General.TimeProjects.Add(new TimeSheetProjectData { Project = "New Project" });
+        _ctx.Calendar.TimeProjects.Add(new TimeSheetProjectData { Project = "New Project" });
 
     private void RemoveTimeSheetProject(object? sender, RoutedEventArgs e) =>
-        _ctx.Storage.General.TimeProjects.Remove(_ctx.CurrentTimeSheetProject);
+        _ctx.Calendar.TimeProjects.Remove(_ctx.Calendar.CurrentTimeSheetProject);
 
     private void OnUpdateTotalTime(object? sender, RoutedEventArgs args) =>
-        _ctx.CurrentCalendarData?.TriggerDateStringUpdate();
+        _ctx.Calendar.CurrentCalendarData?.TriggerDateStringUpdate();
 
     #endregion
 

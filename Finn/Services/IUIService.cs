@@ -7,3 +7,4 @@ namespace Finn.Services
         void Initialize(object viewModel);
     }
 }
+

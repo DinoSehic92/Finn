@@ -20,6 +20,8 @@ namespace Finn.Model
             set { general = value; RaisePropertyChanged("General"); }
         }
 
+        // CalendarStore moved out of StoreData (now owned by MainViewModel)
+
 
         private void RaisePropertyChanged(string propName)
         {

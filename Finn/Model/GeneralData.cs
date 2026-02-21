@@ -32,21 +32,7 @@ namespace Finn.Model
             set { collections = value; RaisePropertyChanged("Collections"); }
         }
 
-        private ObservableCollection<CalendarData> calendarList = new ObservableCollection<CalendarData>();
-
-        public ObservableCollection<CalendarData> CalendarList
-        {
-            get { return calendarList; }
-            set { calendarList = value; RaisePropertyChanged("CalendarList"); }
-        }
-
-        private ObservableCollection<TimeSheetProjectData> timeProjects = new ObservableCollection<TimeSheetProjectData>();
-
-        public ObservableCollection<TimeSheetProjectData> TimeProjects
-        {
-            get { return timeProjects; }
-            set { timeProjects = value; RaisePropertyChanged("TimeProjects"); }
-        }
+        // Calendar list and time projects moved to CalendarStore
 
         private void RaisePropertyChanged(string propName)
         {

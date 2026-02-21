@@ -667,7 +667,7 @@
 		<!-- Timesheet panel -->
 		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,40,*" IsVisible="{Binding UI.TimeSheetOpen}" Width="500">
 			<DataGrid Grid.Row="0" Name="ProjectList"
-					  ItemsSource="{Binding Storage.General.TimeProjects}" SelectedItem="{Binding CurrentTimeSheetProject}"
+					  ItemsSource="{Binding Calendar.TimeProjects}" SelectedItem="{Binding Calendar.CurrentTimeSheetProject}"
 					  IsReadOnly="True">
 				<DataGrid.Columns>
 					<DataGridTextColumn Binding="{Binding Project}" Header="Projects" Width="*"          FontSize="14"/>
@@ -681,19 +681,20 @@
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
 				<Border Classes="shadow">
-					<TextBox Text="{Binding CurrentTimeSheetProject.Project}"   MinWidth="0" Width="160" Watermark="New Project" BorderThickness="0" Margin="0"/>
+					<TextBox Text="{Binding Calendar.CurrentTimeSheetProject.Project}"   MinWidth="0" Width="150" Watermark="New Project" BorderThickness="0" Margin="0"/>
 				</Border>
 				<Border Classes="shadow">
-					<TextBox Text="{Binding CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="135" Watermark="Project Nr" BorderThickness="0" Margin="0"/>
+					<TextBox Text="{Binding Calendar.CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="125" Watermark="Project Nr" BorderThickness="0" Margin="0"/>
 				</Border>
 				<Border Classes="shadow">
-					<TextBox Text="{Binding CurrentTimeSheetProject.Task}"      MinWidth="0" Width="100" Watermark="Task" BorderThickness="0" Margin="0"/>
+					<TextBox Text="{Binding Calendar.CurrentTimeSheetProject.Task}"      MinWidth="0" Width="90" Watermark="Task" BorderThickness="0" Margin="0"/>
 				</Border>
 				<Button Width="35" Click="NewTimeSheetProject">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
 				<Button Width="35" Click="RemoveTimeSheetProject"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
+				<Button Width="35" Command="{Binding Calendar.WeeklyTimeSummary}"><ic:SymbolIcon Symbol="ArrowClockwise" FontSize="18"/></Button>
 			</StackPanel>
 
-			<DataGrid Grid.Row="2" ItemsSource="{Binding MonthlyNotes}" CanUserSortColumns="False">
+			<DataGrid Grid.Row="2" ItemsSource="{Binding Calendar.MonthlyNotes}" CanUserSortColumns="False">
 				<DataGrid.Columns>
 					<DataGridTextColumn Binding="{Binding DateString}"                   Header="Date"  Width="Auto" FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectTime}"   Header="t"     Width="50" MinWidth="50" FontSize="14"/>
@@ -704,15 +705,15 @@
 
         <!-- Calendar panel -->
         <Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding UI.CalendarOpen}" Width="320">
-			<Border Grid.Row="0" Margin="5" BoxShadow="{Binding UI.Shadow}"
+                <Border Grid.Row="0" Margin="5" BoxShadow="{Binding UI.Shadow}" 
 					Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
 				<StackPanel Orientation="Vertical">
-					<Calendar Height="295" Background="Transparent" HorizontalAlignment="Center"
-							  DisplayDate="{Binding SelectedDateTime, Mode=TwoWay}"
-							  SelectedDate="{Binding SelectedDateTime, Mode=TwoWay}"
+                    <Calendar Height="295" Background="Transparent" HorizontalAlignment="Center"
+							  DisplayDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
+							  SelectedDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
 							  BorderBrush="Transparent" FontSize="{Binding UI.FontSize}">
 						<Calendar.Styles>
-							<Style Selector="CalendarDayButton">
+                            <Style Selector="CalendarDayButton:selected /template/ ContentPresenter">
 								<Setter Property="MinHeight" Value="32"/>
 							</Style>
 							<Style Selector="CalendarDayButton /template/ Border#Root">
@@ -746,17 +747,17 @@
 
 						Padding="8,3,8,3" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">
 						<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-							<TextBlock Text="{Binding CurrentCalendarData.Date}"
+                            <TextBlock Text="{Binding Calendar.CurrentCalendarData.Date}"
 								FontWeight="SemiBold"
 								FontSize="{Binding UI.FontSize}"/>
 							<TextBlock Text="| week" FontSize="{Binding UI.FontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-							<TextBlock Text="{Binding SelectedWeek}"
+                            <TextBlock Text="{Binding Calendar.SelectedWeek}"
 								FontWeight="SemiBold"
 								FontSize="{Binding UI.FontSize}"/>
 
 						</StackPanel>
 					</Border>
-						<Button Grid.Column="2" Width="35" Command="{Binding ResetDate}">
+						<Button Grid.Column="2" Width="35" Command="{Binding Calendar.ResetDate}">
 							<ic:SymbolIcon Symbol="ArrowCircleLeft" FontSize="18"/>
 						</Button>
 					</Grid>
@@ -765,28 +766,28 @@
 
 			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="0">
 				<Border Classes="shadow">
-					<ComboBox Width="65" Name="HoursCombo" ItemsSource="{Binding Hours}" SelectedItem="{Binding CurrentTimeSheet.Hours}"/>
+                    <ComboBox Width="65" Name="HoursCombo" ItemsSource="{Binding Calendar.Hours}" SelectedItem="{Binding Calendar.CurrentTimeSheet.Hours}"/>
 				</Border>
-				<Border Classes="shadow">
-					<ComboBox Width="140" ItemsSource="{Binding Storage.General.TimeProjects}"
-						  SelectedValue="{Binding CurrentTimeSheet.Project}" SelectedValueBinding="{Binding Project}">
+                <Border Classes="shadow">
+					<ComboBox Width="140" ItemsSource="{Binding Calendar.TimeProjects}"
+						  SelectedValue="{Binding Calendar.CurrentTimeSheet.Project}" SelectedValueBinding="{Binding Project}">
 					<ComboBox.ItemTemplate>
 						<DataTemplate><TextBlock Text="{Binding Project}"/></DataTemplate>
 					</ComboBox.ItemTemplate>
 				</ComboBox>
 				</Border>
-				<Button       Width="30" Command="{Binding NewTimeSheet}">   <ic:SymbolIcon Symbol="Add"        FontSize="18"/></Button>
-				<Button       Width="30" Command="{Binding RemoveTimeSheet}"><ic:SymbolIcon Symbol="Delete"     FontSize="18"/></Button>
+                <Button       Width="30" Command="{Binding Calendar.NewTimeSheet}">   <ic:SymbolIcon Symbol="Add"        FontSize="18"/></Button>
+				<Button       Width="30" Command="{Binding Calendar.RemoveTimeSheet}"><ic:SymbolIcon Symbol="Delete"     FontSize="18"/></Button>
                 <ToggleButton Width="30" Height="30" Padding="0" IsChecked="{Binding UI.TimeSheetOpen}"><ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/></ToggleButton>
 			</StackPanel>
 
-			<Border Grid.Row="2" Classes="shadow">
-				<TextBox Text="{Binding CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary" BorderThickness="0" Margin="0"/>
-			</Border>
+                <Border Grid.Row="2" Classes="shadow">
+					<TextBox Text="{Binding Calendar.CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary" BorderThickness="0" Margin="0"/>
+				</Border>
 
             <!-- TimeSheets grid: fill available width of the calendar panel -->
-            <DataGrid Grid.Row="3" ItemsSource="{Binding CurrentCalendarData.TimeSheets}"
-					  SelectedItem="{Binding CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True" MinWidth="0"
+            <DataGrid Grid.Row="3" ItemsSource="{Binding Calendar.CurrentCalendarData.TimeSheets}"
+					  SelectedItem="{Binding Calendar.CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True" MinWidth="0"
 					  RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
 					  BorderThickness="0" HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False" >
 				<DataGrid.Columns>
@@ -804,15 +805,15 @@
             </DataGrid>
 
 		<Border Grid.Row="4" Classes="shadow">
-			<TextBox Text="{Binding CurrentCalendarData.Note1}" Watermark="Notepad"
+			<TextBox Text="{Binding Calendar.CurrentCalendarData.Note1}" Watermark="Notepad"
 					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
 			</Border>
 		<Border Grid.Row="5" Classes="shadow">
-				<TextBox Text="{Binding CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14" BorderThickness="0" Margin="0"/>
+				<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14" BorderThickness="0" Margin="0"/>
 			</Border>
 
-			<DataGrid Grid.Row="6" Name="TimeSheet" Padding="0"
-					  ItemsSource="{Binding MonthlyNotes}" SelectedItem="{Binding CurrentCalendarData, Mode=TwoWay}"
+            <DataGrid Grid.Row="6" Name="TimeSheet" Padding="0"
+					  ItemsSource="{Binding Calendar.MonthlyNotes}" SelectedItem="{Binding Calendar.CurrentCalendarData, Mode=TwoWay}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" RowHeight="19" CanUserSortColumns="False">
               <DataGrid.Columns>
@@ -833,8 +834,8 @@
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
-						<MenuItem Header="Remove"    Command="{Binding RemoveCalendarNote}"/>
-						<MenuItem Header="Set Month" Command="{Binding SetCalendarMonth}"/>
+						<MenuItem Header="Remove"    Command="{Binding Calendar.RemoveCalendarNote}"/>
+						<MenuItem Header="Set Month" Command="{Binding Calendar.SetCalendarMonth}"/>
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
