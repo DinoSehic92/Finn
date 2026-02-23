@@ -793,12 +793,6 @@
 					<DataGridTextColumn Binding="{Binding DateString}"      Header="Date"     Width="Auto" FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Reminder}"       Header="Reminder" Width="*" MinWidth="100" FontSize="14"/>
 				</DataGrid.Columns>
-				<DataGrid.ContextMenu>
-					<ContextMenu>
-						<MenuItem Header="Remove"    Command="{Binding Calendar.RemoveCalendarNote}"/>
-						<MenuItem Header="Set Month" Command="{Binding Calendar.SetCalendarMonth}"/>
-					</ContextMenu>
-				</DataGrid.ContextMenu>
 			</DataGrid>
 		</Grid>
 

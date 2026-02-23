@@ -176,5 +176,27 @@ namespace Finn.Views
                 W5 = src.W5
             };
         }
+
+        private void OnSaveTimeProjects(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm && vm.Calendar != null)
+            {
+                try
+                {
+                    // Replace the ViewModel's TimeProjects with clones of the local collection
+                    vm.Calendar.TimeProjects.Clear();
+                    foreach (var lp in _localProjects)
+                    {
+                        if (lp == null) continue;
+                        vm.Calendar.TimeProjects.Add(CloneProject(lp));
+                    }
+
+                    // After saving, refresh the VM summaries to reflect the new projects
+                    vm.Calendar.UpdateTimeSheetSummary();
+                    vm.Calendar.WeeklyTimeSummary();
+                }
+                catch { }
+            }
+        }
     }
 }

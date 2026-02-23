@@ -63,7 +63,7 @@
       <Button Width="35" Click="OnNewTimeSheet">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
       <Button Width="35" Click="OnRemoveTimeSheet"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
       <!-- Save calendar data to file using CalendarService -->
-      <Button Width="35"  ToolTip.Tip="Save calendar to file">
+      <Button Width="35" Click="OnSaveTimeProjects" ToolTip.Tip="Save projects to ViewModel">
         <ic:SymbolIcon Symbol="Save" FontSize="18"/>
       </Button>
     </StackPanel>
