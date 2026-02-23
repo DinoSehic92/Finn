@@ -54,7 +54,6 @@ namespace Finn.Services
             if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
             _fileName = Path.Combine(savePath, "Calendar.json");
 
-            // Do not read existing file into _loadedJson; just attach handlers so Save() will write current state.
             AttachToCalendarVm();
         }
 
@@ -266,11 +265,8 @@ namespace Finn.Services
 
         private void TimeSheet_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            // save on any timesheet field change
             Save();
         }
-
-        // Note: CalendarService no longer listens to MainViewModel; methods removed.
 
         private void Save()
         {

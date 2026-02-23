@@ -37,16 +37,8 @@ namespace Finn.Services
             // Subscribe to future UI changes
             vm.UI.PropertyChanged += OnUIChanged;
 
-            // Initialize calendar persistence service (give service the calendar VM and save path)
-            _calendarService = new CalendarService();
-            try
-            {
-                _calendarService.Initialize(vm.Calendar, vm.Storage.General.SavePath);
-            }
-            catch (Exception ex)
-            {
-                Finn.Utils.ErrorLogger.Log(ex, "UIService.Initialize.CalendarService");
-            }
+            // CalendarService initialization moved to after Projects are loaded
+            // to ensure the correct SavePath from Projects.json is used.
         }
 
         private async Task LoadOrCreateUISettingsAsync()

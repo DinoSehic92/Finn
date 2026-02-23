@@ -406,6 +406,19 @@ namespace Finn.ViewModels
                 cancellationToken, mainCts.Token);
             var token = linkedCts.Token;
 
+            // Small debounce to coalesce rapid selection changes. This reduces
+            // race conditions when users quickly toggle files and avoids rapidly
+            // creating/disposing native MuPDF objects which can cause crashes.
+            try
+            {
+                await Task.Delay(50, token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // A newer request or cancellation arrived — abort early.
+                return;
+            }
+
             StatusMessage = "Setting File";
             fileAvailable = false;
             FileWorkerBusy = true;
@@ -788,11 +801,11 @@ namespace Finn.ViewModels
                         SetSearchResults();
                         CurrentPage1 = requestPage1;
                     }
-                    catch (NullReferenceException nre)
+                    catch (Exception ex)
                     {
-                        // Defensive: log the NRE and abort this render attempt
-                        logger?.LogError(nre, "NullReference in RenderCurrentPageAsync UI invoke");
-                        Finn.Utils.ErrorLogger.Log(nre, "RenderCurrentPageAsync.UI");
+                        // Defensive: log the exception and abort this render attempt
+                        logger?.LogError(ex, "Exception in RenderCurrentPageAsync UI invoke");
+                        Finn.Utils.ErrorLogger.Log(ex, "RenderCurrentPageAsync.UI");
                         return;
                     }
 

@@ -14,6 +14,7 @@ using Avalonia.Styling;
 using System.Diagnostics;
 using System.Threading;
 using Avalonia.VisualTree;
+using Finn.Services;
 
 namespace Finn.Views;
 
@@ -112,6 +113,17 @@ public partial class MainView : UserControl
             UpdateFont();
             // initialize calendar selected date on separate viewmodel
             _ctx.Calendar.SelectedDateTime = DateTime.Now;
+            // Initialize calendar persistence after projects have been loaded so
+            // the service uses the SavePath configured in Projects.json.
+            try
+            {
+                var calendarService = new CalendarService();
+                calendarService.Initialize(_ctx.Calendar, _ctx.Storage.General.SavePath);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
         }
         catch { }
     }
