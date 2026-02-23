@@ -12,6 +12,7 @@ using System.Globalization;
 using Finn.Dialog;
 using Avalonia.Styling;
 using Finn.Views;
+using Finn.Storage;
 using MuPDFCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -54,9 +55,7 @@ namespace Finn.ViewModels
                 SetProjectlist();
                 SetProject("New Project");
                 SetDefaultType();
-                // Theme/resource updates handled by UIService (centralized).
 
-                // Initialize calendar VM and give it ownership of its own store
                 Calendar = new CalendarViewModel(() => UI);
             }
 
@@ -69,6 +68,8 @@ namespace Finn.ViewModels
                 get => _previewVM;
                 set { _previewVM = value; OnPropertyChanged(nameof(PreviewVM)); }
             }
+
+            // CalendarStorage moved into CalendarViewModel
 
             public List<string[]> MetaStore = new();
             public List<string> PathStore = new();
@@ -120,12 +121,14 @@ namespace Finn.ViewModels
                 set { attachedView = value; OnPropertyChanged(nameof(AttachedView)); }
             }
 
-            private StoreData storage = new();
-            public StoreData Storage
+            private ProjectStorage storage = new();
+            public ProjectStorage Storage
             {
                 get { return storage; }
                 set { storage = value; OnPropertyChanged(nameof(Storage)); }
             }
+
+            // CalendarStorage moved into CalendarViewModel
 
             // Calendar viewmodel extracted to keep calendar logic separate
             private CalendarViewModel _calendar;
@@ -222,6 +225,13 @@ namespace Finn.ViewModels
                 set { previewWindowOpen = value; OnPropertyChanged(nameof(PreviewWindowOpen)); if (PreviewWindowOpen) { UI.PreviewEmbeddedOpen = false; }; }
             }
 
+            private bool previewEmbeddedOpen = false;
+            public bool PreviewEmbeddedOpen
+            {
+                get => previewEmbeddedOpen;
+                set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); }
+            }
+
             private string searchText = string.Empty;
             public string SearchText
             {
@@ -235,8 +245,6 @@ namespace Finn.ViewModels
                 get { return indexedSearch; }
                 set { indexedSearch = value; OnPropertyChanged(nameof(IndexedSearch)); }
             }
-
-            // Calendar-related properties moved to CalendarViewModel
 
             private FolderData currentFolder;
             public FolderData CurrentFolder
@@ -610,7 +618,7 @@ namespace Finn.ViewModels
                 // shows previously indexed entries immediately.
                 try
                 {
-                    string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
+                    string indexPath = $"{Storage.SavePath}\\IndexedContent.json";
                     if (System.IO.File.Exists(indexPath))
                     {
                         LoadIndexFile(indexPath);
@@ -649,7 +657,7 @@ namespace Finn.ViewModels
 
             public void GetThumbnails()
             {
-                string thumbnailPath = $"{Storage.General.SavePath}\\Thumbnails\\";
+                string thumbnailPath = $"{Storage.SavePath}\\Thumbnails\\";
                 if (!Directory.Exists(thumbnailPath))
                 {
                     Directory.CreateDirectory(thumbnailPath);
@@ -674,7 +682,7 @@ namespace Finn.ViewModels
 
             public async Task GetIndexedContentAsync(IProgress<int>? progress = null)
             {
-                string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
+                string indexPath = $"{Storage.SavePath}\\IndexedContent.json";
 
                 if (System.IO.File.Exists(indexPath))
                 {
@@ -749,7 +757,7 @@ namespace Finn.ViewModels
 
             public void ClearIndexedContent()
             {
-                string indexPath = $"{Storage.General.SavePath}\\IndexedContent.json";
+                string indexPath = $"{Storage.SavePath}\\IndexedContent.json";
 
                 foreach (FileData file in CurrentFiles)
                 {
@@ -788,9 +796,9 @@ namespace Finn.ViewModels
 
             private void SaveIndexFile(string indexPath)
             {
-                if (!Directory.Exists(Storage.General.SavePath))
+                if (!Directory.Exists(Storage.SavePath))
                 {
-                    Directory.CreateDirectory(Storage.General.SavePath);
+                    Directory.CreateDirectory(Storage.SavePath);
                 }
 
                 using StreamWriter streamWriter = new(indexPath);
@@ -890,7 +898,7 @@ namespace Finn.ViewModels
 
             public void NewCollection(string name)
             {
-                Storage.General.Collections.Add(name);
+                Storage.Collections.Add(name);
             }
 
             public void RemoveCollection()
@@ -902,7 +910,7 @@ namespace Finn.ViewModels
                         file.PartOfCollections.Remove(CurrentCollection);
                     }
                 }
-                Storage.General.Collections.Remove(CurrentCollection);
+                Storage.Collections.Remove(CurrentCollection);
             }
 
             public void AddFileToCollection(string collection)
@@ -935,7 +943,7 @@ namespace Finn.ViewModels
 
             public void RenameCollection(string newName)
             {
-                if (!Storage.General.Collections.Contains(newName))
+                if (!Storage.Collections.Contains(newName))
                 {
                     foreach (FileData file in CollectionContent)
                     {
@@ -943,8 +951,8 @@ namespace Finn.ViewModels
                         file.PartOfCollections.Add(newName);
                     }
 
-                    int index = Storage.General.Collections.IndexOf(CurrentCollection);
-                    Storage.General.Collections[index] = newName;
+                    int index = Storage.Collections.IndexOf(CurrentCollection);
+                    Storage.Collections[index] = newName;
 
                     CurrentCollection = newName;
                 }
@@ -979,7 +987,7 @@ namespace Finn.ViewModels
 
             public void LoadFileAuto()
             {
-                string path = $"{Storage.General.SavePath}\\Projects.json";
+                string path = $"{Storage.SavePath}\\Projects.json";
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
                 using StreamReader streamReader = new(path);
@@ -989,10 +997,10 @@ namespace Finn.ViewModels
 
             public void DeserializeLoadFile(string fileContent)
             {
-                Storage = new StoreData();
+                Storage = new ProjectStorage();
                 try // Trying reading v.2 save file
                 {
-                    Storage = JsonConvert.DeserializeObject<StoreData>(fileContent);
+                    Storage = JsonConvert.DeserializeObject<ProjectStorage>(fileContent);
                 }
                 catch // If not, try read as v.1 save file
                 {
@@ -1035,12 +1043,12 @@ namespace Finn.ViewModels
 
             public async Task SaveFileAuto()
             {
-                if (!Directory.Exists(Storage.General.SavePath))
+                if (!Directory.Exists(Storage.SavePath))
                 {
-                    Directory.CreateDirectory(Storage.General.SavePath);
+                    Directory.CreateDirectory(Storage.SavePath);
                 }
 
-                string path = $"{Storage.General.SavePath}\\Projects.json";
+                string path = $"{Storage.SavePath}\\Projects.json";
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
                 using StreamWriter streamWriter = new(path);
@@ -1062,7 +1070,7 @@ namespace Finn.ViewModels
                     else if (!string.IsNullOrWhiteSpace(CurrentProjectsFilePath))
                         path = CurrentProjectsFilePath;
                     else
-                        path = Path.Combine(Storage.General.SavePath, "Projects.json");
+                        path = Path.Combine(Storage.SavePath, "Projects.json");
 
                     Debug.WriteLine($"Comparing storage to file: '{path}'");
                     if (!File.Exists(path))
@@ -1153,11 +1161,11 @@ namespace Finn.ViewModels
 
             public void BackupSaveFile()
             {
-                string backupDir = $"{Storage.General.SavePath}\\Backup_{DateTime.Today:d}";
+                string backupDir = $"{Storage.SavePath}\\Backup_{DateTime.Today:d}";
 
                 Directory.CreateDirectory(backupDir);
 
-                System.IO.File.Copy($"{Storage.General.SavePath}\\Projects.json", $"{backupDir}\\Projects.json", true);
+                System.IO.File.Copy($"{Storage.SavePath}\\Projects.json", $"{backupDir}\\Projects.json", true);
             }
 
             public async Task AddFile(Avalonia.Visual window)
@@ -1361,7 +1369,7 @@ namespace Finn.ViewModels
 
             public void SearchIndex()
             {
-                string indexPath = $"{Storage.General.SavePath}//IndexedContent.json";
+                string indexPath = $"{Storage.SavePath}//IndexedContent.json";
 
                 if (IndexedContent == null)
                 {

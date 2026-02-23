@@ -94,7 +94,10 @@
 				<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" SelectedValue="{Binding UI.Font}"/>
 				<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" SelectedValue="{Binding UI.FontSize}"/>
 
-				<Button Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Classes="accent" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
+                <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+					<Button Classes="accent" Width="80" Content="Save" Click="OnSave" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
+					<Button Classes="accent" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
+				</StackPanel>
 			</Grid>
 		</StackPanel>
 	</Grid>

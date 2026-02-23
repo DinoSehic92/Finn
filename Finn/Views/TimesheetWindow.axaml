@@ -37,8 +37,8 @@
 	</StackPanel>
 
 
-    <DataGrid Grid.Row="1" Name="ProjectList" x:DataType="m:TimeSheetProjectData"
-              ItemsSource="{x:Null}" SelectionMode="Single"
+    <DataGrid Grid.Row="1" Name="ProjectList"
+              ItemsSource="{Binding Calendar.TimeProjects}" SelectionMode="Single"
               IsReadOnly="True" SelectionChanged="OnProjectListSelectionChanged">
       <DataGrid.Columns>
         <DataGridTextColumn Binding="{Binding Project}" Header="Projects" Width="*" FontSize="14"/>
@@ -63,7 +63,7 @@
       <Button Width="35" Click="OnNewTimeSheet">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
       <Button Width="35" Click="OnRemoveTimeSheet"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
       <!-- Save calendar data to file using CalendarService -->
-      <Button Width="35" Click="OnSaveCalendarData" ToolTip.Tip="Save calendar to file">
+      <Button Width="35"  ToolTip.Tip="Save calendar to file">
         <ic:SymbolIcon Symbol="Save" FontSize="18"/>
       </Button>
     </StackPanel>

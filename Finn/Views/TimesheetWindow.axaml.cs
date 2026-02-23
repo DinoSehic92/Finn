@@ -161,36 +161,6 @@ namespace Finn.Views
             }
         }
 
-        private void OnSaveCalendarData(object? sender, RoutedEventArgs e)
-        {
-            if (DataContext is MainViewModel vm)
-            {
-                try
-                {
-                    // Replace the real TimeProjects with copies of the local edited collection
-                    var cloned = new ObservableCollection<TimeSheetProjectData>(_localProjects.Select(CloneProject));
-                    vm.Calendar.TimeProjects = cloned;
-
-                    // Restore selected item in ViewModel to match UI selection index
-                    int idx = ProjectList.SelectedIndex;
-                    if (idx >= 0 && idx < vm.Calendar.TimeProjects.Count)
-                        vm.Calendar.CurrentTimeSheetProject = vm.Calendar.TimeProjects[idx];
-
-                    // Persist to disk
-                    Finn.Services.CalendarService.SaveCalendarToFile(vm.Calendar, vm.Storage.General.SavePath);
-
-                    // Refresh VM summaries and local summaries after save so UI reflects committed data
-                    vm.Calendar.UpdateTimeSheetSummary();
-                    vm.Calendar.WeeklyTimeSummary();
-                    RefreshLocalSummaries(vm);
-                }
-                catch (Exception ex)
-                {
-                    Finn.Utils.ErrorLogger.Log(ex, "TimesheetWindow.OnSaveCalendarData");
-                }
-            }
-        }
-
         private static TimeSheetProjectData CloneProject(TimeSheetProjectData src)
         {
             if (src == null) return new TimeSheetProjectData();

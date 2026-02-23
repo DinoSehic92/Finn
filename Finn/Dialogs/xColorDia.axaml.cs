@@ -5,6 +5,10 @@ using Avalonia.Media;
 using Finn.Views;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using Newtonsoft.Json;
+using Finn.Storage;
+using Finn.ViewModels;
 
 namespace Finn.Dialog;
 
@@ -28,22 +32,43 @@ public partial class xColorDia : TemplateWindow
         this.Close();
     }
 
+    public async void OnSave(object sender, RoutedEventArgs e)
+    {
+        // DataContext is MainViewModel (x:DataType specified in xaml)
+        if (this.DataContext is not MainViewModel vm) return;
+
+        try
+        {
+            var savePath = vm.Storage.SavePath;
+            if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
+
+            var ui = vm.UI.ToStorage();
+            string json = JsonConvert.SerializeObject(ui, Formatting.Indented);
+            string file = Path.Combine(savePath, "UISettings.json");
+            await File.WriteAllTextAsync(file, json);
+        }
+        catch
+        {
+            // ignore save errors
+        }
+    }
+
     public void ResetDark(object sender, RoutedEventArgs e)
     {
-        BackgroundColorPickerDark.Color = Finn.Services.UIDefaults.DefaultColor1;
-        AccentColorPickerDark.Color = Finn.Services.UIDefaults.DefaultColor2;
+        BackgroundColorPickerDark.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor1;
+        AccentColorPickerDark.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor2;
     }
 
     public void ResetLight(object sender, RoutedEventArgs e)
     {
-        BackgroundColorPickerLight.Color = Finn.Services.UIDefaults.DefaultColor3;
-        AccentColorPickerLight.Color = Finn.Services.UIDefaults.DefaultColor4;
+        BackgroundColorPickerLight.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor3;
+        AccentColorPickerLight.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor4;
     }
 
     public void ResetFonts(object sender, RoutedEventArgs e)
     {
-        FontCombo.SelectedItem = Finn.Services.UIDefaults.DefaultFontName;
-        FontSizeCombo.SelectedValue = Finn.Services.UIDefaults.DefaultFontSize;
+        FontCombo.SelectedItem = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultFontName;
+        FontSizeCombo.SelectedValue = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultFontSize;
     }
 
     private void CloseKey(object sender, KeyEventArgs e)

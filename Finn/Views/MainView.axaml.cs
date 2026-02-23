@@ -14,7 +14,6 @@ using Avalonia.Styling;
 using System.Diagnostics;
 using System.Threading;
 using Avalonia.VisualTree;
-using Finn.Services;
 
 namespace Finn.Views;
 
@@ -117,8 +116,8 @@ public partial class MainView : UserControl
             // the service uses the SavePath configured in Projects.json.
             try
             {
-                var calendarService = new CalendarService();
-                calendarService.Initialize(_ctx.Calendar, _ctx.Storage.General.SavePath);
+                // Load calendar storage directly into the CalendarViewModel
+                _ctx.Calendar.LoadOrCreateStorage(_ctx.Storage.SavePath);
             }
             catch (Exception ex)
             {
@@ -140,7 +139,7 @@ public partial class MainView : UserControl
             case "Color3":
                 UpdateRowColor();
                 break;
-            case nameof(MainViewModel.UI.PreviewEmbeddedOpen):
+            case nameof(MainViewModel.PreviewEmbeddedOpen):
                 UpdateMainGrid();
                 break;
             case nameof(MainViewModel.PreviewWindowOpen):
@@ -610,7 +609,7 @@ public partial class MainView : UserControl
             {
                 var vm = _ctx;
                 int total = vm.CurrentFiles?.Count ?? 0;
-                string thumbnailPath = $"{vm.Storage.General.SavePath}\\Thumbnails\\";
+                string thumbnailPath = $"{vm.Storage.SavePath}\\Thumbnails\\";
 
                 for (int i = 0; i < total; i++)
                 {

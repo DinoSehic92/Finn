@@ -1,9 +1,9 @@
 using System;
 
-namespace Finn.Services
+namespace Finn.Storage
 {
-    // Simple DTO for UI-specific settings saved separately from the main projects file.
-    public class UISettings
+    // Persisted UI settings storage (separate from runtime UI viewmodel)
+    public class UIStorage
     {
         public string Color1 { get; set; } = string.Empty;
         public string Color2 { get; set; } = string.Empty;
@@ -26,7 +26,7 @@ namespace Finn.Services
         public bool TrayBookmarks { get; set; }
         public bool TrayRecent { get; set; }
         public bool ShowIcons { get; set; }
-        
+
         // Persisted view visibility flags
         public bool TreeViewOpen { get; set; }
         public bool CalendarOpen { get; set; }
@@ -34,6 +34,6 @@ namespace Finn.Services
         public bool ShowFolders { get; set; }
         public bool ShowThumbnails { get; set; }
         public bool TrayViewOpen { get; set; }
-        public bool PreviewEmbeddedOpen { get; set; }
+        // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

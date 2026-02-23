@@ -422,7 +422,7 @@
 							</MenuItem>
 						</MenuItem>
 
-						<MenuItem Header="Collection" ItemsSource="{Binding Storage.General.Collections}" Click="OnAddToCollection">
+						<MenuItem Header="Collection" ItemsSource="{Binding Storage.Collections}" Click="OnAddToCollection">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Collections"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
@@ -832,7 +832,7 @@
 
 			<!-- Collections list -->
             <DataGrid Grid.Row="2" IsVisible="{Binding UI.TrayCollections}" Name="Collections"
-					  ItemsSource="{Binding Storage.General.Collections}" SelectedItem="{Binding CurrentCollection}"
+					  ItemsSource="{Binding Storage.Collections}" SelectedItem="{Binding CurrentCollection}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using Finn.Services;
 using Avalonia.Media;
 using Avalonia;
 using Avalonia.Styling;
@@ -9,24 +8,41 @@ namespace Finn.ViewModels
 {
     public class UISettingsViewModel : INotifyPropertyChanged
     {
+        // Localized defaults moved here from Finn.Services.UIDefaults
+        public static class Defaults
+        {
+            public static readonly Avalonia.Media.Color DefaultColor1 = Avalonia.Media.Color.Parse("#1F2933");
+            public static readonly Avalonia.Media.Color DefaultColor2 = Avalonia.Media.Color.Parse("#0A84FF");
+            public static readonly Avalonia.Media.Color DefaultColor3 = Avalonia.Media.Color.Parse("#E9EEF5");
+            public static readonly Avalonia.Media.Color DefaultColor4 = Avalonia.Media.Color.Parse("#0066C0");
+
+            public const string DefaultFontName = "Roboto";
+            public const int DefaultFontSize = 15;
+
+            public const double DefaultCornerRadius = 10.0;
+            public const bool DefaultCornerRadiusVal = true;
+            public const bool DefaultShadowVal = false;
+            public const bool DefaultDarkMode = true;
+        }
+
         public UISettingsViewModel()
         {
-            // default values from centralized UI defaults
-            Color1 = Finn.Services.UIDefaults.DefaultColor1;
-            Color2 = Finn.Services.UIDefaults.DefaultColor2;
-            Color3 = Finn.Services.UIDefaults.DefaultColor3;
-            Color4 = Finn.Services.UIDefaults.DefaultColor4;
+            // default values from localized defaults
+            Color1 = Defaults.DefaultColor1;
+            Color2 = Defaults.DefaultColor2;
+            Color3 = Defaults.DefaultColor3;
+            Color4 = Defaults.DefaultColor4;
 
-            CornerRadius = new CornerRadius(UIDefaults.DefaultCornerRadius);
-            CornerRadiusVal = UIDefaults.DefaultCornerRadiusVal;
+            CornerRadius = new CornerRadius(Defaults.DefaultCornerRadius);
+            CornerRadiusVal = Defaults.DefaultCornerRadiusVal;
 
             Shadow = BoxShadows.Parse("0 2 6 0 #22000000, 0 8 24 0 #11000000");
-            ShadowVal = UIDefaults.DefaultShadowVal;
+            ShadowVal = Defaults.DefaultShadowVal;
 
-            DarkMode = UIDefaults.DefaultDarkMode;
+            DarkMode = Defaults.DefaultDarkMode;
 
-            Font = UIDefaults.DefaultFontName;
-            FontSize = UIDefaults.DefaultFontSize;
+            Font = Defaults.DefaultFontName;
+            FontSize = Defaults.DefaultFontSize;
 
             ShowIcons = true;
             TrayNote = true;
@@ -41,7 +57,7 @@ namespace Finn.ViewModels
             ShowFolders = false;
             ShowThumbnails = false;
             TrayViewOpen = false;
-            PreviewEmbeddedOpen = false;
+
         }
 
         private bool treeViewOpen;
@@ -137,5 +153,88 @@ namespace Finn.ViewModels
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        // Convert the runtime UI viewmodel into the lightweight storage DTO
+        public Finn.Storage.UIStorage ToStorage()
+        {
+            return new Finn.Storage.UIStorage
+            {
+                Color1 = this.Color1.ToString(),
+                Color2 = this.Color2.ToString(),
+                Color3 = this.Color3.ToString(),
+                Color4 = this.Color4.ToString(),
+                CornerRadiusVal = this.CornerRadiusVal,
+                CornerRadius = this.CornerRadius.TopLeft,
+                ShadowVal = this.ShadowVal,
+                DarkMode = this.DarkMode,
+                Font = this.Font,
+                FontSize = this.FontSize,
+                TrayNote = this.TrayNote,
+                TrayCollections = this.TrayCollections,
+                TrayBookmarks = this.TrayBookmarks,
+                TrayRecent = this.TrayRecent,
+                ShowIcons = this.ShowIcons,
+                TreeViewOpen = this.TreeViewOpen,
+                CalendarOpen = this.CalendarOpen,
+                TimeSheetOpen = this.TimeSheetOpen,
+                ShowFolders = this.ShowFolders,
+                ShowThumbnails = this.ShowThumbnails,
+                TrayViewOpen = this.TrayViewOpen
+            };
+        }
+
+        // Populate the runtime UI viewmodel from a storage DTO
+        public void FromStorage(Finn.Storage.UIStorage ui)
+        {
+            if (ui == null) return;
+
+            try { if (!string.IsNullOrWhiteSpace(ui.Color1)) this.Color1 = Avalonia.Media.Color.Parse(ui.Color1); } catch { }
+            try { if (!string.IsNullOrWhiteSpace(ui.Color2)) this.Color2 = Avalonia.Media.Color.Parse(ui.Color2); } catch { }
+            try { if (!string.IsNullOrWhiteSpace(ui.Color3)) this.Color3 = Avalonia.Media.Color.Parse(ui.Color3); } catch { }
+            try { if (!string.IsNullOrWhiteSpace(ui.Color4)) this.Color4 = Avalonia.Media.Color.Parse(ui.Color4); } catch { }
+
+            this.CornerRadiusVal = ui.CornerRadiusVal;
+            this.CornerRadius = new Avalonia.CornerRadius(ui.CornerRadius);
+            this.ShadowVal = ui.ShadowVal;
+            this.DarkMode = ui.DarkMode;
+
+            if (!string.IsNullOrWhiteSpace(ui.Font)) this.Font = ui.Font;
+            if (ui.FontSize > 0) this.FontSize = ui.FontSize;
+
+            try
+            {
+                this.TrayNote = ui.TrayNote;
+                this.TrayCollections = ui.TrayCollections;
+                this.TrayBookmarks = ui.TrayBookmarks;
+                this.TrayRecent = ui.TrayRecent;
+                this.ShowIcons = ui.ShowIcons;
+
+                this.TreeViewOpen = ui.TreeViewOpen;
+                this.CalendarOpen = ui.CalendarOpen;
+                this.TimeSheetOpen = ui.TimeSheetOpen;
+                this.ShowFolders = ui.ShowFolders;
+                this.ShowThumbnails = ui.ShowThumbnails;
+                this.TrayViewOpen = ui.TrayViewOpen;
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        // Apply theme resources based on current runtime UI values
+        public void ApplyTheme()
+        {
+            var theme = new FluentTheme()
+            {
+                Palettes =
+                {
+                    [ThemeVariant.Dark] = new ColorPaletteResources() { RegionColor = this.Color1, Accent = this.Color2 },
+                    [ThemeVariant.Light] = new ColorPaletteResources() { RegionColor = this.Color3, Accent = this.Color4 }
+                }
+            };
+
+            App.Current.Resources = theme.Resources;
+        }
     }
 }

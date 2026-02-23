@@ -4,6 +4,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Collections.Specialized;
 using System.Linq;
+using Finn.Storage;
+using System.IO;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Diagnostics;
@@ -23,11 +26,97 @@ namespace Finn.ViewModels
             : base(logger: null)
         {
             this.uiGetter = uiGetter;
+            CalendarStorage = new CalendarStorage();
+        }
+
+        private UISettingsViewModel UI => uiGetter();
+
+        private CalendarStorage calendarStorage = new CalendarStorage();
+        public CalendarStorage CalendarStorage
+        {
+            get => calendarStorage;
+            set => SetProperty(ref calendarStorage, value);
+        }
+
+        // Expose collections for binding (delegates to CalendarStorage)
+        public ObservableCollection<CalendarData> CalendarList
+        {
+            get => CalendarStorage.CalendarList ?? new ObservableCollection<CalendarData>();
+            set
+            {
+                if (CalendarStorage.CalendarList != value)
+                {
+                    CalendarStorage.CalendarList = value;
+                    OnPropertyChanged(nameof(CalendarList));
+                }
+            }
+        }
+
+        public ObservableCollection<TimeSheetProjectData> TimeProjects
+        {
+            get => CalendarStorage.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>();
+            set
+            {
+                if (CalendarStorage.TimeProjects != value)
+                {
+                    CalendarStorage.TimeProjects = value;
+                    OnPropertyChanged(nameof(TimeProjects));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Loads calendar storage from the provided save path (Calendar.json). If the file
+        /// does not exist a new file will be created from the current in-memory storage.
+        /// </summary>
+        public void LoadOrCreateStorage(string savePath)
+        {
+            if (string.IsNullOrWhiteSpace(savePath)) return;
+
+            try
+            {
+                if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
+                string file = Path.Combine(savePath, "Calendar.json");
+
+                if (File.Exists(file))
+                {
+                    string json = File.ReadAllText(file);
+                    var cs = JsonConvert.DeserializeObject<CalendarStorage>(json);
+                    if (cs != null)
+                    {
+                        CalendarStorage = cs;
+                        // Ensure collections are concrete ObservableCollections
+                        CalendarStorage.CalendarList = new ObservableCollection<CalendarData>(CalendarStorage.CalendarList ?? new ObservableCollection<CalendarData>());
+                        CalendarStorage.TimeProjects = new ObservableCollection<TimeSheetProjectData>(CalendarStorage.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>());
+                        // Notify bindings
+                        OnPropertyChanged(nameof(CalendarStorage));
+                        OnPropertyChanged(nameof(CalendarList));
+                        OnPropertyChanged(nameof(TimeProjects));
+
+                        // Ensure monthly view and current item reflect loaded storage
+                        try
+                        {
+                            UpdateMonthly();
+                            SetCurrentCalendarData();
+                        }
+                        catch { }
+                    }
+                }
+                else
+                {
+                    string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
+                    File.WriteAllText(file, json);
+                }
+            }
+            catch
+            {
+                // ignore IO/parse errors — do not crash UI thread
+            }
         }
 
         private IEnumerable<CalendarData> GetMonthEntries(int year, int month)
         {
-            return CalendarList.Where(x => x.Date.Year == year && x.Date.Month == month);
+            return CalendarList?.Where(x => x.Date.Year == year && x.Date.Month == month) ?? Enumerable.Empty<CalendarData>();
         }
 
         private int SumProjectHoursForWeek(IEnumerable<CalendarData> monthEntries, int weekOfMonth, string project)
@@ -38,25 +127,6 @@ namespace Finn.ViewModels
                    .Where(ts => ts.Project == project)
                    .Sum(ts => ts.Hours);
         }
-
-        private ObservableCollection<CalendarData> calendarList = new ObservableCollection<CalendarData>();
-
-        public ObservableCollection<CalendarData> CalendarList
-        {
-            get => calendarList;
-            set => SetProperty(ref calendarList, value);
-        }
-
-        private ObservableCollection<TimeSheetProjectData> timeProjects = new ObservableCollection<TimeSheetProjectData>();
-
-        public ObservableCollection<TimeSheetProjectData> TimeProjects
-        {
-            get => timeProjects;
-            set => SetProperty(ref timeProjects, value);
-        }
-
-        private UISettingsViewModel UI => uiGetter();
-
 
         private DateTime selectedDateTime = new();
         public DateTime SelectedDateTime
@@ -112,12 +182,24 @@ namespace Finn.ViewModels
 
         public void NewTimeSheet()
         {
+            // Ensure we have a current calendar entry before mutating it
+            if (CurrentCalendarData == null)
+            {
+                SetCurrentCalendarData();
+            }
+
+            if (CurrentCalendarData == null)
+                return;
+
             CurrentCalendarData.TimeSheets.Add(new TimeSheetData() { Hours = 1, Project = "New" });
             CurrentCalendarData.TriggerDateStringUpdate();
         }
 
         public void RemoveTimeSheet()
         {
+            if (CurrentCalendarData == null || CurrentTimeSheet == null)
+                return;
+
             CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
             CurrentCalendarData.TriggerDateStringUpdate();
         }
@@ -134,8 +216,32 @@ namespace Finn.ViewModels
 
         public void WeeklyTimeSummary()
         {
-            if (!UI.TimeSheetOpen || CurrentCalendarData == null)
+            // Guard against no timesheet UI
+            if (!UI.TimeSheetOpen)
                 return;
+
+            // Ensure we have a valid current calendar entry. If CurrentCalendarData is missing
+            // or has a default Date, try to resolve it from SelectedDateTime or CalendarList.
+            if (CurrentCalendarData == null || CurrentCalendarData.Date == default)
+            {
+                SetCurrentCalendarData();
+            }
+
+            if (CurrentCalendarData == null || CurrentCalendarData.Date == default)
+            {
+                // Fallback: try to find entries for the selected date
+                var selDate = DateOnly.FromDateTime(SelectedDateTime);
+                var existing = CalendarList.FirstOrDefault(x => x.Date == selDate);
+                if (existing != null)
+                {
+                    CurrentCalendarData = existing;
+                }
+                else
+                {
+                    // Nothing to summarize
+                    return;
+                }
+            }
 
             // Cache month entries to avoid repeated LINQ scans
             int month = CurrentCalendarData.Date.Month;

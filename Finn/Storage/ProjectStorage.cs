@@ -1,10 +1,19 @@
-﻿using System.Collections.ObjectModel;
+﻿using Finn.Model;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 
-namespace Finn.Model
+namespace Finn.Storage
 {
-    public class StoreData : INotifyPropertyChanged
+    public class ProjectStorage : INotifyPropertyChanged
     {
+
+        private string savePath = "C:\\FIlePathManager";
+
+        public string SavePath
+        {
+            get => savePath;
+            set { savePath = value; RaisePropertyChanged(nameof(SavePath)); }
+        }
 
         private ObservableCollection<ProjectData> storedProjects = new ObservableCollection<ProjectData>();
         public ObservableCollection<ProjectData> StoredProjects
@@ -13,14 +22,12 @@ namespace Finn.Model
             set { storedProjects = value; RaisePropertyChanged("StoredProjects"); }
         }
 
-        private GeneralData general = new GeneralData();
-        public GeneralData General
+        private ObservableCollection<string> collections = new ObservableCollection<string>();
+        public ObservableCollection<string> Collections
         {
-            get { return general; }
-            set { general = value; RaisePropertyChanged("General"); }
+            get { return collections; }
+            set { collections = value; RaisePropertyChanged("Collections"); }
         }
-
-        // CalendarStore moved out of StoreData (now owned by MainViewModel)
 
 
         private void RaisePropertyChanged(string propName)

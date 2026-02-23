@@ -4,7 +4,7 @@ using Finn.Views;
 using System;
 using System.Threading.Tasks;
 using Avalonia;
-using Finn.Services;
+// Finn.Services removed: UIService moved into App/ViewModel logic
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
@@ -27,9 +27,32 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = new MainViewModel();
-            // Initialize UI service to apply theme/resources centrally
-            var uiService = new UIService();
-            uiService.Initialize(vm);
+            // Load persisted UI settings if present (one-time load at startup)
+            try
+            {
+                var savePath = vm.Storage.SavePath;
+                var file = System.IO.Path.Combine(savePath, "UISettings.json");
+                if (System.IO.File.Exists(file))
+                {
+                    var json = System.IO.File.ReadAllText(file);
+                    var ui = Newtonsoft.Json.JsonConvert.DeserializeObject<Finn.Storage.UIStorage>(json);
+                    if (ui != null)
+                    {
+                        vm.UI.FromStorage(ui);
+                    }
+                }
+            }
+            catch { }
+
+            // Apply theme and subscribe to UI changes to update theme live
+            vm.UI.ApplyTheme();
+            vm.UI.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
+                {
+                    vm.UI.ApplyTheme();
+                }
+            };
 
             desktop.MainWindow = new MainWindow
             {
@@ -39,8 +62,33 @@ public partial class App : Application
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
             var vm = new MainViewModel();
-            var uiService = new UIService();
-            uiService.Initialize(vm);
+
+            // Load persisted UI settings if present (one-time load at startup)
+            try
+            {
+                var savePath = vm.Storage.SavePath;
+                var file = System.IO.Path.Combine(savePath, "UISettings.json");
+                if (System.IO.File.Exists(file))
+                {
+                    var json = System.IO.File.ReadAllText(file);
+                    var ui = Newtonsoft.Json.JsonConvert.DeserializeObject<Finn.Storage.UIStorage>(json);
+                    if (ui != null)
+                    {
+                        vm.UI.FromStorage(ui);
+                    }
+                }
+            }
+            catch { }
+
+            // Apply theme and subscribe to UI changes to update theme live
+            vm.UI.ApplyTheme();
+            vm.UI.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
+                {
+                    vm.UI.ApplyTheme();
+                }
+            };
 
             singleViewPlatform.MainView = new MainView
             {
