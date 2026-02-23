@@ -42,8 +42,61 @@ namespace Finn.Services
             AttachToCalendarVm();
         }
 
+        /// <summary>
+        /// Initialize the service for saving without loading existing JSON from disk.
+        /// This avoids overwriting an in-memory CalendarViewModel when the caller
+        /// wants to persist the current runtime state.
+        /// </summary>
+        public void InitializeForSave(CalendarViewModel calendar, string savePath)
+        {
+            _calendar = calendar;
+            if (string.IsNullOrWhiteSpace(savePath)) savePath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
+            _fileName = Path.Combine(savePath, "Calendar.json");
 
-        private void AttachCollectionHandlers(System.Collections.ObjectModel.ObservableCollection<CalendarData>? list)
+            // Do not read existing file into _loadedJson; just attach handlers so Save() will write current state.
+            AttachToCalendarVm();
+        }
+
+        // Public method to allow callers to force an immediate save
+        public void SaveNow()
+        {
+            Save();
+        }
+
+        /// <summary>
+        /// Fast, no-side-effects save helper. Serializes the provided calendar
+        /// and writes it to Calendar.json under savePath. Does not attach any
+        /// event handlers to the calendar VM.
+        /// </summary>
+        public static void SaveCalendarToFile(CalendarViewModel calendar, string savePath)
+        {
+            try
+            {
+                if (calendar == null) return;
+
+                if (string.IsNullOrWhiteSpace(savePath)) savePath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
+
+                string fileName = Path.Combine(savePath, "Calendar.json");
+
+                var dto = new CalendarDto
+                {
+                    CalendarList = new ObservableCollection<CalendarData>(calendar.CalendarList ?? new ObservableCollection<CalendarData>()),
+                    TimeProjects = new ObservableCollection<TimeSheetProjectData>(calendar.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>())
+                };
+
+                string json = JsonConvert.SerializeObject(dto, Formatting.Indented);
+                File.WriteAllText(fileName, json);
+            }
+            catch (Exception ex)
+            {
+                Finn.Utils.ErrorLogger.Log(ex, "CalendarService.SaveCalendarToFile");
+            }
+        }
+
+
+        private void AttachCollectionHandlers(ObservableCollection<CalendarData>? list)
         {
             if (list == null) return;
             try { list.CollectionChanged -= CalendarList_CollectionChanged; } catch { }
@@ -52,7 +105,7 @@ namespace Finn.Services
             foreach (var it in list) SubscribeCalendarItem(it);
         }
 
-        private void AttachTimeProjectHandlers(System.Collections.ObjectModel.ObservableCollection<TimeSheetProjectData>? list)
+        private void AttachTimeProjectHandlers(ObservableCollection<TimeSheetProjectData>? list)
         {
             if (list == null) return;
             try { list.CollectionChanged -= TimeProjects_CollectionChanged; } catch { }
@@ -87,16 +140,16 @@ namespace Finn.Services
                 if (dto != null)
                 {
                     _calendar.CalendarList.Clear();
-                    foreach (var item in dto.CalendarList ?? new System.Collections.ObjectModel.ObservableCollection<CalendarData>())
+                    foreach (var item in dto.CalendarList ?? new ObservableCollection<CalendarData>())
                         _calendar.CalendarList.Add(item);
 
                     _calendar.TimeProjects.Clear();
-                    foreach (var tp in dto.TimeProjects ?? new System.Collections.ObjectModel.ObservableCollection<TimeSheetProjectData>())
+                    foreach (var tp in dto.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>())
                         _calendar.TimeProjects.Add(tp);
                 }
                 else
                 {
-                    var list = JsonConvert.DeserializeObject<System.Collections.ObjectModel.ObservableCollection<CalendarData>>(_loadedJson!);
+                    var list = JsonConvert.DeserializeObject<ObservableCollection<CalendarData>>(_loadedJson!);
                     if (list != null)
                     {
                         _calendar.CalendarList.Clear();
@@ -230,8 +283,8 @@ namespace Finn.Services
 
                 var dto = new CalendarDto
                 {
-                    CalendarList = new System.Collections.ObjectModel.ObservableCollection<CalendarData>(_calendar.CalendarList ?? new System.Collections.ObjectModel.ObservableCollection<CalendarData>()),
-                    TimeProjects = new System.Collections.ObjectModel.ObservableCollection<TimeSheetProjectData>(_calendar.TimeProjects ?? new System.Collections.ObjectModel.ObservableCollection<TimeSheetProjectData>())
+                    CalendarList = new ObservableCollection<CalendarData>(_calendar.CalendarList ?? new ObservableCollection<CalendarData>()),
+                    TimeProjects = new ObservableCollection<TimeSheetProjectData>(_calendar.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>())
                 };
 
                 string json = JsonConvert.SerializeObject(dto, Formatting.Indented);
@@ -245,8 +298,8 @@ namespace Finn.Services
 
         private class CalendarDto
         {
-            public System.Collections.ObjectModel.ObservableCollection<CalendarData>? CalendarList { get; set; }
-            public System.Collections.ObjectModel.ObservableCollection<TimeSheetProjectData>? TimeProjects { get; set; }
+            public ObservableCollection<CalendarData>? CalendarList { get; set; }
+            public ObservableCollection<TimeSheetProjectData>? TimeProjects { get; set; }
         }
     }
 }

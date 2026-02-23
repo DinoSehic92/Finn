@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Diagnostics;
 
 namespace Finn.ViewModels
 {
@@ -43,7 +44,7 @@ namespace Finn.ViewModels
         public ObservableCollection<CalendarData> CalendarList
         {
             get => calendarList;
-            set => SetProperty(ref calendarList, value, OnCalendarListReplaced);
+            set => SetProperty(ref calendarList, value);
         }
 
         private ObservableCollection<TimeSheetProjectData> timeProjects = new ObservableCollection<TimeSheetProjectData>();
@@ -51,103 +52,10 @@ namespace Finn.ViewModels
         public ObservableCollection<TimeSheetProjectData> TimeProjects
         {
             get => timeProjects;
-            set => SetProperty(ref timeProjects, value, OnTimeProjectsReplaced);
+            set => SetProperty(ref timeProjects, value);
         }
 
         private UISettingsViewModel UI => uiGetter();
-
-        private void OnCalendarListReplaced()
-        {
-            // reattach collection changed and resubscribe items
-            try { calendarList.CollectionChanged -= CalendarList_CollectionChanged; } catch { }
-            calendarList.CollectionChanged += CalendarList_CollectionChanged;
-            foreach (var it in calendarList) SubscribeCalendarItem(it);
-        }
-
-        private void OnTimeProjectsReplaced()
-        {
-            // nothing special for time projects now
-        }
-
-        private void CalendarList_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e == null) { UpdateMonthly(); return; }
-
-            if (e.NewItems != null)
-            {
-                foreach (CalendarData item in e.NewItems)
-                    SubscribeCalendarItem(item);
-            }
-
-            if (e.OldItems != null)
-            {
-                foreach (CalendarData item in e.OldItems)
-                    UnsubscribeCalendarItem(item);
-            }
-
-            UpdateMonthly();
-        }
-
-        private void SubscribeCalendarItem(CalendarData item)
-        {
-            if (item == null) return;
-            try { item.PropertyChanged -= CalendarItem_PropertyChanged; } catch { }
-            item.PropertyChanged += CalendarItem_PropertyChanged;
-            try { item.TimeSheets.CollectionChanged -= TimeSheets_CollectionChanged; } catch { }
-            item.TimeSheets.CollectionChanged += TimeSheets_CollectionChanged;
-            foreach (var ts in item.TimeSheets)
-            {
-                try { ts.PropertyChanged -= TimeSheet_PropertyChanged; } catch { }
-                ts.PropertyChanged += TimeSheet_PropertyChanged;
-            }
-        }
-
-        private void UnsubscribeCalendarItem(CalendarData item)
-        {
-            if (item == null) return;
-            try { item.PropertyChanged -= CalendarItem_PropertyChanged; } catch { }
-            try { item.TimeSheets.CollectionChanged -= TimeSheets_CollectionChanged; } catch { }
-            foreach (var ts in item.TimeSheets)
-            {
-                try { ts.PropertyChanged -= TimeSheet_PropertyChanged; } catch { }
-            }
-        }
-
-        private void CalendarItem_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(CalendarData.Note1) || e.PropertyName == nameof(CalendarData.Note2) ||
-                e.PropertyName == nameof(CalendarData.Reminder) || e.PropertyName == nameof(CalendarData.TimeSheets))
-            {
-                UpdateMonthly();
-                UpdateTimeSheetSummary();
-            }
-        }
-
-        private void TimeSheets_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            if (e.NewItems != null)
-            {
-                foreach (TimeSheetData ts in e.NewItems)
-                {
-                    try { ts.PropertyChanged -= TimeSheet_PropertyChanged; } catch { }
-                    ts.PropertyChanged += TimeSheet_PropertyChanged;
-                }
-            }
-            if (e.OldItems != null)
-            {
-                foreach (TimeSheetData ts in e.OldItems)
-                {
-                    try { ts.PropertyChanged -= TimeSheet_PropertyChanged; } catch { }
-                }
-            }
-
-            UpdateTimeSheetSummary();
-        }
-
-        private void TimeSheet_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            UpdateTimeSheetSummary();
-        }
 
 
         private DateTime selectedDateTime = new();
@@ -199,7 +107,7 @@ namespace Finn.ViewModels
         public TimeSheetProjectData CurrentTimeSheetProject
         {
             get => currentTimeSheetProject;
-            set => SetProperty(ref currentTimeSheetProject, value, UpdateTimeSheetSummary);
+            set => SetProperty(ref currentTimeSheetProject, value);
         }
 
         public void NewTimeSheet()
@@ -214,11 +122,13 @@ namespace Finn.ViewModels
             CurrentCalendarData.TriggerDateStringUpdate();
         }
 
-        private void UpdateTimeSheetSummary()
+        public void UpdateTimeSheetSummary()
         {
+            // Guard against null CurrentTimeSheetProject (can happen during edits)
+            var projectName = CurrentTimeSheetProject?.Project ?? string.Empty;
             foreach (CalendarData calendarData in MonthlyNotes)
             {
-                calendarData.SetCurrentTimeSheetProjectDiary(CurrentTimeSheetProject.Project);
+                calendarData.SetCurrentTimeSheetProjectDiary(projectName);
             }
         }
 
@@ -232,13 +142,14 @@ namespace Finn.ViewModels
             int year = CurrentCalendarData.Date.Year;
             var monthEntries = GetMonthEntries(year, month);
 
-            foreach (TimeSheetProjectData project in TimeProjects.Where(x => x.Project != TOTAL_PROJECT))
+            foreach (TimeSheetProjectData project in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
             {
-                project.W1 = SumProjectHoursForWeek(monthEntries, 0, project.Project);
-                project.W2 = SumProjectHoursForWeek(monthEntries, 1, project.Project);
-                project.W3 = SumProjectHoursForWeek(monthEntries, 2, project.Project);
-                project.W4 = SumProjectHoursForWeek(monthEntries, 3, project.Project);
-                project.W5 = SumProjectHoursForWeek(monthEntries, 4, project.Project);
+                var projName = project?.Project ?? string.Empty;
+                project.W1 = SumProjectHoursForWeek(monthEntries, 0, projName);
+                project.W2 = SumProjectHoursForWeek(monthEntries, 1, projName);
+                project.W3 = SumProjectHoursForWeek(monthEntries, 2, projName);
+                project.W4 = SumProjectHoursForWeek(monthEntries, 3, projName);
+                project.W5 = SumProjectHoursForWeek(monthEntries, 4, projName);
             }
 
             TimeSheetProjectData summarySheet = TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
@@ -304,7 +215,6 @@ namespace Finn.ViewModels
 
                     if (!CalendarList.Any(x => x.Date == cal.Date)) CalendarList.Add(cal);
                     _subscribedCalendarData = null;
-                    UpdateMonthly();
                 }
             }
         }

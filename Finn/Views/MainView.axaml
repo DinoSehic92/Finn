@@ -343,7 +343,7 @@
 				</Button.Flyout>
 			</Button>
 
-			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
+		<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
 		</StackPanel>
 
 		<!-- ═══════════════════════════════════════════════ -->
@@ -664,45 +664,6 @@
 		<!-- Side panels                                    -->
 		<!-- ═══════════════════════════════════════════════ -->
 
-		<!-- Timesheet panel -->
-		<Grid Grid.Row="6" Grid.Column="4" RowDefinitions="300,40,*" IsVisible="{Binding UI.TimeSheetOpen}" Width="500">
-			<DataGrid Grid.Row="0" Name="ProjectList"
-					  ItemsSource="{Binding Calendar.TimeProjects}" SelectedItem="{Binding Calendar.CurrentTimeSheetProject}"
-					  IsReadOnly="True">
-				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Project}" Header="Projects" Width="*"          FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding W1}"      Header="W1"       Width="SizeToHeader" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding W2}"      Header="W2"       Width="SizeToHeader" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding W3}"      Header="W3"       Width="SizeToHeader" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding W4}"      Header="W4"       Width="SizeToHeader" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding W5}"      Header="W5"       Width="SizeToHeader" FontSize="14"/>
-				</DataGrid.Columns>
-			</DataGrid>
-
-			<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left">
-				<Border Classes="shadow">
-					<TextBox Text="{Binding Calendar.CurrentTimeSheetProject.Project}"   MinWidth="0" Width="150" Watermark="New Project" BorderThickness="0" Margin="0"/>
-				</Border>
-				<Border Classes="shadow">
-					<TextBox Text="{Binding Calendar.CurrentTimeSheetProject.ProjectNr}" MinWidth="0" Width="125" Watermark="Project Nr" BorderThickness="0" Margin="0"/>
-				</Border>
-				<Border Classes="shadow">
-					<TextBox Text="{Binding Calendar.CurrentTimeSheetProject.Task}"      MinWidth="0" Width="90" Watermark="Task" BorderThickness="0" Margin="0"/>
-				</Border>
-				<Button Width="35" Click="NewTimeSheetProject">   <ic:SymbolIcon Symbol="Add"    FontSize="18"/></Button>
-				<Button Width="35" Click="RemoveTimeSheetProject"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
-				<Button Width="35" Command="{Binding Calendar.WeeklyTimeSummary}"><ic:SymbolIcon Symbol="ArrowClockwise" FontSize="18"/></Button>
-			</StackPanel>
-
-			<DataGrid Grid.Row="2" ItemsSource="{Binding Calendar.MonthlyNotes}" CanUserSortColumns="False">
-				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding DateString}"                   Header="Date"  Width="Auto" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectTime}"   Header="t"     Width="50" MinWidth="50" FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding CurrentTimeSheetProjectDiary}"  Header="Diary" Width="*" MinWidth="100" FontSize="14"/>
-				</DataGrid.Columns>
-			</DataGrid>
-		</Grid>
-
         <!-- Calendar panel -->
         <Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding UI.CalendarOpen}" Width="320">
                 <Border Grid.Row="0" Margin="5" BoxShadow="{Binding UI.Shadow}" 
@@ -778,7 +739,7 @@
 				</Border>
                 <Button       Width="30" Command="{Binding Calendar.NewTimeSheet}">   <ic:SymbolIcon Symbol="Add"        FontSize="18"/></Button>
 				<Button       Width="30" Command="{Binding Calendar.RemoveTimeSheet}"><ic:SymbolIcon Symbol="Delete"     FontSize="18"/></Button>
-                <ToggleButton Width="30" Height="30" Padding="0" IsChecked="{Binding UI.TimeSheetOpen}"><ic:SymbolIcon Symbol="WindowEdit" FontSize="18"/></ToggleButton>
+                <Button       Width="30" Click="OpenTimesheetWindow"><ic:SymbolIcon Symbol="WindowEdit"     FontSize="18"/></Button>
 			</StackPanel>
 
                 <Border Grid.Row="2" Classes="shadow">

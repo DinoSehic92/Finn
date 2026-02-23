@@ -51,7 +51,6 @@ public partial class MainView : UserControl
         RecentGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestRecent);
 
         BookmarkGrid.AddHandler(DataGrid.SelectionChangedEvent, BookmarkSelected);
-        HoursCombo.AddHandler(ComboBox.SelectionChangedEvent, OnUpdateTotalTime);
 
         InitMetaworker();
     }
@@ -69,6 +68,31 @@ public partial class MainView : UserControl
         else
         {
             dialog.Show(); // Not awaited, just show the window
+        }
+    }
+
+    private async void OpenTimesheetWindow(object? sender, RoutedEventArgs e)
+    {
+        var window = new Finn.Views.TimesheetWindow();
+        // Attach the concrete MainViewModel instance when available to avoid
+        // stale/old DataContext instances after a reload. Fall back to the
+        // current DataContext if _ctx hasn't been initialized yet.
+        var dc = _ctx ?? (DataContext as MainViewModel);
+        if (dc != null)
+            window.AttachDataContext(dc);
+        else
+            window.AttachDataContext(this.DataContext);
+
+        Debug.WriteLine($"Opening TimesheetWindow with Calendar instance: {((dc as MainViewModel)?.Calendar?.GetHashCode().ToString() ?? "null")}");
+
+        if (this.FindAncestorOfType<Window>() is Window owner)
+        {
+            window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            await window.ShowDialog(owner);
+        }
+        else
+        {
+            window.Show();
         }
     }
 
@@ -709,18 +733,6 @@ public partial class MainView : UserControl
 
     #endregion
 
-    #region Timesheet
-
-    private void NewTimeSheetProject(object? sender, RoutedEventArgs e) =>
-        _ctx.Calendar.TimeProjects.Add(new TimeSheetProjectData { Project = "New Project" });
-
-    private void RemoveTimeSheetProject(object? sender, RoutedEventArgs e) =>
-        _ctx.Calendar.TimeProjects.Remove(_ctx.Calendar.CurrentTimeSheetProject);
-
-    private void OnUpdateTotalTime(object? sender, RoutedEventArgs args) =>
-        _ctx.Calendar.CurrentCalendarData?.TriggerDateStringUpdate();
-
-    #endregion
 
     #region Row Styling
 
