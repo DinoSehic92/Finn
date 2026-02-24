@@ -161,7 +161,7 @@
 	</UserControl.Styles>
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
-		  ColumnDefinitions="Auto,*,0,Auto,Auto,Auto,Auto"
+		  ColumnDefinitions="Auto,*,0,0,Auto"
 		  RowDefinitions="35,40,*"
 		  Margin="5"
 		  ClipToBounds="False">
@@ -196,7 +196,7 @@
 		</DockPanel>
 
 		<!-- Center status message -->
-		<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
+		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
 					Spacing="4">
         <ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
         <TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
@@ -204,7 +204,7 @@
 		</StackPanel>
 
 		<!-- Progress bar -->
-		<StackPanel Grid.Row="0" Grid.ColumnSpan="7" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6">
+		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6">
 			<ProgressBar Name="ProgressBar" Width="200" VerticalAlignment="Center" Value="0"
 					 Height="4" MinHeight="4" CornerRadius="2" IsVisible="False" />
 			<Label Name="ProgressStatus" Width="200" Height="35" VerticalContentAlignment="Center"
@@ -236,7 +236,7 @@
 		</StackPanel>
 
 		<!-- Right-aligned row 1: Headers flyout + tray toggles -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" FlowDirection="RightToLeft">
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" FlowDirection="RightToLeft">
 			<Border Classes="shadow" Height="30">
 				<Button Name="Columns" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
 					<Grid ColumnDefinitions="25,*,20" Height="30">
@@ -281,7 +281,7 @@
 		</StackPanel>
 
 		<!-- Center search bar -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="7" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
                 <Grid ColumnDefinitions="*,30,30">
                  	<Border Classes="shadow">
                 		<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch" BorderThickness="0" Margin="0"/>
@@ -297,7 +297,7 @@
 
 		<!-- Main toolbar -->
 		<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right"
-					Grid.Row="0" Grid.ColumnSpan="7" Margin="0,0,155,0">
+					Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,155,0">
 
 			<!-- Layout group -->
             <ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
@@ -351,7 +351,7 @@
 		<!-- ═══════════════════════════════════════════════ -->
 
 		<!-- File DataGrid + attached files + folders -->
-		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto">
+		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto" MinWidth="200">
 
 			<!-- Main file list -->
 			<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
@@ -664,8 +664,14 @@
 		<!-- Side panels                                    -->
 		<!-- ═══════════════════════════════════════════════ -->
 
-        <!-- Calendar panel -->
-        <Grid Grid.Row="6" Grid.Column="5" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding UI.CalendarOpen}" Width="320">
+		<!-- Right panels (calendar + tray) -->
+		<Grid Grid.Column="4" Grid.Row="2">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="Auto"/>
+				<ColumnDefinition Width="Auto"/>
+			</Grid.ColumnDefinitions>
+		<!-- Calendar panel -->
+		<Grid Grid.Column="0" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding UI.CalendarOpen}" Width="320">
                 <Border Grid.Row="0" Margin="5" BoxShadow="{Binding UI.Shadow}" 
 					Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
 				<StackPanel Orientation="Vertical">
@@ -797,7 +803,7 @@
 		</Grid>
 
 		<!-- Tray panel (notes, collections, bookmarks, recent) -->
-		<Grid Grid.Row="2" Grid.Column="6" IsVisible="{Binding UI.TrayViewOpen}" Width="300" Classes="AnimatedPanel">
+		<Grid Grid.Column="1" IsVisible="{Binding UI.TrayViewOpen}" Width="300" Classes="AnimatedPanel">
 			<Grid.RowDefinitions>
 				<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
@@ -881,6 +887,7 @@
 					<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
+		</Grid>
 		</Grid>
 
 		<!-- Embedded preview -->

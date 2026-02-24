@@ -103,8 +103,10 @@ public partial class MainView : UserControl
         _ctx = (MainViewModel)DataContext!;
         _pwr = _ctx.PreviewVM;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
+        _ctx.UI.PropertyChanged += OnUIPropertyChanged;
 
         UpdateFont();
+        UpdateMainGrid();
 
         try
         {
@@ -168,6 +170,12 @@ public partial class MainView : UserControl
 
     #region Preview Window & Grid
 
+    private void OnUIPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(_ctx.UI.PreviewEmbeddedOpen))
+            UpdateMainGrid();
+    }
+
     private void OnTogglePreviewWindow()
     {
         if (_ctx.PreviewWindowOpen)
@@ -187,16 +195,16 @@ public partial class MainView : UserControl
         if (_ctx.UI.PreviewEmbeddedOpen)
         {
             MainGrid.ColumnDefinitions[2] = new ColumnDefinition(5, GridUnitType.Pixel);
-            MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star);
+            MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star) { MinWidth = 200 };
+            MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star) { MinWidth = 350 };
             EmbeddedPreview.SetRenderer();
         }
         else
         {
             MainGrid.ColumnDefinitions[2] = new ColumnDefinition(0, GridUnitType.Star);
             MainGrid.ColumnDefinitions[3] = new ColumnDefinition(0, GridUnitType.Star);
+            MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star);
         }
-
-        MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star);
     }
 
     #endregion
