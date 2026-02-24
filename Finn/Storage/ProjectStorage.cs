@@ -7,7 +7,7 @@ namespace Finn.Storage
     public class ProjectStorage : INotifyPropertyChanged
     {
 
-        private string savePath = "C:\\FIlePathManager";
+        private string savePath = "C:\\Finn";
 
         public string SavePath
         {

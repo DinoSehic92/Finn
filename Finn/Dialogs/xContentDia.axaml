@@ -29,7 +29,7 @@
 				<TextBlock Text="Extracted Text" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 			</StackPanel>
 
-			<DataGrid Name="IndexGrid" Grid.Column="0" Grid.Row="1" ItemsSource="{Binding IndexedContent}" SelectionMode="Single" SelectedItem="{Binding SelectedIndexedContent}"
+			<DataGrid Name="IndexGrid" Grid.Column="0" Grid.Row="1" ItemsSource="{Binding TextContent}" SelectionMode="Single" SelectedItem="{Binding SelectedTextContent}"
 					AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" VerticalAlignment="Stretch">
 				<DataGrid.Styles>
 					<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
@@ -42,7 +42,7 @@
 				</DataGrid.Columns>
 			</DataGrid>
 
-			<TextBox Grid.Column="1" Grid.Row="1" Text="{Binding SelectedIndexedContent.PlainText, Mode=OneWay}" VerticalAlignment="Stretch"/>
+			<TextBox Grid.Column="1" Grid.Row="1" Text="{Binding SelectedTextContent.PlainText, Mode=OneWay}" VerticalAlignment="Stretch"/>
 
 	</Grid>
 

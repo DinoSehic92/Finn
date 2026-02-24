@@ -8,6 +8,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Diagnostics;
 
 namespace Finn.ViewModels
 {
@@ -108,6 +109,26 @@ namespace Finn.ViewModels
                     string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
                     File.WriteAllText(file, json);
                 }
+            }
+            catch
+            {
+                // ignore IO/parse errors — do not crash UI thread
+            }
+        }
+
+        /// <summary>
+        /// Saves the current <see cref="CalendarStorage"/> to Calendar.json under <paramref name="savePath"/>.
+        /// </summary>
+        public void SaveStorage()
+        {
+            string savePath = CalendarStorage.SavePath;
+            Debug.WriteLine("Saving Calendar");
+            try
+            {
+                if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
+                string file = Path.Combine(savePath, "Calendar.json");
+                string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
+                File.WriteAllText(file, json);
             }
             catch
             {

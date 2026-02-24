@@ -21,6 +21,7 @@ public partial class MainWindow : TemplateWindow, INotifyPropertyChanged
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         MainViewModel ctx = (MainViewModel)this.DataContext;
+        ctx.Calendar.SaveStorage();
 
         if (ctx.IsStorageDifferentFromFile())
         {

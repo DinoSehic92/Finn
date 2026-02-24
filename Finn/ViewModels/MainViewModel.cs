@@ -183,18 +183,18 @@ namespace Finn.ViewModels
                 set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }
             }
 
-            private ObservableCollection<ContentData> indexedContent = null;
-            public ObservableCollection<ContentData> IndexedContent
+            private ObservableCollection<ContentData> textContent = null;
+            public ObservableCollection<ContentData> TextContent
             {
-                get { return indexedContent; }
-                set { indexedContent = value; OnPropertyChanged(nameof(IndexedContent)); }
+                get { return textContent; }
+                set { textContent = value; OnPropertyChanged(nameof(TextContent)); }
             }
 
-            private ContentData selectedIndexedContent = null;
-            public ContentData SelectedIndexedContent
+            private ContentData selectedTextContent = null;
+            public ContentData SelectedTextContent
             {
-                get { return selectedIndexedContent; }
-                set { selectedIndexedContent = value; OnPropertyChanged(nameof(SelectedIndexedContent)); }
+                get { return selectedTextContent; }
+                set { selectedTextContent = value; OnPropertyChanged(nameof(SelectedTextContent)); }
             }
 
             public int NrFilteredFiles => FilteredFiles?.Count ?? 0;
@@ -476,8 +476,6 @@ namespace Finn.ViewModels
                 OnPropertyChanged("TreeViewUpdate");
             }
 
-            // Calendar logic now lives in CalendarViewModel (Calendar property)
-
             public void ResetPreviewer()
             {
                 PreviewVM.FileWorkerBusy = false;
@@ -618,20 +616,20 @@ namespace Finn.ViewModels
                 // shows previously indexed entries immediately.
                 try
                 {
-                    string indexPath = $"{Storage.SavePath}\\IndexedContent.json";
+                    string indexPath = $"{Storage.SavePath}\\Content.json";
                     if (System.IO.File.Exists(indexPath))
                     {
                         LoadIndexFile(indexPath);
                     }
                     else
                     {
-                        IndexedContent ??= new ObservableCollection<ContentData>();
+                        TextContent ??= new ObservableCollection<ContentData>();
                     }
                 }
                 catch
                 {
                     // If loading fails, ensure collection is non-null so the dialog can bind to it.
-                    IndexedContent ??= new ObservableCollection<ContentData>();
+                    TextContent ??= new ObservableCollection<ContentData>();
                 }
 
                 var window = new xContentDia();
@@ -680,16 +678,16 @@ namespace Finn.ViewModels
                 }
             }
 
-            public async Task GetIndexedContentAsync(IProgress<int>? progress = null)
+            public async Task GetContentAsync(IProgress<int>? progress = null)
             {
-                string indexPath = $"{Storage.SavePath}\\IndexedContent.json";
+                string indexPath = $"{Storage.SavePath}\\Content.json";
 
                 if (System.IO.File.Exists(indexPath))
                 {
                     LoadIndexFile(indexPath);
                 }
 
-                IndexedContent ??= new ObservableCollection<ContentData>();
+                TextContent ??= new ObservableCollection<ContentData>();
 
                 var files = CurrentFiles?.ToList() ?? new List<FileData>();
                 var results = new List<ContentData>();
@@ -730,25 +728,32 @@ namespace Finn.ViewModels
                 });
 
                 // Update UI-bound collections on the calling (UI) thread after background processing
-                foreach (var content in results)
+                foreach (ContentData content in results)
                 {
-                    ContentData? existing = IndexedContent.FirstOrDefault(x => x.Filepath == content.Filepath);
-                    if (existing != null)
+                    if (content.PlainText != null && content.PlainText != string.Empty)
                     {
-                        IndexedContent.Remove(existing);
-                    }
-                    IndexedContent.Add(content);
-
-                    // Mark files that have been indexed
-                    foreach (ProjectData project in Storage.StoredProjects)
-                    {
-                        foreach (FileData file in project.StoredFiles)
+                        ContentData? existing = TextContent.FirstOrDefault(x => x.Filepath == content.Filepath);
+                        if (existing != null)
                         {
-                            if (file.Sökväg == content.Filepath) { continue; }
-                            {
-                                file.HasPlainText = true;
-                            }
+                            TextContent.Remove(existing);
                         }
+                        TextContent.Add(content);
+                    }
+                }
+
+                // Remove any indexed entries that ended up with no extractable content
+                foreach (ContentData empty in TextContent.Where(x => string.IsNullOrEmpty(x.PlainText)).ToList())
+                {
+                    TextContent.Remove(empty);
+                }
+
+                // Sync HasPlainText for every file: true only if content was actually extracted
+                foreach (ProjectData project in Storage.StoredProjects)
+                {
+                    foreach (FileData file in project.StoredFiles)
+                    {
+
+                        file.HasPlainText = TextContent.Any(x => x.Filepath == file.Sökväg);
                     }
                 }
 
@@ -763,10 +768,10 @@ namespace Finn.ViewModels
                 {
                     file.HasPlainText = false;
 
-                    if (IndexedContent?.Any(x => x.Filepath == file.Sökväg) == true)
+                    if (TextContent?.Any(x => x.Filepath == file.Sökväg) == true)
                     {
-                        ContentData contentToRemove = IndexedContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
-                        IndexedContent.Remove(contentToRemove);
+                        ContentData contentToRemove = TextContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
+                        TextContent.Remove(contentToRemove);
                         SaveIndexFile(indexPath);
                     }
                 }
@@ -776,11 +781,11 @@ namespace Finn.ViewModels
             {
                 using StreamReader streamReader = new(indexPath);
                 string fileContent = streamReader.ReadToEnd();
-                IndexedContent = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent);
+                TextContent = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent);
 
                 List<string> indexedFiles = new();
 
-                foreach (ContentData content in IndexedContent)
+                foreach (ContentData content in TextContent)
                 {
                     indexedFiles.Add(content.Filepath);
                 }
@@ -802,7 +807,7 @@ namespace Finn.ViewModels
                 }
 
                 using StreamWriter streamWriter = new(indexPath);
-                var data = JsonConvert.SerializeObject(IndexedContent);
+                var data = JsonConvert.SerializeObject(TextContent);
                 streamWriter.WriteLine(data);
             }
 
@@ -1120,14 +1125,6 @@ namespace Finn.ViewModels
                 "HasBookmarks",
                 "HasAppendedFiles",
                 "FiletypesTree",
-                // Folder/Calendar derived UI properties
-                "NameWithAttributes",
-                "DateString",
-                "WeekOfMonth",
-                "TotalTime",
-                "HasTime",
-                "CurrentTimeSheetProjectDiary",
-                "CurrentTimeSheetProjectTime"
             };
 
             private static void PruneTransientUiFields(JToken? token)
@@ -1371,7 +1368,7 @@ namespace Finn.ViewModels
             {
                 string indexPath = $"{Storage.SavePath}//IndexedContent.json";
 
-                if (IndexedContent == null)
+                if (TextContent == null)
                 {
                     if (System.IO.File.Exists(indexPath))
                     {
@@ -1379,7 +1376,7 @@ namespace Finn.ViewModels
                     }
                     else
                     {
-                        IndexedContent = new ObservableCollection<ContentData>();
+                        TextContent = new ObservableCollection<ContentData>();
                     }
                 }
 
@@ -1388,7 +1385,7 @@ namespace Finn.ViewModels
 
                 List<string> filepaths = new();
 
-                foreach (ContentData content in IndexedContent)
+                foreach (ContentData content in TextContent)
                 {
                     if (content.PlainText.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                     {

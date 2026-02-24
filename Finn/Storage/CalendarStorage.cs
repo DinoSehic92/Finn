@@ -7,7 +7,7 @@ namespace Finn.Storage
     public class CalendarStorage : INotifyPropertyChanged
     {
 
-        private string savePath = "C:\\FIlePathManager";
+        private string savePath = "C:\\Finn";
 
         public string SavePath
         {
@@ -15,14 +15,14 @@ namespace Finn.Storage
             set { savePath = value; RaisePropertyChanged(nameof(SavePath)); }
         }
 
-        public ObservableCollection<CalendarData>? calendarList = new ObservableCollection<CalendarData>();
+        private ObservableCollection<CalendarData>? calendarList = new ObservableCollection<CalendarData>();
         public ObservableCollection<CalendarData> CalendarList
         {
             get { return calendarList; }
             set { calendarList = value; RaisePropertyChanged(nameof(CalendarList)); }
         }
 
-        public ObservableCollection<TimeSheetProjectData>? timeProjects = new ObservableCollection<TimeSheetProjectData>();
+        private ObservableCollection<TimeSheetProjectData>? timeProjects = new ObservableCollection<TimeSheetProjectData>();
         public ObservableCollection<TimeSheetProjectData> TimeProjects
         {
             get { return timeProjects; }

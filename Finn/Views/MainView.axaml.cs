@@ -634,7 +634,7 @@ public partial class MainView : UserControl
                     // Pass a progress reporter that forwards to the background worker
                     var progress = new Progress<int>(p => _metaWorker.ReportProgress(p));
                     // Call the async indexing and wait for completion on this background thread
-                    _ctx.GetIndexedContentAsync(progress).GetAwaiter().GetResult();
+                    _ctx.GetContentAsync(progress).GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
