@@ -39,7 +39,7 @@ public partial class xColorDia : TemplateWindow
 
         try
         {
-            var savePath = vm.Storage.SavePath;
+            var savePath = MainViewModel.SavePath;
             if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
 
             var ui = vm.UI.ToStorage();

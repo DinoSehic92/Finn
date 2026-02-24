@@ -30,8 +30,7 @@ public partial class App : Application
             // Load persisted UI settings if present (one-time load at startup)
             try
             {
-                var savePath = vm.Storage.SavePath;
-                var file = System.IO.Path.Combine(savePath, "UISettings.json");
+                var file = System.IO.Path.Combine(MainViewModel.SavePath, "UISettings.json");
                 if (System.IO.File.Exists(file))
                 {
                     var json = System.IO.File.ReadAllText(file);
@@ -66,8 +65,7 @@ public partial class App : Application
             // Load persisted UI settings if present (one-time load at startup)
             try
             {
-                var savePath = vm.Storage.SavePath;
-                var file = System.IO.Path.Combine(savePath, "UISettings.json");
+                var file = System.IO.Path.Combine(MainViewModel.SavePath, "UISettings.json");
                 if (System.IO.File.Exists(file))
                 {
                     var json = System.IO.File.ReadAllText(file);

@@ -48,6 +48,7 @@ namespace Finn.ViewModels
             private const string OTHER_FILES_TYPE = "Other Files";
             private const string DRAWING_TYPE = "Drawing";
             private const string DOCUMENT_TYPE = "Document";
+            public const string SavePath = @"C:\Finn";
 
             public MainViewModel()
             {
@@ -616,7 +617,7 @@ namespace Finn.ViewModels
                 // shows previously indexed entries immediately.
                 try
                 {
-                    string indexPath = $"{Storage.SavePath}\\Content.json";
+                    string indexPath = $"{SavePath}\\Content.json";
                     if (System.IO.File.Exists(indexPath))
                     {
                         LoadIndexFile(indexPath);
@@ -655,7 +656,7 @@ namespace Finn.ViewModels
 
             public void GetThumbnails()
             {
-                string thumbnailPath = $"{Storage.SavePath}\\Thumbnails\\";
+                string thumbnailPath = $"{SavePath}\\Thumbnails\\";
                 if (!Directory.Exists(thumbnailPath))
                 {
                     Directory.CreateDirectory(thumbnailPath);
@@ -680,7 +681,7 @@ namespace Finn.ViewModels
 
             public async Task GetContentAsync(IProgress<int>? progress = null)
             {
-                string indexPath = $"{Storage.SavePath}\\Content.json";
+                string indexPath = $"{SavePath}\\Content.json";
 
                 if (System.IO.File.Exists(indexPath))
                 {
@@ -762,7 +763,7 @@ namespace Finn.ViewModels
 
             public void ClearIndexedContent()
             {
-                string indexPath = $"{Storage.SavePath}\\IndexedContent.json";
+                string indexPath = $"{SavePath}\\IndexedContent.json";
 
                 foreach (FileData file in CurrentFiles)
                 {
@@ -801,9 +802,9 @@ namespace Finn.ViewModels
 
             private void SaveIndexFile(string indexPath)
             {
-                if (!Directory.Exists(Storage.SavePath))
+                if (!Directory.Exists(SavePath))
                 {
-                    Directory.CreateDirectory(Storage.SavePath);
+                    Directory.CreateDirectory(SavePath);
                 }
 
                 using StreamWriter streamWriter = new(indexPath);
@@ -992,7 +993,7 @@ namespace Finn.ViewModels
 
             public void LoadFileAuto()
             {
-                string path = $"{Storage.SavePath}\\Projects.json";
+                string path = $"{SavePath}\\Projects.json";
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
                 using StreamReader streamReader = new(path);
@@ -1048,12 +1049,12 @@ namespace Finn.ViewModels
 
             public async Task SaveFileAuto()
             {
-                if (!Directory.Exists(Storage.SavePath))
+                if (!Directory.Exists(SavePath))
                 {
-                    Directory.CreateDirectory(Storage.SavePath);
+                    Directory.CreateDirectory(SavePath);
                 }
 
-                string path = $"{Storage.SavePath}\\Projects.json";
+                string path = $"{SavePath}\\Projects.json";
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
                 using StreamWriter streamWriter = new(path);
@@ -1075,7 +1076,7 @@ namespace Finn.ViewModels
                     else if (!string.IsNullOrWhiteSpace(CurrentProjectsFilePath))
                         path = CurrentProjectsFilePath;
                     else
-                        path = Path.Combine(Storage.SavePath, "Projects.json");
+                        path = Path.Combine(SavePath, "Projects.json");
 
                     Debug.WriteLine($"Comparing storage to file: '{path}'");
                     if (!File.Exists(path))
@@ -1158,11 +1159,11 @@ namespace Finn.ViewModels
 
             public void BackupSaveFile()
             {
-                string backupDir = $"{Storage.SavePath}\\Backup_{DateTime.Today:d}";
+                string backupDir = $"{SavePath}\\Backup_{DateTime.Today:d}";
 
                 Directory.CreateDirectory(backupDir);
 
-                System.IO.File.Copy($"{Storage.SavePath}\\Projects.json", $"{backupDir}\\Projects.json", true);
+                System.IO.File.Copy($"{SavePath}\\Projects.json", $"{backupDir}\\Projects.json", true);
             }
 
             public async Task AddFile(Avalonia.Visual window)
@@ -1366,7 +1367,7 @@ namespace Finn.ViewModels
 
             public void SearchIndex()
             {
-                string indexPath = $"{Storage.SavePath}//IndexedContent.json";
+                string indexPath = $"{SavePath}//IndexedContent.json";
 
                 if (TextContent == null)
                 {

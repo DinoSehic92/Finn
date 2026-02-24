@@ -6,15 +6,6 @@ namespace Finn.Storage
 {
     public class ProjectStorage : INotifyPropertyChanged
     {
-
-        private string savePath = "C:\\Finn";
-
-        public string SavePath
-        {
-            get => savePath;
-            set { savePath = value; RaisePropertyChanged(nameof(SavePath)); }
-        }
-
         private ObservableCollection<ProjectData> storedProjects = new ObservableCollection<ProjectData>();
         public ObservableCollection<ProjectData> StoredProjects
         {

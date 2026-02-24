@@ -119,7 +119,7 @@ public partial class MainView : UserControl
             try
             {
                 // Load calendar storage directly into the CalendarViewModel
-                _ctx.Calendar.LoadOrCreateStorage(_ctx.Storage.SavePath);
+                _ctx.Calendar.LoadOrCreateStorage(MainViewModel.SavePath);
             }
             catch (Exception ex)
             {
@@ -617,7 +617,7 @@ public partial class MainView : UserControl
             {
                 var vm = _ctx;
                 int total = vm.CurrentFiles?.Count ?? 0;
-                string thumbnailPath = $"{vm.Storage.SavePath}\\Thumbnails\\";
+                string thumbnailPath = $"{MainViewModel.SavePath}\\Thumbnails\\";
 
                 for (int i = 0; i < total; i++)
                 {

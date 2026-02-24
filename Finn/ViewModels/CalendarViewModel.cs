@@ -119,10 +119,8 @@ namespace Finn.ViewModels
         /// <summary>
         /// Saves the current <see cref="CalendarStorage"/> to Calendar.json under <paramref name="savePath"/>.
         /// </summary>
-        public void SaveStorage()
+        public void SaveStorage(string savePath)
         {
-            string savePath = CalendarStorage.SavePath;
-            Debug.WriteLine("Saving Calendar");
             try
             {
                 if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
