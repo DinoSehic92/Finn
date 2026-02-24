@@ -168,6 +168,9 @@
                     <TextBlock Name="ResultText1" Text="10.05 + 0 = " FontSize="22" VerticalAlignment="Center"/>
                     <TextBlock Name="ResultText2" Text="10.05" FontSize="24"  FontWeight="Bold" VerticalAlignment="Center" Foreground="{DynamicResource SystemAccentColor}"/>
                     <TextBlock Text="cm²" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Button Width="32" Height="32" Padding="0" VerticalAlignment="Center" Click="OnCopyResult" ToolTip.Tip="Copy result">
+                        <ic:SymbolIcon Symbol="Copy" FontSize="16"/>
+                    </Button>
                 </StackPanel>
             </StackPanel>
 

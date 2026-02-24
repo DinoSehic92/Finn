@@ -842,6 +842,46 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
+            /// Reads IndexedContent.json and updates HasPlainText for every file across
+            /// all projects: sets true when an entry with a matching filepath exists,
+            /// false when it doesn't. Also refreshes the in-memory TextContent collection.
+            /// </summary>
+            public void SyncPlainText()
+            {
+                string indexPath = Path.Combine(SavePath, "Content.json");
+
+                var indexedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                if (File.Exists(indexPath))
+                {
+                    try
+                    {
+                        using StreamReader reader = new(indexPath);
+                        string json = reader.ReadToEnd();
+                        var content = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(json);
+                        if (content != null)
+                        {
+                            TextContent = content;
+                            foreach (ContentData entry in content)
+                                indexedPaths.Add(entry.Filepath);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogError(ex, "Error reading index file during SyncPlainText");
+                    }
+                }
+
+                foreach (var project in Storage.StoredProjects)
+                {
+                    foreach (var file in project.StoredFiles)
+                    {
+                        file.HasPlainText = indexedPaths.Contains(file.Sökväg);
+                    }
+                }
+            }
+
+            /// <summary>
             /// Generate a thumbnail for a single file and save it to the thumbnail directory.
             /// This is extracted so callers can run per-file generation on background threads
             /// and report progress from the UI layer.
@@ -1145,9 +1185,7 @@ namespace Finn.ViewModels
             private static readonly string[] TransientPropertyNames = new[]
             {
                 "ThumbnailSource",
-                "HasPlainText",
                 "FileStatus",
-                "HasThumbnail",
                 // Derived / UI-only properties that should not affect storage equality
                 "HasNote",
                 "HasBookmarks",
@@ -1190,7 +1228,12 @@ namespace Finn.ViewModels
 
                 Directory.CreateDirectory(backupDir);
 
-                System.IO.File.Copy($"{SavePath}\\Projects.json", $"{backupDir}\\Projects.json", true);
+                foreach (string fileName in new[] { "Projects.json", "Content.json", "Calendar.json", "UISettings.json" })
+                {
+                    string src = Path.Combine(SavePath, fileName);
+                    if (File.Exists(src))
+                        File.Copy(src, Path.Combine(backupDir, fileName), overwrite: true);
+                }
             }
 
             public async Task AddFile(Avalonia.Visual window)

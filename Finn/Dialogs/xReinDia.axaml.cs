@@ -62,4 +62,24 @@ public partial class xReinDia : TemplateWindow
         target1.Text = Math.Round(As1, 2).ToString() + " + " + Math.Round(As2, 2).ToString() + " = ";
         target2.Text = Math.Round(As1 + As2, 2).ToString();
     }
+
+    private void OnCopyResult(object? sender, RoutedEventArgs e)
+    {
+
+        string text = string.Empty;
+
+        if (_factorA1 != 0)
+        {
+            text += "Ø" + _factorA1 + "s" + _factorB1;
+        }
+
+        if (_factorA2 != 0)
+        {
+            text += " + Ø" + _factorA2 + "s" + _factorB2;
+        }
+
+        text += " = " + ResultText2.Text + "cm²";
+
+        TopLevel.GetTopLevel(this)?.Clipboard?.SetTextAsync(text);
+    }
 }

@@ -513,8 +513,11 @@
 								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="BookOpen"/></MenuItem.Icon>
 								</MenuItem>
-                                <MenuItem Header="Fetch"   Click="OnFetchIndex">
+								<MenuItem Header="Fetch"   Click="OnFetchIndex">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Sync"    Command="{Binding SyncPlainText}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 								</MenuItem>
 								<MenuItem Header="Clear"   Command="{Binding ClearIndexedContent}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
@@ -661,7 +664,7 @@
 
 		<!-- Preview splitter -->
 		<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2"
-					  Background="Transparent" ResizeDirection="Columns" Width="5"
+					  Background="Transparent" ResizeDirection="Columns" Width="10"
 					  IsEnabled="{Binding UI.PreviewEmbeddedOpen}"/>
 
 		<!-- ═══════════════════════════════════════════════ -->

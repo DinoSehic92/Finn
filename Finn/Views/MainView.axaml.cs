@@ -194,8 +194,8 @@ public partial class MainView : UserControl
     {
         if (_ctx.UI.PreviewEmbeddedOpen)
         {
-            MainGrid.ColumnDefinitions[2] = new ColumnDefinition(5, GridUnitType.Pixel);
-            MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star) { MinWidth = 200 };
+            MainGrid.ColumnDefinitions[2] = new ColumnDefinition(10, GridUnitType.Pixel);
+            MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star) { MinWidth = 400 };
             MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star) { MinWidth = 350 };
             EmbeddedPreview.SetRenderer();
         }
@@ -310,14 +310,15 @@ public partial class MainView : UserControl
 
     private void SetPreviewRequestMain(object? sender, RoutedEventArgs r)
     {
+        ClearOtherGridSelections(FileGrid);
         var file = FileGrid.SelectedItem as FileData;
         RequestPreview(file);
-        RecentGrid.SelectedItem = null;
         _pwr.AddRecentFile(file);
     }
 
     private void SetPreviewRequestCollection(object? sender, RoutedEventArgs r)
     {
+        ClearOtherGridSelections(CollectionContent);
         var file = CollectionContent.SelectedItem as FileData;
         RequestPreview(file);
         _pwr.AddRecentFile(file);
@@ -325,6 +326,7 @@ public partial class MainView : UserControl
 
     private void SetPreviewRequestAppendedFiles(object? sender, RoutedEventArgs r)
     {
+        ClearOtherGridSelections(AppendixGrid);
         var file = AppendixGrid.SelectedItem as FileData;
         RequestPreview(file);
         _pwr.AddRecentFile(file);
@@ -332,6 +334,7 @@ public partial class MainView : UserControl
 
     private void SetPreviewRequestRecent(object? sender, RoutedEventArgs r)
     {
+        ClearOtherGridSelections(RecentGrid);
         RequestPreview(RecentGrid.SelectedItem as FileData);
     }
 
@@ -346,6 +349,29 @@ public partial class MainView : UserControl
     #region Tree View (view only handles selection, data comes from ViewModel)
 
     private bool _suppressTreeSelection;
+    private bool _isUpdatingSelection = false;
+
+    /// <summary>
+    /// Clears selection on every FileData grid except <paramref name="active"/>.
+    /// The guard flag prevents the resulting SelectionChanged events from re-entering
+    /// and causing a recursive loop.
+    /// </summary>
+    private void ClearOtherGridSelections(DataGrid active)
+    {
+        if (_isUpdatingSelection) return;
+        _isUpdatingSelection = true;
+        try
+        {
+            if (active != FileGrid)        FileGrid.SelectedItem = null;
+            if (active != CollectionContent) CollectionContent.SelectedItem = null;
+            if (active != AppendixGrid)    AppendixGrid.SelectedItem = null;
+            if (active != RecentGrid)      RecentGrid.SelectedItem = null;
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
+    }
 
     private void OnTreeviewSelected(object? sender, SelectionChangedEventArgs e)
     {
@@ -503,22 +529,22 @@ public partial class MainView : UserControl
 
     private void SelectFiles(object? sender, RoutedEventArgs e)
     {
+        if (_isUpdatingSelection) return;
         var files = FileGrid.SelectedItems.Cast<FileData>().ToList();
-        CollectionContent.SelectedItem = null;
         _ctx.select_files(files);
     }
 
     private void SelectFavorite(object? sender, RoutedEventArgs e)
     {
+        if (_isUpdatingSelection) return;
         var files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
-        FileGrid.SelectedItem = null;
         _ctx.SelectAndNavigateFiles(files);
     }
 
     private void SelectRecent(object? sender, RoutedEventArgs e)
     {
+        if (_isUpdatingSelection) return;
         var files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
-        FileGrid.SelectedItem = null;
         _ctx.SelectAndNavigateFiles(files);
     }
 

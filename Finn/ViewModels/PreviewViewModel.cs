@@ -494,13 +494,12 @@ namespace Finn.ViewModels
                         OnPropertyChanged(nameof(RequestPage1));
                         CurrentPage1 = desired;
                         Rotation = 0;
+                        if (!string.IsNullOrEmpty(search))
+                            SearchMode = true;
                     }).GetTask().ConfigureAwait(false);
 
                     if (!string.IsNullOrEmpty(search))
-                    {
-                        SearchMode = true;
                         _ = SearchAsync(search, token);
-                    }
 
                     // Await first-page render to measure end-to-end time
                     await RenderCurrentPageAsync().ConfigureAwait(false);
@@ -574,13 +573,12 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(RequestPage1));
                     CurrentPage1 = desired2;
                     Rotation = 0;
+                    if (!string.IsNullOrEmpty(search))
+                        SearchMode = true;
                 }).GetTask().ConfigureAwait(false);
 
                 if (!string.IsNullOrEmpty(search))
-                {
-                    SearchMode = true;
                     _ = SearchAsync(search, token);
-                }
 
                 // Await first-page render to measure end-to-end time
                 await RenderCurrentPageAsync().ConfigureAwait(false);
@@ -1101,6 +1099,7 @@ namespace Finn.ViewModels
                     {
                         SearchPageIndex = 0;
                         RequestPage1 = SearchPages[SearchPageIndex];
+                        CurrentPage1 = requestPage1;
                         try
                         {
                             mainRenderer?.Search(regex!);
@@ -1140,7 +1139,7 @@ namespace Finn.ViewModels
 
         private void SetSearchPage()
         {
-            if (SearchMode && SearchItems != 0 && SearchPages.Count > SearchPageIndex)
+            if (SearchMode && SearchItems != 0 && SearchPageIndex >= 0 && SearchPages.Count > SearchPageIndex)
                 RequestPage1 = SearchPages[SearchPageIndex];
         }
 
@@ -1182,7 +1181,8 @@ namespace Finn.ViewModels
         public void ClearSearch()
         {
             SearchItems = 0;
-            SearchPageIndex = 0;
+            searchPageIndex = -1;
+            OnPropertyChanged(nameof(SearchPageIndex));
             SearchPagesText.Clear();
             SearchPages.Clear();
         }
@@ -1246,8 +1246,13 @@ namespace Finn.ViewModels
 
         public async Task CloseRendererAsync()
         {
+            int gen = Volatile.Read(ref fileGeneration);
             await StopSearchAsync().ConfigureAwait(false);
             ClearSearch();
+            // If SetFileAsync started a new load while we were waiting, don't dispose
+            // the document it just created — that would blank the preview after the
+            // first search-result click.
+            if (Volatile.Read(ref fileGeneration) != gen) return;
             await SafeDisposeAsync().ConfigureAwait(false);
         }
 
