@@ -8,7 +8,6 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Diagnostics;
 
 namespace Finn.ViewModels
 {
@@ -32,7 +31,7 @@ namespace Finn.ViewModels
 
         private UISettingsViewModel UI => uiGetter();
 
-        private CalendarStorage calendarStorage = new CalendarStorage();
+        private CalendarStorage calendarStorage;
         public CalendarStorage CalendarStorage
         {
             get => calendarStorage;
@@ -90,6 +89,8 @@ namespace Finn.ViewModels
                         // Ensure collections are concrete ObservableCollections
                         CalendarStorage.CalendarList = new ObservableCollection<CalendarData>(CalendarStorage.CalendarList ?? new ObservableCollection<CalendarData>());
                         CalendarStorage.TimeProjects = new ObservableCollection<TimeSheetProjectData>(CalendarStorage.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>());
+                        // Rebuild the date index so EnsureMonthEntries doesn't treat every day as missing
+                        RebuildDateIndex();
                         // Notify bindings
                         OnPropertyChanged(nameof(CalendarStorage));
                         OnPropertyChanged(nameof(CalendarList));
@@ -108,6 +109,14 @@ namespace Finn.ViewModels
                 {
                     string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
                     File.WriteAllText(file, json);
+                    // Populate the current month when starting fresh
+                    try
+                    {
+                        EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
+                        UpdateMonthly();
+                        SetCurrentCalendarData();
+                    }
+                    catch { }
                 }
             }
             catch
@@ -158,16 +167,10 @@ namespace Finn.ViewModels
         {
             _dateIndex.Clear();
             foreach (var cd in CalendarList)
-            {
-                try
-                {
-                    _dateIndex[cd.Date] = cd;
-                }
-                catch { }
-            }
+                _dateIndex[cd.Date] = cd;
         }
 
-        private DateTime selectedDateTime = new();
+        private DateTime selectedDateTime = DateTime.Now;
         public DateTime SelectedDateTime
         {
             get => selectedDateTime;
@@ -212,7 +215,11 @@ namespace Finn.ViewModels
         public CalendarData CurrentCalendarData
         {
             get => currentCalendarData;
-            set => SetProperty(ref currentCalendarData, value, () => { SelectDateTime(); });
+            set
+            {
+                if (value == null) return;
+                SetProperty(ref currentCalendarData, value, () => { SelectDateTime(); });
+            }
         }
 
         // Weak subscription to transient calendar entry
@@ -225,12 +232,7 @@ namespace Finn.ViewModels
             set => SetProperty(ref currentTimeSheet, value);
         }
 
-        private ObservableCollection<int> hours = new() { 1, 2, 3, 4, 5, 6, 7, 8 };
-        public ObservableCollection<int> Hours
-        {
-            get => hours;
-            set => SetProperty(ref hours, value);
-        }
+        public ObservableCollection<int> Hours { get; } = new() { 1, 2, 3, 4, 5, 6, 7, 8 };
 
         private TimeSheetProjectData currentTimeSheetProject = new();
         public TimeSheetProjectData CurrentTimeSheetProject
@@ -301,10 +303,10 @@ namespace Finn.ViewModels
                 }
             }
 
-            // Cache month entries to avoid repeated LINQ scans
+            // Materialise once — SumProjectHoursForWeek is called 5 times per project
             int month = CurrentCalendarData.Date.Month;
             int year = CurrentCalendarData.Date.Year;
-            var monthEntries = GetMonthEntries(year, month);
+            var monthEntries = GetMonthEntries(year, month).ToList();
 
             foreach (TimeSheetProjectData project in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
             {
@@ -337,34 +339,24 @@ namespace Finn.ViewModels
 
         private void SetCurrentCalendarData()
         {
-            if (SelectedDateTime != null)
+            var date = DateOnly.FromDateTime(SelectedDateTime);
+            if (_dateIndex.TryGetValue(date, out var existing))
             {
-                var date = DateOnly.FromDateTime(SelectedDateTime);
-                var existing = CalendarList.FirstOrDefault(x => x.Date == date);
-                if (existing != null)
-                {
-                    CurrentCalendarData = existing;
-                    _subscribedCalendarData = existing;
-                }
-                else
-                {
-                    CalendarData transient = new() { Date = date };
-                    CurrentCalendarData = transient;
-                    _subscribedCalendarData = transient;
-
-                    transient.PropertyChanged += TransientCalendar_PropertyChanged;
-                }
+                CurrentCalendarData = existing;
+                _subscribedCalendarData = existing;
+            }
+            else
+            {
+                CalendarData transient = new() { Date = date };
+                CurrentCalendarData = transient;
+                _subscribedCalendarData = transient;
+                transient.PropertyChanged += TransientCalendar_PropertyChanged;
             }
         }
 
         public void SetCalendarMonth()
         {
-            foreach (DateTime datetime in GetDates(SelectedDateTime.Year, SelectedDateTime.Month))
-            {
-                DateOnly date = DateOnly.FromDateTime(datetime);
-                if (!CalendarList.Any(x => x.Date == date)) CalendarList.Add(new CalendarData() { Date = date });
-            }
-
+            EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
             UpdateMonthly();
         }
 
@@ -395,23 +387,17 @@ namespace Finn.ViewModels
             SelectedDateTime = DateTime.Now;
         }
 
-        // Ensure the calendar backing list has an entry for every day in the specified month/year
         private void EnsureMonthEntries(int year, int month)
         {
-            if (CalendarStorage.CalendarList == null)
-                CalendarStorage.CalendarList = new ObservableCollection<CalendarData>();
+            CalendarStorage.CalendarList ??= new ObservableCollection<CalendarData>();
 
-            var days = GetDates(year, month).Select(d => DateOnly.FromDateTime(d)).ToList();
-
-            foreach (var day in days)
+            foreach (var day in GetDates(year, month).Select(d => DateOnly.FromDateTime(d)))
             {
-                if (!CalendarList.Any(x => x.Date == day))
+                if (!_dateIndex.ContainsKey(day))
                 {
-                    // insert sorted to maintain order
-                    int insertAt = 0;
-                    while (insertAt < CalendarList.Count && CalendarList[insertAt].Date.CompareTo(day) < 0)
-                        insertAt++;
-                    CalendarList.Insert(insertAt, new CalendarData { Date = day });
+                    var entry = new CalendarData { Date = day };
+                    CalendarList.Add(entry);
+                    _dateIndex[day] = entry;
                 }
             }
         }

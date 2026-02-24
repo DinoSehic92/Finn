@@ -153,7 +153,11 @@ namespace Finn.ViewModels
             public UISettingsViewModel UI
             {
                 get => _ui;
-                set { _ui = value; OnPropertyChanged(nameof(UI)); }
+                set
+                {
+                    _ui = value;
+                    OnPropertyChanged(nameof(UI));
+                }
             }
 
             private List<string> projectList = new();

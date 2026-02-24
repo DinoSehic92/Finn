@@ -25,7 +25,7 @@ public partial class xProgDia : TemplateWindow
 
         CompiledDate.Content = File.GetLastWriteTime(Assembly.GetExecutingAssembly().CodeBase.Substring(8));
 
-        LastSaved.Content = File.GetLastWriteTime("C:\\FIlePathManager\\Projects.json");
+        LastSaved.Content = File.GetLastWriteTime("C:\\Finn\\Projects.json");
 
 
         int nrFiles = 0;

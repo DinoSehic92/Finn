@@ -792,12 +792,12 @@
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow" RowHeight="19" CanUserSortColumns="False">
               <DataGrid.Columns>
 					<!-- Icons-only column: bind each icon visibility to boolean properties on CalendarData -->
-					<DataGridTemplateColumn Width="SizeToCells" MinWidth="0" MaxWidth="80">
+					<DataGridTemplateColumn Width="36">
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>
 								<StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="5,0,5,0" Spacing="5">
-									<ic:SymbolIcon Symbol="Notebook" IsVisible="{Binding HasNote}" IconVariant="Regular" FontSize="14" />
-									<ic:SymbolIcon Symbol="Timer" IsVisible="{Binding HasTime}" IconVariant="Regular" FontSize="14" />
+									<ic:SymbolIcon Symbol="Notebook" IsVisible="{Binding HasNote}" IconVariant="Regular" FontSize="13" />
+									<ic:SymbolIcon Symbol="Timer" IsVisible="{Binding HasTime}" IconVariant="Regular" FontSize="13" />
 								</StackPanel>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
