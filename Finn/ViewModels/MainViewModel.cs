@@ -821,6 +821,27 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
+            /// Scans the Thumbnails folder and updates ThumbnailSource for every file across
+            /// all projects: sets the path when a matching .jpeg exists, clears it when it doesn't.
+            /// </summary>
+            public void SyncThumbnails()
+            {
+                string thumbnailDir = Path.Combine(SavePath, "Thumbnails");
+
+                foreach (var project in Storage.StoredProjects)
+                {
+                    foreach (var file in project.StoredFiles)
+                    {
+                        string expected = Path.Combine(thumbnailDir, file.Namn + ".jpeg");
+                        if (File.Exists(expected))
+                            file.ThumbnailSource = expected;
+                        else
+                            file.ThumbnailSource = string.Empty;
+                    }
+                }
+            }
+
+            /// <summary>
             /// Generate a thumbnail for a single file and save it to the thumbnail directory.
             /// This is extracted so callers can run per-file generation on background threads
             /// and report progress from the UI layer.
@@ -1014,6 +1035,12 @@ namespace Finn.ViewModels
                     RemoveProjects(Storage.StoredProjects.Where(x => x.Category == SEARCH_CATEGORY).ToList());
                     RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Favorites").ToList());
                 }
+
+                // Clear ThumbnailSource for any file whose thumbnail no longer exists on disk
+                foreach (var project in Storage.StoredProjects)
+                    foreach (var file in project.StoredFiles)
+                        if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
+                            file.ThumbnailSource = string.Empty;
 
                 SetProjectlist();
                 SetDefaultSelection();

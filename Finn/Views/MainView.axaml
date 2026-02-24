@@ -370,11 +370,12 @@
                                 <!-- No outer margin so measured width matches content; small spacing between icons -->
 								<StackPanel Orientation="Horizontal" Margin="5" Spacing="3" HorizontalAlignment="Center">
 									<ic:SymbolIcon Symbol="Star"		IsVisible="{Binding Favorite}"			IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"	IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"		IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"			IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Text"		IsVisible="{Binding HasPlainText}"		IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Folder"		IsVisible="{Binding IsFromFolder}"		IconVariant="Regular" FontSize="14"/>
+										<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"	IconVariant="Regular" FontSize="14"/>
+										<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"		IconVariant="Regular" FontSize="14"/>
+										<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"			IconVariant="Regular" FontSize="14"/>
+										<ic:SymbolIcon Symbol="Text"		IsVisible="{Binding HasPlainText}"		IconVariant="Regular" FontSize="14"/>
+										<ic:SymbolIcon Symbol="Image"		IsVisible="{Binding HasThumbnail}"		IconVariant="Regular" FontSize="14"/>
+										<ic:SymbolIcon Symbol="Folder"		IsVisible="{Binding IsFromFolder}"		IconVariant="Regular" FontSize="14"/>
 								</StackPanel>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
@@ -496,14 +497,17 @@
 								</MenuItem>
 							</MenuItem>
 							<MenuItem Header="Thumbnail">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Image"/></MenuItem.Icon>
-                                <MenuItem Header="Fetch" Click="OnFetchThumbnails">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Image"/></MenuItem.Icon>
+									<MenuItem Header="Fetch" Click="OnFetchThumbnails">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Sync" Command="{Binding SyncThumbnails}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Clear" Command="{Binding ClearThumbnails}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+									</MenuItem>
 								</MenuItem>
-								<MenuItem Header="Clear" Command="{Binding ClearThumbnails}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
 							<MenuItem Header="Content">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Text"/></MenuItem.Icon>
 								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">

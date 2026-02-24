@@ -328,12 +328,13 @@ namespace Finn.Model
 
         public void RemoveThumbnail()
         {
-            if (!HasThumbnail || !File.Exists(_thumbnailSource))
+            if (!HasThumbnail)
                 return;
 
             try
             {
-                File.Delete(_thumbnailSource);
+                if (File.Exists(_thumbnailSource))
+                    File.Delete(_thumbnailSource);
                 ThumbnailSource = string.Empty;
             }
             catch (Exception ex)
