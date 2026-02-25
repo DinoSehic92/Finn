@@ -107,6 +107,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Selects files from a secondary list (collection/recent) and navigates to the project.
+        /// Uses lightweight tree navigation instead of a full rebuild.
         /// </summary>
         public void SelectAndNavigateFiles(IList<FileData> files)
         {
@@ -118,7 +119,7 @@ namespace Finn.ViewModels
             }
 
             select_files(files);
-            UpdateTreeview();
+            NavigateTreeToCurrentProject();
         }
     }
 }

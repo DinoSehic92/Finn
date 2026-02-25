@@ -94,6 +94,74 @@ namespace Finn.ViewModels
             SelectedTreeNode = selectedNode;
         }
 
+        /// <summary>
+        /// Lightweight navigation that walks the existing tree nodes to update
+        /// <see cref="SelectedTreeNode"/> and <see cref="TreeNodeData.IsExpanded"/>
+        /// without rebuilding the tree. Use this when only the current project or
+        /// filetype selection changed (e.g. selecting a recent file).
+        /// Falls back to <see cref="BuildTreeData"/> when the tree has not been built yet.
+        /// </summary>
+        public void NavigateTreeToCurrentProject()
+        {
+            if (TreeNodes.Count == 0)
+            {
+                BuildTreeData();
+                return;
+            }
+
+            TreeNodeData? selectedNode = null;
+
+            foreach (var categoryNode in TreeNodes)
+            {
+                foreach (var child in categoryNode.Children)
+                {
+                    if (child.Tag == "Group")
+                    {
+                        foreach (var projectNode in child.Children)
+                            selectedNode ??= TrySelectProjectNode(projectNode);
+                    }
+                    else
+                    {
+                        selectedNode ??= TrySelectProjectNode(child);
+                    }
+                }
+            }
+
+            if (selectedNode != null)
+                SelectedTreeNode = selectedNode;
+        }
+
+        /// <summary>
+        /// Checks whether <paramref name="projectNode"/> matches <see cref="CurrentProject"/>.
+        /// If it does, expands the node and returns the best-matching child (or the node itself).
+        /// Non-matching project nodes are collapsed.
+        /// </summary>
+        private TreeNodeData? TrySelectProjectNode(TreeNodeData projectNode)
+        {
+            if (projectNode.Tag != "All Types" || projectNode.Header != CurrentProject?.Namn)
+            {
+                projectNode.IsExpanded = false;
+                return null;
+            }
+
+            projectNode.IsExpanded = true;
+
+            // Try to match a specific filetype child
+            string? targetType = Type is not null and not "All Types" ? Type : CurrentFile?.Filtyp;
+
+            if (targetType != null)
+            {
+                foreach (var child in projectNode.Children)
+                {
+                    string childFiletype = child.Header.Split("  ")[0];
+                    if (childFiletype == targetType)
+                        return child;
+                }
+            }
+
+            return projectNode;
+        }
+
         private (TreeNodeData node, TreeNodeData? matched) BuildProjectNodeData(ProjectData project)
         {
             TreeNodeData? matched = null;
