@@ -25,6 +25,7 @@ namespace Finn.Model
             _favPages.CollectionChanged += FavPages_CollectionChanged;
             _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
             _otherFiles.CollectionChanged += OtherFiles_CollectionChanged;
+            _partOfCollections.CollectionChanged += PartOfCollections_CollectionChanged;
         }
 
         private void FavPages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -40,6 +41,11 @@ namespace Finn.Model
         private void OtherFiles_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             OnPropertyChanged(nameof(HasAppendedFiles));
+        }
+
+        private void PartOfCollections_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(IsPartOfCollection));
         }
         #endregion
 
@@ -69,7 +75,7 @@ namespace Finn.Model
         private ObservableCollection<OtherData> _otherFiles = new();
         private string _note = string.Empty;
         private bool _favorite;
-        private List<string> _partOfCollections = new();
+        private ObservableCollection<string> _partOfCollections = new();
         private string _thumbnailSource = string.Empty;
         private bool _hasPlainText;
 
@@ -293,11 +299,23 @@ namespace Finn.Model
             set { SetProperty(ref _favorite, value); }
         }
 
-        public List<string> PartOfCollections
+        public ObservableCollection<string> PartOfCollections
         {
             get => _partOfCollections;
-            set => SetProperty(ref _partOfCollections, value);
+            set
+            {
+                if (_partOfCollections != null)
+                    _partOfCollections.CollectionChanged -= PartOfCollections_CollectionChanged;
+
+                _partOfCollections = value ?? new ObservableCollection<string>();
+                _partOfCollections.CollectionChanged += PartOfCollections_CollectionChanged;
+
+                OnPropertyChanged(nameof(PartOfCollections));
+                OnPropertyChanged(nameof(IsPartOfCollection));
+            }
         }
+
+        public bool IsPartOfCollection => _partOfCollections.Count > 0;
 
         public string ThumbnailSource
         {
