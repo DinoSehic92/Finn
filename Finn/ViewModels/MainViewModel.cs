@@ -2084,6 +2084,11 @@ namespace Finn.ViewModels
             public void WatermarkFiles(string text = "Arbetskopia")
             {
 
+                if (CurrentFile.IsValidPdf() == false)
+                {
+                    return;
+                }
+
                 string date = DateTime.Today.ToString("yyyy-MM-dd");
                 string folder = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
                 string outputPath = folder + "\\" + text + " " + date;
