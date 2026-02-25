@@ -642,7 +642,7 @@ namespace Finn.ViewModels
                 window.ShowDialog(mainWindow);
             }
 
-            private void SyncPreviewRegionColor()
+            public void SyncPreviewRegionColor()
             {
                 // Use UI viewmodel for theme colors
                 var color = UI.DarkMode ? UI.Color1 : UI.Color3;

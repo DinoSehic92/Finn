@@ -139,10 +139,6 @@ public partial class MainView : UserControl
             case "UpdateColumns":
                 OnUpdateColumns();
                 break;
-            case "Color1":
-            case "Color3":
-                UpdateRowColor();
-                break;
             case nameof(MainViewModel.PreviewEmbeddedOpen):
                 UpdateMainGrid();
                 break;
@@ -174,8 +170,17 @@ public partial class MainView : UserControl
 
     private void OnUIPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(_ctx.UI.PreviewEmbeddedOpen))
-            UpdateMainGrid();
+        switch (e.PropertyName)
+        {
+            case nameof(_ctx.UI.PreviewEmbeddedOpen):
+                UpdateMainGrid();
+                break;
+            case nameof(_ctx.UI.Color1):
+            case nameof(_ctx.UI.Color3):
+            case nameof(_ctx.UI.DarkMode):
+                _ctx.SyncPreviewRegionColor();
+                break;
+        }
     }
 
     private void OnTogglePreviewWindow()
