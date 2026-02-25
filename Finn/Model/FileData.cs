@@ -45,7 +45,7 @@ namespace Finn.Model
 
         #region Fields
         private string _namn = string.Empty;
-        private string _fileStatus = string.Empty;
+        private bool _isFileMissing;
         private string _tagg = string.Empty;
         private string _färg = string.Empty;
         private string _handling = string.Empty;
@@ -94,10 +94,10 @@ namespace Finn.Model
         /// <summary>
         /// Gets or sets the file status.
         /// </summary>
-        public string FileStatus
+        public bool IsFileMissing
         {
-            get => _fileStatus;
-            set => SetProperty(ref _fileStatus, value);
+            get => _isFileMissing;
+            set => SetProperty(ref _isFileMissing, value);
         }
 
         /// <summary>

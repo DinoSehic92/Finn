@@ -14,13 +14,15 @@ using Avalonia.Styling;
 using System.Diagnostics;
 using System.Threading;
 using Avalonia.VisualTree;
+using Avalonia.Threading;
 
 namespace Finn.Views;
 
 public partial class MainView : UserControl
 {
     private readonly BackgroundWorker _metaWorker = new() { WorkerReportsProgress = true };
-    private readonly List<DataGridRowEventArgs> _rowArgs = [];
+    private readonly HashSet<DataGridRow> _trackedRows = [];
+    private readonly Dictionary<DataGridRow, (FileData Data, PropertyChangedEventHandler Handler)> _rowBindings = [];
 
     private MainViewModel _ctx = null!;
     private PreviewViewModel _pwr = null!;
@@ -593,14 +595,12 @@ public partial class MainView : UserControl
     private void OnCheckStatusSingleFile(object? sender, RoutedEventArgs e)
     {
         _ctx.CheckSingleFile();
-        UpdateRowColor();
     }
 
     private async void OnCheckProjectFiles(object? sender, RoutedEventArgs e)
     {
         await _ctx.CheckProjectFiles();
         FileGrid.SelectedItem = null;
-        UpdateRowColor();
     }
 
     #endregion
@@ -783,8 +783,39 @@ public partial class MainView : UserControl
 
     private void DataGrid_OnLoadingRow(object? sender, DataGridRowEventArgs e)
     {
-        _rowArgs.Add(e);
-        ApplyRowClasses(e.Row);
+        var row = e.Row;
+        if (_trackedRows.Add(row))
+            row.DataContextChanged += OnRowDataContextChanged;
+        BindRowToFileData(row, row.DataContext as FileData);
+        ApplyRowClasses(row);
+    }
+
+    private void OnRowDataContextChanged(object? sender, EventArgs e)
+    {
+        if (sender is DataGridRow row)
+        {
+            BindRowToFileData(row, row.DataContext as FileData);
+            ApplyRowClasses(row);
+        }
+    }
+
+    private void BindRowToFileData(DataGridRow row, FileData? newData)
+    {
+        if (_rowBindings.TryGetValue(row, out var prev))
+        {
+            prev.Data.PropertyChanged -= prev.Handler;
+            _rowBindings.Remove(row);
+        }
+
+        if (newData == null) return;
+
+        PropertyChangedEventHandler handler = (_, args) =>
+        {
+            if (args.PropertyName is nameof(FileData.IsFileMissing) or nameof(FileData.Färg) or nameof(FileData.Sökväg))
+                Dispatcher.UIThread.Post(() => ApplyRowClasses(row));
+        };
+        newData.PropertyChanged += handler;
+        _rowBindings[row] = (newData, handler);
     }
 
     private void OnUpdateColumns()
@@ -799,8 +830,8 @@ public partial class MainView : UserControl
 
     private void UpdateRowColor()
     {
-        foreach (var e in _rowArgs)
-            ApplyRowClasses(e.Row);
+        foreach (var row in _trackedRows)
+            ApplyRowClasses(row);
     }
 
     private static void ApplyRowClasses(DataGridRow row)
@@ -810,7 +841,7 @@ public partial class MainView : UserControl
         if (row.DataContext is not FileData data)
             return;
 
-        if (data.FileStatus == "Missing")
+        if (data.IsFileMissing)
             row.Classes.Add("RedForeground");
 
         if (data.Sökväg == string.Empty)

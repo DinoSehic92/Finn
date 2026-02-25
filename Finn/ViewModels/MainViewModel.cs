@@ -1189,7 +1189,7 @@ namespace Finn.ViewModels
             private static readonly string[] TransientPropertyNames = new[]
             {
                 "ThumbnailSource",
-                "FileStatus",
+                "IsFileMissing",
                 // Derived / UI-only properties that should not affect storage equality
                 "HasNote",
                 "HasBookmarks",
@@ -1485,16 +1485,7 @@ namespace Finn.ViewModels
             public void CheckSingleFile()
             {
                 if (CurrentFile != null)
-                {
-                    if (CurrentFile.IsValidPdf())
-                    {
-                        CurrentFile.FileStatus = "OK";
-                    }
-                    else
-                    {
-                        CurrentFile.FileStatus = "Missing";
-                    }
-                }
+                    CurrentFile.IsFileMissing = !CurrentFile.IsValidPdf();
             }
 
             public async Task CheckProjectFiles()
@@ -1512,16 +1503,7 @@ namespace Finn.ViewModels
                 foreach (FileData file in CurrentProject.StoredFiles)
                 {
                     i++;
-
-                    if (file.IsValidPdf())
-                    {
-                        file.FileStatus = "OK";
-                    }
-                    else
-                    {
-                        file.FileStatus = "Missing";
-                    }
-
+                    file.IsFileMissing = !file.IsValidPdf();
                     PreviewVM.Progress = (int)(100 * ((float)i / (float)n));
                 }
             }
@@ -1529,9 +1511,7 @@ namespace Finn.ViewModels
             public void ClearFileStatus()
             {
                 foreach (FileData file in CurrentProject.StoredFiles)
-                {
-                    file.FileStatus = "";
-                }
+                    file.IsFileMissing = false;
             }
 
             public void OpenFile()
