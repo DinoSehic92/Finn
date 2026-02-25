@@ -1740,22 +1740,34 @@ namespace Finn.ViewModels
             public void RemoveProject()
             {
                 Storage.StoredProjects.Remove(CurrentProject);
+
+                foreach (FileData file in CurrentProject.StoredFiles)
+                {
+                    PreviewVM.RecentFiles.Remove(file);
+                }
+
                 SetProjectlist();
                 SetDefaultSelection();
                 SortProjects();
-            }
+                SetCollectionContent();
+        }
 
             public void RemoveProjects(List<ProjectData> list)
             {
                 foreach (ProjectData project in list)
                 {
                     Storage.StoredProjects.Remove(project);
+                    foreach (FileData file in CurrentProject.StoredFiles)
+                    {
+                        PreviewVM.RecentFiles.Remove(file);
+                    }
                 }
 
                 SetProjectlist();
                 SetDefaultSelection();
                 SortProjects();
-            }
+                SetCollectionContent();
+        }
 
             public void RenameProject(string projectName)
             {

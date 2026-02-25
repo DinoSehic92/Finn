@@ -39,18 +39,17 @@ public partial class MainView : UserControl
 
         CollectionContent.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
         CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectFavorite);
-        CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestCollection);
 
         FolderGrid.AddHandler(DragDrop.DropEvent, OnFolderDrop);
 
         AppendixGrid.AddHandler(DragDrop.DropEvent, OnDropAppendedFiles);
+        AppendixGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenAppendedFile);
         AppendixGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestAppendedFiles);
 
         OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
         OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
 
         RecentGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectRecent);
-        RecentGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestRecent);
 
         BookmarkGrid.AddHandler(DataGrid.SelectionChangedEvent, BookmarkSelected);
 
@@ -317,16 +316,9 @@ public partial class MainView : UserControl
 
     private void SetPreviewRequestMain(object? sender, RoutedEventArgs r)
     {
+        if (_isUpdatingSelection) return;
         ClearOtherGridSelections(FileGrid);
         var file = FileGrid.SelectedItem as FileData;
-        RequestPreview(file);
-        _pwr.AddRecentFile(file);
-    }
-
-    private void SetPreviewRequestCollection(object? sender, RoutedEventArgs r)
-    {
-        ClearOtherGridSelections(CollectionContent);
-        var file = CollectionContent.SelectedItem as FileData;
         RequestPreview(file);
         _pwr.AddRecentFile(file);
     }
@@ -337,12 +329,6 @@ public partial class MainView : UserControl
         var file = AppendixGrid.SelectedItem as FileData;
         RequestPreview(file);
         _pwr.AddRecentFile(file);
-    }
-
-    private void SetPreviewRequestRecent(object? sender, RoutedEventArgs r)
-    {
-        ClearOtherGridSelections(RecentGrid);
-        RequestPreview(RecentGrid.SelectedItem as FileData);
     }
 
     private async void RequestPreview(FileData? file)
@@ -544,15 +530,52 @@ public partial class MainView : UserControl
     private void SelectFavorite(object? sender, RoutedEventArgs e)
     {
         if (_isUpdatingSelection) return;
-        var files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
-        _ctx.SelectAndNavigateFiles(files);
+        ClearOtherGridSelections(CollectionContent);
+        _isUpdatingSelection = true;
+        try
+        {
+            var files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
+            _ctx.SelectAndNavigateFiles(files);
+            SelectInFileGrid(_ctx.CurrentFile, addRecent: true);
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
     }
 
     private void SelectRecent(object? sender, RoutedEventArgs e)
     {
         if (_isUpdatingSelection) return;
-        var files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
-        _ctx.SelectAndNavigateFiles(files);
+        ClearOtherGridSelections(RecentGrid);
+        _isUpdatingSelection = true;
+        try
+        {
+            var files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
+            _ctx.SelectAndNavigateFiles(files);
+            SelectInFileGrid(_ctx.CurrentFile, addRecent: false);
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
+    }
+
+    /// <summary>
+    /// Selects <paramref name="target"/> in the main FileGrid, requests a
+    /// preview, and optionally adds it to the recent-files list.
+    /// Must be called while <see cref="_isUpdatingSelection"/> is <c>true</c>
+    /// so that intermediate SelectionChanged events are suppressed.
+    /// </summary>
+    private void SelectInFileGrid(FileData? target, bool addRecent)
+    {
+        if (target == null || !_ctx.FilteredFiles.Contains(target)) return;
+
+        FileGrid.SelectedItem = target;
+        FileGrid.ScrollIntoView(target, null);
+        RequestPreview(target);
+        if (addRecent)
+            _pwr.AddRecentFile(target);
     }
 
     #endregion
