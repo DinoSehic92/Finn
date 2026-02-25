@@ -1803,6 +1803,8 @@ namespace Finn.ViewModels
                 foreach (FileData file in CurrentFiles)
                 {
                     CurrentProject.RemoveFile(file);
+                    PreviewVM.RecentFiles.Remove(file);
+                    SetCollectionContent();
                 }
 
                 CurrentProject.SetFiletypeList();
