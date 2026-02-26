@@ -7,7 +7,7 @@ using System.ComponentModel;
 
 namespace Finn.Dialog;
 
-public partial class xContentDia : TemplateWindow
+public partial class xContentDia : Window
 {
     public xContentDia()
     {

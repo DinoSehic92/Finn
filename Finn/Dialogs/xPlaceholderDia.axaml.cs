@@ -7,7 +7,7 @@ using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xPlaceholderDia : TemplateWindow
+public partial class xPlaceholderDia : Window
 {
     public xPlaceholderDia()
     {

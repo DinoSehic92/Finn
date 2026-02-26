@@ -6,7 +6,7 @@ using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xTagDia : TemplateWindow
+public partial class xTagDia : Window
 {
     public xTagDia()
     {

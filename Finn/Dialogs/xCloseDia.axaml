@@ -24,8 +24,8 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
         </Style>
         <Style Selector="Button.default">
             <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
@@ -34,8 +34,8 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
         </Style>
     </Window.Styles>
     <Grid RowDefinitions="30,*" Height="140" VerticalAlignment="Top" Margin="0">

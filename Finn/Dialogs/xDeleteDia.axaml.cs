@@ -6,7 +6,7 @@ using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xDeleteDia : TemplateWindow
+public partial class xDeleteDia : Window
 {
     public xDeleteDia()
     {

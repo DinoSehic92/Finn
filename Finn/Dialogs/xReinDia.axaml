@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:converter="clr-namespace:Finn.Converters"
         mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="520"
         Width="420"
         Height="640"
@@ -13,6 +14,10 @@
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True"
         x:DataType="vm:MainViewModel">
+
+    <Window.Resources>
+        <converter:SegmentCornerRadiusConverter x:Key="SegmentCR"/>
+    </Window.Resources>
 
     <Window.Styles>
         <Style Selector="RadioButton.segment">
@@ -50,24 +55,24 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="RadioButton.segment-first">
-            <Setter Property="CornerRadius" Value="8,0,0,8"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius, Converter={StaticResource SegmentCR}, ConverterParameter=left}"/>
         </Style>
         <Style Selector="RadioButton.segment-last">
-            <Setter Property="CornerRadius" Value="0,8,8,0"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius, Converter={StaticResource SegmentCR}, ConverterParameter=right}"/>
         </Style>
 
         <Style Selector="RadioButton.segment-top-left">
-            <Setter Property="CornerRadius" Value="8,0,0,0"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius, Converter={StaticResource SegmentCR}, ConverterParameter=top-left}"/>
         </Style>
         <Style Selector="RadioButton.segment-top-right">
-            <Setter Property="CornerRadius" Value="0,8,0,0"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius, Converter={StaticResource SegmentCR}, ConverterParameter=top-right}"/>
         </Style>
 
         <Style Selector="RadioButton.segment-bottom-left">
-            <Setter Property="CornerRadius" Value="0,0,0,8"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius, Converter={StaticResource SegmentCR}, ConverterParameter=bottom-left}"/>
         </Style>
         <Style Selector="RadioButton.segment-bottom-right">
-            <Setter Property="CornerRadius" Value="0,0,8,0"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius, Converter={StaticResource SegmentCR}, ConverterParameter=bottom-right}"/>
         </Style>
 
     </Window.Styles>
@@ -90,36 +95,40 @@
                 <TextBlock Text="Layer 1" FontSize="16" FontWeight="Bold" Margin="0,0,0,4" HorizontalAlignment="Center"/>
                 <StackPanel Orientation="Vertical" Spacing="4">
                     <TextBlock Text="Diameter" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                    <StackPanel Name="GroupA1" Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center">
-                        <RadioButton GroupName="FactorA1" Content="0" Tag="0" Classes="segment segment-first"/>
-                        <RadioButton GroupName="FactorA1" Content="12" Tag="12" Classes="segment"/>
-                        <RadioButton GroupName="FactorA1" Content="16" Tag="16" IsChecked="True" Classes="segment"/>
-                        <RadioButton GroupName="FactorA1" Content="20" Tag="20" Classes="segment"/>
-                        <RadioButton GroupName="FactorA1" Content="25" Tag="25" Classes="segment"/>
-                        <RadioButton GroupName="FactorA1" Content="32" Tag="32" Classes="segment segment-last"/>
-                    </StackPanel>
+					<Border Classes="shadow" HorizontalAlignment="Center">
+						<StackPanel Name="GroupA1" Orientation="Horizontal" Spacing="0">
+                            <RadioButton GroupName="FactorA1" Content="0" Tag="0" Classes="segment segment-first"/>
+                            <RadioButton GroupName="FactorA1" Content="12" Tag="12" Classes="segment"/>
+                            <RadioButton GroupName="FactorA1" Content="16" Tag="16" IsChecked="True" Classes="segment"/>
+                            <RadioButton GroupName="FactorA1" Content="20" Tag="20" Classes="segment"/>
+                            <RadioButton GroupName="FactorA1" Content="25" Tag="25" Classes="segment"/>
+                            <RadioButton GroupName="FactorA1" Content="32" Tag="32" Classes="segment segment-last"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <StackPanel Orientation="Vertical" Spacing="4">
                     <TextBlock Text="c/c" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                        <StackPanel Orientation="Vertical" Spacing="0" HorizontalAlignment="Center">
-                            <StackPanel Name="GroupB1_1" Orientation="Horizontal">
-                                <RadioButton GroupName="FactorB1" Content="100" Tag="100" Classes="segment segment-top-left"/>
-                                <RadioButton GroupName="FactorB1" Content="110" Tag="110" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="120" Tag="120" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="125" Tag="125" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="150" Tag="150" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="200" Tag="200" IsChecked="True" Classes="segment segment-top-right"/>
+                        <Border Classes="shadow" HorizontalAlignment="Center">
+                            <StackPanel Orientation="Vertical" Spacing="0">
+                                <StackPanel Name="GroupB1_1" Orientation="Horizontal">
+                                    <RadioButton GroupName="FactorB1" Content="100" Tag="100" Classes="segment segment-top-left"/>
+                                    <RadioButton GroupName="FactorB1" Content="110" Tag="110" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="120" Tag="120" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="125" Tag="125" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="150" Tag="150" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="200" Tag="200" IsChecked="True" Classes="segment segment-top-right"/>
+                                </StackPanel>
+                                <StackPanel Name="GroupB1_2" Orientation="Horizontal">
+                                    <RadioButton GroupName="FactorB1" Content="250" Tag="250" Classes="segment segment-bottom-left"/>
+                                    <RadioButton GroupName="FactorB1" Content="300" Tag="300" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="400" Tag="400" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="600" Tag="600" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="800" Tag="800" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB1" Content="1000" Tag="1000" Classes="segment segment-bottom-right"/>
+                                </StackPanel>
                             </StackPanel>
-                            <StackPanel Name="GroupB1_2" Orientation="Horizontal">
-                                <RadioButton GroupName="FactorB1" Content="250" Tag="250" Classes="segment segment-bottom-left"/>
-                                <RadioButton GroupName="FactorB1" Content="300" Tag="300" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="400" Tag="400" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="600" Tag="600" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="800" Tag="800" Classes="segment"/>
-                                <RadioButton GroupName="FactorB1" Content="1000" Tag="1000" Classes="segment segment-bottom-right"/>
-                            </StackPanel>
-                        </StackPanel>
+                        </Border>
                 </StackPanel>
 
             </StackPanel>
@@ -129,36 +138,40 @@
                 <TextBlock Text="Layer 2" FontSize="16" FontWeight="Bold" Margin="0,0,0,4" HorizontalAlignment="Center"/>
                 <StackPanel Orientation="Vertical" Spacing="4">
                     <TextBlock Text="Diameter" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                    <StackPanel Name="GroupA2" Orientation="Horizontal" Spacing="0" HorizontalAlignment="Center">
-                        <RadioButton GroupName="FactorA2" Content="0" Tag="0" IsChecked="True" Classes="segment segment-first"/>
-                        <RadioButton GroupName="FactorA2" Content="12" Tag="12" Classes="segment"/>
-                        <RadioButton GroupName="FactorA2" Content="16" Tag="16" Classes="segment"/>
-                        <RadioButton GroupName="FactorA2" Content="20" Tag="20" Classes="segment"/>
-                        <RadioButton GroupName="FactorA2" Content="25" Tag="25" Classes="segment"/>
-                        <RadioButton GroupName="FactorA2" Content="32" Tag="32" Classes="segment segment-last"/>
-                    </StackPanel>
+                    <Border Classes="shadow" HorizontalAlignment="Center">
+                        <StackPanel Name="GroupA2" Orientation="Horizontal" Spacing="0">
+                            <RadioButton GroupName="FactorA2" Content="0" Tag="0" IsChecked="True" Classes="segment segment-first"/>
+                            <RadioButton GroupName="FactorA2" Content="12" Tag="12" Classes="segment"/>
+                            <RadioButton GroupName="FactorA2" Content="16" Tag="16" Classes="segment"/>
+                            <RadioButton GroupName="FactorA2" Content="20" Tag="20" Classes="segment"/>
+                            <RadioButton GroupName="FactorA2" Content="25" Tag="25" Classes="segment"/>
+                            <RadioButton GroupName="FactorA2" Content="32" Tag="32" Classes="segment segment-last"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <StackPanel Orientation="Vertical" Spacing="4">
                     <TextBlock Text="c/c" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                        <StackPanel Orientation="Vertical" Spacing="0" HorizontalAlignment="Center">
-                            <StackPanel Name="GroupB2_1" Orientation="Horizontal">
-                                <RadioButton GroupName="FactorB2" Content="100" Tag="100" Classes="segment segment-top-left"/>
-                                <RadioButton GroupName="FactorB2" Content="110" Tag="110" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="120" Tag="120" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="125" Tag="125" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="150" Tag="150" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="200" Tag="200" IsChecked="True" Classes="segment segment-top-right"/>
+                        <Border Classes="shadow" HorizontalAlignment="Center">
+                            <StackPanel Orientation="Vertical" Spacing="0">
+                                <StackPanel Name="GroupB2_1" Orientation="Horizontal">
+                                    <RadioButton GroupName="FactorB2" Content="100" Tag="100" Classes="segment segment-top-left"/>
+                                    <RadioButton GroupName="FactorB2" Content="110" Tag="110" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="120" Tag="120" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="125" Tag="125" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="150" Tag="150" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="200" Tag="200" IsChecked="True" Classes="segment segment-top-right"/>
+                                </StackPanel>
+                                <StackPanel Name="GroupB2_2" Orientation="Horizontal">
+                                    <RadioButton GroupName="FactorB2" Content="250" Tag="250" Classes="segment segment-bottom-left"/>
+                                    <RadioButton GroupName="FactorB2" Content="300" Tag="300" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="400" Tag="400" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="600" Tag="600" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="800" Tag="800" Classes="segment"/>
+                                    <RadioButton GroupName="FactorB2" Content="1000" Tag="1000" Classes="segment segment-bottom-right"/>
+                                </StackPanel>
                             </StackPanel>
-                            <StackPanel Name="GroupB2_2" Orientation="Horizontal">
-                                <RadioButton GroupName="FactorB2" Content="250" Tag="250" Classes="segment segment-bottom-left"/>
-                                <RadioButton GroupName="FactorB2" Content="300" Tag="300" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="400" Tag="400" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="600" Tag="600" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="800" Tag="800" Classes="segment"/>
-                                <RadioButton GroupName="FactorB2" Content="1000" Tag="1000" Classes="segment segment-bottom-right"/>
-                            </StackPanel>
-                        </StackPanel>
+                        </Border>
                 </StackPanel>
 
                 <Border Height="2" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="0,2" Opacity="0.5"/>

@@ -6,7 +6,7 @@ using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xRenameDia : TemplateWindow
+public partial class xRenameDia : Window
 {
     public xRenameDia()
     {

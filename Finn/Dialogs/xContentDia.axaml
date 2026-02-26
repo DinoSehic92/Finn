@@ -18,7 +18,7 @@
         ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-	<Grid RowDefinitions="130,*" ColumnDefinitions="*,*" VerticalAlignment="Top" Margin="5">
+	<Grid RowDefinitions="130,*" ColumnDefinitions="*,*" VerticalAlignment="Stretch" Margin="5">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,36,0,0">
 				<Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
@@ -41,8 +41,9 @@
 					<DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
-
-			<TextBox Grid.Column="1" Grid.Row="1" Text="{Binding SelectedTextContent.PlainText, Mode=OneWay}" VerticalAlignment="Stretch"/>
+			<Border Classes="shadow" Grid.Column="1" Grid.Row="1" Margin="5" VerticalAlignment="Stretch">
+				<TextBox Grid.Column="1" Grid.Row="1" Text="{Binding SelectedTextContent.PlainText, Mode=OneWay}" VerticalAlignment="Stretch"/>
+			</Border>
 
 	</Grid>
 

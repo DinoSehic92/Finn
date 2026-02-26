@@ -84,7 +84,7 @@
 		</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
-			<Border Name="SearchGridBorder" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}" BoxShadow="{Binding UI.Shadow}" CornerRadius="{Binding UI.CornerRadius}">
+			<Border Name="SearchGridBorder" Classes="shadow" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}">
 				<Grid RowDefinitions="10,40,30,*">
 
 					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
@@ -101,7 +101,7 @@
 						</Grid>
 					</Border>
 
-					<Border Grid.Row="2" BorderBrush="Gray" BorderThickness="0 0 0 1" CornerRadius="0">
+					<Border Grid.Row="2" BorderThickness="0 0 0 1" CornerRadius="0" BorderBrush="{DynamicResource DataGridGridLinesBrush}">
 						<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
 							<Button ToolTip.Tip="Prev Search" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.PrevSearchPage}">
 								<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
@@ -134,9 +134,7 @@
 		</Grid>
 
 		<Grid ColumnDefinitions="*,Auto,*" Grid.Row="1" Grid.ColumnSpan="2">
-			<Border Grid.Column="1" BoxShadow="{Binding UI.Shadow}"
-					Background="{DynamicResource TextControlBackground}" Margin="5"
-					Padding="4,0">
+			<Border Classes="shadow" Grid.Column="1" Background="{DynamicResource TextControlBackground}" Margin="5" Padding="4,0">
 				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}">
                    
 					<Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"

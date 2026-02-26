@@ -5,7 +5,7 @@ using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xMessageDia : TemplateWindow
+public partial class xMessageDia : Window
 {
     public xMessageDia()
     {

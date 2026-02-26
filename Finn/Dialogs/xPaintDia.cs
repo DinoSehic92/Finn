@@ -18,7 +18,7 @@ using System.Linq;
 
 namespace Finn.Dialog;
 
-public partial class xPaintDia : TemplateWindow
+public partial class xPaintDia : Window
 {
     public xPaintDia()
     {

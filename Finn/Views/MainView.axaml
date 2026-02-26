@@ -66,64 +66,6 @@
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
-		<Style Selector="Border">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-		</Style>
-
-		<!-- Shadow-only border: use Classes="shadow" on a Border to get only the shadow with rounded corners -->
-		<Style Selector="Border.shadow">
-			<Setter Property="BoxShadow" Value="{Binding UI.Shadow}"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="MinHeight" Value="25"/>
-			<!-- ensure no extra margin so caller controls spacing -->
-			<Setter Property="Margin" Value="5"/>
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="ClipToBounds" Value="False"/>
-		</Style>
-
-		<Style Selector="Button">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Padding" Value="0"/>
-		</Style>
-
-		<Style Selector="ToggleButton">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Padding" Value="0"/>
-		</Style>
-
-		<Style Selector="TextBox">
-			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Padding" Value="10,7,5,5"/>
-			<Setter Property="Margin" Value="0"/>
-			<Setter Property="MinHeight" Value="25"/>
-			<Setter Property="ClipToBounds" Value="False"/>
-		</Style>
-		<Style Selector="TextBox /template/ Border#PART_BorderElement">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="ClipToBounds" Value="False"/>
-		</Style>
-
-		<Style Selector="ComboBox">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<!-- Add left padding so the selected content is indented a bit -->
-			<Setter Property="Padding" Value="12,4,0,0"/>
-			<Setter Property="MinHeight" Value="30"/>
-		</Style>
-
-		<Style Selector="DataGrid">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Padding" Value="5"/>
-			<Setter Property="Margin" Value="0"/>
-			<Setter Property="ClipToBounds" Value="False"/>
-		</Style>
-		<Style Selector="DataGrid /template/ Border#DataGridBorder">
-			<Setter Property="BoxShadow" Value="{Binding UI.Shadow}"/>
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Margin" Value="5"/>
-			<Setter Property="ClipToBounds" Value="False"/>
-		</Style>
 
 		<!-- Global style: hide focus visual on all DataGridCells -->
 		<Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
@@ -283,7 +225,7 @@
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
                 <Grid ColumnDefinitions="*,30,30">
                  	<Border Classes="shadow">
-                		<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch" BorderThickness="0" Margin="0"/>
+						<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch"/>
                 	</Border>
 				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
@@ -678,8 +620,7 @@
 			</Grid.ColumnDefinitions>
 		<!-- Calendar panel -->
 		<Grid Grid.Column="0" RowDefinitions="Auto,40,40,3*,2*,40,15*" IsVisible="{Binding UI.CalendarOpen}" Width="320">
-                <Border Grid.Row="0" Margin="5" BoxShadow="{Binding UI.Shadow}" 
-					Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
+                <Border Grid.Row="0" Classes="shadow" Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
 				<StackPanel Orientation="Vertical">
                     <Calendar Height="295" Background="Transparent" HorizontalAlignment="Center"
 							  DisplayDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
@@ -755,14 +696,14 @@
 			</StackPanel>
 
                 <Border Grid.Row="2" Classes="shadow">
-					<TextBox Text="{Binding Calendar.CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary" BorderThickness="0" Margin="0"/>
+					<TextBox Text="{Binding Calendar.CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
 				</Border>
 
             <!-- TimeSheets grid: fill available width of the calendar panel -->
             <DataGrid Grid.Row="3" ItemsSource="{Binding Calendar.CurrentCalendarData.TimeSheets}"
 					  SelectedItem="{Binding Calendar.CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True" MinWidth="0"
 					  RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
-					  BorderThickness="0" HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False" >
+					  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False" >
 				<DataGrid.Columns>
 					<DataGridTextColumn Binding="{Binding Hours}"   Width="35" FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Project}" Width="100" FontSize="14"/>
@@ -782,7 +723,7 @@
 					 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
 			</Border>
 		<Border Grid.Row="5" Classes="shadow">
-				<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14" BorderThickness="0" Margin="0"/>
+				<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14"/>
 			</Border>
 
             <DataGrid Grid.Row="6" Name="TimeSheet" Padding="0"
@@ -823,13 +764,13 @@
             <!-- File notepad (wrapped in shadow-only border) -->
                 <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding UI.TrayNote}">
 				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
-					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch" BorderThickness="0"/>
+					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
 			</Border>
 
 			<!-- Collections toolbar -->
             <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3" IsVisible="{Binding UI.TrayCollections}">
                 <Border Classes="shadow">
-                    <TextBox Name="CollectionInput" Width="180" Watermark="Add Collection" BorderThickness="0" Margin="0"/>
+					<TextBox Name="CollectionInput" Width="180" Watermark="Add Collection"/>
                 </Border>
 				<Button Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
 				<Button Width="30" Command="{Binding RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
@@ -904,8 +845,7 @@
 
 		<!-- Tree view -->
 		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="250" Classes="AnimatedPanel">
-			<Border Name="TreeBorder" Margin="5" BoxShadow="{Binding UI.Shadow}"
-					Background="{DynamicResource TextControlBackground}">
+			<Border Classes="shadow" Background="{DynamicResource TextControlBackground}">
 				<ScrollViewer>
 					<Grid RowDefinitions="31,*">
 						<TextBlock Text="Project Tree" Height="23" FontSize="14" FontWeight="Normal"

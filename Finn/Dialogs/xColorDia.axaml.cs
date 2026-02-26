@@ -12,7 +12,7 @@ using Finn.ViewModels;
 
 namespace Finn.Dialog;
 
-public partial class xColorDia : TemplateWindow
+public partial class xColorDia : Window
 {
     public xColorDia()
     {

@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace Finn.Dialog;
 
-public partial class xMetaDia : TemplateWindow
+public partial class xMetaDia : Window
 {
     public xMetaDia()
     {

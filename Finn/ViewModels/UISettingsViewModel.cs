@@ -22,6 +22,7 @@ namespace Finn.ViewModels
             public const double DefaultCornerRadius = 10.0;
             public const bool DefaultCornerRadiusVal = true;
             public const bool DefaultShadowVal = false;
+            public const bool DefaultShowBorders = true;
             public const bool DefaultDarkMode = true;
         }
 
@@ -38,6 +39,7 @@ namespace Finn.ViewModels
 
             Shadow = BoxShadows.Parse("0 2 6 0 #22000000, 0 8 24 0 #11000000");
             ShadowVal = Defaults.DefaultShadowVal;
+            ShowBorders = Defaults.DefaultShowBorders;
 
             DarkMode = Defaults.DefaultDarkMode;
 
@@ -131,6 +133,17 @@ namespace Finn.ViewModels
         private bool previewEmbeddedOpen;
         public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; RaisePropertyChanged(nameof(PreviewEmbeddedOpen)); } }
 
+        private bool showBorders;
+        public bool ShowBorders { get => showBorders; set { showBorders = value; RaisePropertyChanged(nameof(ShowBorders)); SetBorderThickness(); } }
+
+        private Thickness borderThickness;
+        public Thickness BorderThickness { get => borderThickness; set { borderThickness = value; RaisePropertyChanged(nameof(BorderThickness)); } }
+
+        private void SetBorderThickness()
+        {
+            BorderThickness = ShowBorders ? new Thickness(1) : new Thickness(0);
+        }
+
         private void SetCornerRadius()
         {
             if (CornerRadiusVal)
@@ -166,6 +179,7 @@ namespace Finn.ViewModels
                 CornerRadiusVal = this.CornerRadiusVal,
                 CornerRadius = this.CornerRadius.TopLeft,
                 ShadowVal = this.ShadowVal,
+                ShowBorders = this.ShowBorders,
                 DarkMode = this.DarkMode,
                 Font = this.Font,
                 FontSize = this.FontSize,
@@ -196,6 +210,7 @@ namespace Finn.ViewModels
             this.CornerRadiusVal = ui.CornerRadiusVal;
             this.CornerRadius = new Avalonia.CornerRadius(ui.CornerRadius);
             this.ShadowVal = ui.ShadowVal;
+            this.ShowBorders = ui.ShowBorders;
             this.DarkMode = ui.DarkMode;
 
             if (!string.IsNullOrWhiteSpace(ui.Font)) this.Font = ui.Font;
@@ -235,6 +250,7 @@ namespace Finn.ViewModels
             };
 
             App.Current.Resources = theme.Resources;
+            App.Current.RequestedThemeVariant = DarkMode ? ThemeVariant.Dark : ThemeVariant.Light;
         }
     }
 }

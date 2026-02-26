@@ -2,11 +2,11 @@
 		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-		mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="650"
+		mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="680"
 		MinWidth="320"
-		MinHeight="650"
+		MinHeight="680"
 		MaxWidth="320"
-		MaxHeight="650"
+		MaxHeight="680"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialog.xColorDia"
 		Title="Edit Theme Colors"
@@ -25,8 +25,8 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="Padding" Value="0"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
         </Style>
     </Window.Styles>
 
@@ -45,7 +45,7 @@
                 <TextBlock Text="Edit UI" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
 				
-			<Grid ColumnDefinitions="100,120" RowDefinitions="30,40,40,40,40,40,40,40,40,40,40,40,60" HorizontalAlignment="Center" VerticalAlignment="Center">
+			<Grid ColumnDefinitions="100,120" RowDefinitions="30,40,40,40,40,40,40,40,40,40,40,40,40,60" HorizontalAlignment="Center" VerticalAlignment="Center">
 
 				<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" HorizontalAlignment="Center">
 					<Label FontWeight="Bold" Content="Dark" VerticalAlignment="Center"/>
@@ -70,16 +70,19 @@
 				<Label Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" FontWeight="Bold" Content="Borders" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 				<Label Grid.Column="0" Grid.Row="7" Content="Shadow" VerticalAlignment="Center"/>
 				<Label Grid.Column="0" Grid.Row="8" Content="Radius" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="9" Content="Borders" VerticalAlignment="Center"/>
 
-				<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+				<ToggleSwitch Grid.Column="1" Grid.Row="9" IsChecked="{Binding UI.ShowBorders}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+				<StackPanel Orientation="Horizontal" Grid.Column="0" Grid.Row="10" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center">
 					<Label FontWeight="Bold" Content="Fonts" VerticalAlignment="Center"/>
 					<Button Grid.Column="2" Click="ResetFonts" BorderBrush="Transparent">
 						<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
 					</Button>
 				</StackPanel>
 					
-				<Label Grid.Column="0" Grid.Row="10" Content="Font" VerticalAlignment="Center"/>
-				<Label Grid.Column="0" Grid.Row="11" Content="Size" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="11" Content="Font" VerticalAlignment="Center"/>
+				<Label Grid.Column="0" Grid.Row="12" Content="Size" VerticalAlignment="Center"/>
 
 
 				<ColorPicker Grid.Column="1" Grid.Row="1" Color="{Binding UI.Color1}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerDark"/>
@@ -91,10 +94,14 @@
 				<ToggleSwitch Grid.Column="1" Grid.Row="7" IsChecked="{Binding UI.ShadowVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 				<ToggleSwitch Grid.Column="1" Grid.Row="8" IsChecked="{Binding UI.CornerRadiusVal}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
-				<ComboBox Name="FontCombo" Grid.Column="1" Grid.Row="10" Width="110" SelectedValue="{Binding UI.Font}"/>
-				<ComboBox Name="FontSizeCombo" Grid.Column="1" Grid.Row="11" Width="110" SelectedValue="{Binding UI.FontSize}"/>
+				<Border Classes="shadow" Grid.Column="1" Grid.Row="11">
+					<ComboBox Name="FontCombo" Width="110" SelectedValue="{Binding UI.Font}"/>
+				</Border>
+				<Border Classes="shadow" Grid.Column="1" Grid.Row="12">
+					<ComboBox Name="FontSizeCombo" Width="110" SelectedValue="{Binding UI.FontSize}"/>
+				</Border>
 
-                <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="12" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+				<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="13" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
 					<Button Classes="accent" Width="80" Content="Save" Click="OnSave" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
 					<Button Classes="accent" Width="80" Content="Close" Click="OnClose" HorizontalAlignment="Center" Background="{DynamicResource TextControlBackground}"/>
 				</StackPanel>

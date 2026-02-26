@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Finn.Dialog;
 
-public partial class xReinDia : TemplateWindow
+public partial class xReinDia : Window
 {
     private int _factorA1 = 16;
     private int _factorB1 = 200;

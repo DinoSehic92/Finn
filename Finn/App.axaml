@@ -56,6 +56,7 @@
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="HorizontalContentAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
@@ -70,6 +71,8 @@
 		<Style Selector="ToggleButton">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="Padding" Value="0"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
@@ -91,17 +94,31 @@
 		</Style>
 
 		<Style Selector="ComboBox">
-			<Setter Property="MinHeight" Value="37"/>
+			<Setter Property="MinHeight" Value="30"/>
 			<Setter Property="VerticalAlignment" Value="Top"/>
-			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Margin" Value="0,-1,0,0"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="Padding" Value="12,4,0,0"/>
+			<Setter Property="BorderThickness" Value="0"/>
 		</Style>
 
 		<Style Selector="TextBox">
-			<Setter Property="MinHeight" Value="27"/>
-			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="VerticalAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="Padding" Value="10,7,5,5"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="ClipToBounds" Value="False"/>
+		</Style>
+		<Style Selector="TextBox /template/ Border#PART_BorderElement">
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="ClipToBounds" Value="False"/>
+		</Style>
+		<Style Selector="Border.shadow TextBox">
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Margin" Value="0"/>
 		</Style>
 
 		<Style Selector="Label">
@@ -125,6 +142,22 @@
 			<Setter Property="Padding" Value="2,4"/>
 		</Style>
 
+		<Style Selector="Border">
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+		</Style>
+
+		<!-- Shadow border: use Classes="shadow" on a Border to get shadow, rounded corners, and optional visible border -->
+		<Style Selector="Border.shadow">
+			<Setter Property="BoxShadow" Value="{ReflectionBinding UI.Shadow}"/>
+			<Setter Property="BorderThickness" Value="{ReflectionBinding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinHeight" Value="25"/>
+			<Setter Property="Margin" Value="5"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="ClipToBounds" Value="False"/>
+		</Style>
+
 		<Style Selector="DataGridColumnHeader">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="Height" Value="24"/>
@@ -137,6 +170,20 @@
 
 		<Style Selector="DataGrid">
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="BorderThickness" Value="{ReflectionBinding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+			<Setter Property="Padding" Value="5"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="ClipToBounds" Value="False"/>
+		</Style>
+		<Style Selector="DataGrid /template/ Border#DataGridBorder">
+			<Setter Property="BoxShadow" Value="{ReflectionBinding UI.Shadow}"/>
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="BorderThickness" Value="{ReflectionBinding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource SystemBaseMediumLowColor}"/>
+			<Setter Property="Margin" Value="5"/>
+			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		
 	
@@ -158,6 +205,7 @@
 			<Setter Property="Padding" Value="8,5"/>
 			<Setter Property="CornerRadius" Value="6"/>
 		</Style>
+
 
 	</Application.Styles>
 		

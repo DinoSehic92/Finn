@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Finn.Dialog;
 
-public partial class xInfoDia : TemplateWindow
+public partial class xInfoDia : Window
 {
     public xInfoDia()
     {

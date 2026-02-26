@@ -8,7 +8,7 @@ using Org.BouncyCastle.Crypto.Signers;
 
 namespace Finn.Views;
 
-public partial class MainWindow : TemplateWindow, INotifyPropertyChanged
+public partial class MainWindow : Window, INotifyPropertyChanged
 {
 
     public bool confirmLeave = true;

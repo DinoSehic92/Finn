@@ -7,7 +7,7 @@ using Finn.Views;
 
 namespace Finn.Dialog;
 
-public partial class xEditDia : TemplateWindow
+public partial class xEditDia : Window
 {
     public xEditDia()
     {

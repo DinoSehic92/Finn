@@ -9,7 +9,7 @@ using System.Reflection;
 
 namespace Finn.Dialog;
 
-public partial class xProgDia : TemplateWindow
+public partial class xProgDia : Window
 {
     public xProgDia()
     {

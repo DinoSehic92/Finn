@@ -14,6 +14,7 @@ namespace Finn.Storage
         public double CornerRadius { get; set; }
 
         public bool ShadowVal { get; set; }
+        public bool ShowBorders { get; set; }
 
         public bool DarkMode { get; set; }
 

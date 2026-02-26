@@ -9,7 +9,7 @@ using Finn.ViewModels;
 
 namespace Finn.Views
 {
-    public partial class TimesheetWindow : TemplateWindow
+    public partial class TimesheetWindow : Window
     {
         private ObservableCollection<TimeSheetProjectData> _localProjects = new();
 
