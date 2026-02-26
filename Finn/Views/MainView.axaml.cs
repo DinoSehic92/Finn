@@ -202,7 +202,7 @@ public partial class MainView : UserControl
         {
             MainGrid.ColumnDefinitions[2] = new ColumnDefinition(10, GridUnitType.Pixel);
             MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star) { MinWidth = 400 };
-            MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star) { MinWidth = 350 };
+            MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star) { MinWidth = 300 };
             EmbeddedPreview.SetRenderer();
         }
         else

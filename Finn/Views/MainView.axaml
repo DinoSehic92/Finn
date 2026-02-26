@@ -292,7 +292,7 @@
 		<!-- ═══════════════════════════════════════════════ -->
 
 		<!-- File DataGrid + attached files + folders -->
-		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto" MinWidth="200">
+		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto" MinWidth="300">
 
 			<!-- Main file list -->
 			<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
