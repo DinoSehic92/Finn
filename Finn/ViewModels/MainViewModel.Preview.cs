@@ -33,6 +33,31 @@ namespace Finn.ViewModels
             }
         }
 
+        public async Task RequestPreviewLeftAsync(FileData? file)
+        {
+            if (file == null || !file.IsValidPdf())
+                return;
+
+            if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
+                UI.PreviewEmbeddedOpen = true;
+
+            CheckSingleFile();
+            PreviewVM.RequestFile = file;
+            PreviewVM.ToggleVisibility(false);
+            await PreviewVM.SetFileAsync();
+        }
+
+        public async Task RequestPreview2Async(FileData? file)
+        {
+            if (file == null || !file.IsValidPdf())
+                return;
+
+            if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
+                UI.PreviewEmbeddedOpen = true;
+
+            await PreviewVM.SetFile2Async(file);
+        }
+
         /// <summary>
         /// Processes dropped file paths, adding PDFs to the current project.
         /// </summary>

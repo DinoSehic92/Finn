@@ -172,6 +172,8 @@ public partial class MainView : UserControl
         switch (e.PropertyName)
         {
             case nameof(_ctx.UI.PreviewEmbeddedOpen):
+                if (_ctx.UI.PreviewEmbeddedOpen && _ctx.PreviewWindowOpen)
+                    _ctx.PreviewWindowOpen = false;
                 UpdateMainGrid();
                 break;
             case nameof(_ctx.UI.Color1):
@@ -333,6 +335,7 @@ public partial class MainView : UserControl
 
     private async void RequestPreview(FileData? file)
     {
+        if (_pwr.DualFileMode) return;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
         await _ctx.RequestPreviewAsync(file, searchText);
     }
@@ -614,6 +617,20 @@ public partial class MainView : UserControl
             _ctx.MoveSelectedFiles(moveToProject);
             _ctx.BuildTreeData();
         }
+    }
+
+    private async void OnViewLeft(object? sender, RoutedEventArgs e)
+    {
+        var file = (FileGrid.SelectedItem ?? AppendixGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
+        if (file != null)
+            await _ctx.RequestPreviewLeftAsync(file);
+    }
+
+    private async void OnViewRight(object? sender, RoutedEventArgs e)
+    {
+        var file = (FileGrid.SelectedItem ?? AppendixGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
+        if (file != null)
+            await _ctx.RequestPreview2Async(file);
     }
 
     #endregion

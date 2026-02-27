@@ -37,10 +37,11 @@ namespace Finn.ViewModels
         #endregion
 
         #region Fields
-        private readonly SemaphoreSlim fileOperationSemaphore = new(1, 1);
         private readonly SemaphoreSlim renderSemaphore = new(1, 1);
         private bool disposed = false;
         private int fileGeneration = 0;
+        private int secondaryFileGeneration = 0;
+        private CancellationTokenSource secondaryCts = new();
         private bool fastOpenMode; // Toggle for fast open (first pages only) vs full open
         #endregion
 
@@ -78,6 +79,8 @@ namespace Finn.ViewModels
         private MuPDFContext? context = null;
         private byte[]? bytes;
         private bool fileAvailable = false;
+        private MuPDFDocument? secondaryFile = null;
+        private MuPDFContext? secondaryContext = null;
         #endregion
 
         #region File Properties
@@ -86,6 +89,13 @@ namespace Finn.ViewModels
         {
             get => currentFile;
             set => SetProperty(ref currentFile, value);
+        }
+
+        private FileData? currentFile2 = null;
+        public FileData? CurrentFile2
+        {
+            get => currentFile2;
+            set => SetProperty(ref currentFile2, value);
         }
 
         private FileData? requestFile = null;
@@ -117,9 +127,18 @@ namespace Finn.ViewModels
 
                 if (LinkedPageMode)
                 {
-                    SetProperty(ref requestPage2, requestPage1 + 1);
-                    if (PageInRange(requestPage2))
-                        _ = SetSecondaryPageAsync();
+                    if (DualFileMode)
+                    {
+                        SetProperty(ref requestPage2, requestPage1);
+                        if (PageInRange2(requestPage2))
+                            _ = SetSecondaryPageAsync();
+                    }
+                    else
+                    {
+                        SetProperty(ref requestPage2, requestPage1 + 1);
+                        if (PageInRange(requestPage2))
+                            _ = SetSecondaryPageAsync();
+                    }
                 }
             }
         }
@@ -131,7 +150,8 @@ namespace Finn.ViewModels
             set
             {
                 SetProperty(ref requestPage2, value);
-                if (PageInRange(requestPage2))
+                bool inRange = DualFileMode ? PageInRange2(requestPage2) : PageInRange(requestPage2);
+                if (inRange)
                     _ = SetSecondaryPageAsync();
             }
         }
@@ -160,6 +180,21 @@ namespace Finn.ViewModels
             get => pagecount;
             set => SetProperty(ref pagecount, value);
         }
+
+        private int pagecount2 = 0;
+        public int Pagecount2
+        {
+            get => pagecount2;
+            set
+            {
+                if (SetProperty(ref pagecount2, value))
+                    OnPropertyChanged(nameof(SecondaryPagecount));
+            }
+        }
+
+        public int SecondaryPagecount => DualFileMode ? pagecount2 : pagecount;
+        public bool ShowSecondaryControls => !linkedPageMode || dualFileMode;
+        public bool ShowLinkedPageButton => twopageMode;
         #endregion
 
         #region View Mode Properties
@@ -168,6 +203,36 @@ namespace Finn.ViewModels
         {
             get => twopageMode;
             set => SetProperty(ref twopageMode, value, () => _ = ToggleDualViewAsync());
+        }
+
+        private bool dualFileMode = false;
+        public bool DualFileMode
+        {
+            get => dualFileMode;
+            set
+            {
+                if (SetProperty(ref dualFileMode, value))
+                {
+                    OnPropertyChanged(nameof(SecondaryPagecount));
+                    OnPropertyChanged(nameof(ShowSecondaryControls));
+                    OnPropertyChanged(nameof(ShowLinkedPageButton));
+                    if (value)
+                    {
+                        if (twopageMode)
+                            twopageMode = false; // reset backing field silently so TwopageMode = true below triggers ToggleDualViewAsync
+                        requestPage2 = requestPage1; // pre-sync pages as a starting point
+                        TwopageMode = true;
+                        LinkedPageMode = false;
+                    }
+                    else
+                    {
+                        CurrentFile2 = null;
+                        Pagecount2 = 0;
+                        TwopageMode = false; // triggers ToggleDualViewAsync → reverts to single page layout
+                        _ = DisposeSecondaryDocumentAsync();
+                    }
+                }
+            }
         }
 
         private bool linkedPageMode = true;
@@ -315,8 +380,6 @@ namespace Finn.ViewModels
             set => SetProperty(ref fileWorkerBusy, value);
         }
 
-        private bool renderWorkerBusy = false;
-
         private string statusMessage;
         public string StatusMessage
         {
@@ -342,11 +405,13 @@ namespace Finn.ViewModels
         {
             try
             {
-                
+
                 var background = new SolidColorBrush(Colors.White);
 
                 if (this.mainRenderer != null)
                     this.mainRenderer.ReleaseResources();
+                if (this.secondaryRenderer != null && this.secondaryRenderer != secondaryRenderer)
+                    this.secondaryRenderer.ReleaseResources();
 
                 this.mainRenderer = mainRenderer;
                 this.secondaryRenderer = secondaryRenderer;
@@ -356,6 +421,8 @@ namespace Finn.ViewModels
 
                 if (CurrentFile != null)
                     _ = SetMainPageAsync();
+                if (DualFileMode && CurrentFile2 != null)
+                    _ = SetSecondaryPageAsync();
             }
             catch (Exception ex)
             {
@@ -489,7 +556,8 @@ namespace Finn.ViewModels
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        LinkedPageMode = true;
+                        if (!DualFileMode)
+                            LinkedPageMode = true;
                         requestPage1 = desired;
                         OnPropertyChanged(nameof(RequestPage1));
                         CurrentPage1 = desired;
@@ -568,7 +636,8 @@ namespace Finn.ViewModels
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    LinkedPageMode = true;
+                    if (!DualFileMode)
+                        LinkedPageMode = true;
                     requestPage1 = desired2;
                     OnPropertyChanged(nameof(RequestPage1));
                     CurrentPage1 = desired2;
@@ -640,11 +709,12 @@ namespace Finn.ViewModels
                     {
                         if (mainRenderer?.HighlightedRegions != null)
                             mainRenderer.HighlightedRegions = null;
-                        if (secondaryRenderer?.HighlightedRegions != null)
+                        if (!dualFileMode && secondaryRenderer?.HighlightedRegions != null)
                             secondaryRenderer.HighlightedRegions = null;
 
                         mainRenderer?.ReleaseResources();
-                        secondaryRenderer?.ReleaseResources();
+                        if (!dualFileMode)
+                            secondaryRenderer?.ReleaseResources();
                         MainPreviewFile?.Dispose();
                         context?.Dispose();
                     }
@@ -658,6 +728,36 @@ namespace Finn.ViewModels
                 MainPreviewFile = null;
                 context = null;
                 bytes = null; // release memory early
+            }
+            finally
+            {
+                renderSemaphore.Release();
+            }
+        }
+
+        private async Task DisposeSecondaryDocumentAsync(CancellationToken token = default)
+        {
+            if (secondaryFile == null) return;
+
+            await renderSemaphore.WaitAsync(token).ConfigureAwait(false);
+            try
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        secondaryRenderer?.ReleaseResources();
+                        secondaryFile?.Dispose();
+                        secondaryContext?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger?.LogWarning(ex, "Error during secondary dispose");
+                    }
+                }).GetTask().ConfigureAwait(false);
+
+                secondaryFile = null;
+                secondaryContext = null;
             }
             finally
             {
@@ -730,6 +830,75 @@ namespace Finn.ViewModels
             try { await SetFileAsync(search).ConfigureAwait(false); }
             catch (Exception ex) { logger?.LogError(ex, "Error in legacy SetFile"); }
         }
+
+        public async Task SetFile2Async(FileData file, CancellationToken cancellationToken = default)
+        {
+            if (disposed || file.Sökväg == null) return;
+
+            int myGen = Interlocked.Increment(ref secondaryFileGeneration);
+            try
+            {
+                await secondaryCts.CancelAsync().ConfigureAwait(false);
+                secondaryCts.Dispose();
+            }
+            catch { }
+            secondaryCts = new CancellationTokenSource();
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, secondaryCts.Token);
+            var token = linkedCts.Token;
+
+            try { await Task.Delay(50, token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+
+            bool IsStale2() => Volatile.Read(ref secondaryFileGeneration) != myGen;
+
+            try
+            {
+                await DisposeSecondaryDocumentAsync(token).ConfigureAwait(false);
+
+                if (IsStale2()) return;
+
+                MuPDFContext newContext = null!;
+                MuPDFDocument newDoc = null!;
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (token.IsCancellationRequested) return;
+                    newContext = new MuPDFContext();
+                    newDoc = new MuPDFDocument(newContext, file.Sökväg);
+                }).GetTask().ConfigureAwait(false);
+
+                if (IsStale2() || token.IsCancellationRequested)
+                {
+                    try { newDoc?.Dispose(); } catch { }
+                    try { newContext?.Dispose(); } catch { }
+                    return;
+                }
+
+                secondaryFile = newDoc;
+                secondaryContext = newContext;
+                Pagecount2 = newDoc.Pages.Count;
+                CurrentFile2 = file;
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    DualFileMode = true; // also resets TwopageMode and defaults LinkedPageMode = false
+                    requestPage2 = linkedPageMode ? requestPage1 : 0;
+                    OnPropertyChanged(nameof(RequestPage2));
+                    CurrentPage2 = requestPage2;
+                    _ = SetSecondaryPageAsync();
+                    secondaryRenderer?.Contain();
+                }).GetTask().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                logger?.LogInformation("Secondary file load cancelled (gen {Generation})", myGen);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error in SetFile2Async");
+            }
+        }
         #endregion
 
         #region Recent Files Management
@@ -755,28 +924,6 @@ namespace Finn.ViewModels
         #endregion
 
         #region Page Navigation & Default Page
-        private void SetDefaultPage()
-        {
-            if (RequestFile == null || MainPreviewFile == null) return;
-
-            try
-            {
-                int desired = Math.Clamp(RequestFile.DefaultPage, 0,
-                    Math.Max(0, MainPreviewFile.Pages.Count - 1));
-
-                requestPage1 = desired;
-                OnPropertyChanged(nameof(RequestPage1));
-                CurrentPage1 = desired;
-                Rotation = 0;
-
-                _ = RenderCurrentPageAsync();
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error setting default page");
-            }
-        }
-
         private async Task RenderCurrentPageAsync()
         {
             if (disposed || !PageInRange(requestPage1) || mainRenderer == null || MainPreviewFile == null)
@@ -807,7 +954,7 @@ namespace Finn.ViewModels
                         return;
                     }
 
-                    if (LinkedPageMode && TwopageMode && PageInRange(requestPage1 + 1) && secondaryRenderer != null)
+                    if (!DualFileMode && LinkedPageMode && TwopageMode && PageInRange(requestPage1 + 1) && secondaryRenderer != null)
                     {
                         try
                         {
@@ -845,8 +992,14 @@ namespace Finn.ViewModels
         public void NextPage(bool secondPage = false)
         {
             int lastPage = Pagecount - 1;
-
+            int lastPage2 = Math.Max(0, Pagecount2 - 1);
             if (!TwopageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
+            else if (DualFileMode)
+            {
+                if (LinkedPageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
+                else if (!secondPage) { if (RequestPage1 < lastPage) RequestPage1++; }
+                else { if (RequestPage2 < lastPage2) RequestPage2++; }
+            }
             else if (LinkedPageMode) { if (RequestPage1 + 2 <= lastPage) RequestPage1 += 2; }
             else if (!secondPage) { if (RequestPage1 < lastPage) RequestPage1++; }
             else { if (RequestPage2 < lastPage) RequestPage2++; }
@@ -855,12 +1008,19 @@ namespace Finn.ViewModels
         public void PrevPage(bool secondPage = false)
         {
             if (!TwopageMode) { if (RequestPage1 > 0) RequestPage1--; }
+            else if (DualFileMode)
+            {
+                if (LinkedPageMode) { if (RequestPage1 > 0) RequestPage1--; }
+                else if (!secondPage) { if (RequestPage1 > 0) RequestPage1--; }
+                else { if (RequestPage2 > 0) RequestPage2--; }
+            }
             else if (LinkedPageMode) { if (RequestPage1 >= 2) RequestPage1 -= 2; }
             else if (!secondPage) { if (RequestPage1 > 0) RequestPage1--; }
             else { if (RequestPage2 > 0) RequestPage2--; }
         }
 
         public bool PageInRange(int pageNr) => pageNr >= 0 && pageNr < Pagecount;
+        public bool PageInRange2(int pageNr) => pageNr >= 0 && pageNr < Pagecount2;
         #endregion
 
         #region View Mode Methods
@@ -868,12 +1028,15 @@ namespace Finn.ViewModels
         {
             try
             {
+                OnPropertyChanged(nameof(ShowLinkedPageButton));
                 await Task.Delay(RENDER_DELAY).ConfigureAwait(false);
 
-                if (TwopageMode && RequestPage1 % 2 != 0)
+                if (!DualFileMode && TwopageMode && RequestPage1 % 2 != 0)
                     requestPage1 = RequestPage1 - 1;
 
-                requestPage2 = requestPage1 + 1;
+                if (!DualFileMode)
+                    requestPage2 = requestPage1 + 1;
+
                 await SetMainPageAsync().ConfigureAwait(false);
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
@@ -884,7 +1047,7 @@ namespace Finn.ViewModels
                         _ = SetSecondaryPageAsync();
                         secondaryRenderer?.Contain();
                     }
-                    if (!LinkedPageMode)
+                    if (!LinkedPageMode && !DualFileMode)
                         LinkedPageMode = true;
                 }).GetTask().ConfigureAwait(false);
             }
@@ -911,18 +1074,26 @@ namespace Finn.ViewModels
 
         public void ToggleLinkedMode()
         {
+            OnPropertyChanged(nameof(ShowSecondaryControls));
             if (LinkedPageMode)
             {
-                if (CurrentPage1 % 2 != 0)
-                    RequestPage1 = CurrentPage1 - 1;
-                RequestPage2 = CurrentPage1 + 1;
+                if (DualFileMode)
+                {
+                    RequestPage2 = RequestPage1;
+                }
+                else
+                {
+                    if (CurrentPage1 % 2 != 0)
+                        RequestPage1 = CurrentPage1 - 1;
+                    RequestPage2 = CurrentPage1 + 1;
+                }
             }
         }
 
         public void ToggleVisibility(bool isVisible)
         {
             if (mainRenderer != null) mainRenderer.IsVisible = isVisible;
-            if (TwopageMode && secondaryRenderer != null) secondaryRenderer.IsVisible = isVisible;
+            if (TwopageMode && !DualFileMode && secondaryRenderer != null) secondaryRenderer.IsVisible = isVisible;
         }
 
         public async void ToggleDualView() => await ToggleDualViewAsync().ConfigureAwait(false);
@@ -970,8 +1141,8 @@ namespace Finn.ViewModels
 
         private async Task SetSecondaryPageAsync()
         {
-            if (disposed || FileWorkerBusy || SearchBusy || !PageInRange(RequestPage2) ||
-                !TwopageMode || secondaryRenderer == null)
+            bool inRange = DualFileMode ? PageInRange2(RequestPage2) : PageInRange(RequestPage2);
+            if (disposed || FileWorkerBusy || SearchBusy || !inRange || !TwopageMode || secondaryRenderer == null)
                 return;
 
             await renderSemaphore.WaitAsync().ConfigureAwait(false);
@@ -983,11 +1154,12 @@ namespace Finn.ViewModels
                     secondaryRenderer.HighlightedRegions = null;
                     try
                     {
-                        if (MainPreviewFile != null && secondaryRenderer != null)
+                        var doc = DualFileMode ? secondaryFile : MainPreviewFile;
+                        if (doc != null && secondaryRenderer != null)
                         {
-                            secondaryRenderer.Initialize(MainPreviewFile, 1, RequestPage2, ZOOM_LEVEL);
+                            secondaryRenderer.Initialize(doc, 1, RequestPage2, ZOOM_LEVEL);
                             secondaryRenderer.IsVisible = true;
-                            SetSecondarySearchResults();
+                            if (!DualFileMode) SetSecondarySearchResults();
                             CurrentPage2 = RequestPage2;
                         }
                     }
@@ -1043,12 +1215,11 @@ namespace Finn.ViewModels
                 SearchBusy = true;
 
                 // run search against the captured document instance
-                List<(int pageIndex, int matchCount)> foundPagesLocal = new();
                 int localPageCount = Pagecount;
 
                 // MuPDF structured-text APIs are not always safe to call from background threads
                 // — run each page extraction/search on the UI thread to avoid crashes.
-                var localResults = new List<(int pageIndex, int matchCount)>();
+                List<(int pageIndex, int matchCount)> foundPagesLocal = [];
                 for (int i = 0; i < localPageCount; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -1063,7 +1234,7 @@ namespace Finn.ViewModels
                         }).GetTask().ConfigureAwait(false);
 
                         if (matchCount > 0)
-                            localResults.Add((i, matchCount));
+                            foundPagesLocal.Add((i, matchCount));
                     }
                     catch (OperationCanceledException)
                     {
@@ -1075,8 +1246,6 @@ namespace Finn.ViewModels
                         logger?.LogWarning(ex, "Error searching page {Page}", i);
                     }
                 }
-
-                foundPagesLocal = localResults;
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -1219,12 +1388,14 @@ namespace Finn.ViewModels
             try
             {
                 await DisposeCurrentDocumentAsync(CancellationToken.None).ConfigureAwait(false);
+                await DisposeSecondaryDocumentAsync(CancellationToken.None).ConfigureAwait(false);
 
                 await mainCts.CancelAsync().ConfigureAwait(false);
                 await searchCts.CancelAsync().ConfigureAwait(false);
+                await secondaryCts.CancelAsync().ConfigureAwait(false);
                 mainCts.Dispose();
                 searchCts.Dispose();
-                fileOperationSemaphore.Dispose();
+                secondaryCts.Dispose();
                 renderSemaphore.Dispose();
             }
             catch (Exception ex)

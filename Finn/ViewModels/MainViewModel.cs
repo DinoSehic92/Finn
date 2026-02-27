@@ -227,7 +227,13 @@ namespace Finn.ViewModels
             public bool PreviewWindowOpen
             {
                 get { return previewWindowOpen; }
-                set { previewWindowOpen = value; OnPropertyChanged(nameof(PreviewWindowOpen)); if (PreviewWindowOpen) { UI.PreviewEmbeddedOpen = false; }; }
+                set
+                {
+                    if (previewWindowOpen == value) return;
+                    previewWindowOpen = value;
+                    OnPropertyChanged(nameof(PreviewWindowOpen));
+                    if (previewWindowOpen) UI.PreviewEmbeddedOpen = false;
+                }
             }
 
             private bool previewEmbeddedOpen = false;

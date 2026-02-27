@@ -112,9 +112,16 @@ public partial class PreView : UserControl
     {
         if (ScrollSliderSecondary.IsFocused)
         {
-            if ((int)ScrollSliderSecondary.Value - 1 != pwr.RequestPage2)
+            int page = (int)ScrollSliderSecondary.Value - 1;
+            if (pwr.DualFileMode && pwr.LinkedPageMode)
             {
-                pwr.RequestPage2 = (int)ScrollSliderSecondary.Value - 1;
+                if (page != pwr.RequestPage1)
+                    pwr.RequestPage1 = page;
+            }
+            else
+            {
+                if (page != pwr.RequestPage2)
+                    pwr.RequestPage2 = page;
             }
         }
     }
@@ -122,10 +129,7 @@ public partial class PreView : UserControl
 
     private void PreviewSizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (true)//previewMode)
-        {
-            ResetView(null, null);
-        }
+        ResetView(null, null);
     }
 
     private void ResetView(object sender, RoutedEventArgs e)

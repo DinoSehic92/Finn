@@ -170,11 +170,15 @@
 						<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}">
+					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}">
 						<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding TwopageMode}" IsChecked="{Binding LinkedPageMode}">
+					<ToggleButton ToolTip.Tip="Dual File Mode" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}">
+						<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="16"/>
+					</ToggleButton>
+
+					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
 						<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
@@ -182,25 +186,25 @@
 						<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10 0 5 0">
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10 0 5 0" IsVisible="False">
 						<ic:SymbolIcon Symbol="Checkmark" IconVariant="Regular" FontSize="16" IsVisible="{Binding !FileWorkerBusy}"/>
 						<ic:SymbolIcon Symbol="ArrowClockwise" IconVariant="Regular" FontSize="16" IsVisible="{Binding FileWorkerBusy}"/>
 					</StackPanel>
 			
 					<Slider Name="ScrollSliderSecondary" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
-						TickFrequency="1" Maximum="{Binding Pagecount}" IsVisible="{Binding !LinkedPageMode}" Value="{Binding RequestPage2, Mode=OneWay, Converter={StaticResource AddOneConverter}}"/>
+						TickFrequency="1" Maximum="{Binding SecondaryPagecount}" IsVisible="{Binding ShowSecondaryControls}" Value="{Binding RequestPage2, Mode=OneWay, Converter={StaticResource AddOneConverter}}"/>
 			
-					<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" IsVisible="{Binding !LinkedPageMode}">
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" IsVisible="{Binding ShowSecondaryControls}">
 						<Label Content="{Binding CurrentPage2, Converter={StaticResource AddOneConverter}}" Width="40" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
 						<Label Content="/" VerticalAlignment="Center"/>
-						<Label Content="{Binding Pagecount}" VerticalAlignment="Center"/>
+						<Label Content="{Binding SecondaryPagecount}" VerticalAlignment="Center"/>
 					</StackPanel>
 
-					<Button FontWeight="Normal" BorderThickness="0" IsVisible="{Binding !LinkedPageMode}" Command="{Binding PrevPage}" CommandParameter="true">
+					<Button FontWeight="Normal" BorderThickness="0" IsVisible="{Binding ShowSecondaryControls}" Command="{Binding PrevPage}" CommandParameter="true">
 						<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-					<Button FontWeight="Normal" BorderThickness="0" IsVisible="{Binding !LinkedPageMode}" Command="{Binding NextPage}" CommandParameter="true">
+					<Button FontWeight="Normal" BorderThickness="0" IsVisible="{Binding ShowSecondaryControls}" Command="{Binding NextPage}" CommandParameter="true">
 						<ic:SymbolIcon Symbol="ArrowNext" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
