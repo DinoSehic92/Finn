@@ -129,13 +129,13 @@ namespace Finn.ViewModels
                 {
                     if (DualFileMode)
                     {
-                        SetProperty(ref requestPage2, requestPage1);
+                        SetProperty(ref requestPage2, requestPage1, nameof(RequestPage2));
                         if (PageInRange2(requestPage2))
                             _ = SetSecondaryPageAsync();
                     }
                     else
                     {
-                        SetProperty(ref requestPage2, requestPage1 + 1);
+                        SetProperty(ref requestPage2, requestPage1 + 1, nameof(RequestPage2));
                         if (PageInRange(requestPage2))
                             _ = SetSecondaryPageAsync();
                     }
@@ -220,6 +220,11 @@ namespace Finn.ViewModels
                     {
                         if (twopageMode)
                             twopageMode = false; // reset backing field silently so TwopageMode = true below triggers ToggleDualViewAsync
+                        if (secondaryRenderer != null)
+                        {
+                            secondaryRenderer.IsVisible = false;
+                            secondaryRenderer.ReleaseResources();
+                        }
                         requestPage2 = requestPage1; // pre-sync pages as a starting point
                         TwopageMode = true;
                         LinkedPageMode = false;
@@ -996,7 +1001,13 @@ namespace Finn.ViewModels
             if (!TwopageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
             else if (DualFileMode)
             {
-                if (LinkedPageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
+                if (LinkedPageMode)
+                {
+                    // Left file still has pages: advance both in sync via RequestPage1 setter.
+                    // Left file exhausted but right still has pages: let right advance independently.
+                    if (RequestPage1 < lastPage) RequestPage1++;
+                    else if (RequestPage2 < lastPage2) RequestPage2++;
+                }
                 else if (!secondPage) { if (RequestPage1 < lastPage) RequestPage1++; }
                 else { if (RequestPage2 < lastPage2) RequestPage2++; }
             }
@@ -1010,7 +1021,13 @@ namespace Finn.ViewModels
             if (!TwopageMode) { if (RequestPage1 > 0) RequestPage1--; }
             else if (DualFileMode)
             {
-                if (LinkedPageMode) { if (RequestPage1 > 0) RequestPage1--; }
+                if (LinkedPageMode)
+                {
+                    // Right is ahead (scrolled past left's end): walk right back first.
+                    // Once in sync, decrement left which re-syncs right via the setter.
+                    if (RequestPage2 > RequestPage1) RequestPage2--;
+                    else if (RequestPage1 > 0) RequestPage1--;
+                }
                 else if (!secondPage) { if (RequestPage1 > 0) RequestPage1--; }
                 else { if (RequestPage2 > 0) RequestPage2--; }
             }
