@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using System.Threading;
 using Finn.Model;
 using System;
@@ -11,7 +10,6 @@ using Avalonia.Collections;
 using MuPDFCore;
 using Avalonia.Threading;
 using System.IO;
-using System.Net.Http;
 using System.Collections.Generic;
 using MuPDFCore.StructuredText;
 using System.Linq;
@@ -31,9 +29,6 @@ namespace Finn.ViewModels
         private const int BUFFER_SIZE = 64 * 1024; // 64 KB — larger buffer = fewer syscalls
         private const int PROGRESS_UPDATE_INTERVAL = 20;
         private const int RENDER_DELAY = 20;
-        private const int POLLING_DELAY = 25;
-        private const int DISPOSE_POLLING_DELAY = 50;
-        private const int MAX_RETRY_ATTEMPTS = 3;
         #endregion
 
         #region Fields
@@ -43,6 +38,7 @@ namespace Finn.ViewModels
         private int secondaryFileGeneration = 0;
         private CancellationTokenSource secondaryCts = new();
         private bool fastOpenMode; // Toggle for fast open (first pages only) vs full open
+        private TaskCompletionSource? searchDone; // Signalled when SearchDocumentAsync finishes
         #endregion
 
         #region Constructor
@@ -410,7 +406,6 @@ namespace Finn.ViewModels
         {
             try
             {
-
                 var background = new SolidColorBrush(Colors.White);
 
                 if (this.mainRenderer != null)
@@ -548,7 +543,6 @@ namespace Finn.ViewModels
 
                     fileAvailable = true;
 
-                    // Set UI state for default page on UI thread
                     if (IsStale(myGeneration))
                     {
                         try { previewDoc?.Dispose(); } catch { }
@@ -556,26 +550,7 @@ namespace Finn.ViewModels
                         return;
                     }
 
-                    int desired = Math.Clamp(RequestFile.DefaultPage, 0,
-                        Math.Max(0, MainPreviewFile.Pages.Count - 1));
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        if (!DualFileMode)
-                            LinkedPageMode = true;
-                        requestPage1 = desired;
-                        OnPropertyChanged(nameof(RequestPage1));
-                        CurrentPage1 = desired;
-                        Rotation = 0;
-                        if (!string.IsNullOrEmpty(search))
-                            SearchMode = true;
-                    }).GetTask().ConfigureAwait(false);
-
-                    if (!string.IsNullOrEmpty(search))
-                        _ = SearchAsync(search, token);
-
-                    // Await first-page render to measure end-to-end time
-                    await RenderCurrentPageAsync().ConfigureAwait(false);
+                    await FinalizeOpenAsync(search, token).ConfigureAwait(false);
 
                     sw.Stop();
                     swTotal.Stop();
@@ -636,26 +611,7 @@ namespace Finn.ViewModels
                     return;
                 }
 
-                int desired2 = Math.Clamp(RequestFile.DefaultPage, 0,
-                    Math.Max(0, MainPreviewFile.Pages.Count - 1));
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    if (!DualFileMode)
-                        LinkedPageMode = true;
-                    requestPage1 = desired2;
-                    OnPropertyChanged(nameof(RequestPage1));
-                    CurrentPage1 = desired2;
-                    Rotation = 0;
-                    if (!string.IsNullOrEmpty(search))
-                        SearchMode = true;
-                }).GetTask().ConfigureAwait(false);
-
-                if (!string.IsNullOrEmpty(search))
-                    _ = SearchAsync(search, token);
-
-                // Await first-page render to measure end-to-end time
-                await RenderCurrentPageAsync().ConfigureAwait(false);
+                await FinalizeOpenAsync(search, token).ConfigureAwait(false);
 
                 sw2.Stop();
                 swTotal.Stop();
@@ -681,6 +637,33 @@ namespace Finn.ViewModels
         /// </summary>
         private bool IsStale(int myGeneration)
             => Volatile.Read(ref fileGeneration) != myGeneration;
+
+        /// <summary>
+        /// Shared post-open logic: sets the default page on the UI thread,
+        /// kicks off search if requested, and awaits the first-page render.
+        /// </summary>
+        private async Task FinalizeOpenAsync(string? search, CancellationToken token)
+        {
+            int desired = Math.Clamp(RequestFile!.DefaultPage, 0,
+                Math.Max(0, MainPreviewFile!.Pages.Count - 1));
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (!DualFileMode)
+                    LinkedPageMode = true;
+                requestPage1 = desired;
+                OnPropertyChanged(nameof(RequestPage1));
+                CurrentPage1 = desired;
+                Rotation = 0;
+                if (!string.IsNullOrEmpty(search))
+                    SearchMode = true;
+            }).GetTask().ConfigureAwait(false);
+
+            if (!string.IsNullOrEmpty(search))
+                _ = SearchAsync(search, token);
+
+            await RenderCurrentPageAsync().ConfigureAwait(false);
+        }
 
         /// <summary>
         /// Quickly disposes the current document. Cancels search, releases
@@ -829,13 +812,6 @@ namespace Finn.ViewModels
             }
         }
 
-        [Obsolete("Use SetFileAsync instead")]
-        public async void SetFile(string? search = null)
-        {
-            try { await SetFileAsync(search).ConfigureAwait(false); }
-            catch (Exception ex) { logger?.LogError(ex, "Error in legacy SetFile"); }
-        }
-
         public async Task SetFile2Async(FileData file, CancellationToken cancellationToken = default)
         {
             if (disposed || file.Sökväg == null) return;
@@ -963,7 +939,7 @@ namespace Finn.ViewModels
                     {
                         try
                         {
-                            if (secondaryRenderer == null || MainPreviewFile == null)
+                            if (MainPreviewFile == null)
                                 return;
 
                             requestPage2 = requestPage1 + 1;
@@ -1054,14 +1030,20 @@ namespace Finn.ViewModels
                 if (!DualFileMode)
                     requestPage2 = requestPage1 + 1;
 
-                await SetMainPageAsync().ConfigureAwait(false);
+                // In DualFileMode the main document hasn't changed — only the layout
+                // split. Contain() handles the resize, so skip the redundant re-render.
+                if (!DualFileMode)
+                    await SetMainPageAsync().ConfigureAwait(false);
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     mainRenderer?.Contain();
                     if (TwopageMode)
                     {
-                        _ = SetSecondaryPageAsync();
+                        // In DualFileMode the caller (SetFile2Async) renders the secondary page directly,
+                        // so skip the redundant render here to avoid a wasted Initialize call.
+                        if (!DualFileMode)
+                            _ = SetSecondaryPageAsync();
                         secondaryRenderer?.Contain();
                     }
                     if (!LinkedPageMode && !DualFileMode)
@@ -1113,7 +1095,6 @@ namespace Finn.ViewModels
             if (TwopageMode && !DualFileMode && secondaryRenderer != null) secondaryRenderer.IsVisible = isVisible;
         }
 
-        public async void ToggleDualView() => await ToggleDualViewAsync().ConfigureAwait(false);
         #endregion
 
         #region Page Rendering
@@ -1227,6 +1208,8 @@ namespace Finn.ViewModels
             var doc = MainPreviewFile;
             if (doc == null || disposed) return;
 
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            searchDone = tcs;
             try
             {
                 SearchBusy = true;
@@ -1308,6 +1291,9 @@ namespace Finn.ViewModels
             finally
             {
                 SearchBusy = false;
+                tcs.TrySetResult();
+                if (SearchItems > 0)
+                    _ = SetMainPageAsync();
             }
         }
 
@@ -1354,9 +1340,10 @@ namespace Finn.ViewModels
             if (!SearchBusy) return;
             try
             {
+                var done = searchDone;
                 await searchCts.CancelAsync().ConfigureAwait(false);
-                while (SearchBusy)
-                    await Task.Delay(POLLING_DELAY).ConfigureAwait(false);
+                if (done != null)
+                    await done.Task.ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1372,18 +1359,6 @@ namespace Finn.ViewModels
             SearchPagesText.Clear();
             SearchPages.Clear();
         }
-
-        [Obsolete("Use SearchAsync instead")]
-        public void Search(string text)
-        {
-            _ = Task.Run(async () =>
-            {
-                try { await SearchAsync(text).ConfigureAwait(false); }
-                catch (Exception ex) { logger?.LogError(ex, "Error in legacy Search"); }
-            });
-        }
-
-        public async Task StopSearch() => await StopSearchAsync().ConfigureAwait(false);
         #endregion
 
         #region Clipboard Operations
@@ -1444,8 +1419,6 @@ namespace Finn.ViewModels
             await SafeDisposeAsync().ConfigureAwait(false);
         }
 
-        public async Task SafeDispose() => await SafeDisposeAsync().ConfigureAwait(false);
-        public async Task CloseRenderer() => await CloseRendererAsync().ConfigureAwait(false);
         #endregion
 
         /// <summary>

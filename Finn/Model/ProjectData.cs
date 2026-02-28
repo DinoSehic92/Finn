@@ -143,7 +143,7 @@ namespace Finn.Model
 
         public bool[] MetaCheckDefault = { true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false };
 
-        public List<string> AllowedTypes
+        public List<string>? AllowedTypes
         {
             get
             {
@@ -160,7 +160,7 @@ namespace Finn.Model
                 }
                 else
                 {
-                    return new List<string>() { "Error" };
+                    return null;
                 }
             }
         }

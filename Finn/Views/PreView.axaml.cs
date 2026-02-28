@@ -64,10 +64,10 @@ public partial class PreView : UserControl
         ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
     }
 
-    private void OnSeachRegex(object sender, RoutedEventArgs e)
+    private async void OnSeachRegex(object sender, RoutedEventArgs e)
     {
         string text = SearchRegex.Text;
-        pwr.Search(text);
+        await pwr.SearchAsync(text);
     }
 
     private void SetSearchFocus()
@@ -76,11 +76,11 @@ public partial class PreView : UserControl
         SearchRegex.Focus();
     }
 
-    private void OnClearSearch(object sender, RoutedEventArgs e)
+    private async void OnClearSearch(object sender, RoutedEventArgs e)
     {
         if (pwr.SearchBusy)
         {
-            pwr.StopSearch();
+            await pwr.StopSearchAsync();
         }
         else
         {

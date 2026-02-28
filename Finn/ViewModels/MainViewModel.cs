@@ -773,7 +773,7 @@ namespace Finn.ViewModels
 
             public void ClearIndexedContent()
             {
-                string indexPath = $"{SavePath}\\IndexedContent.json";
+                string indexPath = Path.Combine(SavePath, "Content.json");
 
                 foreach (FileData file in CurrentFiles)
                 {
@@ -1096,6 +1096,7 @@ namespace Finn.ViewModels
                 SetDefaultSelection();
                 GetGroups();
                 SyncPreviewRegionColor();
+                SyncPlainText();
             }
 
             public async Task SaveFile(Avalonia.Visual window)
@@ -1447,7 +1448,7 @@ namespace Finn.ViewModels
 
             public void SearchIndex()
             {
-                string indexPath = $"{SavePath}//IndexedContent.json";
+                string indexPath = Path.Combine(SavePath, "Content.json");
 
                 if (TextContent == null)
                 {
