@@ -1114,6 +1114,7 @@ namespace Finn.ViewModels
                     {
                         if (MainPreviewFile != null && mainRenderer != null)
                         {
+                            mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile, 1, RequestPage1, ZOOM_LEVEL);
                             mainRenderer.IsVisible = true;
                             SetSearchResults();
@@ -1155,6 +1156,7 @@ namespace Finn.ViewModels
                         var doc = DualFileMode ? secondaryFile : MainPreviewFile;
                         if (doc != null && secondaryRenderer != null)
                         {
+                            secondaryRenderer.ReleaseResources();
                             secondaryRenderer.Initialize(doc, 1, RequestPage2, ZOOM_LEVEL);
                             secondaryRenderer.IsVisible = true;
                             if (!DualFileMode) SetSecondarySearchResults();

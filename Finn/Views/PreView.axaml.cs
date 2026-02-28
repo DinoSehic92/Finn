@@ -25,6 +25,7 @@ public partial class PreView : UserControl
     public PreviewViewModel pwr = null;
     public RotateTransform rotation = new RotateTransform(0);
     private bool ZoomMode = false;
+    private bool _rendererPointerDown = false;
 
     public void InitSetup(object sender, RoutedEventArgs e)
     {
@@ -60,6 +61,20 @@ public partial class PreView : UserControl
 
         MuPDFRendererSecondary.ActivateLinks = false;
         MuPDFRendererSecondary.DrawLinks = false;
+
+        MuPDFRenderer.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRenderer.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
+        MuPDFRenderer.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+        MuPDFRendererSecondary.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRendererSecondary.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
+        MuPDFRendererSecondary.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+
+        MuPDFRenderer.AddHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRenderer.AddHandler(PointerReleasedEvent, OnRendererPointerReleased);
+        MuPDFRenderer.AddHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+        MuPDFRendererSecondary.AddHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRendererSecondary.AddHandler(PointerReleasedEvent, OnRendererPointerReleased);
+        MuPDFRendererSecondary.AddHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
 
         ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
     }
@@ -182,22 +197,27 @@ public partial class PreView : UserControl
         MuPDFRenderer.ZoomEnabled = ZoomMode;
         MuPDFRendererSecondary.ZoomEnabled = ZoomMode;
 
-        if (!ZoomMode && pwr.Pagecount > 0)
+        if (!ZoomMode && !_rendererPointerDown && pwr.Pagecount > 0)
         {
             if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
             {
                 Avalonia.Vector mode = e.Delta;
 
                 if (mode.Y > 0)
-                {
                     pwr.PrevPage(secondPage);
-                }
 
                 if (mode.Y < 0)
-                {
                     pwr.NextPage(secondPage);
-                }
             }
         }
     }
+
+    private void OnRendererPointerPressed(object? sender, PointerPressedEventArgs e)
+        => _rendererPointerDown = true;
+
+    private void OnRendererPointerReleased(object? sender, PointerReleasedEventArgs e)
+        => _rendererPointerDown = false;
+
+    private void OnRendererPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+        => _rendererPointerDown = false;
 }

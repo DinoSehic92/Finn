@@ -816,9 +816,6 @@
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
-						<MenuItem Header="Remove" Command="{Binding RemoveFileFromCollection}">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-						</MenuItem>
 						<MenuItem Header="View" IsVisible="{Binding PreviewVM.DualFileMode}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Eye"/></MenuItem.Icon>
 							<MenuItem Header="Left" Click="OnViewLeft">
@@ -827,6 +824,9 @@
 							<MenuItem Header="Right" Click="OnViewRight">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="PanelRight"/></MenuItem.Icon>
 							</MenuItem>
+						</MenuItem>
+						<MenuItem Header="Remove" Command="{Binding RemoveFileFromCollection}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 						</MenuItem>
 					</ContextMenu>
 				</DataGrid.ContextMenu>
