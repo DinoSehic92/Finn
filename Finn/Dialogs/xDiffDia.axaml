@@ -1,0 +1,91 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        MinWidth="800" MinHeight="500"
+        Width="1200" Height="800"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialog.xDiffDia"
+        Title="PDF Compare"
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        CanResize="True"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        x:DataType="vm:DiffViewModel">
+
+    <Grid RowDefinitions="30,Auto,*">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" Margin="10,4,10,4">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <ic:SymbolIcon Symbol="Document" FontSize="16"/>
+                <TextBlock Text="{Binding FileNameA}" FontSize="13" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="&#x2194;" FontSize="14" Opacity="0.5"/>
+                <ic:SymbolIcon Symbol="Document" FontSize="16"/>
+                <TextBlock Text="{Binding FileNameB}" FontSize="13" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Width="30" Height="30" Command="{Binding PreviousPage}" ToolTip.Tip="Previous Page">
+                    <ic:SymbolIcon Symbol="ChevronLeft" FontSize="16"/>
+                </Button>
+                <TextBlock Text="{Binding PageDisplay}" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" MinWidth="60" TextAlignment="Center"/>
+                <Button Width="30" Height="30" Command="{Binding NextPage}" ToolTip.Tip="Next Page">
+                    <ic:SymbolIcon Symbol="ChevronRight" FontSize="16"/>
+                </Button>
+                <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,4" Opacity="0.5"/>
+                <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" FontSize="13" FontStyle="Italic" Opacity="0.6"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <ToggleButton Name="SideBySideBtn" ToolTip.Tip="Side by Side" Height="30" Width="35" Padding="0" IsChecked="True" Click="OnSideBySide">
+                    <ic:SymbolIcon Symbol="SplitHorizontal" FontSize="16"/>
+                </ToggleButton>
+                <ToggleButton Name="OverlayBtn" ToolTip.Tip="Overlay" Height="30" Width="35" Padding="0" Click="OnOverlay">
+                    <ic:SymbolIcon Symbol="Layer" FontSize="16"/>
+                </ToggleButton>
+                <ToggleButton Name="DiffOnlyBtn" ToolTip.Tip="Diff Only" Height="30" Width="35" Padding="0" Click="OnDiffOnly">
+                    <ic:SymbolIcon Symbol="DocumentSearch" FontSize="16"/>
+                </ToggleButton>
+                <Slider Name="OpacitySlider" Width="100" Minimum="0" Maximum="1" Value="{Binding OverlayOpacity}"
+                        IsVisible="{Binding IsOverlay}" VerticalAlignment="Center" ToolTip.Tip="Overlay Opacity"/>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="5">
+            <StackPanel IsVisible="{Binding IsBusy}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                <ic:SymbolIcon Symbol="ArrowSync" FontSize="28" Opacity="0.6"/>
+                <ProgressBar Width="300" Value="{Binding Progress}" Minimum="0" Maximum="100" Height="6" CornerRadius="3"/>
+                <TextBlock Text="{Binding Summary}" HorizontalAlignment="Center" FontStyle="Italic" Opacity="0.6"/>
+            </StackPanel>
+
+            <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding IsSideBySide}">
+                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding FileNameA}" HorizontalAlignment="Center" FontSize="12" FontStyle="Italic" Opacity="0.5" Margin="0,2"/>
+                        <Image Source="{Binding CurrentOriginal}" Stretch="Uniform"/>
+                    </StackPanel>
+                </ScrollViewer>
+                <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
+                <ScrollViewer Grid.Column="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding FileNameB}" HorizontalAlignment="Center" FontSize="12" FontStyle="Italic" Opacity="0.5" Margin="0,2"/>
+                        <Image Source="{Binding CurrentRevised}" Stretch="Uniform"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <ScrollViewer IsVisible="{Binding IsOverlay}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <Panel>
+                    <Image Source="{Binding CurrentOriginal}" Stretch="Uniform"/>
+                    <Image Source="{Binding CurrentRevised}" Stretch="Uniform" Opacity="{Binding OverlayOpacity}"/>
+                </Panel>
+            </ScrollViewer>
+
+            <ScrollViewer IsVisible="{Binding IsDiffOnly}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <Image Source="{Binding CurrentDiff}" Stretch="Uniform"/>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

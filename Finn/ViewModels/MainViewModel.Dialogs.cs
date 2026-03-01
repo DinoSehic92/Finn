@@ -177,5 +177,34 @@ namespace Finn.ViewModels
                 ConfigureWindow(window, mainWindow);
                 window.ShowDialog(mainWindow);
             }
+
+            public async Task OpenDiffDia(Window mainWindow)
+            {
+                if (CurrentFiles == null || CurrentFiles.Count != 2
+                    || !CurrentFiles[0].IsValidPdf() || !CurrentFiles[1].IsValidPdf())
+                {
+                    var msg = new xMessageDia();
+                    ConfigureWindow(msg, mainWindow);
+                    msg.SetMessage("Select exactly 2 PDF files to compare.");
+                    await msg.ShowDialog(mainWindow);
+                    return;
+                }
+
+                var vm = new DiffViewModel
+                {
+                    FileNameA = CurrentFiles[0].Namn,
+                    FileNameB = CurrentFiles[1].Namn,
+                    FilePathA = CurrentFiles[0].Sökväg,
+                    FilePathB = CurrentFiles[1].Sökväg
+                };
+
+                var window = new xDiffDia
+                {
+                    DataContext = vm,
+                    FontFamily = mainWindow.FontFamily,
+                    RequestedThemeVariant = mainWindow.ActualThemeVariant
+                };
+                await window.ShowDialog(mainWindow);
+            }
         }
     }

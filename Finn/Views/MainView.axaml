@@ -488,8 +488,11 @@
 								</MenuItem>
 							</MenuItem>
 							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
-							</MenuItem>
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Compare" Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
+								</MenuItem>
                             <MenuItem Header="Watermark">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
