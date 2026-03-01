@@ -531,7 +531,7 @@
 						  LoadingRow="DataGrid_OnLoadingRow">
 					<DataGrid.Columns>
 						<DataGridTextColumn Binding="{Binding Namn}"			   Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding UI.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding UI.FontSize}" IsVisible="False"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>
@@ -574,7 +574,7 @@
 						</DataGridTemplateColumn>
 						<DataGridTextColumn Binding="{Binding Name}"       Header="Attached Files" Width="3*"  MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 						<DataGridTextColumn Binding="{Binding Type}"       Header="Type"           Width="80"  MinWidth="80"  FontSize="{Binding UI.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder"         Width="1.2*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
+						<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder"         Width="1.2*" MinWidth="120" FontSize="{Binding UI.FontSize}" IsVisible="False"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>

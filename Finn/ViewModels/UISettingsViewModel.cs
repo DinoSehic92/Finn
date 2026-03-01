@@ -22,7 +22,7 @@ namespace Finn.ViewModels
             public const double DefaultCornerRadius = 10.0;
             public const bool DefaultCornerRadiusVal = true;
             public const bool DefaultShadowVal = false;
-            public const bool DefaultShowBorders = true;
+            public const bool DefaultShowBorders = false;
             public const bool DefaultDarkMode = true;
         }
 
