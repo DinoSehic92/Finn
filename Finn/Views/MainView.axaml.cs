@@ -53,6 +53,9 @@ public partial class MainView : UserControl
 
         BookmarkGrid.AddHandler(DataGrid.SelectionChangedEvent, BookmarkSelected);
 
+        VersionsGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenVersion);
+        VersionsGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectVersion);
+
         InitMetaworker();
     }
 
@@ -791,6 +794,46 @@ public partial class MainView : UserControl
     {
         if (BookmarkGrid.SelectedItem is PageData page)
             _ctx.RemoveBookmark(page);
+    }
+
+    #endregion
+
+    #region Versions
+
+    private async void SelectVersion(object? sender, RoutedEventArgs e)
+    {
+        if (VersionsGrid.SelectedItem is not FileVersionData version) return;
+        string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
+        await _ctx.PreviewVersionAsync(version, searchText);
+    }
+
+    private async void OnAddVersion(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        var files = await topLevel!.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Add Version",
+            AllowMultiple = false
+        });
+        if (files.Count == 1)
+            _ctx.CurrentFile.AddVersion(files[0].Path.LocalPath);
+    }
+
+    private void OnRemoveVersion(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not Finn.Model.FileVersionData version) return;
+        _ctx.CurrentFile.Versions.Remove(version);
+    }
+
+    private void OnOpenVersion(object? sender, RoutedEventArgs e)
+    {
+        if (VersionsGrid.SelectedItem is not Finn.Model.FileVersionData version) return;
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = version.Sökväg, UseShellExecute = true });
+        }
+        catch (Exception ex) { Debug.WriteLine(ex); }
     }
 
     #endregion

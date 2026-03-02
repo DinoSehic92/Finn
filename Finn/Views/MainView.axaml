@@ -900,18 +900,46 @@
 							IsVisible="{Binding DiffFileB, Converter={x:Static ObjectConverters.IsNotNull}}">
 						<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
 					</Button>
-					<Button Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Height="28"
-							Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}"
-							IsEnabled="{Binding DiffReady}">
-						<StackPanel Orientation="Horizontal" Spacing="6">
-							<ic:SymbolIcon Symbol="DocumentSearch" FontSize="14"/>
-							<TextBlock Text="Compare" VerticalAlignment="Center" FontSize="13"/>
-						</StackPanel>
-					</Button>
-				</Grid>
-			</Border>
-		</Grid>
-		</Grid>
+							<Button Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Height="28"
+										Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}"
+										IsEnabled="{Binding DiffReady}">
+									<StackPanel Orientation="Horizontal" Spacing="6">
+										<ic:SymbolIcon Symbol="DocumentSearch" FontSize="14"/>
+										<TextBlock Text="Compare" VerticalAlignment="Center" FontSize="13"/>
+									</StackPanel>
+								</Button>
+							</Grid>
+						</Border>
+
+						<!-- File versions panel -->
+						<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="40,*">
+							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
+								<Button Width="30" Click="OnAddVersion"    ToolTip.Tip="Add Version">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+								<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+							</StackPanel>
+							<DataGrid Grid.Row="1" Name="VersionsGrid"
+									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
+									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+									  LoadingRow="DataGrid_OnLoadingRow">
+								<DataGrid.Columns>
+									<DataGridTextColumn Binding="{Binding Label}"     Header="Ver"           Width="45" FontSize="{Binding UI.FontSize}"/>
+									<DataGridTextColumn Binding="{Binding ShortName}" Header="File Versions" Width="*"  FontSize="{Binding UI.FontSize}"/>
+									<DataGridTextColumn Binding="{Binding AddedDate}" Header="Date"          Width="90" FontSize="{Binding UI.FontSize}"/>
+								</DataGrid.Columns>
+								<DataGrid.ContextMenu>
+									<ContextMenu>
+										<MenuItem Header="Open" Click="OnOpenVersion">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Remove" Click="OnRemoveVersion">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+										</MenuItem>
+									</ContextMenu>
+								</DataGrid.ContextMenu>
+							</DataGrid>
+						</Grid>
+					</Grid>
+					</Grid>
 
 		<!-- Embedded preview -->
 		<Grid Name="PreviewArea" Grid.Column="3" Grid.Row="2" ClipToBounds="True"
