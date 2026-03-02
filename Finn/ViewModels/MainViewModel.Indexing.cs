@@ -58,16 +58,16 @@ namespace Finn.ViewModels
                     for (int i = 0; i < total; i++)
                     {
                         var file = files[i];
-                        try
+                        foreach (var path in file.AllPdfPaths())
                         {
-                            if (file.IsValidPdf())
+                            try
                             {
-                                byte[] bytes = System.IO.File.ReadAllBytes(file.Sökväg);
+                                byte[] bytes = System.IO.File.ReadAllBytes(path);
                                 using var fileDocument = new MuPDFDocument(new MuPDFContext(1), bytes, InputFileTypes.PDF);
                                 var content = new ContentData
                                 {
                                     Name = file.Namn,
-                                    Filepath = file.Sökväg,
+                                    Filepath = path,
                                     PlainText = fileDocument.ExtractText()
                                 };
 
@@ -76,10 +76,10 @@ namespace Finn.ViewModels
                                     results.Add(content);
                                 }
                             }
-                        }
-                        catch (Exception)
-                        {
-                            // Ignore individual failures and continue indexing other files
+                            catch (Exception)
+                            {
+                                // Ignore individual failures and continue indexing other files
+                            }
                         }
 
                         int percent = (i + 1) * 100 / Math.Max(1, total);
@@ -107,13 +107,13 @@ namespace Finn.ViewModels
                     TextContent.Remove(empty);
                 }
 
-                // Sync HasPlainText for every file: true only if content was actually extracted
+                // Sync HasPlainText for every file: true if content was extracted for any version
                 foreach (ProjectData project in Storage.StoredProjects)
                 {
                     foreach (FileData file in project.StoredFiles)
                     {
-
-                        file.HasPlainText = TextContent.Any(x => x.Filepath == file.Sökväg);
+                        var paths = file.AllPdfPaths();
+                        file.HasPlainText = TextContent.Any(x => paths.Contains(x.Filepath));
                     }
                 }
 
@@ -128,13 +128,16 @@ namespace Finn.ViewModels
                 {
                     file.HasPlainText = false;
 
-                    if (TextContent?.Any(x => x.Filepath == file.Sökväg) == true)
+                    var paths = file.AllPdfPaths();
+                    var toRemove = TextContent?.Where(x => paths.Contains(x.Filepath)).ToList();
+                    if (toRemove != null)
                     {
-                        ContentData contentToRemove = TextContent.FirstOrDefault(x => x.Filepath == file.Sökväg);
-                        TextContent.Remove(contentToRemove);
-                        SaveIndexFile(indexPath);
+                        foreach (var content in toRemove)
+                            TextContent.Remove(content);
                     }
                 }
+
+                SaveIndexFile(indexPath);
             }
 
             private void LoadIndexFile(string indexPath)
@@ -154,7 +157,8 @@ namespace Finn.ViewModels
                 {
                     foreach (FileData file in project.StoredFiles)
                     {
-                        file.HasPlainText = indexedFiles.Contains(file.Sökväg);
+                        var paths = file.AllPdfPaths();
+                        file.HasPlainText = paths.Any(p => indexedFiles.Contains(p));
                     }
                 }
             }

@@ -64,6 +64,7 @@ namespace Finn.ViewModels
         public async Task PreviewVersionAsync(FileVersionData version, string? searchText = null)
         {
             if (version == null) return;
+            SelectedVersion = version;
             var stub = new FileData { Sökväg = version.Sökväg, Namn = version.ShortName };
             await RequestPreviewAsync(stub, searchText);
         }

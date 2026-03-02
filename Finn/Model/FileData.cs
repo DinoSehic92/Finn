@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -51,7 +52,41 @@ namespace Finn.Model
 
         private void Versions_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
+            if (e.OldItems != null)
+            {
+                foreach (FileVersionData item in e.OldItems)
+                    item.PropertyChanged -= Version_PropertyChanged;
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (FileVersionData item in e.NewItems)
+                    item.PropertyChanged += Version_PropertyChanged;
+            }
+
+            // If the active version was removed, fall back to the last remaining version
+            // or clear CurrentVersion when no versions are left.
+            if (!string.IsNullOrEmpty(_currentVersion)
+                && !_versions.Any(v => v.Label == _currentVersion))
+            {
+                CurrentVersion = _versions.Count > 0
+                    ? _versions[^1].Label
+                    : string.Empty;
+            }
+
             OnPropertyChanged(nameof(HasVersions));
+        }
+
+        private void Version_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(FileVersionData.Label)
+                && sender is FileVersionData version
+                && !string.IsNullOrEmpty(_currentVersion)
+                && !_versions.Any(v => v.Label == _currentVersion))
+            {
+                // The current version was renamed — follow the new label.
+                CurrentVersion = version.Label;
+            }
         }
         #endregion
 
@@ -85,6 +120,7 @@ namespace Finn.Model
         private string _thumbnailSource = string.Empty;
         private bool _hasPlainText;
         private ObservableCollection<FileVersionData> _versions = new();
+        private string _currentVersion = string.Empty;
 
         #endregion
 
@@ -351,10 +387,16 @@ namespace Finn.Model
                     return;
 
                 if (_versions != null)
+                {
                     _versions.CollectionChanged -= Versions_CollectionChanged;
+                    foreach (var item in _versions)
+                        item.PropertyChanged -= Version_PropertyChanged;
+                }
 
                 _versions = value ?? new ObservableCollection<FileVersionData>();
                 _versions.CollectionChanged += Versions_CollectionChanged;
+                foreach (var item in _versions)
+                    item.PropertyChanged += Version_PropertyChanged;
 
                 OnPropertyChanged(nameof(Versions));
                 OnPropertyChanged(nameof(HasVersions));
@@ -362,14 +404,76 @@ namespace Finn.Model
         }
 
         public bool HasVersions => _versions.Count > 0;
+
+        public string CurrentVersion
+        {
+            get => _currentVersion;
+            set
+            {
+                if (SetProperty(ref _currentVersion, value) && !string.IsNullOrEmpty(value))
+                {
+                    var version = _versions.FirstOrDefault(v => v.Label == value);
+                    if (version != null)
+                        Sökväg = version.Sökväg;
+                }
+            }
+        }
         #endregion
 
         #region Methods
+        /// <summary>
+        /// Removes a version entry. When only one version remains after the
+        /// removal, version tracking is cleared entirely so the file behaves
+        /// as a default file.
+        /// </summary>
+        public void RemoveVersion(FileVersionData version)
+        {
+            _versions.Remove(version);
+
+            if (_versions.Count == 1)
+            {
+                var last = _versions[0];
+                last.PropertyChanged -= Version_PropertyChanged;
+                _currentVersion = string.Empty;
+
+                _versions.CollectionChanged -= Versions_CollectionChanged;
+                _versions.Clear();
+                _versions.CollectionChanged += Versions_CollectionChanged;
+
+                OnPropertyChanged(nameof(CurrentVersion));
+                OnPropertyChanged(nameof(HasVersions));
+            }
+        }
+
         public bool IsValidPdf()
         {
             return !string.IsNullOrEmpty(_sökväg)
                 && _sökväg.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase)
                 && File.Exists(_sökväg);
+        }
+
+        /// <summary>
+        /// Returns all unique PDF paths for this file, including every version.
+        /// When no versions exist the current Sökväg is returned if it is a valid PDF.
+        /// </summary>
+        public List<string> AllPdfPaths()
+        {
+            var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var v in _versions)
+            {
+                if (!string.IsNullOrEmpty(v.Sökväg)
+                    && v.Sökväg.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase)
+                    && File.Exists(v.Sökväg))
+                {
+                    paths.Add(v.Sökväg);
+                }
+            }
+
+            if (paths.Count == 0 && IsValidPdf())
+                paths.Add(_sökväg);
+
+            return paths.ToList();
         }
 
         public void RemoveThumbnail()
@@ -397,24 +501,25 @@ namespace Finn.Model
 
         /// <summary>
         /// Registers a new version path for this file. On the first call the existing
-        /// Sökväg is also recorded as v1 so the history is complete.
+        /// Sökväg is also recorded as the original so the history is complete.
         /// </summary>
-        public void AddVersion(string filepath)
+        public void AddVersion(string filepath, string label)
         {
             if (_versions.Count == 0)
             {
                 _versions.Add(new FileVersionData
                 {
                     Sökväg = _sökväg,
-                    Label = "v1",
+                    Label = "Original",
                     AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
                 });
+                CurrentVersion = "Original";
             }
 
             _versions.Add(new FileVersionData
             {
                 Sökväg = filepath,
-                Label = $"v{_versions.Count + 1}",
+                Label = label,
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
         }

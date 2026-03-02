@@ -21,7 +21,12 @@ namespace Finn.Model
         public string Label
         {
             get => _label;
-            set { _label = value; OnPropertyChanged(nameof(Label)); }
+            set
+            {
+                if (_label == value) return;
+                _label = value;
+                OnPropertyChanged(nameof(Label));
+            }
         }
 
         public string AddedDate

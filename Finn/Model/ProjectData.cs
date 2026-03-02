@@ -75,6 +75,7 @@ namespace Finn.Model
         private bool meta_14 = false;
         private bool meta_15 = false;
         private bool meta_16 = false;
+        private bool meta_17 = false;
 
         /// <summary>
         /// Gets or sets Meta_1 property.
@@ -140,8 +141,12 @@ namespace Finn.Model
         /// Gets or sets Meta_16 property.
         /// </summary>
         public bool Meta_16 { get { return meta_16; } set { meta_16 = value; RaisePropertyChanged(nameof(Meta_16)); } }
+        /// <summary>
+        /// Gets or sets Meta_17 property (Version column).
+        /// </summary>
+        public bool Meta_17 { get { return meta_17; } set { meta_17 = value; RaisePropertyChanged(nameof(Meta_17)); } }
 
-        public bool[] MetaCheckDefault = { true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false };
+        public bool[] MetaCheckDefault = { true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false };
 
         public List<string>? AllowedTypes
         {
@@ -167,6 +172,9 @@ namespace Finn.Model
 
         public void SetDefaultMeta()
         {
+            if (MetaCheckDefault.Length < 17)
+                MetaCheckDefault = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false];
+
             Meta_1 = MetaCheckDefault[0];
             Meta_2 = MetaCheckDefault[1];
             Meta_3 = MetaCheckDefault[2];
@@ -183,6 +191,7 @@ namespace Finn.Model
             Meta_14 = MetaCheckDefault[13];
             Meta_15 = MetaCheckDefault[14];
             Meta_16 = MetaCheckDefault[15];
+            Meta_17 = MetaCheckDefault[16];
         }
 
         public void Newfile(string filepath, string type="New", bool fromFolder = false, string? syncFolder = null)
@@ -194,7 +203,7 @@ namespace Finn.Model
             var existing = StoredFiles.FirstOrDefault(x => x.Namn == fileName);
             if (existing != null)
             {
-                existing.AddVersion(filepath);
+                existing.AddVersion(filepath, "New Version");
                 return;
             }
 

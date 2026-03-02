@@ -323,6 +323,7 @@ public partial class MainView : UserControl
     {
         if (_isUpdatingSelection) return;
         ClearOtherGridSelections(FileGrid);
+        _ctx.ClearSelectedVersion();
         var file = FileGrid.SelectedItem as FileData;
         RequestPreview(file);
         _pwr.AddRecentFile(file);
@@ -807,23 +808,15 @@ public partial class MainView : UserControl
         await _ctx.PreviewVersionAsync(version, searchText);
     }
 
-    private async void OnAddVersion(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFile == null) return;
-        var topLevel = TopLevel.GetTopLevel(this);
-        var files = await topLevel!.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
-        {
-            Title = "Add Version",
-            AllowMultiple = false
-        });
-        if (files.Count == 1)
-            _ctx.CurrentFile.AddVersion(files[0].Path.LocalPath);
-    }
-
-    private void OnRemoveVersion(object? sender, RoutedEventArgs e)
+    private async void OnRemoveVersion(object? sender, RoutedEventArgs e)
     {
         if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not Finn.Model.FileVersionData version) return;
-        _ctx.CurrentFile.Versions.Remove(version);
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.ConfirmDeleteDia(window);
+
+        if (_ctx.Confirmed)
+            _ctx.CurrentFile.RemoveVersion(version);
     }
 
     private void OnOpenVersion(object? sender, RoutedEventArgs e)
@@ -834,6 +827,32 @@ public partial class MainView : UserControl
             Process.Start(new ProcessStartInfo { FileName = version.Sökväg, UseShellExecute = true });
         }
         catch (Exception ex) { Debug.WriteLine(ex); }
+    }
+
+    private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
+    {
+        if (e.Source is MenuItem { DataContext: Finn.Model.FileVersionData version } && _ctx.CurrentFile != null)
+            _ctx.CurrentFile.CurrentVersion = version.Label;
+    }
+
+    private void OnSetFirstVersion(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFiles == null) return;
+        foreach (var file in _ctx.CurrentFiles)
+        {
+            if (file.Versions.Count > 0)
+                file.CurrentVersion = file.Versions[0].Label;
+        }
+    }
+
+    private void OnSetLastVersion(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFiles == null) return;
+        foreach (var file in _ctx.CurrentFiles)
+        {
+            if (file.Versions.Count > 0)
+                file.CurrentVersion = file.Versions[^1].Label;
+        }
     }
 
     #endregion

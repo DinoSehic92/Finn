@@ -188,6 +188,7 @@ namespace Finn.ViewModels
                 set
                 {
                     currentFiles = value;
+                    ClearSelectedVersion();
                     OnPropertyChanged("FiletypesTree");
                     OnPropertyChanged(nameof(CurrentFiles));
                     OnPropertyChanged(nameof(CurrentFile));
@@ -198,6 +199,58 @@ namespace Finn.ViewModels
 
             public FileData CurrentFile => CurrentFiles?.LastOrDefault();
             public bool FileSelected => CurrentFile != null;
+
+            private FileVersionData? selectedVersion;
+            /// <summary>
+            /// The version currently being previewed, or null when viewing the main file.
+            /// </summary>
+            public FileVersionData? SelectedVersion
+            {
+                get => selectedVersion;
+                set
+                {
+                    if (selectedVersion == value) return;
+                    selectedVersion = value;
+                    OnPropertyChanged(nameof(SelectedVersion));
+                    OnPropertyChanged(nameof(IsViewingVersion));
+                    if (value != null)
+                        SelectedVersionLabel = value.Label;
+                }
+            }
+
+            /// <summary>
+            /// True when a specific version is selected for preview.
+            /// </summary>
+            public bool IsViewingVersion => selectedVersion != null;
+
+            public void ClearSelectedVersion()
+            {
+                SelectedVersion = null;
+            }
+
+            /// <summary>
+            /// Predefined revision labels available for version tagging.
+            /// </summary>
+            public static IReadOnlyList<string> VersionLabels { get; } =
+                new[] {"Orginal", "Mottagningskontroll 1", "Mottagningskontroll 2", "Mottagningskontroll 3", "Bygghandling", "Rev A", "Rev B", "Rev C", "Rev D", "Rev E", "Relation"};
+
+            private string _selectedVersionLabel = "Rev A";
+            /// <summary>
+            /// The label currently shown in the version ComboBox.
+            /// When a version is selected, changing this also updates that version's label.
+            /// </summary>
+            public string SelectedVersionLabel
+            {
+                get => _selectedVersionLabel;
+                set
+                {
+                    if (_selectedVersionLabel == value) return;
+                    _selectedVersionLabel = value;
+                    OnPropertyChanged(nameof(SelectedVersionLabel));
+                    if (selectedVersion != null && !string.IsNullOrEmpty(value))
+                        selectedVersion.Label = value;
+                }
+            }
 
             private bool previewWindowOpen = false;
             public bool PreviewWindowOpen

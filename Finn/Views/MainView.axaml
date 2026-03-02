@@ -174,6 +174,7 @@
 			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6">
 				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="13" Opacity="0.7"/>
 				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
+				<TextBlock Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
 			</StackPanel>
 		</StackPanel>
 
@@ -192,6 +193,7 @@
 								<CheckBox Content="Name"          Height="28" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/>
 								<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
 								<CheckBox Content="Uppdrag"       Height="28" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/>
+								<CheckBox Content="Version"       Height="28" IsChecked="{Binding CurrentProject.Meta_17, Mode=TwoWay}"/>
 								<CheckBox Content="Tagg"          Height="28" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/>
 								<CheckBox Content="Färg"          Height="28" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/>
 								<CheckBox Content="Handling"      Height="28" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/>
@@ -332,6 +334,7 @@
 					<DataGridTextColumn Binding="{Binding Namn}"			  Header="Namn"			 Width="Auto" MinWidth="120"												 FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding CurrentVersion}"     Header="Version"       Width="Auto" MinWidth="80"  IsVisible="{Binding CurrentProject.Meta_17}"    FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Tagg}"              Header="Tagg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_5}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Färg}"              Header="Färg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_6}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Handling}"          Header="Handling"      Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_7}"     FontSize="{Binding UI.FontSize}"/>
@@ -428,6 +431,25 @@
 							</MenuItem>
 							<MenuItem Header="Clear" Click="OnClearFiles">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TagDismiss"/></MenuItem.Icon>
+							</MenuItem>
+						</MenuItem>
+
+						<MenuItem Header="Version">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
+							<MenuItem Header="First" Click="OnSetFirstVersion">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Last" Click="OnSetLastVersion">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+							</MenuItem>
+							<Separator/>
+							<MenuItem Header="Select" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+								<MenuItem.ItemTemplate>
+									<DataTemplate>
+										<TextBlock Text="{Binding Label}"/>
+									</DataTemplate>
+								</MenuItem.ItemTemplate>
 							</MenuItem>
 						</MenuItem>
 
@@ -914,7 +936,9 @@
 						<!-- File versions panel -->
 						<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="40,*">
 							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
-								<Button Width="30" Click="OnAddVersion"    ToolTip.Tip="Add Version">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+								<Border Classes="shadow">
+									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" Width="160" Height="30"/>
+								</Border>
 								<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 							</StackPanel>
 							<DataGrid Grid.Row="1" Name="VersionsGrid"
@@ -922,9 +946,7 @@
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 									  LoadingRow="DataGrid_OnLoadingRow">
 								<DataGrid.Columns>
-									<DataGridTextColumn Binding="{Binding Label}"     Header="Ver"           Width="45" FontSize="{Binding UI.FontSize}"/>
-									<DataGridTextColumn Binding="{Binding ShortName}" Header="File Versions" Width="*"  FontSize="{Binding UI.FontSize}"/>
-									<DataGridTextColumn Binding="{Binding AddedDate}" Header="Date"          Width="90" FontSize="{Binding UI.FontSize}"/>
+									<DataGridTextColumn Binding="{Binding Label}" Header="Versions" Width="*" FontSize="{Binding UI.FontSize}"/>
 								</DataGrid.Columns>
 								<DataGrid.ContextMenu>
 									<ContextMenu>
