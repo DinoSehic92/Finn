@@ -213,13 +213,14 @@
 				</Button>
 			</Border>
 
-				<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding UI.TrayViewOpen}">
-				<ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"       IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections"    IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"       IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding UI.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"          IconVariant="Regular" FontSize="15"/></ToggleButton>
-				<ToggleButton IsChecked="{Binding UI.TrayDiff}"        Height="30" Width="30" Padding="0" ToolTip.Tip="PDF Compare"><ic:SymbolIcon Symbol="DocumentSearch" IconVariant="Regular" FontSize="15"/></ToggleButton>
-			</StackPanel>
+					<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding UI.TrayViewOpen}">
+					<ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+					<ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections"    IconVariant="Regular" FontSize="15"/></ToggleButton>
+					<ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+					<ToggleButton IsChecked="{Binding UI.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"          IconVariant="Regular" FontSize="15"/></ToggleButton>
+					<ToggleButton IsChecked="{Binding UI.TrayDiff}"        Height="30" Width="30" Padding="0" ToolTip.Tip="PDF Compare"><ic:SymbolIcon Symbol="DocumentSearch" IconVariant="Regular" FontSize="15"/></ToggleButton>
+					<ToggleButton IsChecked="{Binding UI.TrayVersions}"    Height="30" Width="30" Padding="0" ToolTip.Tip="File Versions"><ic:SymbolIcon Symbol="History"        IconVariant="Regular" FontSize="15"/></ToggleButton>
+				</StackPanel>
 		</StackPanel>
 
 		<!-- Center search bar -->
@@ -319,6 +320,7 @@
 									<ic:SymbolIcon Symbol="Image"		IsVisible="{Binding HasThumbnail}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Folder"		IsVisible="{Binding IsFromFolder}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Collections"	IsVisible="{Binding IsPartOfCollection}"	IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="History"		IsVisible="{Binding HasVersions}"			IconVariant="Regular" FontSize="14"/>
 								</StackPanel>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
@@ -789,6 +791,7 @@
 				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}}"/>
 			</Grid.RowDefinitions>
 
             <!-- File notepad (wrapped in shadow-only border) -->
