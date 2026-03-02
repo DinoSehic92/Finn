@@ -26,6 +26,8 @@ namespace Finn.Storage
         public bool TrayCollections { get; set; }
         public bool TrayBookmarks { get; set; }
         public bool TrayRecent { get; set; }
+        public bool TrayDiff { get; set; }
+        public bool TrayVersions { get; set; }
         public bool ShowIcons { get; set; }
 
         // Persisted view visibility flags

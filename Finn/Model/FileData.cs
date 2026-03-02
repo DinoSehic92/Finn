@@ -26,6 +26,7 @@ namespace Finn.Model
             _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
             _otherFiles.CollectionChanged += OtherFiles_CollectionChanged;
             _partOfCollections.CollectionChanged += PartOfCollections_CollectionChanged;
+            _versions.CollectionChanged += Versions_CollectionChanged;
         }
 
         private void FavPages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -46,6 +47,11 @@ namespace Finn.Model
         private void PartOfCollections_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             OnPropertyChanged(nameof(IsPartOfCollection));
+        }
+
+        private void Versions_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            OnPropertyChanged(nameof(HasVersions));
         }
         #endregion
 
@@ -78,6 +84,7 @@ namespace Finn.Model
         private ObservableCollection<string> _partOfCollections = new();
         private string _thumbnailSource = string.Empty;
         private bool _hasPlainText;
+        private ObservableCollection<FileVersionData> _versions = new();
 
         #endregion
 
@@ -334,6 +341,27 @@ namespace Finn.Model
             get => _hasPlainText;
             set { SetProperty(ref _hasPlainText, value); }
         }
+
+        public ObservableCollection<FileVersionData> Versions
+        {
+            get => _versions;
+            set
+            {
+                if (EqualityComparer<ObservableCollection<FileVersionData>>.Default.Equals(_versions, value))
+                    return;
+
+                if (_versions != null)
+                    _versions.CollectionChanged -= Versions_CollectionChanged;
+
+                _versions = value ?? new ObservableCollection<FileVersionData>();
+                _versions.CollectionChanged += Versions_CollectionChanged;
+
+                OnPropertyChanged(nameof(Versions));
+                OnPropertyChanged(nameof(HasVersions));
+            }
+        }
+
+        public bool HasVersions => _versions.Count > 0;
         #endregion
 
         #region Methods
@@ -365,6 +393,30 @@ namespace Finn.Model
         {
             return !string.IsNullOrEmpty(_sökväg)
                 && _sökväg.StartsWith("C:", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Registers a new version path for this file. On the first call the existing
+        /// Sökväg is also recorded as v1 so the history is complete.
+        /// </summary>
+        public void AddVersion(string filepath)
+        {
+            if (_versions.Count == 0)
+            {
+                _versions.Add(new FileVersionData
+                {
+                    Sökväg = _sökväg,
+                    Label = "v1",
+                    AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
+                });
+            }
+
+            _versions.Add(new FileVersionData
+            {
+                Sökväg = filepath,
+                Label = $"v{_versions.Count + 1}",
+                AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
+            });
         }
         #endregion
 

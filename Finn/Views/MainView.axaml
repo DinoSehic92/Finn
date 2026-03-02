@@ -213,11 +213,12 @@
 				</Button>
 			</Border>
 
-                <StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding UI.TrayViewOpen}">
-                <ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"    IconVariant="Regular" FontSize="15"/></ToggleButton>
-                <ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/></ToggleButton>
-                <ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"    IconVariant="Regular" FontSize="15"/></ToggleButton>
-                <ToggleButton IsChecked="{Binding UI.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding UI.TrayViewOpen}">
+				<ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections"    IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"       IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding UI.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"          IconVariant="Regular" FontSize="15"/></ToggleButton>
+				<ToggleButton IsChecked="{Binding UI.TrayDiff}"        Height="30" Width="30" Padding="0" ToolTip.Tip="PDF Compare"><ic:SymbolIcon Symbol="DocumentSearch" IconVariant="Regular" FontSize="15"/></ToggleButton>
 			</StackPanel>
 		</StackPanel>
 
@@ -491,8 +492,14 @@
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
 								</MenuItem>
 								<MenuItem Header="Compare" Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
-								</MenuItem>
+											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Set as Compare A" Command="{Binding SetDiffFileA}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowLeft"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Set as Compare B" Command="{Binding SetDiffFileB}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
+										</MenuItem>
                             <MenuItem Header="Watermark">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
@@ -781,6 +788,7 @@
 				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource RowDefConverter}}"/>
 				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="Auto"/>
 			</Grid.RowDefinitions>
 
             <!-- File notepad (wrapped in shadow-only border) -->
@@ -867,6 +875,38 @@
 					<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
+
+			<!-- PDF Compare panel -->
+			<Border Grid.Row="7" Classes="shadow" IsVisible="{Binding UI.TrayDiff}" Padding="6,4">
+				<Grid RowDefinitions="24,32,32,34" ColumnDefinitions="22,*,28">
+					<TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="PDF Compare"
+							   FontSize="13" FontStyle="Italic" Opacity="0.6" VerticalAlignment="Center"/>
+					<TextBlock Grid.Row="1" Grid.Column="0" Text="A:" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+					<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DiffFileAName}"
+							   VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis"/>
+					<Button Grid.Row="1" Grid.Column="2" Width="24" Height="24" Padding="0"
+							Command="{Binding ClearDiffFileA}" ToolTip.Tip="Clear A"
+							IsVisible="{Binding DiffFileA, Converter={x:Static ObjectConverters.IsNotNull}}">
+						<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
+					</Button>
+					<TextBlock Grid.Row="2" Grid.Column="0" Text="B:" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+					<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DiffFileBName}"
+							   VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis"/>
+					<Button Grid.Row="2" Grid.Column="2" Width="24" Height="24" Padding="0"
+							Command="{Binding ClearDiffFileB}" ToolTip.Tip="Clear B"
+							IsVisible="{Binding DiffFileB, Converter={x:Static ObjectConverters.IsNotNull}}">
+						<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
+					</Button>
+					<Button Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Height="28"
+							Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}"
+							IsEnabled="{Binding DiffReady}">
+						<StackPanel Orientation="Horizontal" Spacing="6">
+							<ic:SymbolIcon Symbol="DocumentSearch" FontSize="14"/>
+							<TextBlock Text="Compare" VerticalAlignment="Center" FontSize="13"/>
+						</StackPanel>
+					</Button>
+				</Grid>
+			</Border>
 		</Grid>
 		</Grid>
 

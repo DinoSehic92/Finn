@@ -187,19 +187,27 @@ namespace Finn.Model
 
         public void Newfile(string filepath, string type="New", bool fromFolder = false, string? syncFolder = null)
         {
-            if (!StoredFiles.Any(x => x.Sökväg == filepath))
+            if (StoredFiles.Any(x => x.Sökväg == filepath))
+                return;
+
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(filepath);
+            var existing = StoredFiles.FirstOrDefault(x => x.Namn == fileName);
+            if (existing != null)
             {
-                StoredFiles.Add(new FileData
-                {
-                    Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
-                    Filtyp = type,
-                    Uppdrag = Namn,
-                    IsFromFolder = fromFolder,
-                    SyncFolder = syncFolder,
-                    Sökväg = filepath
-                });
-                SetFiletypeList();
+                existing.AddVersion(filepath);
+                return;
             }
+
+            StoredFiles.Add(new FileData
+            {
+                Namn = fileName,
+                Filtyp = type,
+                Uppdrag = Namn,
+                IsFromFolder = fromFolder,
+                SyncFolder = syncFolder,
+                Sökväg = filepath
+            });
+            SetFiletypeList();
         }
 
         public void RemoveFile(FileData file)

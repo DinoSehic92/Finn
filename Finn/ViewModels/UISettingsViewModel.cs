@@ -51,6 +51,7 @@ namespace Finn.ViewModels
             TrayCollections = true;
             TrayBookmarks = true;
             TrayRecent = true;
+            TrayVersions = false;
 
             // View visibility flags persisted in UI settings
             TreeViewOpen = true;
@@ -127,6 +128,12 @@ namespace Finn.ViewModels
         private bool trayRecent;
         public bool TrayRecent { get => trayRecent; set { trayRecent = value; RaisePropertyChanged(nameof(TrayRecent)); } }
 
+        private bool trayDiff;
+        public bool TrayDiff { get => trayDiff; set { trayDiff = value; RaisePropertyChanged(nameof(TrayDiff)); } }
+
+        private bool trayVersions;
+        public bool TrayVersions { get => trayVersions; set { trayVersions = value; RaisePropertyChanged(nameof(TrayVersions)); } }
+
         private bool trayViewOpen;
         public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; RaisePropertyChanged(nameof(TrayViewOpen)); } }
 
@@ -187,6 +194,8 @@ namespace Finn.ViewModels
                 TrayCollections = this.TrayCollections,
                 TrayBookmarks = this.TrayBookmarks,
                 TrayRecent = this.TrayRecent,
+                TrayDiff = this.TrayDiff,
+                TrayVersions = this.TrayVersions,
                 ShowIcons = this.ShowIcons,
                 TreeViewOpen = this.TreeViewOpen,
                 CalendarOpen = this.CalendarOpen,
@@ -222,6 +231,8 @@ namespace Finn.ViewModels
                 this.TrayCollections = ui.TrayCollections;
                 this.TrayBookmarks = ui.TrayBookmarks;
                 this.TrayRecent = ui.TrayRecent;
+                this.TrayDiff = ui.TrayDiff;
+                this.TrayVersions = ui.TrayVersions;
                 this.ShowIcons = ui.ShowIcons;
 
                 this.TreeViewOpen = ui.TreeViewOpen;

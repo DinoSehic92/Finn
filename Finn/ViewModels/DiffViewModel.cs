@@ -23,6 +23,7 @@ namespace Finn.ViewModels
         private int currentPageIndex;
         private int viewMode; // 0 = SideBySide, 1 = Overlay, 2 = DiffOnly
         private double overlayOpacity = 0.5;
+        private int tolerance = PdfDiffService.DefaultTolerance;
         private string summary = string.Empty;
         private bool isBusy;
         private int progress;
@@ -32,6 +33,10 @@ namespace Finn.ViewModels
         private Bitmap? currentDiff;
 
         private CancellationTokenSource? cts;
+
+        private List<DiffResultData> diffPages = [];
+        private DiffResultData? selectedDiffPage;
+        private bool changePanelOpen = true;
 
         public string FileNameA
         {
@@ -66,6 +71,8 @@ namespace Finn.ViewModels
                 {
                     OnPropertyChanged(nameof(PageDisplay));
                     LoadPageImages();
+                    selectedDiffPage = diffPages.FirstOrDefault(p => p.PageIndex == value);
+                    OnPropertyChanged(nameof(SelectedDiffPage));
                 }
             }
         }
@@ -98,6 +105,34 @@ namespace Finn.ViewModels
         {
             get => overlayOpacity;
             set => SetProperty(ref overlayOpacity, value);
+        }
+
+        public int Tolerance
+        {
+            get => tolerance;
+            set => SetProperty(ref tolerance, value);
+        }
+
+        public IReadOnlyList<DiffResultData> DiffPages => diffPages;
+        public int DiffPageCount => diffPages.Count;
+
+        public bool ChangePanelOpen
+        {
+            get => changePanelOpen;
+            set => SetProperty(ref changePanelOpen, value);
+        }
+
+        public DiffResultData? SelectedDiffPage
+        {
+            get => selectedDiffPage;
+            set
+            {
+                if (selectedDiffPage == value) return;
+                selectedDiffPage = value;
+                OnPropertyChanged(nameof(SelectedDiffPage));
+                if (value != null)
+                    CurrentPageIndex = value.PageIndex;
+            }
         }
 
         public string Summary
@@ -166,7 +201,7 @@ namespace Finn.ViewModels
                 var progressReporter = new Progress<int>(p => Progress = p);
 
                 var (results, dir) = await PdfDiffService.CompareAsync(
-                    FilePathA, FilePathB, progressReporter, cts.Token);
+                    FilePathA, FilePathB, progressReporter, cts.Token, tolerance);
 
                 pageInfos = results;
                 tempDir = dir;
@@ -179,8 +214,15 @@ namespace Finn.ViewModels
                 OnPropertyChanged(nameof(TotalPages));
                 OnPropertyChanged(nameof(PageDisplay));
 
+                diffPages = [.. pageInfos.Where(r => r.HasDifferences)];
+                OnPropertyChanged(nameof(DiffPages));
+                OnPropertyChanged(nameof(DiffPageCount));
+
                 if (pageInfos.Count > 0)
+                {
+                    currentPageIndex = -1; // ensure setter detects a change when resetting to page 0
                     CurrentPageIndex = 0;
+                }
                 else
                     LoadPageImages();
             }
@@ -210,6 +252,50 @@ namespace Finn.ViewModels
                 CurrentPageIndex--;
         }
 
+        public async Task ApplyToleranceAsync()
+        {
+            if (pageInfos.Count == 0 || isBusy) return;
+
+            cts?.Cancel();
+            cts?.Dispose();
+            cts = new CancellationTokenSource();
+
+            IsBusy = true;
+            try
+            {
+                CurrentOriginal = null;
+                CurrentRevised = null;
+                CurrentDiff = null;
+
+                await PdfDiffService.RecomputeDiffsAsync(pageInfos, tolerance, cts.Token);
+
+                int diffCount = pageInfos.Count(r => r.HasDifferences);
+                Summary = diffCount == 0
+                    ? $"{TotalPages} pages — identical"
+                    : $"{TotalPages} pages — {diffCount} with differences";
+
+                LoadPageImages();
+
+                diffPages = [.. pageInfos.Where(r => r.HasDifferences)];
+                OnPropertyChanged(nameof(DiffPages));
+                OnPropertyChanged(nameof(DiffPageCount));
+                selectedDiffPage = diffPages.FirstOrDefault(p => p.PageIndex == currentPageIndex);
+                OnPropertyChanged(nameof(SelectedDiffPage));
+            }
+            catch (OperationCanceledException)
+            {
+                Summary = "Cancelled";
+            }
+            catch (Exception ex)
+            {
+                Summary = $"Error: {ex.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
+
         private void LoadPageImages()
         {
             if (pageInfos.Count == 0 || currentPageIndex < 0 || currentPageIndex >= pageInfos.Count)
@@ -232,8 +318,7 @@ namespace Finn.ViewModels
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 return null;
 
-            using var stream = File.OpenRead(path);
-            return new Bitmap(stream);
+            return new Bitmap(new MemoryStream(File.ReadAllBytes(path)));
         }
 
         public void Cleanup()

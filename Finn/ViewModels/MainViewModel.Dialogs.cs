@@ -180,22 +180,22 @@ namespace Finn.ViewModels
 
             public async Task OpenDiffDia(Window mainWindow)
             {
-                if (CurrentFiles == null || CurrentFiles.Count != 2
-                    || !CurrentFiles[0].IsValidPdf() || !CurrentFiles[1].IsValidPdf())
+                if (DiffFileA == null || DiffFileB == null
+                    || !DiffFileA.IsValidPdf() || !DiffFileB.IsValidPdf())
                 {
                     var msg = new xMessageDia();
                     ConfigureWindow(msg, mainWindow);
-                    msg.SetMessage("Select exactly 2 PDF files to compare.");
+                    msg.SetMessage("Set a valid PDF for both Compare A and Compare B first.");
                     await msg.ShowDialog(mainWindow);
                     return;
                 }
 
                 var vm = new DiffViewModel
                 {
-                    FileNameA = CurrentFiles[0].Namn,
-                    FileNameB = CurrentFiles[1].Namn,
-                    FilePathA = CurrentFiles[0].Sökväg,
-                    FilePathB = CurrentFiles[1].Sökväg
+                    FileNameA = DiffFileA.Namn,
+                    FileNameB = DiffFileB.Namn,
+                    FilePathA = DiffFileA.Sökväg,
+                    FilePathB = DiffFileB.Sökväg
                 };
 
                 var window = new xDiffDia

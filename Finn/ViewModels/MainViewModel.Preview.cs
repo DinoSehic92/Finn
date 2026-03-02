@@ -59,6 +59,16 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
+        /// Previews a specific version of a file without changing the stored path.
+        /// </summary>
+        public async Task PreviewVersionAsync(FileVersionData version, string? searchText = null)
+        {
+            if (version == null) return;
+            var stub = new FileData { Sökväg = version.Sökväg, Namn = version.ShortName };
+            await RequestPreviewAsync(stub, searchText);
+        }
+
+        /// <summary>
         /// Processes dropped file paths, adding PDFs to the current project.
         /// </summary>
         public void AddDroppedFiles(IEnumerable<string> paths)

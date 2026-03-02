@@ -260,5 +260,50 @@ namespace Finn.ViewModels
                     PreviewVM.RequestPage1 = FavPage.PageNr;
                 }
             }
+
+            private FileData diffFileA;
+            public FileData DiffFileA
+            {
+                get => diffFileA;
+                set
+                {
+                    diffFileA = value;
+                    OnPropertyChanged(nameof(DiffFileA));
+                    OnPropertyChanged(nameof(DiffFileAName));
+                    OnPropertyChanged(nameof(DiffReady));
+                }
+            }
+
+            private FileData diffFileB;
+            public FileData DiffFileB
+            {
+                get => diffFileB;
+                set
+                {
+                    diffFileB = value;
+                    OnPropertyChanged(nameof(DiffFileB));
+                    OnPropertyChanged(nameof(DiffFileBName));
+                    OnPropertyChanged(nameof(DiffReady));
+                }
+            }
+
+            public string DiffFileAName => DiffFileA?.Namn ?? "—";
+            public string DiffFileBName => DiffFileB?.Namn ?? "—";
+            public bool DiffReady => DiffFileA?.IsValidPdf() == true && DiffFileB?.IsValidPdf() == true;
+
+            public void SetDiffFileA()
+            {
+                if (CurrentFile != null)
+                    DiffFileA = CurrentFile;
+            }
+
+            public void SetDiffFileB()
+            {
+                if (CurrentFile != null)
+                    DiffFileB = CurrentFile;
+            }
+
+            public void ClearDiffFileA() => DiffFileA = null;
+            public void ClearDiffFileB() => DiffFileB = null;
         }
     }

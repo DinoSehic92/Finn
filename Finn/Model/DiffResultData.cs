@@ -11,5 +11,6 @@ namespace Finn.Model
         public string? RevisedPath { get; set; }
         public string? DiffPath { get; set; }
         public bool HasDifferences { get; set; }
+        public string Label => $"Page {PageIndex + 1}";
     }
 }
