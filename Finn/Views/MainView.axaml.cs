@@ -804,6 +804,7 @@ public partial class MainView : UserControl
     private async void SelectVersion(object? sender, RoutedEventArgs e)
     {
         if (VersionsGrid.SelectedItem is not FileVersionData version) return;
+        _ctx.SelectedVersion = version;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
         await _ctx.PreviewVersionAsync(version, searchText);
     }
@@ -831,8 +832,11 @@ public partial class MainView : UserControl
 
     private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is MenuItem { DataContext: Finn.Model.FileVersionData version } && _ctx.CurrentFile != null)
-            _ctx.CurrentFile.CurrentVersion = version.Label;
+        if (e.Source is not MenuItem { DataContext: FileVersionData version } || _ctx.CurrentFiles == null) return;
+        string label = version.Label;
+        foreach (var file in _ctx.CurrentFiles)
+            if (file.Versions.Any(v => v.Label == label))
+                file.CurrentVersion = label;
     }
 
     private void OnSetFirstVersion(object? sender, RoutedEventArgs e)
@@ -853,6 +857,22 @@ public partial class MainView : UserControl
             if (file.Versions.Count > 0)
                 file.CurrentVersion = file.Versions[^1].Label;
         }
+    }
+
+    private void OnLabelFirstVersion(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { SelectedItem: string label } || _ctx.CurrentFiles == null) return;
+        foreach (var file in _ctx.CurrentFiles)
+            if (file.Versions.Count > 0)
+                file.Versions[0].Label = label;
+    }
+
+    private void OnLabelLatestVersion(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { SelectedItem: string label } || _ctx.CurrentFiles == null) return;
+        foreach (var file in _ctx.CurrentFiles)
+            if (file.Versions.Count > 0)
+                file.Versions[^1].Label = label;
     }
 
     #endregion

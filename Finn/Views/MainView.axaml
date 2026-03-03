@@ -443,15 +443,28 @@
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
-							<MenuItem Header="Select" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
-								<MenuItem.ItemTemplate>
-									<DataTemplate>
-										<TextBlock Text="{Binding Label}"/>
-									</DataTemplate>
-								</MenuItem.ItemTemplate>
+								<MenuItem Header="Select" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+									<MenuItem.ItemTemplate>
+										<DataTemplate>
+											<TextBlock Text="{Binding Label}"/>
+										</DataTemplate>
+									</MenuItem.ItemTemplate>
+								</MenuItem>
+								<Separator/>
+								<MenuItem Header="Label First"  ItemsSource="{Binding VersionLabels}" Click="OnLabelFirstVersion">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
+									<MenuItem.ItemTemplate>
+										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+									</MenuItem.ItemTemplate>
+								</MenuItem>
+								<MenuItem Header="Label Latest" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
+									<MenuItem.ItemTemplate>
+										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+									</MenuItem.ItemTemplate>
+								</MenuItem>
 							</MenuItem>
-						</MenuItem>
 
 						<Separator/>
 
@@ -536,10 +549,10 @@
 							<MenuItem Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
-							</MenuItem>
-						</MenuItem>
+									<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
+									</MenuItem>
+								</MenuItem>
 
 						<Separator/>
 
