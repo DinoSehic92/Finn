@@ -233,7 +233,7 @@ namespace Finn.ViewModels
             /// </summary>
             public static IReadOnlyList<string> VersionLabels => Finn.Model.FileVersionData.VersionLabels;
 
-            private string _selectedVersionLabel = "Rev A";
+            private string _selectedVersionLabel = "NEW";
             /// <summary>
             /// The label currently shown in the version ComboBox.
             /// When a version is selected, changing this also updates that version's label.

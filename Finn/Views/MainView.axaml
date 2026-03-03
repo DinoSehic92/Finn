@@ -915,7 +915,7 @@
 			</DataGrid>
 
 			<!-- PDF Compare panel -->
-			<Border Grid.Row="7" Classes="shadow" IsVisible="{Binding UI.TrayDiff}" Padding="6,4">
+			<Border Grid.Row="7" Classes="shadow" IsVisible="{Binding UI.TrayDiff}" Background="{DynamicResource TextControlBackground}" Padding="6,4">
 				<Grid RowDefinitions="24,32,32,34" ColumnDefinitions="22,*,28">
 					<TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="PDF Compare"
 							   FontSize="13" FontStyle="Italic" Opacity="0.6" VerticalAlignment="Center"/>

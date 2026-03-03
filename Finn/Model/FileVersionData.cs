@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -15,7 +16,7 @@ namespace Finn.Model
         /// </summary>
         public static IReadOnlyList<string> VersionLabels { get; } =
             new[] { "ORGINAL", "MOTTAGNINGSKONTROLL 1", "MOTTAGNINGSKONTROLL 2", "MOTTAGNINGSKONTROLL 3",
-                    "BYGGHANDLING", "REV A", "REV B", "REV C", "REV D", "REV E", "RELATIONSHANDLING" };
+                    "BYGGHANDLING", "REV A", "REV B", "REV C", "REV D", "REV E", "RELATIONSHANDLING", "NEW"};
 
         /// <summary>
         /// Label → sort-index lookup (O(1)) built from <see cref="VersionLabels"/>.
@@ -28,6 +29,7 @@ namespace Finn.Model
         private string _addedDate = string.Empty;
         private bool _isActive;
 
+        [JsonIgnore]
         public bool IsActive
         {
             get => _isActive;
@@ -40,12 +42,19 @@ namespace Finn.Model
             }
         }
 
+        [JsonIgnore]
         public double VersionOpacity => _isActive ? 1.0 : 0.55;
 
         public string Sökväg
         {
             get => _sökväg;
-            set { _sökväg = value; OnPropertyChanged(nameof(Sökväg)); OnPropertyChanged(nameof(ShortName)); }
+            set
+            {
+                if (_sökväg == value) return;
+                _sökväg = value;
+                OnPropertyChanged(nameof(Sökväg));
+                OnPropertyChanged(nameof(ShortName));
+            }
         }
 
         public string Label
@@ -62,9 +71,15 @@ namespace Finn.Model
         public string AddedDate
         {
             get => _addedDate;
-            set { _addedDate = value; OnPropertyChanged(nameof(AddedDate)); }
+            set
+            {
+                if (_addedDate == value) return;
+                _addedDate = value;
+                OnPropertyChanged(nameof(AddedDate));
+            }
         }
 
+        [JsonIgnore]
         public string ShortName => Path.GetFileNameWithoutExtension(_sökväg);
 
         private void OnPropertyChanged(string name) =>

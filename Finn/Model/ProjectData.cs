@@ -203,7 +203,7 @@ namespace Finn.Model
             var existing = StoredFiles.FirstOrDefault(x => x.Namn == fileName);
             if (existing != null)
             {
-                existing.AddVersion(filepath, "New Version");
+                existing.AddVersion(filepath, "NEW");
                 return;
             }
 

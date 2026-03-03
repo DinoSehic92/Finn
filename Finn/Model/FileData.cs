@@ -404,6 +404,7 @@ namespace Finn.Model
 
                 OnPropertyChanged(nameof(Versions));
                 OnPropertyChanged(nameof(HasVersions));
+                UpdateVersionActiveStates();
             }
         }
 
@@ -430,9 +431,8 @@ namespace Finn.Model
 
         #region Methods
         /// <summary>
-        /// Removes a version entry. When only one version remains after the
-        /// removal, version tracking is cleared entirely so the file behaves
-        /// as a default file.
+        /// Refreshes the <see cref="FileVersionData.IsActive"/> flag on every
+        /// version so that only the current version appears highlighted.
         /// </summary>
         private void UpdateVersionActiveStates()
         {
@@ -440,6 +440,11 @@ namespace Finn.Model
                 v.IsActive = !string.IsNullOrEmpty(_currentVersion) && v.Label == _currentVersion;
         }
 
+        /// <summary>
+        /// Removes a version entry. When only one version remains after the
+        /// removal, version tracking is cleared entirely so the file behaves
+        /// as a non-versioned file.
+        /// </summary>
         public void RemoveVersion(FileVersionData version)
         {
             _versions.Remove(version);
@@ -448,6 +453,7 @@ namespace Finn.Model
             {
                 var last = _versions[0];
                 last.PropertyChanged -= Version_PropertyChanged;
+                Sökväg = last.Sökväg;
                 _currentVersion = string.Empty;
 
                 _versions.CollectionChanged -= Versions_CollectionChanged;
