@@ -26,6 +26,21 @@ namespace Finn.Model
         private string _sökväg = string.Empty;
         private string _label = string.Empty;
         private string _addedDate = string.Empty;
+        private bool _isActive;
+
+        public bool IsActive
+        {
+            get => _isActive;
+            set
+            {
+                if (_isActive == value) return;
+                _isActive = value;
+                OnPropertyChanged(nameof(IsActive));
+                OnPropertyChanged(nameof(VersionOpacity));
+            }
+        }
+
+        public double VersionOpacity => _isActive ? 1.0 : 0.55;
 
         public string Sökväg
         {

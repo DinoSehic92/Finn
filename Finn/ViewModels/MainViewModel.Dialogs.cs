@@ -190,12 +190,20 @@ namespace Finn.ViewModels
                     return;
                 }
 
+                await OpenDiffDia(mainWindow,
+                    DiffFileA.Namn, DiffFileA.Sökväg,
+                    DiffFileB.Namn, DiffFileB.Sökväg);
+            }
+
+            public async Task OpenDiffDia(Window mainWindow,
+                string nameA, string pathA, string nameB, string pathB)
+            {
                 var vm = new DiffViewModel
                 {
-                    FileNameA = DiffFileA.Namn,
-                    FileNameB = DiffFileB.Namn,
-                    FilePathA = DiffFileA.Sökväg,
-                    FilePathB = DiffFileB.Sökväg
+                    FileNameA = nameA,
+                    FileNameB = nameB,
+                    FilePathA = pathA,
+                    FilePathB = pathB
                 };
 
                 var window = new xDiffDia

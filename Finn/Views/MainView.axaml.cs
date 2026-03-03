@@ -830,6 +830,12 @@ public partial class MainView : UserControl
         catch (Exception ex) { Debug.WriteLine(ex); }
     }
 
+    private void OnSetActiveVersion(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not FileVersionData version) return;
+        _ctx.CurrentFile.CurrentVersion = version.Label;
+    }
+
     private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
     {
         if (e.Source is not MenuItem { DataContext: FileVersionData version } || _ctx.CurrentFiles == null) return;
@@ -873,6 +879,29 @@ public partial class MainView : UserControl
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Count > 0)
                 file.Versions[^1].Label = label;
+    }
+
+    private async void OnCompareVersionWithCurrent(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile is not { HasVersions: true } file) return;
+        if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
+
+        var current = file.Versions.FirstOrDefault(v => v.Label == file.CurrentVersion);
+        if (current == null || current == selected) return;
+
+        string pathA = current.Sökväg;
+        string pathB = selected.Sökväg;
+
+        if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)
+            || !pathA.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+            || !pathB.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+            || !File.Exists(pathA) || !File.Exists(pathB))
+            return;
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.OpenDiffDia(window,
+            $"{file.Namn} ({current.Label})", pathA,
+            $"{file.Namn} ({selected.Label})", pathB);
     }
 
     #endregion

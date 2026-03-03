@@ -74,6 +74,7 @@ namespace Finn.Model
                     : string.Empty;
             }
 
+            UpdateVersionActiveStates();
             OnPropertyChanged(nameof(HasVersions));
         }
 
@@ -88,6 +89,7 @@ namespace Finn.Model
                     CurrentVersion = version.Label;
                 }
                 SortVersions();
+                UpdateVersionActiveStates();
             }
         }
         #endregion
@@ -412,11 +414,15 @@ namespace Finn.Model
             get => _currentVersion;
             set
             {
-                if (SetProperty(ref _currentVersion, value) && !string.IsNullOrEmpty(value))
+                if (SetProperty(ref _currentVersion, value))
                 {
-                    var version = _versions.FirstOrDefault(v => v.Label == value);
-                    if (version != null)
-                        Sökväg = version.Sökväg;
+                    if (!string.IsNullOrEmpty(value))
+                    {
+                        var version = _versions.FirstOrDefault(v => v.Label == value);
+                        if (version != null)
+                            Sökväg = version.Sökväg;
+                    }
+                    UpdateVersionActiveStates();
                 }
             }
         }
@@ -428,6 +434,12 @@ namespace Finn.Model
         /// removal, version tracking is cleared entirely so the file behaves
         /// as a default file.
         /// </summary>
+        private void UpdateVersionActiveStates()
+        {
+            foreach (var v in _versions)
+                v.IsActive = !string.IsNullOrEmpty(_currentVersion) && v.Label == _currentVersion;
+        }
+
         public void RemoveVersion(FileVersionData version)
         {
             _versions.Remove(version);
@@ -512,10 +524,9 @@ namespace Finn.Model
                 _versions.Add(new FileVersionData
                 {
                     Sökväg = _sökväg,
-                    Label = "Original",
+                    Label = "ORGINAL",
                     AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
                 });
-                CurrentVersion = "Original";
             }
 
             _versions.Add(new FileVersionData
@@ -525,6 +536,7 @@ namespace Finn.Model
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
             SortVersions();
+            CurrentVersion = _versions[^1].Label;
         }
 
         private bool _sortingVersions;
