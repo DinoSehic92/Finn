@@ -79,13 +79,15 @@ namespace Finn.Model
 
         private void Version_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(FileVersionData.Label)
-                && sender is FileVersionData version
-                && !string.IsNullOrEmpty(_currentVersion)
-                && !_versions.Any(v => v.Label == _currentVersion))
+            if (e.PropertyName == nameof(FileVersionData.Label))
             {
-                // The current version was renamed — follow the new label.
-                CurrentVersion = version.Label;
+                if (sender is FileVersionData version
+                    && !string.IsNullOrEmpty(_currentVersion)
+                    && !_versions.Any(v => v.Label == _currentVersion))
+                {
+                    CurrentVersion = version.Label;
+                }
+                SortVersions();
             }
         }
         #endregion
@@ -522,6 +524,35 @@ namespace Finn.Model
                 Label = label,
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
+            SortVersions();
+        }
+
+        private bool _sortingVersions;
+
+        /// <summary>
+        /// Sorts <see cref="Versions"/> in-place according to the predefined label order.
+        /// Versions with unrecognised labels are placed after the known ones.
+        /// </summary>
+        public void SortVersions()
+        {
+            if (_sortingVersions || _versions.Count <= 1) return;
+            _sortingVersions = true;
+            try
+            {
+                var order = FileVersionData.LabelOrder;
+                var sorted = _versions
+                    .OrderBy(v => order.TryGetValue(v.Label, out int idx) ? idx : int.MaxValue)
+                    .ToList();
+                for (int i = 0; i < sorted.Count; i++)
+                {
+                    int from = _versions.IndexOf(sorted[i]);
+                    if (from != i) _versions.Move(from, i);
+                }
+            }
+            finally
+            {
+                _sortingVersions = false;
+            }
         }
         #endregion
 

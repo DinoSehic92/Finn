@@ -231,8 +231,7 @@ namespace Finn.ViewModels
             /// <summary>
             /// Predefined revision labels available for version tagging.
             /// </summary>
-            public static IReadOnlyList<string> VersionLabels { get; } =
-                new[] {"Orginal", "Mottagningskontroll 1", "Mottagningskontroll 2", "Mottagningskontroll 3", "Bygghandling", "Rev A", "Rev B", "Rev C", "Rev D", "Rev E", "Relation"};
+            public static IReadOnlyList<string> VersionLabels => Finn.Model.FileVersionData.VersionLabels;
 
             private string _selectedVersionLabel = "Rev A";
             /// <summary>
