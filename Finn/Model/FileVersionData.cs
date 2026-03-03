@@ -14,8 +14,8 @@ namespace Finn.Model
         /// Predefined revision labels in display/sort order.
         /// </summary>
         public static IReadOnlyList<string> VersionLabels { get; } =
-            new[] { "Orginal", "Mottagningskontroll 1", "Mottagningskontroll 2", "Mottagningskontroll 3",
-                    "Bygghandling", "Rev A", "Rev B", "Rev C", "Rev D", "Rev E", "Relation" };
+            new[] { "ORGINAL", "MOTTAGNINGSKONTROLL 1", "MOTTAGNINGSKONTROLL 2", "MOTTAGNINGSKONTROLL 3",
+                    "BYGGHANDLING", "REV A", "REV B", "REV C", "REV D", "REV E", "RELATIONSHANDLING" };
 
         /// <summary>
         /// Label → sort-index lookup (O(1)) built from <see cref="VersionLabels"/>.
