@@ -436,14 +436,14 @@
 
 						<MenuItem Header="Version">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
-							<MenuItem Header="First" Click="OnSetFirstVersion">
+							<MenuItem Header="Select First" Click="OnSetFirstVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Last" Click="OnSetLastVersion">
+							<MenuItem Header="Select Last" Click="OnSetLastVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
-								<MenuItem Header="Select" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
+								<MenuItem Header="Active version" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
 									<MenuItem.ItemTemplate>
 										<DataTemplate>
@@ -458,7 +458,7 @@
 										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
 									</MenuItem.ItemTemplate>
 								</MenuItem>
-								<MenuItem Header="Label Latest" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
+								<MenuItem Header="Label Last" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
 									<MenuItem.ItemTemplate>
 										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
@@ -528,15 +528,15 @@
 							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Compare" Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Header="Set as Compare A" Command="{Binding SetDiffFileA}">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowLeft"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Header="Set as Compare B" Command="{Binding SetDiffFileB}">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
-										</MenuItem>
+							<MenuItem Header="Compare">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ItemCompare"/></MenuItem.Icon>
+								<MenuItem Header="Set as A" Command="{Binding SetDiffFileA}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowLeft"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Set as B" Command="{Binding SetDiffFileB}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
+								</MenuItem>
+								</MenuItem>
                             <MenuItem Header="Watermark">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
