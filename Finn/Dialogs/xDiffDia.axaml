@@ -20,104 +20,70 @@
         <converter:AddOneConverter x:Key="AddOneConverter"/>
     </Window.Resources>
 
-    <Grid RowDefinitions="30,Auto,*">
+    <Grid RowDefinitions="30,Auto,*,40">
+        <!-- Title bar drag area -->
         <Panel Grid.Row="0" IsHitTestVisible="False"/>
 
-        <Grid Grid.Row="1" RowDefinitions="Auto,Auto" Margin="10,4,10,4">
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto,*">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <ic:SymbolIcon Symbol="Document" FontSize="16"/>
-                    <TextBlock Text="{Binding FileNameA}" FontSize="13" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                    <TextBlock Text="&#x2194;" FontSize="14" Opacity="0.5"/>
-                    <ic:SymbolIcon Symbol="Document" FontSize="16"/>
-                    <TextBlock Text="{Binding FileNameB}" FontSize="13" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Button Width="30" Height="30" Command="{Binding PreviousPage}" ToolTip.Tip="Previous Page">
-                        <ic:SymbolIcon Symbol="ChevronLeft" FontSize="16"/>
-                    </Button>
-                    <Slider Name="PageSlider" Width="180" Height="30" Margin="0,-10,0,0"
-                            Minimum="1" Maximum="{Binding TotalPages}" IsSnapToTickEnabled="True" TickFrequency="1"
-                            Value="{Binding CurrentPageIndex, Mode=OneWay, Converter={StaticResource AddOneConverter}}"
-                            VerticalAlignment="Top" ToolTip.Tip="Page"/>
-                    <TextBlock Text="{Binding PageDisplay}" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" MinWidth="60" TextAlignment="Center"/>
-                    <Button Width="30" Height="30" Command="{Binding NextPage}" ToolTip.Tip="Next Page">
-                        <ic:SymbolIcon Symbol="ChevronRight" FontSize="16"/>
-                    </Button>
-                    <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,4" Opacity="0.5"/>
-                    <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" FontSize="13" FontStyle="Italic" Opacity="0.6"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <ToggleButton Name="SideBySideBtn" ToolTip.Tip="Side by Side" Height="30" Width="35" Padding="0" IsChecked="True" Click="OnSideBySide">
-                        <ic:SymbolIcon Symbol="SplitHorizontal" FontSize="16"/>
-                    </ToggleButton>
-                    <ToggleButton Name="OverlayBtn" ToolTip.Tip="Overlay" Height="30" Width="35" Padding="0" Click="OnOverlay">
-                        <ic:SymbolIcon Symbol="Layer" FontSize="16"/>
-                    </ToggleButton>
-                    <ToggleButton Name="DiffOnlyBtn" ToolTip.Tip="Diff Only" Height="30" Width="35" Padding="0" Click="OnDiffOnly">
-                        <ic:SymbolIcon Symbol="DocumentSearch" FontSize="16"/>
-                    </ToggleButton>
-                    <ToggleButton IsChecked="{Binding ChangePanelOpen}" ToolTip.Tip="Changed Pages" Height="30" Width="35" Padding="0">
-                        <ic:SymbolIcon Symbol="AppsList" FontSize="16"/>
-                    </ToggleButton>
-                    <Slider Name="OpacitySlider" Width="100" Minimum="0" Maximum="1" Value="{Binding OverlayOpacity}"
-                            IsVisible="{Binding IsOverlay}" VerticalAlignment="Center" ToolTip.Tip="Overlay Opacity"/>
-                </StackPanel>
-            </Grid>
-
-            <!-- Tolerance row -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,2,0,2">
-                <TextBlock Text="Tolerance" VerticalAlignment="Center" FontSize="12" Opacity="0.6"/>
-                <Slider Width="160" Minimum="0" Maximum="1000" Value="{Binding Tolerance}"
-                        VerticalAlignment="Center" ToolTip.Tip="Higher = ignore smaller pixel differences (max 1000)"/>
-                <TextBlock Text="{Binding Tolerance}" VerticalAlignment="Center" FontSize="12" MinWidth="28" TextAlignment="Center" Opacity="0.8"/>
-                <Button Width="28" Height="26" Padding="0" Click="OnApplyTolerance" ToolTip.Tip="Reapply with current tolerance">
-                    <ic:SymbolIcon Symbol="ArrowSync" FontSize="14"/>
-                </Button>
+        <!-- Icon -->
+		<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,10,0,20">
+			<Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+				<ContentControl>
+					<ic:SymbolIcon Symbol="ItemCompare" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+				</ContentControl>
+			</Border>
+			<TextBlock Text="Pdf Comparison" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal">
+				<ic:SymbolIcon Symbol="Status" IconVariant="Regular" FontSize="13" Opacity="0.5"/>
+                <TextBlock Text="{Binding Summary}" FontSize="13" FontStyle="Italic" Opacity="0.6"/>
             </StackPanel>
-        </Grid>
+		</StackPanel>
 
-        <Grid Grid.Row="2" Margin="5" PointerWheelChanged="OnPointerWheel" ColumnDefinitions="*,Auto">
+        <!-- Content area -->
+        <Grid Grid.Row="2" Margin="8,0,8,0" PointerWheelChanged="OnPointerWheel" ColumnDefinitions="*,Auto">
 
             <!-- Main view area -->
             <Grid Grid.Column="0">
-                <StackPanel IsVisible="{Binding IsBusy}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
-                    <ic:SymbolIcon Symbol="ArrowSync" FontSize="28" Opacity="0.6"/>
+                <!-- Busy / loading state -->
+                <StackPanel IsVisible="{Binding IsBusy}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                    <Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+                        <ic:SymbolIcon Symbol="ArrowSync" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                     <ProgressBar Width="300" Value="{Binding Progress}" Minimum="0" Maximum="100" Height="6" CornerRadius="3"/>
-                    <TextBlock Text="{Binding Summary}" HorizontalAlignment="Center" FontStyle="Italic" Opacity="0.6"/>
+                    <TextBlock Text="{Binding Summary}" HorizontalAlignment="Center" FontSize="13" FontStyle="Italic" Opacity="0.6"/>
                 </StackPanel>
 
+                <!-- Side by side view -->
                 <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding IsSideBySide}">
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="{Binding FileNameA}" HorizontalAlignment="Center" FontSize="12" FontStyle="Italic" Opacity="0.5" Margin="0,2"/>
+                        <TextBlock Grid.Row="0" Text="{Binding FileNameA}" FontSize="12" FontStyle="Italic" Opacity="0.5" HorizontalAlignment="Center"/>
                         <Image Grid.Row="1" Source="{Binding CurrentOriginal}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
                     </Grid>
                     <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
                     <Grid Grid.Column="2" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="{Binding FileNameB}" HorizontalAlignment="Center" FontSize="12" FontStyle="Italic" Opacity="0.5" Margin="0,2"/>
+                        <TextBlock Grid.Row="0" Text="{Binding FileNameB}" FontSize="12" FontStyle="Italic" Opacity="0.5" HorizontalAlignment="Center"/>
                         <Image Grid.Row="1" Source="{Binding CurrentRevised}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
                     </Grid>
                 </Grid>
 
+                <!-- Overlay view -->
                 <Panel IsVisible="{Binding IsOverlay}">
                     <Image Source="{Binding CurrentOriginal}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
                     <Image Source="{Binding CurrentRevised}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Opacity="{Binding OverlayOpacity}"/>
                 </Panel>
 
+                <!-- Diff only view -->
                 <Image IsVisible="{Binding IsDiffOnly}" Source="{Binding CurrentDiff}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
             </Grid>
 
-            <!-- Changed pages panel -->
-            <Border Grid.Column="1" IsVisible="{Binding ChangePanelOpen}" Width="155" Margin="4,0,0,0"
-                    Background="{DynamicResource TextControlBackground}">
+            <!-- Changed pages side panel -->
+            <Border Grid.Column="1" Classes="shadow" IsVisible="{Binding ChangePanelOpen}" Width="155"
+                    Background="{DynamicResource TextControlBackground}" Margin="4,0,0,0">
                 <Grid RowDefinitions="Auto,*">
-                    <Border Grid.Row="0" Padding="8,6,8,4" BorderThickness="0,0,0,1"
+                    <Border Grid.Row="0" Padding="8,6,8,4" BorderThickness="0,0,0,1" CornerRadius="0"
                             BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
                         <TextBlock FontSize="12" FontStyle="Italic" Opacity="0.6">
                             <TextBlock.Text>
-                                <MultiBinding StringFormat="{}{0} / {1} pages differ">
+                                <MultiBinding StringFormat="{}{0} / {1} changed">
                                     <Binding Path="DiffPageCount"/>
                                     <Binding Path="TotalPages"/>
                                 </MultiBinding>
@@ -130,18 +96,76 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.Styles>
                             <Style Selector="ListBoxItem">
-                                <Setter Property="Height" Value="26"/>
+                                <Setter Property="Height" Value="28"/>
                                 <Setter Property="Padding" Value="8,0"/>
                                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                             </Style>
                         </ListBox.Styles>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="model:DiffResultData">
-                                <TextBlock Text="{Binding Label}" FontSize="13"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <ic:SymbolIcon Symbol="CircleSmall" FontSize="14" Foreground="{DynamicResource SystemAccentColor}"/>
+                                    <TextBlock Text="{Binding Label}" FontSize="13"/>
+                                </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Bottom bar: page navigation + tolerance -->
+        <Grid ColumnDefinitions="*,Auto,*" Grid.Row="3" Grid.ColumnSpan="2">
+            <Border Classes="shadow" Grid.Column="1" Background="{DynamicResource TextControlBackground}" Margin="5" Padding="4,0">
+                <StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center" Margin="10,0,10,0">
+
+                    <Slider Name="PageSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0,-10,0,0" Minimum="1"
+                            IsSnapToTickEnabled="True" VerticalAlignment="Top" TickFrequency="1"
+                            Maximum="{Binding TotalPages}"
+                            Value="{Binding CurrentPageIndex, Mode=OneWay, Converter={StaticResource AddOneConverter}}"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Label Content="{Binding CurrentPageIndex, Converter={StaticResource AddOneConverter}}" Width="40" HorizontalContentAlignment="Right" VerticalAlignment="Center"/>
+                        <Label Content="/" VerticalAlignment="Center"/>
+                        <Label Content="{Binding TotalPages}" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Button ToolTip.Tip="Previous Page" BorderThickness="0" Command="{Binding PreviousPage}">
+                        <ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
+                    </Button>
+                    <Button ToolTip.Tip="Next Page" BorderThickness="0" Command="{Binding NextPage}">
+                        <ic:SymbolIcon Symbol="ArrowNext" IconVariant="Regular" FontSize="16"/>
+                    </Button>
+
+                    <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+
+                    <TextBlock Text="Tolerance" FontSize="12" Opacity="0.6" Margin="4,0"/>
+                    <Slider Width="120" Height="35" Margin="0,-10,0,0" Minimum="0" Maximum="1000" Value="{Binding Tolerance}"
+                            VerticalAlignment="Top" ToolTip.Tip="Higher = ignore smaller pixel differences"/>
+                    <Label Content="{Binding Tolerance}" Width="35" HorizontalContentAlignment="Center" VerticalAlignment="Center"/>
+                    <Button BorderThickness="0" Click="OnApplyTolerance" ToolTip.Tip="Reapply with current tolerance">
+                        <ic:SymbolIcon Symbol="ArrowSync" IconVariant="Regular" FontSize="16"/>
+                    </Button>
+
+                    <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+
+                    <ToggleButton Name="SideBySideBtn" ToolTip.Tip="Side by Side" Height="30" Width="35" Padding="0" IsChecked="True" Click="OnSideBySide">
+                        <ic:SymbolIcon Symbol="SplitHorizontal" FontSize="16"/>
+                    </ToggleButton>
+                    <ToggleButton Name="OverlayBtn" ToolTip.Tip="Overlay" Height="30" Width="35" Padding="0" Click="OnOverlay">
+                        <ic:SymbolIcon Symbol="Layer" FontSize="16"/>
+                    </ToggleButton>
+                    <ToggleButton Name="DiffOnlyBtn" ToolTip.Tip="Diff Only" Height="30" Width="35" Padding="0" Click="OnDiffOnly">
+                        <ic:SymbolIcon Symbol="DocumentSearch" FontSize="16"/>
+                    </ToggleButton>
+                    <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,4" Opacity="0.5"/>
+                    <ToggleButton IsChecked="{Binding ChangePanelOpen}" ToolTip.Tip="Changed Pages" Height="30" Width="35" Padding="0">
+                        <ic:SymbolIcon Symbol="AppsList" FontSize="16"/>
+                    </ToggleButton>
+                    <Slider Name="OpacitySlider" Width="100" Minimum="0" Maximum="1" Margin="0,-10,0,0" Value="{Binding OverlayOpacity}"
+                            IsVisible="{Binding IsOverlay}" VerticalAlignment="Top" ToolTip.Tip="Overlay Opacity" />
+
+                </StackPanel>
             </Border>
         </Grid>
     </Grid>

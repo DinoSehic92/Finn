@@ -200,6 +200,7 @@ namespace Finn.ViewModels
             {
                 var vm = new DiffViewModel
                 {
+                    UI = UI,
                     FileNameA = nameA,
                     FileNameB = nameB,
                     FilePathA = pathA,

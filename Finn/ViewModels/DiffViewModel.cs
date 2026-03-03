@@ -12,6 +12,8 @@ namespace Finn.ViewModels
 {
     public class DiffViewModel : ViewModelBase
     {
+        public UISettingsViewModel UI { get; set; } = new();
+
         private string fileNameA = string.Empty;
         private string fileNameB = string.Empty;
         private string filePathA = string.Empty;
