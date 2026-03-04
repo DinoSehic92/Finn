@@ -194,11 +194,14 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(CurrentFile));
                     OnPropertyChanged(nameof(NrSelectedFiles));
                     OnPropertyChanged(nameof(FileSelected));
+                    OnPropertyChanged(nameof(AllSelectedFilesHaveVersions));
                 }
             }
 
             public FileData CurrentFile => CurrentFiles?.LastOrDefault();
             public bool FileSelected => CurrentFile != null;
+            public bool AllSelectedFilesHaveVersions =>
+                CurrentFiles != null && CurrentFiles.Count > 0 && CurrentFiles.All(f => f.HasVersions);
 
             private FileVersionData? selectedVersion;
             /// <summary>

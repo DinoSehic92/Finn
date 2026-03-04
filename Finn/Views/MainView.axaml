@@ -434,7 +434,7 @@
 							</MenuItem>
 						</MenuItem>
 
-						<MenuItem Header="Version">
+						<MenuItem Header="Version" IsVisible="{Binding AllSelectedFilesHaveVersions}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
 							<MenuItem Header="Select First" Click="OnSetFirstVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
