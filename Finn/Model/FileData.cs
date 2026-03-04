@@ -525,6 +525,10 @@ namespace Finn.Model
         /// </summary>
         public void AddVersion(string filepath, string label)
         {
+            // Skip if this path is already the current file or already registered as a version
+            if (filepath == _sökväg || _versions.Any(v => v.Sökväg == filepath))
+                return;
+
             if (_versions.Count == 0)
             {
                 _versions.Add(new FileVersionData
@@ -538,11 +542,44 @@ namespace Finn.Model
             _versions.Add(new FileVersionData
             {
                 Sökväg = filepath,
-                Label = label,
+                Label = ResolveUniqueLabel(label),
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
             SortVersions();
             CurrentVersion = _versions[^1].Label;
+        }
+
+        /// <summary>
+        /// Assigns <paramref name="label"/> to <paramref name="version"/>, resolving any
+        /// conflict with sibling versions so no two versions share the same label.
+        /// </summary>
+        public void SetVersionLabel(FileVersionData version, string label)
+        {
+            if (_versions.Contains(version))
+                version.Label = ResolveUniqueLabel(label, exclude: version);
+        }
+
+        /// <summary>
+        /// Returns <paramref name="label"/> if unused (ignoring <paramref name="exclude"/>),
+        /// otherwise finds the next unused label from <see cref="FileVersionData.VersionLabels"/>,
+        /// or appends a numeric suffix as a last resort (e.g. "NEW 2", "NEW 3").
+        /// </summary>
+        private string ResolveUniqueLabel(string label, FileVersionData? exclude = null)
+        {
+            if (!_versions.Any(v => v != exclude && v.Label == label))
+                return label;
+
+            foreach (string candidate in FileVersionData.VersionLabels)
+            {
+                if (!_versions.Any(v => v != exclude && v.Label == candidate))
+                    return candidate;
+            }
+
+            int n = 2;
+            string unique;
+            do { unique = $"{label} {n++}"; }
+            while (_versions.Any(v => v != exclude && v.Label == unique));
+            return unique;
         }
 
         private bool _sortingVersions;

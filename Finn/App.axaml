@@ -1,5 +1,5 @@
 <Application xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 			 xmlns:system="clr-namespace:System;assembly=netstandard"
 			 xmlns:dialogHostAvalonia="clr-namespace:DialogHostAvalonia;assembly=DialogHost.Avalonia"
 			 x:CompileBindings="True"
@@ -23,7 +23,6 @@
 			<Setter Property="MaxWidth" Value="999" />
 			<Setter Property="Padding" Value="4" />
 			<Setter Property="CornerRadius" Value="8" />
-			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
 		</Style>
 
 		<Style Selector="TreeViewItem">

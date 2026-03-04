@@ -148,7 +148,17 @@ namespace Finn.ViewModels
                     }
                     foreach (FileData file in filesToAdd)
                     {
-                        CurrentProject.StoredFiles.Add(file);
+                        // Skip if the exact path is already registered anywhere in the project
+                        if (CurrentProject.StoredFiles.Any(x => x.Sökväg == file.Sökväg))
+                            continue;
+
+                        // If a file with the same name already exists, register the folder
+                        // file as a new version rather than adding a duplicate entry
+                        var existing = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == file.Namn);
+                        if (existing != null)
+                            existing.AddVersion(file.Sökväg, "NEW");
+                        else
+                            CurrentProject.StoredFiles.Add(file);
                     }
 
                     SetDefaultType();

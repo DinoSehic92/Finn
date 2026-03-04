@@ -876,7 +876,7 @@ public partial class MainView : UserControl
         if (sender is not MenuItem { SelectedItem: string label } || _ctx.CurrentFiles == null) return;
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Count > 0)
-                file.Versions[0].Label = label;
+                file.SetVersionLabel(file.Versions[0], label);
     }
 
     private void OnLabelLatestVersion(object? sender, RoutedEventArgs e)
@@ -884,7 +884,7 @@ public partial class MainView : UserControl
         if (sender is not MenuItem { SelectedItem: string label } || _ctx.CurrentFiles == null) return;
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Count > 0)
-                file.Versions[^1].Label = label;
+                file.SetVersionLabel(file.Versions[^1], label);
     }
 
     private void OnOpenVersionFolder(object? sender, RoutedEventArgs e)

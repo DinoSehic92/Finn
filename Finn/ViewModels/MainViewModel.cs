@@ -250,7 +250,7 @@ namespace Finn.ViewModels
                     _selectedVersionLabel = value;
                     OnPropertyChanged(nameof(SelectedVersionLabel));
                     if (selectedVersion != null && !string.IsNullOrEmpty(value))
-                        selectedVersion.Label = value;
+                        CurrentFile?.SetVersionLabel(selectedVersion, value);
                 }
             }
 
