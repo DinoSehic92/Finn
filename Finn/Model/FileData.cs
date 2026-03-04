@@ -530,7 +530,7 @@ namespace Finn.Model
                 _versions.Add(new FileVersionData
                 {
                     Sökväg = _sökväg,
-                    Label = "ORGINAL",
+                    Label = "ORIGINAL",
                     AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
                 });
             }

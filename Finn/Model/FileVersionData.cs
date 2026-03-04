@@ -15,7 +15,7 @@ namespace Finn.Model
         /// Predefined revision labels in display/sort order.
         /// </summary>
         public static IReadOnlyList<string> VersionLabels { get; } =
-            new[] { "ORGINAL", "MOTTAGNINGSKONTROLL 1", "MOTTAGNINGSKONTROLL 2", "MOTTAGNINGSKONTROLL 3",
+            new[] { "ORIGINAL", "MOTTAGNINGSKONTROLL 1", "MOTTAGNINGSKONTROLL 2", "MOTTAGNINGSKONTROLL 3",
                     "BYGGHANDLING", "REV A", "REV B", "REV C", "REV D", "REV E", "RELATIONSHANDLING", "NEW"};
 
         /// <summary>
@@ -54,6 +54,7 @@ namespace Finn.Model
                 _sökväg = value;
                 OnPropertyChanged(nameof(Sökväg));
                 OnPropertyChanged(nameof(ShortName));
+                OnPropertyChanged(nameof(DirectoryPath));
             }
         }
 
@@ -81,6 +82,9 @@ namespace Finn.Model
 
         [JsonIgnore]
         public string ShortName => Path.GetFileNameWithoutExtension(_sökväg);
+
+        [JsonIgnore]
+        public string DirectoryPath => Path.GetDirectoryName(_sökväg) ?? string.Empty;
 
         private void OnPropertyChanged(string name) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -53,7 +53,7 @@ public partial class MainView : UserControl
 
         BookmarkGrid.AddHandler(DataGrid.SelectionChangedEvent, BookmarkSelected);
 
-        VersionsGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenVersion);
+        VersionsGrid.AddHandler(DataGrid.DoubleTappedEvent, OnVersionDoubleTapped);
         VersionsGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectVersion);
 
         InitMetaworker();
@@ -836,6 +836,12 @@ public partial class MainView : UserControl
         _ctx.CurrentFile.CurrentVersion = version.Label;
     }
 
+    private void OnVersionDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not FileVersionData version) return;
+        _ctx.CurrentFile.CurrentVersion = version.Label;
+    }
+
     private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
     {
         if (e.Source is not MenuItem { DataContext: FileVersionData version } || _ctx.CurrentFiles == null) return;
@@ -879,6 +885,12 @@ public partial class MainView : UserControl
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Count > 0)
                 file.Versions[^1].Label = label;
+    }
+
+    private void OnOpenVersionFolder(object? sender, RoutedEventArgs e)
+    {
+        if (VersionsGrid.SelectedItem is FileVersionData version)
+            _ctx.OpenPathDirect(version.Sökväg);
     }
 
     private async void OnCompareVersionWithCurrent(object? sender, RoutedEventArgs e)

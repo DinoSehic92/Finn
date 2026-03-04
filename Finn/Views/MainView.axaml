@@ -436,39 +436,39 @@
 
 						<MenuItem Header="Version" IsVisible="{Binding AllSelectedFilesHaveVersions}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
-							<MenuItem Header="Select First" Click="OnSetFirstVersion">
+							<MenuItem Header="Set to First" Click="OnSetFirstVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Select Last" Click="OnSetLastVersion">
+							<MenuItem Header="Set to Last" Click="OnSetLastVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
-								<MenuItem Header="Active version" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
-									<MenuItem.ItemTemplate>
-										<DataTemplate>
-											<TextBlock Text="{Binding Label}"/>
-										</DataTemplate>
-									</MenuItem.ItemTemplate>
-								</MenuItem>
-								<Separator/>
-								<MenuItem Header="Label First"  ItemsSource="{Binding VersionLabels}" Click="OnLabelFirstVersion">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
-									<MenuItem.ItemTemplate>
-										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
-									</MenuItem.ItemTemplate>
-								</MenuItem>
-									<MenuItem Header="Label Last" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
-										<MenuItem.ItemTemplate>
-											<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
-										</MenuItem.ItemTemplate>
-									</MenuItem>
-									<Separator/>
-									<MenuItem Header="Compare Versions" Click="OnCompareVersionDiff">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="ItemCompare"/></MenuItem.Icon>
-									</MenuItem>
-								</MenuItem>
+							<MenuItem Header="Set Active Version" ItemsSource="{Binding CurrentFile.Versions}" Click="OnSetCurrentVersion">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="CheckmarkCircle"/></MenuItem.Icon>
+								<MenuItem.ItemTemplate>
+									<DataTemplate>
+										<TextBlock Text="{Binding Label}"/>
+									</DataTemplate>
+								</MenuItem.ItemTemplate>
+							</MenuItem>
+							<Separator/>
+							<MenuItem Header="Rename First" ItemsSource="{Binding VersionLabels}" Click="OnLabelFirstVersion">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
+								<MenuItem.ItemTemplate>
+									<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+								</MenuItem.ItemTemplate>
+							</MenuItem>
+							<MenuItem Header="Rename Last" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
+								<MenuItem.ItemTemplate>
+									<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+								</MenuItem.ItemTemplate>
+							</MenuItem>
+							<Separator/>
+							<MenuItem Header="Compare Last Two" Click="OnCompareVersionDiff">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ItemCompare"/></MenuItem.Icon>
+							</MenuItem>
+						</MenuItem>
 
 						<Separator/>
 
@@ -951,35 +951,63 @@
 						</Border>
 
 						<!-- File versions panel -->
-						<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="40,*">
+						<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
+							<!-- Toolbar -->
 							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 								<Border Classes="shadow">
 									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
 								</Border>
-								<Button Width="30" Click="OnSetActiveVersion" ToolTip.Tip="Set Active"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
-																<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-															</StackPanel>
+								<Button Width="30" Click="OnSetActiveVersion" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
+								<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+							</StackPanel>
 							<DataGrid Grid.Row="1" Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
-								<DataGrid.Columns>
-									<DataGridTemplateColumn Header="Versions" Width="*">
-										<DataGridTemplateColumn.CellTemplate>
-											<DataTemplate x:DataType="model:FileVersionData">
-												<TextBlock Text="{Binding Label}" Opacity="{Binding VersionOpacity}"
-														   VerticalAlignment="Center" Margin="12,0,0,0"/>
-											</DataTemplate>
-										</DataGridTemplateColumn.CellTemplate>
-									</DataGridTemplateColumn>
+									<DataGrid.Styles>
+											<Style Selector="DataGridRow">
+												<Setter Property="ToolTip.Tip" Value="{Binding (model:FileVersionData).DirectoryPath}"/>
+											</Style>
+										</DataGrid.Styles>
+									<DataGrid.Columns>
+										<DataGridTemplateColumn Header="Version" Width="*">
+											<DataGridTemplateColumn.CellTemplate>
+												<DataTemplate x:DataType="model:FileVersionData">
+													<StackPanel Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
+														<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="12"
+																	   Foreground="{DynamicResource SystemAccentColor}"
+																	   IsVisible="{Binding IsActive}"/>
+														<ic:SymbolIcon Symbol="CircleSmall" FontSize="12"
+																	   Opacity="0.3"
+																	   IsVisible="{Binding !IsActive}"/>
+														<TextBlock Text="{Binding Label}" Opacity="{Binding VersionOpacity}"
+																   VerticalAlignment="Center"/>
+													</StackPanel>
+												</DataTemplate>
+											</DataGridTemplateColumn.CellTemplate>
+										</DataGridTemplateColumn>
+										<DataGridTextColumn Header="Date" Width="90"
+															Binding="{Binding AddedDate}"
+															FontSize="12" IsVisible="false"/>
+										<DataGridTextColumn Header="File" Width="100"
+															Binding="{Binding ShortName}"
+															FontSize="12" IsVisible="false"/>
 								</DataGrid.Columns>
 								<DataGrid.ContextMenu>
 									<ContextMenu>
+										<MenuItem Header="Set as Active" Click="OnSetActiveVersion">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="CheckmarkCircle"/></MenuItem.Icon>
+										</MenuItem>
+										<Separator/>
 										<MenuItem Header="Open" Click="OnOpenVersion">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Header="Compare with Current" Click="OnCompareVersionWithCurrent">
+										<MenuItem Header="Open Folder" Click="OnOpenVersionFolder">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Compare with Active" Click="OnCompareVersionWithCurrent">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
 										</MenuItem>
+										<Separator/>
 										<MenuItem Header="Remove" Click="OnRemoveVersion">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 										</MenuItem>
