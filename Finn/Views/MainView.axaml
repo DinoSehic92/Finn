@@ -458,13 +458,17 @@
 										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
 									</MenuItem.ItemTemplate>
 								</MenuItem>
-								<MenuItem Header="Label Last" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
-									<MenuItem.ItemTemplate>
-										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
-									</MenuItem.ItemTemplate>
+									<MenuItem Header="Label Last" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
+										<MenuItem.ItemTemplate>
+											<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+										</MenuItem.ItemTemplate>
+									</MenuItem>
+									<Separator/>
+									<MenuItem Header="Compare Versions" Click="OnCompareVersionDiff">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="ItemCompare"/></MenuItem.Icon>
+									</MenuItem>
 								</MenuItem>
-							</MenuItem>
 
 						<Separator/>
 
@@ -950,7 +954,7 @@
 						<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="40,*">
 							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 								<Border Classes="shadow">
-									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" Width="180" Height="30"/>
+									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
 								</Border>
 								<Button Width="30" Click="OnSetActiveVersion" ToolTip.Tip="Set Active"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
 																<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>

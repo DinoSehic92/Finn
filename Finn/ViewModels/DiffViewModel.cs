@@ -18,12 +18,14 @@ namespace Finn.ViewModels
         private string fileNameB = string.Empty;
         private string filePathA = string.Empty;
         private string filePathB = string.Empty;
+        private IReadOnlyList<string>? multiPathsA;
+        private IReadOnlyList<string>? multiPathsB;
 
         private List<DiffResultData> pageInfos = [];
         private string? tempDir;
 
         private int currentPageIndex;
-        private int viewMode; // 0 = SideBySide, 1 = Overlay, 2 = DiffOnly
+        private int viewMode = 2; // 0 = SideBySide, 1 = Overlay, 2 = DiffOnly
         private double overlayOpacity = 0.5;
         private int tolerance = PdfDiffService.DefaultTolerance;
         private string summary = string.Empty;
@@ -62,6 +64,18 @@ namespace Finn.ViewModels
         {
             get => filePathB;
             set => SetProperty(ref filePathB, value);
+        }
+
+        public IReadOnlyList<string>? MultiPathsA
+        {
+            get => multiPathsA;
+            set => SetProperty(ref multiPathsA, value);
+        }
+
+        public IReadOnlyList<string>? MultiPathsB
+        {
+            get => multiPathsB;
+            set => SetProperty(ref multiPathsB, value);
         }
 
         public int CurrentPageIndex
@@ -190,7 +204,8 @@ namespace Finn.ViewModels
 
         public async Task RunDiffAsync()
         {
-            if (string.IsNullOrEmpty(FilePathA) || string.IsNullOrEmpty(FilePathB))
+            bool isMulti = multiPathsA != null && multiPathsB != null;
+            if (!isMulti && (string.IsNullOrEmpty(FilePathA) || string.IsNullOrEmpty(FilePathB)))
                 return;
 
             IsBusy = true;
@@ -202,8 +217,9 @@ namespace Finn.ViewModels
                 cts = new CancellationTokenSource();
                 var progressReporter = new Progress<int>(p => Progress = p);
 
-                var (results, dir) = await PdfDiffService.CompareAsync(
-                    FilePathA, FilePathB, progressReporter, cts.Token, tolerance);
+                var (results, dir) = isMulti
+                    ? await PdfDiffService.CompareAsync(multiPathsA!, multiPathsB!, progressReporter, cts.Token, tolerance)
+                    : await PdfDiffService.CompareAsync(FilePathA, FilePathB, progressReporter, cts.Token, tolerance);
 
                 pageInfos = results;
                 tempDir = dir;

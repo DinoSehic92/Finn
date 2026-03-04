@@ -4,8 +4,10 @@ using Finn.Dialog;
 using Finn.Model;
 using Finn.Views;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
@@ -196,43 +198,63 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
-            /// Compares the last two versions of a single selected file, or the latest
-            /// version of each of the two selected files.
+            /// Compares the last two versions of a single selected file, or the last two
+            /// versions of all selected files treated as a combined multi-page document.
             /// </summary>
             public async Task CompareLastTwoVersions(Window mainWindow)
             {
-                string nameA, pathA, nameB, pathB;
+                if (CurrentFiles == null || CurrentFiles.Count == 0) { await ShowVersionError(mainWindow); return; }
 
-                if (CurrentFiles?.Count >= 2)
+                if (CurrentFiles.Count == 1)
                 {
-                    // Two (or more) files selected — compare latest version of each.
-                    var fa = CurrentFiles[0];
-                    var fb = CurrentFiles[1];
-                    (nameA, pathA) = fa.Versions.Count > 0
-                        ? (fa.Versions[^1].Label, fa.Versions[^1].Sökväg)
-                        : (fa.Namn, fa.Sökväg);
-                    (nameB, pathB) = fb.Versions.Count > 0
-                        ? (fb.Versions[^1].Label, fb.Versions[^1].Sökväg)
-                        : (fb.Namn, fb.Sökväg);
-                }
-                else if (CurrentFile?.Versions.Count >= 2)
-                {
-                    // Single file with at least two versions — compare last two.
-                    var v1 = CurrentFile.Versions[^2];
-                    var v2 = CurrentFile.Versions[^1];
-                    (nameA, pathA) = (v1.Label, v1.Sökväg);
-                    (nameB, pathB) = (v2.Label, v2.Sökväg);
-                }
-                else
-                {
-                    var msg = new xMessageDia();
-                    ConfigureWindow(msg, mainWindow);
-                    msg.SetMessage("Select a file with at least two versions, or select two files to compare.");
-                    await msg.ShowDialog(mainWindow);
+                    var file = CurrentFiles[0];
+                    if (file.Versions.Count < 2) { await ShowVersionError(mainWindow); return; }
+                    var v1 = file.Versions[^2];
+                    var v2 = file.Versions[^1];
+                    await OpenDiffDia(mainWindow, v1.Label, v1.Sökväg, v2.Label, v2.Sökväg);
                     return;
                 }
 
-                await OpenDiffDia(mainWindow, nameA, pathA, nameB, pathB);
+                // Multiple files — gather those with at least two versions.
+                var eligible = CurrentFiles.Where(f => f.Versions.Count >= 2).ToList();
+
+                if (eligible.Count == 0)
+                {
+                    // No version history — fall back to comparing latest path of first two files.
+                    var fa = CurrentFiles[0];
+                    var fb = CurrentFiles[1];
+                    string pa = fa.Versions.Count > 0 ? fa.Versions[^1].Sökväg : fa.Sökväg;
+                    string pb = fb.Versions.Count > 0 ? fb.Versions[^1].Sökväg : fb.Sökväg;
+                    await OpenDiffDia(mainWindow, fa.Namn, pa, fb.Namn, pb);
+                    return;
+                }
+
+                if (eligible.Count == 1)
+                {
+                    var v1 = eligible[0].Versions[^2];
+                    var v2 = eligible[0].Versions[^1];
+                    await OpenDiffDia(mainWindow, v1.Label, v1.Sökväg, v2.Label, v2.Sökväg);
+                    return;
+                }
+
+                // Two or more files with version history — multi-page diff.
+                var pathsA = eligible.Select(f => f.Versions[^2].Sökväg).ToList();
+                var pathsB = eligible.Select(f => f.Versions[^1].Sökväg).ToList();
+                string nameA = eligible.All(f => f.Versions[^2].Label == eligible[0].Versions[^2].Label)
+                    ? eligible[0].Versions[^2].Label
+                    : $"Previous ({eligible.Count} files)";
+                string nameB = eligible.All(f => f.Versions[^1].Label == eligible[0].Versions[^1].Label)
+                    ? eligible[0].Versions[^1].Label
+                    : $"Latest ({eligible.Count} files)";
+                await OpenDiffDia(mainWindow, nameA, pathsA, nameB, pathsB);
+            }
+
+            private async Task ShowVersionError(Window mainWindow)
+            {
+                var msg = new xMessageDia();
+                ConfigureWindow(msg, mainWindow);
+                msg.SetMessage("Select a file with at least two versions, or select two files to compare.");
+                await msg.ShowDialog(mainWindow);
             }
 
             public async Task OpenDiffDia(Window mainWindow,
@@ -245,6 +267,27 @@ namespace Finn.ViewModels
                     FileNameB = nameB,
                     FilePathA = pathA,
                     FilePathB = pathB
+                };
+
+                var window = new xDiffDia
+                {
+                    DataContext = vm,
+                    FontFamily = mainWindow.FontFamily,
+                    RequestedThemeVariant = mainWindow.ActualThemeVariant
+                };
+                await window.ShowDialog(mainWindow);
+            }
+
+            public async Task OpenDiffDia(Window mainWindow,
+                string nameA, IReadOnlyList<string> pathsA, string nameB, IReadOnlyList<string> pathsB)
+            {
+                var vm = new DiffViewModel
+                {
+                    UI = UI,
+                    FileNameA = nameA,
+                    FileNameB = nameB,
+                    MultiPathsA = pathsA,
+                    MultiPathsB = pathsB
                 };
 
                 var window = new xDiffDia

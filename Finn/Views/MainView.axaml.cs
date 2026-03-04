@@ -904,6 +904,12 @@ public partial class MainView : UserControl
             $"{file.Namn} ({selected.Label})", pathB);
     }
 
+    private async void OnCompareVersionDiff(object? sender, RoutedEventArgs e)
+    {
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.CompareLastTwoVersions(window);
+    }
+
     #endregion
 
     #region Collections
