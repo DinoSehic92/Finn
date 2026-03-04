@@ -195,6 +195,46 @@ namespace Finn.ViewModels
                     DiffFileB.Namn, DiffFileB.Sökväg);
             }
 
+            /// <summary>
+            /// Compares the last two versions of a single selected file, or the latest
+            /// version of each of the two selected files.
+            /// </summary>
+            public async Task CompareLastTwoVersions(Window mainWindow)
+            {
+                string nameA, pathA, nameB, pathB;
+
+                if (CurrentFiles?.Count >= 2)
+                {
+                    // Two (or more) files selected — compare latest version of each.
+                    var fa = CurrentFiles[0];
+                    var fb = CurrentFiles[1];
+                    (nameA, pathA) = fa.Versions.Count > 0
+                        ? (fa.Versions[^1].Label, fa.Versions[^1].Sökväg)
+                        : (fa.Namn, fa.Sökväg);
+                    (nameB, pathB) = fb.Versions.Count > 0
+                        ? (fb.Versions[^1].Label, fb.Versions[^1].Sökväg)
+                        : (fb.Namn, fb.Sökväg);
+                }
+                else if (CurrentFile?.Versions.Count >= 2)
+                {
+                    // Single file with at least two versions — compare last two.
+                    var v1 = CurrentFile.Versions[^2];
+                    var v2 = CurrentFile.Versions[^1];
+                    (nameA, pathA) = (v1.Label, v1.Sökväg);
+                    (nameB, pathB) = (v2.Label, v2.Sökväg);
+                }
+                else
+                {
+                    var msg = new xMessageDia();
+                    ConfigureWindow(msg, mainWindow);
+                    msg.SetMessage("Select a file with at least two versions, or select two files to compare.");
+                    await msg.ShowDialog(mainWindow);
+                    return;
+                }
+
+                await OpenDiffDia(mainWindow, nameA, pathA, nameB, pathB);
+            }
+
             public async Task OpenDiffDia(Window mainWindow,
                 string nameA, string pathA, string nameB, string pathB)
             {

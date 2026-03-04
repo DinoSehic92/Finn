@@ -20,7 +20,7 @@
         <converter:AddOneConverter x:Key="AddOneConverter"/>
     </Window.Resources>
 
-    <Grid RowDefinitions="30,Auto,*,40">
+    <Grid RowDefinitions="30,Auto,*,40" Margin="5">
         <!-- Title bar drag area -->
         <Panel Grid.Row="0" IsHitTestVisible="False"/>
 
