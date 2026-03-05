@@ -1,6 +1,7 @@
 using Finn.Model;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Finn.ViewModels
@@ -10,7 +11,7 @@ namespace Finn.ViewModels
     /// </summary>
     public partial class MainViewModel
     {
-        public void select_files(IList<FileData> files)
+        public void SelectFiles(IList<FileData> files)
         {
             CurrentFiles = files;
             SetAttachedView();
@@ -87,23 +88,11 @@ namespace Finn.ViewModels
 
         public void UpdateFilter()
         {
-            FilteredFiles.Clear();
+            var items = Type != ALL_TYPES
+                ? CurrentProject.StoredFiles.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn)
+                : CurrentProject.StoredFiles.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp);
 
-            if (Type != ALL_TYPES)
-            {
-                foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn))
-                {
-                    FilteredFiles.Add(file);
-                }
-            }
-            else
-            {
-                foreach (FileData file in CurrentProject.StoredFiles.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp))
-                {
-                    FilteredFiles.Add(file);
-                }
-            }
-            OnPropertyChanged(nameof(NrFilteredFiles));
+            FilteredFiles = new ObservableCollection<FileData>(items);
 
             if (CurrentProject.Category != SEARCH_CATEGORY)
             {

@@ -6,9 +6,6 @@ namespace Finn.Model
     /// <summary>
     /// Represents a folder and its metadata.
     /// </summary>
-    /// <summary>
-    /// Represents a folder and its metadata.
-    /// </summary>
     public class FolderData : INotifyPropertyChanged
     {
         private string name = string.Empty;
@@ -21,9 +18,6 @@ namespace Finn.Model
             set { name = value; RaisePropertyChanged(nameof(Name)); RaisePropertyChanged(nameof(NameWithAttributes)); }
         }
 
-        /// <summary>
-        /// Gets the folder name with attributes (valid/invalid).
-        /// </summary>
         /// <summary>
         /// Gets the folder name with attributes (valid/invalid).
         /// </summary>
@@ -74,6 +68,13 @@ namespace Finn.Model
             get { return attachToFilePath; }
             set { attachToFilePath = value; RaisePropertyChanged("AttachToFilePath"); }
         }
+
+        /// <summary>
+        /// True when this folder syncs to the project file grid rather than a specific file.
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsProjectLevel =>
+            AttachToFile is null or "PROJECT";
 
         public bool IsValid()
         {

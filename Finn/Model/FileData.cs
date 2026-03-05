@@ -132,9 +132,6 @@ namespace Finn.Model
         /// <summary>
         /// Gets or sets the file name.
         /// </summary>
-        /// <summary>
-        /// Gets or sets the file name.
-        /// </summary>
         public string Namn
         {
             get => _namn;
@@ -142,10 +139,7 @@ namespace Finn.Model
         }
 
         /// <summary>
-        /// Gets or sets the file status.
-        /// </summary>
-        /// <summary>
-        /// Gets or sets the file status.
+        /// Gets or sets whether the file is missing from disk.
         /// </summary>
         public bool IsFileMissing
         {
@@ -153,9 +147,6 @@ namespace Finn.Model
             set => SetProperty(ref _isFileMissing, value);
         }
 
-        /// <summary>
-        /// Gets or sets the file tag.
-        /// </summary>
         /// <summary>
         /// Gets or sets the file tag.
         /// </summary>

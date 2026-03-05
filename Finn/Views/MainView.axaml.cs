@@ -596,7 +596,7 @@ public partial class MainView : UserControl
     {
         if (_isUpdatingSelection) return;
         var files = FileGrid.SelectedItems.Cast<FileData>().ToList();
-        _ctx.select_files(files);
+        _ctx.SelectFiles(files);
     }
 
     private void SelectFavorite(object? sender, RoutedEventArgs e)

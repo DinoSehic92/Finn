@@ -24,18 +24,18 @@ namespace Finn.ViewModels
             {
                 if (CurrentFolder != null)
                 {
-                    if (CurrentFolder.AttachToFile == null)
-                    {
-                        foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                    if (CurrentFolder.IsProjectLevel)
                         {
-                            CurrentProject.StoredFiles.Remove(file);
-                        }
+                            foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
+                            {
+                                CurrentProject.StoredFiles.Remove(file);
+                            }
 
-                        UpdateFilter();
-                        CurrentProject.Folders.Remove(CurrentFolder);
-                        OnPropertyChanged("TreeViewUpdate");
-                    }
-                    else
+                            UpdateFilter();
+                            CurrentProject.Folders.Remove(CurrentFolder);
+                            OnPropertyChanged("TreeViewUpdate");
+                        }
+                        else
                     {
                         FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == CurrentFolder.AttachToFile);
 
@@ -96,7 +96,7 @@ namespace Finn.ViewModels
                     return;
                 }
 
-                if (folder.AttachToFile != null)
+                if (!folder.IsProjectLevel)
                 {
                     FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile);
 

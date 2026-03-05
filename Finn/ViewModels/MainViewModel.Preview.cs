@@ -155,7 +155,7 @@ namespace Finn.ViewModels
                 SelectType(file.Filtyp);
             }
 
-            select_files(files);
+            SelectFiles(files);
             NavigateTreeToCurrentProject();
         }
     }

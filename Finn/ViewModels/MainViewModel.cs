@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -26,7 +27,17 @@ namespace Finn.ViewModels
             private const string OTHER_FILES_TYPE = "Other Files";
             private const string DRAWING_TYPE = "Drawing";
             private const string DOCUMENT_TYPE = "Document";
-            public const string SavePath = @"C:\Finn";
+            public static string SavePath { get; } = ResolveSavePath();
+
+            private static string ResolveSavePath()
+            {
+                const string legacyPath = @"C:\Finn";
+                if (OperatingSystem.IsWindows() && Directory.Exists(legacyPath))
+                    return legacyPath;
+
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Finn");
+            }
 
             public MainViewModel()
             {
@@ -86,7 +97,8 @@ namespace Finn.ViewModels
                 set => Data.SelectedTextContent = value;
             }
 
-            // Delegation methods so code-behind can call _ctx.MethodName() unchanged
+            // Delegation methods so code-behind can call _ctx.MethodName() unchanged.
+            // TODO: Migrate call sites to use _ctx.Data.X() directly, then remove these shims.
             public void GetThumbnails() => Data.GetThumbnails();
             public void GenerateThumbnail(FileData file, string thumbnailDir) => Data.GenerateThumbnail(file, thumbnailDir);
             public void ClearThumbnails() => Data.ClearThumbnails();
@@ -136,7 +148,8 @@ namespace Finn.ViewModels
                 set => Collections.FavPage = value;
             }
 
-            // Delegation methods so code-behind can call _ctx.MethodName() unchanged
+            // Delegation methods so code-behind can call _ctx.MethodName() unchanged.
+            // TODO: Migrate call sites to use _ctx.Collections.X() directly, then remove these shims.
             public void SetBookmark(PageData page) => Collections.SetBookmark(page);
             public void AddBookmark(string pageName) => Collections.AddBookmark(pageName);
             public void RenameBookmark(string pageName) => Collections.RenameBookmark(pageName);
@@ -149,7 +162,12 @@ namespace Finn.ViewModels
             public void SetCollectionContent() => Collections.SetCollectionContent();
             public void RenameCollection(string newName) => Collections.RenameCollection(newName);
 
-            public Window PreviewWindow;
+            private Window? _previewWindow;
+            public Window? PreviewWindow
+            {
+                get => _previewWindow;
+                set => _previewWindow = value;
+            }
 
             private ObservableCollection<string> groups = new();
             public ObservableCollection<string> Groups
@@ -159,7 +177,7 @@ namespace Finn.ViewModels
             }
 
             public string ProjectMessage { get; set; } = "";
-            public bool Confirmed = false;
+            public bool Confirmed { get; set; }
 
             private bool attachedView = false;
             public bool AttachedView

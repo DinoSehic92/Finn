@@ -75,24 +75,14 @@ namespace Finn.ViewModels
                 {
                     foreach (FileData file in project.StoredFiles)
                     {
-                        bool finished = false;
+                        string?[] fields = [file.Namn, file.Beskrivning1, file.Beskrivning2, file.Beskrivning3, file.Tagg];
 
-                        string b0 = file.Namn;
-                        string b1 = file.Beskrivning1;
-                        string b2 = file.Beskrivning2;
-                        string b3 = file.Beskrivning3;
-                        string b4 = file.Tagg;
-
-                        if (b0 != null && !finished) { if (b0.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                        if (b1 != null && !finished) { if (b1.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                        if (b2 != null && !finished) { if (b2.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                        if (b3 != null && !finished) { if (b3.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
-                        if (b4 != null && !finished) { if (b4.ToLower().Contains(SearchText.ToLower())) { FilteredFiles.Add(file); finished = true; } }
+                        if (fields.Any(f => f?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) == true))
+                            FilteredFiles.Add(file);
                     }
                 }
 
-                OnPropertyChanged("NrFilteredFiles");
-
+                OnPropertyChanged(nameof(NrFilteredFiles));
             }
         }
     }

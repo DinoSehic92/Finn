@@ -46,12 +46,21 @@ namespace Finn.ViewModels
 
             public void LoadFileAuto()
             {
-                string path = $"{SavePath}\\Projects.json";
+                string path = Path.Combine(SavePath, "Projects.json");
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
-                using StreamReader streamReader = new(path);
-                string fileContent = streamReader.ReadToEnd();
-                DeserializeLoadFile(fileContent);
+                try
+                {
+                    using StreamReader streamReader = new(path);
+                    string fileContent = streamReader.ReadToEnd();
+                    DeserializeLoadFile(fileContent);
+                }
+                catch
+                {
+                    Storage = new ProjectStorage();
+                    SetProjectlist();
+                    SetDefaultSelection();
+                }
             }
 
             public void DeserializeLoadFile(string fileContent)

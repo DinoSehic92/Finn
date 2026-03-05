@@ -79,26 +79,14 @@ namespace Finn.ViewModels
 
             public void CopyFilenameToClipboard(Avalonia.Visual window)
             {
-                string store = string.Empty;
-
-                foreach (FileData file in CurrentFiles)
-                {
-                    store += file.Namn + Environment.NewLine;
-                }
-
-                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
+                var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Namn));
+                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text);
             }
 
             public void CopyFilepathToClipboard(Avalonia.Visual window)
             {
-                string store = string.Empty;
-
-                foreach (FileData file in CurrentFiles)
-                {
-                    store += file.Sökväg + Environment.NewLine;
-                }
-
-                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
+                var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Sökväg));
+                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text);
             }
 
             public void CopyListviewToClipboard(Avalonia.Visual window)
