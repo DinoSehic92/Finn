@@ -127,7 +127,7 @@
 						<MenuItem.Icon><ic:SymbolIcon Symbol="SaveEdit"/></MenuItem.Icon>
 					</MenuItem>
 					<Separator/>
-                    <MenuItem Header="Backup"  Command="{Binding BackupSaveFile}">
+					<MenuItem Header="Backup"  Command="{Binding BackupSaveFile}">
 						<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowUp"/></MenuItem.Icon>
 					</MenuItem>
 					<MenuItem Header="Reset"   Command="{Binding ResetPreviewer}">
@@ -140,9 +140,12 @@
 		<!-- Center status message -->
 		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
 					Spacing="4">
-        <ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
-        <TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
-                   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
+			<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemAccentColor}"
+					 IsVisible="{Binding IsDirty}" IsHitTestVisible="False"
+					 ToolTip.Tip="Unsaved changes"/>
+			<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
+			<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
+					   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
 		</StackPanel>
 
 		<!-- Progress bar -->
@@ -264,21 +267,45 @@
             <ToggleButton ToolTip.Tip="Mode: Ctrl + M"           HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !UI.DarkMode}"><ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
 
-            <!-- Toolbox: grouped tools (compact icon-only flyout) -->
-			<Button ToolTip.Tip="Toolbox" Height="30" Width="35" Padding="0">
+			<!-- Toolbox: grouped tools (compact icon-only flyout) -->
+			<Button ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0">
 				<ic:SymbolIcon Symbol="Toolbox" FontSize="18"/>
 				<Button.Flyout>
-                    <Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
-                        <!-- compact vertical flyout with same-size buttons as toolbar -->
+					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
+						<!-- compact vertical flyout with same-size buttons as toolbar -->
 						<StackPanel Orientation="Vertical" Width="38" Margin="1" Spacing="1">
-                           <Button ToolTip.Tip="Analog Clock" Width="35" Height="30" Classes="rounded-default" Click="OnOpenAnalogClock" Padding="0">
-                               <ic:SymbolIcon Symbol="Clock" FontSize="18"/>
-                           </Button>
+						   <Button ToolTip.Tip="Analog Clock" Width="35" Height="30" Classes="rounded-default" Click="OnOpenAnalogClock" Padding="0">
+							   <ic:SymbolIcon Symbol="Clock" FontSize="18"/>
+						   </Button>
 							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" Padding="0">
 								<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
 							</Button>
 							<Button ToolTip.Tip="Reinforcement" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenReinforcementCalculator}" CommandParameter="{Binding $parent[Window]}" Padding="0">
 								<ic:SymbolIcon Symbol="Calculator" FontSize="18"/>
+							</Button>
+							<!-- Keyboard shortcuts help -->
+							<Button ToolTip.Tip="Keyboard Shortcuts" Height="30" MinHeight="0" Width="35" Padding="0">
+								<ic:SymbolIcon Symbol="Keyboard" IconVariant="Regular" FontSize="18"/>
+								<Button.Flyout>
+									<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2">
+										<StackPanel Orientation="Vertical" Width="220" Margin="6" Spacing="4">
+											<TextBlock Text="Keyboard Shortcuts" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,4"/>
+											<Separator Height="1"/>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+S" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Save" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+Q" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Toggle Treeview" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+E" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Toggle Tray" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+A" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Attached Files" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+L" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Toggle Folders" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+T" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Thumbnails" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+W" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Preview Window" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+P" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Embedded Preview" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+I" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Toggle Icons" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+M" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Dark / Light Mode" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+K" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Toggle Calendar" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Enter" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Search (in search box)" FontSize="13"/></Grid>
+										</StackPanel>
+									</Flyout>
+								</Button.Flyout>
 							</Button>
 							<Button ToolTip.Tip="Info" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenInfoDia}" CommandParameter="{Binding $parent[Window]}" Padding="0">
 								<ic:SymbolIcon Symbol="Info" FontSize="18"/>
@@ -288,7 +315,7 @@
 				</Button.Flyout>
 			</Button>
 
-		<ToggleButton ToolTip.Tip="Calendar: Ctrl + K"       HotKey="Ctrl+K" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.CalendarOpen}">       <ic:SymbolIcon Symbol="Calendar"     IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Calendar: Ctrl + K" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 		</StackPanel>
 
 		<!-- ═══════════════════════════════════════════════ -->
@@ -298,13 +325,14 @@
 		<!-- File DataGrid + attached files + folders -->
 		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto" MinWidth="300">
 
-			<!-- Main file list -->
-			<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
-					  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
-					  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
-					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-					  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
-                      ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
+			<!-- Main file list with empty state and drop hint overlays -->
+			<Panel>
+				<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
+						  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
+						  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
+						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+						  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
+						  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 
                 <DataGrid.Columns>
                     <!-- Icons-only column: render Fluent SymbolIcons for each symbol name in IconSymbols -->
@@ -521,12 +549,12 @@
 				<MenuItem Header="Tools">
 					<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
 							<MenuItem Header="Status">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
-								<MenuItem Header="Check File" Click="OnCheckStatusSingleFile">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Check All"  Click="OnCheckProjectFiles">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
+									<MenuItem Header="Check File" Command="{Binding CheckSingleFileCommand}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Check All"  Command="{Binding CheckProjectFilesCommand}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
 								</MenuItem>
 							</MenuItem>
 							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
@@ -572,6 +600,25 @@
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
+
+				<!-- Empty state message (shown when no files in grid) -->
+				<StackPanel Name="EmptyStateHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+					<ic:SymbolIcon Symbol="DocumentAdd" FontSize="36" HorizontalAlignment="Center"/>
+					<TextBlock Text="No files loaded" FontSize="16" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,8,0,2"/>
+					<TextBlock Text="Drop PDF files here or use File → Load" FontSize="13" HorizontalAlignment="Center"/>
+				</StackPanel>
+
+				<!-- Drag-and-drop hint overlay -->
+				<Border Name="DropOverlay" IsVisible="False" IsHitTestVisible="False"
+						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+						BorderThickness="2" CornerRadius="8" Margin="4">
+					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
+						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
+						<TextBlock Text="Drop files to add" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+					</StackPanel>
+				</Border>
+			</Panel>
 
 			<!-- Attached files panels -->
 			<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600" IsEnabled="{Binding FileSelected}">

@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.Input;
 using Finn.Model;
 using iText.IO.Font;
 using iText.IO.Font.Constants;
@@ -19,11 +20,22 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Finn.ViewModels
     {
         public partial class MainViewModel
         {
+            #region Commands
+
+            private ICommand? _checkSingleFileCommand;
+            public ICommand CheckSingleFileCommand => _checkSingleFileCommand ??= new RelayCommand(CheckSingleFile);
+
+            private ICommand? _checkProjectFilesCommand;
+            public ICommand CheckProjectFilesCommand => _checkProjectFilesCommand ??= new AsyncRelayCommand(CheckProjectFiles);
+
+            #endregion
+
             public async Task AddFile(Avalonia.Visual window)
             {
                 if (CurrentProject != null)
@@ -51,6 +63,7 @@ namespace Finn.ViewModels
             {
                 CurrentProject.Newfile(path);
                 SetDefaultType();
+                MarkDirty();
             }
 
             public void SetCategory(string category)
@@ -365,6 +378,7 @@ namespace Finn.ViewModels
                 {
                     file.Färg = color;
                 }
+                MarkDirty();
             }
 
             public void ClearAll()
@@ -374,6 +388,7 @@ namespace Finn.ViewModels
                     file.Färg = "";
                     file.Tagg = "";
                 }
+                MarkDirty();
             }
 
             public void AddTag(string tag)
@@ -382,6 +397,7 @@ namespace Finn.ViewModels
                 {
                     file.Tagg = tag;
                 }
+                MarkDirty();
             }
 
             public void ClearTag()
@@ -531,6 +547,7 @@ namespace Finn.ViewModels
                     }
 
                     UpdateFilter();
+                    MarkDirty();
                 }
             }
 

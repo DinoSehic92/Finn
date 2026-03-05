@@ -7,11 +7,11 @@
         mc:Ignorable="d" d:DesignWidth="1600" d:DesignHeight="800"
 		MinWidth="1600"
 		MinHeight="800"
-        x:Class="Finn.Views.MainWindow"
-        Icon="/Assets/folder.ico"
-        WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True"
-        Title="Finn">
+		x:Class="Finn.Views.MainWindow"
+		Icon="/Assets/folder.ico"
+		WindowStartupLocation="CenterScreen"
+		ExtendClientAreaToDecorationsHint="True"
+		Title="Finn">
 
 	<Window.Styles>
 

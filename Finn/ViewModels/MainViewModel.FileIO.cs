@@ -104,6 +104,7 @@ namespace Finn.ViewModels
                     using var streamWriter = new StreamWriter(stream);
                     var data = JsonConvert.SerializeObject(Storage);
                     await streamWriter.WriteLineAsync(data);
+                    ClearDirty();
                 }
             }
 
@@ -120,6 +121,7 @@ namespace Finn.ViewModels
                 using StreamWriter streamWriter = new(path);
                 var data = JsonConvert.SerializeObject(Storage);
                 await streamWriter.WriteLineAsync(data);
+                ClearDirty();
             }
 
             /// <summary>

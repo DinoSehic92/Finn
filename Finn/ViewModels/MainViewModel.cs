@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Windows.Input;
 
 namespace Finn.ViewModels
     {
@@ -360,5 +361,53 @@ namespace Finn.ViewModels
 
             public void ClearDiffFileA() => DiffFileA = null;
             public void ClearDiffFileB() => DiffFileB = null;
+
+            #region Dirty Tracking
+
+            private bool _isDirty;
+            public bool IsDirty
+            {
+                get => _isDirty;
+                set { _isDirty = value; OnPropertyChanged(nameof(IsDirty)); }
+            }
+
+            public void MarkDirty()
+            {
+                IsDirty = true;
+            }
+
+            public void ClearDirty()
+            {
+                IsDirty = false;
+            }
+
+            #endregion
+
+            #region Keyboard Shortcuts
+
+            public static IReadOnlyList<(string Key, string Description)> KeyboardShortcuts { get; } = new[]
+            {
+                ("Ctrl+S", "Save"),
+                ("Ctrl+Q", "Toggle Treeview"),
+                ("Ctrl+E", "Toggle Tray"),
+                ("Ctrl+A", "Toggle Attached Files"),
+                ("Ctrl+L", "Toggle Folders"),
+                ("Ctrl+T", "Toggle Thumbnails"),
+                ("Ctrl+W", "Toggle Preview Window"),
+                ("Ctrl+P", "Toggle Embedded Preview"),
+                ("Ctrl+I", "Toggle Icons"),
+                ("Ctrl+M", "Toggle Dark/Light Mode"),
+                ("Ctrl+K", "Toggle Calendar"),
+                ("Enter",  "Search (in search box)"),
+            };
+
+            private bool _shortcutsOpen;
+            public bool ShortcutsOpen
+            {
+                get => _shortcutsOpen;
+                set { _shortcutsOpen = value; OnPropertyChanged(nameof(ShortcutsOpen)); }
+            }
+
+            #endregion
         }
     }

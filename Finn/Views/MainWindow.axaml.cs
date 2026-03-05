@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Finn.Dialog;
 using System.ComponentModel;
 using System.Diagnostics;
-using Org.BouncyCastle.Crypto.Signers;
 
 
 namespace Finn.Views;
@@ -16,6 +15,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         InitializeComponent();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, System.EventArgs e)
+    {
+        if (DataContext is MainViewModel ctx)
+        {
+            ctx.PropertyChanged += OnViewModelPropertyChanged;
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainViewModel.IsDirty))
+        {
+            var ctx = (MainViewModel)DataContext!;
+            Title = ctx.IsDirty ? "Finn  ●" : "Finn";
+        }
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
