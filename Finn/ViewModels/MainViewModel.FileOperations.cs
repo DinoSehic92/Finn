@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using CommunityToolkit.Mvvm.Input;
 using Finn.Model;
 using iText.IO.Font;
 using iText.IO.Font.Constants;
@@ -19,11 +20,22 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Finn.ViewModels
     {
         public partial class MainViewModel
         {
+            #region Commands
+
+            private ICommand? _checkSingleFileCommand;
+            public ICommand CheckSingleFileCommand => _checkSingleFileCommand ??= new RelayCommand(CheckSingleFile);
+
+            private ICommand? _checkProjectFilesCommand;
+            public ICommand CheckProjectFilesCommand => _checkProjectFilesCommand ??= new AsyncRelayCommand(CheckProjectFiles);
+
+            #endregion
+
             public async Task AddFile(Avalonia.Visual window)
             {
                 if (CurrentProject != null)
@@ -51,6 +63,7 @@ namespace Finn.ViewModels
             {
                 CurrentProject.Newfile(path);
                 SetDefaultType();
+                MarkDirty();
             }
 
             public void SetCategory(string category)
@@ -113,100 +126,6 @@ namespace Finn.ViewModels
                     store += Environment.NewLine;
                 }
                 TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
-            }
-
-            public void SelectFilesForMetaworker(bool singleMode)
-            {
-                MetaStore.Clear();
-                PathStore.Clear();
-
-                if (singleMode == true)
-                {
-                    foreach (FileData file in CurrentFiles) { PathStore.Add((file.Sökväg)); }
-                }
-                if (singleMode == false)
-                {
-                    foreach (FileData file in FilteredFiles) { PathStore.Add((file.Sökväg)); }
-                }
-            }
-
-            public int GetNrSelectedFiles()
-            {
-                return PathStore.Count;
-            }
-
-            public void SetMeta()
-            {
-                int i = 0;
-                foreach (string path in PathStore)
-                {
-                    FileData file = FilteredFiles.FirstOrDefault(x => x.Sökväg == path);
-
-                    string[] md = MetaStore[i];
-
-                    file.Handling = md[0];
-                    file.Status = md[1];
-                    file.Datum = md[2];
-                    file.Ritningstyp = md[3];
-                    file.Beskrivning1 = md[4];
-                    file.Beskrivning2 = md[5];
-                    file.Beskrivning3 = md[6];
-                    file.Beskrivning4 = md[7];
-                    file.Revidering = md[8];
-                    file.Sökväg = path;
-
-                    i++;
-                }
-            }
-
-            public void GetMetadata(int k)
-            {
-                string[] tags = ["Handlingstyp = ", "Granskningsstatus = ", "Datum = ", "Ritningstyp = ", "Beskrivning1 = ", "Beskrivning2 = ", "Beskrivning3 = ", "Beskrivning4 = ", "Revidering = "];
-                int ntags = tags.Length;
-
-                string path = PathStore[k];
-                string[] description = new string[ntags];
-                try
-                {
-                    string[] lines = System.IO.File.ReadAllLines(path + ".md", Encoding.GetEncoding("ISO-8859-1"));
-
-                    int iter = 1;
-                    int start = 100;
-                    int end = 0;
-                    foreach (string line in lines)
-                    {
-                        if (line == "[Metadata]") { start = iter; }
-                        if (line.Trim().Length == 0 || iter > start) { end = iter; }
-                        iter++;
-                    }
-
-                    for (int i = start; i < end; i++)
-                    {
-                        string line = lines[i];
-                        for (int j = 0; j < ntags; j++)
-                        {
-                            string tag = tags[j];
-                            if (line.StartsWith(tag))
-                            {
-                                description[j] = line.Replace(tag, "");
-                            }
-                            if (line.StartsWith(tag.ToUpper()))
-                            {
-                                description[j] = line.Replace(tag.ToUpper(), "");
-                            }
-                        }
-                    }
-                    MetaStore.Add(description);
-                }
-                catch (Exception)
-                {
-                    MetaStore.Add(["", "", "", "", "", "", "", "", ""]);
-                }
-            }
-
-            public void ClearMeta()
-            {
-                ClearSelectedMetadata();
             }
 
             public void CheckSingleFile()
@@ -365,6 +284,7 @@ namespace Finn.ViewModels
                 {
                     file.Färg = color;
                 }
+                MarkDirty();
             }
 
             public void ClearAll()
@@ -374,6 +294,7 @@ namespace Finn.ViewModels
                     file.Färg = "";
                     file.Tagg = "";
                 }
+                MarkDirty();
             }
 
             public void AddTag(string tag)
@@ -382,6 +303,7 @@ namespace Finn.ViewModels
                 {
                     file.Tagg = tag;
                 }
+                MarkDirty();
             }
 
             public void ClearTag()
@@ -395,22 +317,6 @@ namespace Finn.ViewModels
             public void EditType(string type)
             {
                 SetTypeSelected(type);
-            }
-
-            public void ClearSelectedMetadata()
-            {
-                foreach (FileData file in CurrentFiles)
-                {
-                    file.Handling = "";
-                    file.Status = "";
-                    file.Datum = "";
-                    file.Ritningstyp = "";
-                    file.Beskrivning1 = "";
-                    file.Beskrivning2 = "";
-                    file.Beskrivning3 = "";
-                    file.Beskrivning4 = "";
-                    file.Revidering = "";
-                }
             }
 
             public void AddAppendedFile(string filepath, bool fromFolder = false)
@@ -531,6 +437,7 @@ namespace Finn.ViewModels
                     }
 
                     UpdateFilter();
+                    MarkDirty();
                 }
             }
 

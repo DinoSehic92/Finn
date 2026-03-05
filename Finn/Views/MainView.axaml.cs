@@ -37,6 +37,11 @@ public partial class MainView : UserControl
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectFiles);
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
 
+        // Drag-and-drop visual hints
+        MainGrid.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
+        MainGrid.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
+        MainGrid.AddHandler(DragDrop.DropEvent, OnDragDropCompleted);
+
         CollectionContent.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
         CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectFavorite);
 
@@ -131,6 +136,8 @@ public partial class MainView : UserControl
             }
         }
         catch { }
+
+        UpdateEmptyState();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -140,6 +147,7 @@ public partial class MainView : UserControl
             case nameof(MainViewModel.FilteredFiles):
             case "UpdateColumns":
                 OnUpdateColumns();
+                UpdateEmptyState();
                 break;
             case nameof(MainViewModel.PreviewEmbeddedOpen):
                 UpdateMainGrid();
@@ -152,6 +160,9 @@ public partial class MainView : UserControl
                 break;
             case "TreeViewUpdate":
                 _ctx.BuildTreeData();
+                break;
+            case nameof(MainViewModel.NrFilteredFiles):
+                UpdateEmptyState();
                 break;
         }
     }
@@ -297,6 +308,32 @@ public partial class MainView : UserControl
             }
         }
         return (files, folders);
+    }
+
+    private void OnDragEnter(object? sender, DragEventArgs e)
+    {
+        if (e.Data.GetFiles() != null)
+            DropOverlay.IsVisible = true;
+    }
+
+    private void OnDragLeave(object? sender, DragEventArgs e)
+    {
+        DropOverlay.IsVisible = false;
+    }
+
+    private void OnDragDropCompleted(object? sender, DragEventArgs e)
+    {
+        DropOverlay.IsVisible = false;
+    }
+
+    #endregion
+
+    #region Empty State
+
+    private void UpdateEmptyState()
+    {
+        bool empty = _ctx.FilteredFiles == null || _ctx.FilteredFiles.Count == 0;
+        EmptyStateHint.IsVisible = empty;
     }
 
     #endregion
@@ -635,21 +672,6 @@ public partial class MainView : UserControl
         var file = (FileGrid.SelectedItem ?? AppendixGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
         if (file != null)
             await _ctx.RequestPreview2Async(file);
-    }
-
-    #endregion
-
-    #region Status Checks
-
-    private void OnCheckStatusSingleFile(object? sender, RoutedEventArgs e)
-    {
-        _ctx.CheckSingleFile();
-    }
-
-    private async void OnCheckProjectFiles(object? sender, RoutedEventArgs e)
-    {
-        await _ctx.CheckProjectFiles();
-        FileGrid.SelectedItem = null;
     }
 
     #endregion

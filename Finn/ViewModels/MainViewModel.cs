@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Finn.ViewModels
     {
@@ -34,6 +36,18 @@ namespace Finn.ViewModels
                 SetDefaultType();
 
                 Calendar = new CalendarViewModel(() => UI);
+                Collections = new CollectionsViewModel(
+                    () => Storage,
+                    () => PreviewVM,
+                    () => CurrentFiles,
+                    () => CurrentFile,
+                    MarkDirty);
+                Data = new DataViewModel(
+                    () => Storage,
+                    () => CurrentFiles,
+                    () => FilteredFiles,
+                    SavePath,
+                    MarkDirty);
             }
 
             private PreviewViewModel _previewVM = new();
@@ -48,8 +62,45 @@ namespace Finn.ViewModels
 
             // CalendarStorage moved into CalendarViewModel
 
-            public List<string[]> MetaStore = new();
-            public List<string> PathStore = new();
+            // Data operations (content indexing, thumbnails, metadata) managed by DataViewModel
+            private DataViewModel _data;
+            public DataViewModel Data
+            {
+                get => _data;
+                set { _data = value; OnPropertyChanged(nameof(Data)); }
+            }
+
+            // Forwarding properties for code-behind and other partials
+            public List<string[]> MetaStore => Data.MetaStore;
+            public List<string> PathStore => Data.PathStore;
+
+            public ObservableCollection<ContentData>? TextContent
+            {
+                get => Data.TextContent;
+                set => Data.TextContent = value;
+            }
+
+            public ContentData? SelectedTextContent
+            {
+                get => Data.SelectedTextContent;
+                set => Data.SelectedTextContent = value;
+            }
+
+            // Delegation methods so code-behind can call _ctx.MethodName() unchanged
+            public void GetThumbnails() => Data.GetThumbnails();
+            public void GenerateThumbnail(FileData file, string thumbnailDir) => Data.GenerateThumbnail(file, thumbnailDir);
+            public void ClearThumbnails() => Data.ClearThumbnails();
+            public void SyncThumbnails() => Data.SyncThumbnails();
+            public Task GetContentAsync(IProgress<int>? progress = null) => Data.GetContentAsync(progress);
+            public void ClearIndexedContent() => Data.ClearIndexedContent();
+            public void SyncPlainText() => Data.SyncPlainText();
+            public void LoadIndexFile(string indexPath) => Data.LoadIndexFile(indexPath);
+            public void SelectFilesForMetaworker(bool singleMode) => Data.SelectFilesForMetaworker(singleMode);
+            public int GetNrSelectedFiles() => Data.GetNrSelectedFiles();
+            public void GetMetadata(int k) => Data.GetMetadata(k);
+            public void SetMeta() => Data.SetMeta();
+            public void ClearMeta() => Data.ClearMeta();
+            public void ClearSelectedMetadata() => Data.ClearSelectedMetadata();
 
             private ObservableCollection<string> favorites = new() { "Default" };
             public ObservableCollection<string> Favorites
@@ -58,19 +109,45 @@ namespace Finn.ViewModels
                 set { favorites = value; OnPropertyChanged(nameof(Favorites)); }
             }
 
-            private string currentCollection = string.Empty;
-            public string CurrentCollection
+            // Collections, bookmarks, and favorites are managed by CollectionsViewModel
+            private CollectionsViewModel _collections;
+            public CollectionsViewModel Collections
             {
-                get { return currentCollection; }
-                set { currentCollection = value; OnPropertyChanged(nameof(CurrentCollection)); SetCollectionContent(); }
+                get => _collections;
+                set { _collections = value; OnPropertyChanged(nameof(Collections)); }
             }
 
-            private ObservableCollection<FileData> collectionContent = new();
+            // Forwarding properties so existing XAML bindings and code-behind continue to work
+            public string CurrentCollection
+            {
+                get => Collections.CurrentCollection;
+                set => Collections.CurrentCollection = value;
+            }
+
             public ObservableCollection<FileData> CollectionContent
             {
-                get { return collectionContent; }
-                set { collectionContent = value; OnPropertyChanged(nameof(CollectionContent)); }
+                get => Collections.CollectionContent;
+                set => Collections.CollectionContent = value;
             }
+
+            public PageData? FavPage
+            {
+                get => Collections.FavPage;
+                set => Collections.FavPage = value;
+            }
+
+            // Delegation methods so code-behind can call _ctx.MethodName() unchanged
+            public void SetBookmark(PageData page) => Collections.SetBookmark(page);
+            public void AddBookmark(string pageName) => Collections.AddBookmark(pageName);
+            public void RenameBookmark(string pageName) => Collections.RenameBookmark(pageName);
+            public void RemoveBookmark(PageData page) => Collections.RemoveBookmark(page);
+            public void MarkFavorite() => Collections.MarkFavorite();
+            public void NewCollection(string name) => Collections.NewCollection(name);
+            public void RemoveCollection() => Collections.RemoveCollection();
+            public void AddFileToCollection(string collection) => Collections.AddFileToCollection(collection);
+            public void RemoveFileFromCollection() => Collections.RemoveFileFromCollection();
+            public void SetCollectionContent() => Collections.SetCollectionContent();
+            public void RenameCollection(string newName) => Collections.RenameCollection(newName);
 
             public Window PreviewWindow;
 
@@ -79,13 +156,6 @@ namespace Finn.ViewModels
             {
                 get { return groups; }
                 set { groups = value; OnPropertyChanged(nameof(Groups)); }
-            }
-
-            private PageData favPage;
-            public PageData FavPage
-            {
-                get { return favPage; }
-                set { favPage = value; OnPropertyChanged(nameof(FavPage)); TrySetPage(); }
             }
 
             public string ProjectMessage { get; set; } = "";
@@ -162,20 +232,6 @@ namespace Finn.ViewModels
             {
                 get { return filteredFiles; }
                 set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }
-            }
-
-            private ObservableCollection<ContentData> textContent = null;
-            public ObservableCollection<ContentData> TextContent
-            {
-                get { return textContent; }
-                set { textContent = value; OnPropertyChanged(nameof(TextContent)); }
-            }
-
-            private ContentData selectedTextContent = null;
-            public ContentData SelectedTextContent
-            {
-                get { return selectedTextContent; }
-                set { selectedTextContent = value; OnPropertyChanged(nameof(SelectedTextContent)); }
             }
 
             public int NrFilteredFiles => FilteredFiles?.Count ?? 0;
@@ -308,14 +364,6 @@ namespace Finn.ViewModels
             }
 
 
-            public void TrySetPage()
-            {
-                if (FavPage != null)
-                {
-                    PreviewVM.RequestPage1 = FavPage.PageNr;
-                }
-            }
-
             private FileData diffFileA;
             public FileData DiffFileA
             {
@@ -360,5 +408,53 @@ namespace Finn.ViewModels
 
             public void ClearDiffFileA() => DiffFileA = null;
             public void ClearDiffFileB() => DiffFileB = null;
+
+            #region Dirty Tracking
+
+            private bool _isDirty;
+            public bool IsDirty
+            {
+                get => _isDirty;
+                set { _isDirty = value; OnPropertyChanged(nameof(IsDirty)); }
+            }
+
+            public void MarkDirty()
+            {
+                IsDirty = true;
+            }
+
+            public void ClearDirty()
+            {
+                IsDirty = false;
+            }
+
+            #endregion
+
+            #region Keyboard Shortcuts
+
+            public static IReadOnlyList<(string Key, string Description)> KeyboardShortcuts { get; } = new[]
+            {
+                ("Ctrl+S", "Save"),
+                ("Ctrl+Q", "Toggle Treeview"),
+                ("Ctrl+E", "Toggle Tray"),
+                ("Ctrl+A", "Toggle Attached Files"),
+                ("Ctrl+L", "Toggle Folders"),
+                ("Ctrl+T", "Toggle Thumbnails"),
+                ("Ctrl+W", "Toggle Preview Window"),
+                ("Ctrl+P", "Toggle Embedded Preview"),
+                ("Ctrl+I", "Toggle Icons"),
+                ("Ctrl+M", "Toggle Dark/Light Mode"),
+                ("Ctrl+K", "Toggle Calendar"),
+                ("Enter",  "Search (in search box)"),
+            };
+
+            private bool _shortcutsOpen;
+            public bool ShortcutsOpen
+            {
+                get => _shortcutsOpen;
+                set { _shortcutsOpen = value; OnPropertyChanged(nameof(ShortcutsOpen)); }
+            }
+
+            #endregion
         }
     }

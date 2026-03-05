@@ -48,6 +48,7 @@ namespace Finn.ViewModels
             CurrentProject.StoredFiles.Add(newfile);
             UpdateFilter();
             OnPropertyChanged("TreeViewUpdate");
+            MarkDirty();
         }
 
         public void RemoveSelectedFiles()
@@ -60,6 +61,7 @@ namespace Finn.ViewModels
             }
 
             CurrentProject.SetFiletypeList();
+            MarkDirty();
 
             if (FilteredFiles == null)
             {
@@ -80,6 +82,7 @@ namespace Finn.ViewModels
             }
             currentProject.SetFiletypeList();
             UpdateFilter();
+            MarkDirty();
         }
 
         public void UpdateFilter()
