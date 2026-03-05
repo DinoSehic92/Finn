@@ -430,7 +430,7 @@
 
 						<Separator/>
 
-						<MenuItem Header="Favorite" Command="{Binding MarkFavorite}">
+						<MenuItem Header="Favorite" Command="{Binding Collections.MarkFavorite}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Star"/></MenuItem.Icon>
 						</MenuItem>
 
@@ -513,7 +513,7 @@
 								<MenuItem Header="Edit"      Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Clear"     Command="{Binding ClearMeta}">
+								<MenuItem Header="Clear"     Command="{Binding Data.ClearMeta}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 								</MenuItem>
 							</MenuItem>
@@ -522,10 +522,10 @@
 									<MenuItem Header="Fetch" Click="OnFetchThumbnails">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 									</MenuItem>
-									<MenuItem Header="Sync" Command="{Binding SyncThumbnails}">
+									<MenuItem Header="Sync" Command="{Binding Data.SyncThumbnails}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 									</MenuItem>
-									<MenuItem Header="Clear" Command="{Binding ClearThumbnails}">
+									<MenuItem Header="Clear" Command="{Binding Data.ClearThumbnails}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 									</MenuItem>
 								</MenuItem>
@@ -537,10 +537,10 @@
 								<MenuItem Header="Fetch"   Click="OnFetchIndex">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Sync"    Command="{Binding SyncPlainText}">
+								<MenuItem Header="Sync"    Command="{Binding Data.SyncPlainText}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Clear"   Command="{Binding ClearIndexedContent}">
+								<MenuItem Header="Clear"   Command="{Binding Data.ClearIndexedContent}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 								</MenuItem>
 							</MenuItem>
@@ -892,13 +892,13 @@
 					<TextBox Name="CollectionInput" Width="180" Watermark="Add Collection"/>
                 </Border>
 				<Button Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-				<Button Width="30" Command="{Binding RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+				<Button Width="30" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 				<Button Width="30" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
 			</StackPanel>
 
 			<!-- Collections list -->
             <DataGrid Grid.Row="2" IsVisible="{Binding UI.TrayCollections}" Name="Collections"
-					  ItemsSource="{Binding Storage.Collections}" SelectedItem="{Binding CurrentCollection}"
+					  ItemsSource="{Binding Storage.Collections}" SelectedItem="{Binding Collections.CurrentCollection}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
@@ -908,7 +908,7 @@
 
 			<!-- Collection content -->
             <DataGrid Grid.Row="3" IsVisible="{Binding UI.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
-					  ItemsSource="{Binding CollectionContent, Mode=OneWay}" SelectionMode="Single"
+					  ItemsSource="{Binding Collections.CollectionContent, Mode=OneWay}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" LoadingRow="DataGrid_OnLoadingRow"
                       ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 				<DataGrid.Columns>
@@ -925,7 +925,7 @@
 								<MenuItem.Icon><ic:SymbolIcon Symbol="PanelRight"/></MenuItem.Icon>
 							</MenuItem>
 						</MenuItem>
-						<MenuItem Header="Remove" Command="{Binding RemoveFileFromCollection}">
+						<MenuItem Header="Remove" Command="{Binding Collections.RemoveFileFromCollection}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 						</MenuItem>
 					</ContextMenu>

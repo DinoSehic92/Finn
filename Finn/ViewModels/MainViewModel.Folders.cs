@@ -98,8 +98,7 @@ namespace Finn.ViewModels
 
                 if (folder.AttachToFile != null)
                 {
-                    FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Sökväg == folder.AttachToFilePath);
-                    CurrentFiles = CurrentProject.StoredFiles.Where(x => x.Sökväg == folder.AttachToFilePath).ToList();
+                    FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile);
 
                     if (file != null)
                     {
@@ -107,30 +106,30 @@ namespace Finn.ViewModels
                         {
                             foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
                             {
-                                CurrentFile.AppendedFiles.Remove(fileToRemove);
+                                file.AppendedFiles.Remove(fileToRemove);
                             }
 
                             foreach (FileData fileToAdd in GetFilesFromFolder(folder))
                             {
-                                CurrentFile.AppendedFiles.Add(fileToAdd);
+                                file.AppendedFiles.Add(fileToAdd);
                             }
 
-                            SortAttachedFiles();
+                            SortAttachedFilesDirect(file);
                         }
 
                         if (folder.Types == OTHER_FILES_TYPE)
                         {
                             foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == folder.Path).ToList())
                             {
-                                CurrentFile.OtherFiles.Remove(fileToRemove);
+                                file.OtherFiles.Remove(fileToRemove);
                             }
 
                             foreach (OtherData fileToAdd in GetOtherFilesFromFolder(folder))
                             {
-                                CurrentFile.OtherFiles.Add(fileToAdd);
+                                file.OtherFiles.Add(fileToAdd);
                             }
 
-                            SortOtherFiles();
+                            SortOtherFilesDirect(file);
                         }
                     }
                 }
