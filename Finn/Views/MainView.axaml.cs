@@ -193,6 +193,10 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.DarkMode):
                 _ctx.SyncPreviewRegionColor();
                 break;
+            case nameof(_ctx.UI.ColorTagDot):
+            case nameof(_ctx.UI.ColorTagRow):
+                UpdateRowColor();
+                break;
         }
     }
 
@@ -656,7 +660,7 @@ public partial class MainView : UserControl
 
     private void EditColor(object? sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem { Tag: string color } && !string.IsNullOrEmpty(color))
+        if (sender is MenuItem { Tag: string color })
             _ctx.AddColor(color);
 
         FileGrid.SelectedItem = null;
@@ -1011,7 +1015,7 @@ public partial class MainView : UserControl
         if (_trackedRows.Add(row))
             row.DataContextChanged += OnRowDataContextChanged;
         BindRowToFileData(row, row.DataContext as FileData);
-        ApplyRowClasses(row);
+        ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
     }
 
     private void OnRowDataContextChanged(object? sender, EventArgs e)
@@ -1019,7 +1023,7 @@ public partial class MainView : UserControl
         if (sender is DataGridRow row)
         {
             BindRowToFileData(row, row.DataContext as FileData);
-            ApplyRowClasses(row);
+            ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
         }
     }
 
@@ -1036,7 +1040,7 @@ public partial class MainView : UserControl
         PropertyChangedEventHandler handler = (_, args) =>
         {
             if (args.PropertyName is nameof(FileData.IsFileMissing) or nameof(FileData.Färg) or nameof(FileData.Sökväg))
-                Dispatcher.UIThread.Post(() => ApplyRowClasses(row));
+                Dispatcher.UIThread.Post(() => ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true));
         };
         newData.PropertyChanged += handler;
         _rowBindings[row] = (newData, handler);
@@ -1055,10 +1059,10 @@ public partial class MainView : UserControl
     private void UpdateRowColor()
     {
         foreach (var row in _trackedRows)
-            ApplyRowClasses(row);
+            ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
     }
 
-    private static void ApplyRowClasses(DataGridRow row)
+    private static void ApplyRowClasses(DataGridRow row, bool dotMode = false)
     {
         row.Classes.Clear();
 
@@ -1071,7 +1075,7 @@ public partial class MainView : UserControl
         if (data.Sökväg == string.Empty)
             row.Classes.Add("Placeholder");
 
-        if (!string.IsNullOrEmpty(data.Färg))
+        if (!dotMode && !string.IsNullOrEmpty(data.Färg))
             row.Classes.Add(data.Färg);
     }
 

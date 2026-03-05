@@ -29,6 +29,7 @@ namespace Finn.Storage
         public bool TrayDiff { get; set; }
         public bool TrayVersions { get; set; }
         public bool ShowIcons { get; set; }
+        public bool ColorTagDot { get; set; }
 
         // Persisted view visibility flags
         public bool TreeViewOpen { get; set; }

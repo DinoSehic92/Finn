@@ -32,7 +32,7 @@
 		<Style Selector="DataGridRow.Yellow">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#FFD700" Opacity="0.35"/>
+					<SolidColorBrush Color="#F5C542" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -40,7 +40,7 @@
 		<Style Selector="DataGridRow.Orange">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#FFA500" Opacity="0.35"/>
+					<SolidColorBrush Color="#E8875A" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -48,7 +48,7 @@
 		<Style Selector="DataGridRow.Brown">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#8B4513" Opacity="0.35"/>
+					<SolidColorBrush Color="#A68A6B" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -56,7 +56,7 @@
 		<Style Selector="DataGridRow.Green">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#228B22" Opacity="0.35"/>
+					<SolidColorBrush Color="#5BAD7A" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -64,7 +64,7 @@
 		<Style Selector="DataGridRow.Blue">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#1E90FF" Opacity="0.35"/>
+					<SolidColorBrush Color="#5B9BD5" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -72,7 +72,7 @@
 		<Style Selector="DataGridRow.Red">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#B22222" Opacity="0.35"/>
+					<SolidColorBrush Color="#D9665F" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>
@@ -80,7 +80,7 @@
 		<Style Selector="DataGridRow.Magenta">
 			<Setter Property="Background">
 				<Setter.Value>
-					<SolidColorBrush Color="#9400D3" Opacity="0.35"/>
+					<SolidColorBrush Color="#9F7FBA" Opacity="0.35"/>
 				</Setter.Value>
 			</Setter>
 		</Style>

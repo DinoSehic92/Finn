@@ -355,6 +355,16 @@
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>
 
+					<!-- Color dot column: shows a small colored circle when ColorTagDot mode is active -->
+					<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" MinWidth="8" MaxWidth="28" IsVisible="{Binding UI.ColorTagDot}">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate x:DataType="model:FileData">
+								<Ellipse Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"
+										 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+
 					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
 
 					<!-- Name-only column when icons are disabled -->
@@ -445,13 +455,13 @@
 							<MenuItem Header="Color">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
 								<MenuItem Header="None"        Tag=""        Click="EditColor"/>
-								<MenuItem Background="#FFD700" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
-								<MenuItem Background="#FFA500" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
-								<MenuItem Background="#8B4513" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
-								<MenuItem Background="#228B22" Opacity="0.6" Tag="Green"   Click="EditColor"/>
-								<MenuItem Background="#1E90FF" Opacity="0.6" Tag="Blue"    Click="EditColor"/>
-								<MenuItem Background="#B22222" Opacity="0.6" Tag="Red"     Click="EditColor"/>
-								<MenuItem Background="#9400D3" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
+								<MenuItem Background="#F5C542" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
+								<MenuItem Background="#E8875A" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
+								<MenuItem Background="#A68A6B" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
+								<MenuItem Background="#5BAD7A" Opacity="0.6" Tag="Green"   Click="EditColor"/>
+								<MenuItem Background="#5B9BD5" Opacity="0.6" Tag="Blue"    Click="EditColor"/>
+								<MenuItem Background="#D9665F" Opacity="0.6" Tag="Red"     Click="EditColor"/>
+								<MenuItem Background="#9F7FBA" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
 							</MenuItem>
 							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>

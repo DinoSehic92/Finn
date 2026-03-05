@@ -52,6 +52,7 @@ namespace Finn.ViewModels
             TrayBookmarks = true;
             TrayRecent = true;
             TrayVersions = false;
+            ColorTagDot = false;
 
             // View visibility flags persisted in UI settings
             TreeViewOpen = true;
@@ -115,6 +116,16 @@ namespace Finn.ViewModels
 
         private bool showIcons;
         public bool ShowIcons { get => showIcons; set { showIcons = value; RaisePropertyChanged(nameof(ShowIcons)); } }
+
+        private bool colorTagDot;
+        /// <summary>
+        /// When true, color tags are shown as a small colored dot instead of tinting the full row.
+        /// </summary>
+        public bool ColorTagDot { get => colorTagDot; set { colorTagDot = value; RaisePropertyChanged(nameof(ColorTagDot)); RaisePropertyChanged(nameof(ColorTagRow)); } }
+
+        /// <summary>Inverse of <see cref="ColorTagDot"/> for convenience bindings.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ColorTagRow => !colorTagDot;
 
         private bool trayNote;
         public bool TrayNote { get => trayNote; set { trayNote = value; RaisePropertyChanged(nameof(TrayNote)); } }
@@ -197,6 +208,7 @@ namespace Finn.ViewModels
                 TrayDiff = this.TrayDiff,
                 TrayVersions = this.TrayVersions,
                 ShowIcons = this.ShowIcons,
+                ColorTagDot = this.ColorTagDot,
                 TreeViewOpen = this.TreeViewOpen,
                 CalendarOpen = this.CalendarOpen,
                 TimeSheetOpen = this.TimeSheetOpen,
@@ -234,6 +246,7 @@ namespace Finn.ViewModels
                 this.TrayDiff = ui.TrayDiff;
                 this.TrayVersions = ui.TrayVersions;
                 this.ShowIcons = ui.ShowIcons;
+                this.ColorTagDot = ui.ColorTagDot;
 
                 this.TreeViewOpen = ui.TreeViewOpen;
                 this.CalendarOpen = ui.CalendarOpen;
