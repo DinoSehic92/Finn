@@ -95,7 +95,12 @@
 			<Setter Property="FontWeight" Value="SemiBold"/>
 			<Setter Property="Opacity" Value="0.75"/>
 		</Style>
-		
+
+		<!-- Hide vertical separator lines in DataGrid column headers -->
+		<Style Selector="DataGridColumnHeader">
+			<Setter Property="SeparatorBrush" Value="Transparent"/>
+		</Style>
+
 	</Window.Styles>
 
 	<Grid>

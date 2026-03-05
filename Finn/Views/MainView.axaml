@@ -356,14 +356,14 @@
 					</DataGridTemplateColumn>
 
 					<!-- Color dot column: shows a small colored circle when ColorTagDot mode is active -->
-					<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" MinWidth="8" MaxWidth="28" IsVisible="{Binding UI.ColorTagDot}">
-						<DataGridTemplateColumn.CellTemplate>
-							<DataTemplate x:DataType="model:FileData">
-								<Ellipse Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"
-										 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
-							</DataTemplate>
-						</DataGridTemplateColumn.CellTemplate>
-					</DataGridTemplateColumn>
+						<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" CanUserSort="False" MinWidth="8" MaxWidth="30" IsVisible="{Binding UI.ColorTagDot}">
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate x:DataType="model:FileData">
+									<Ellipse Width="10" Height="10" Margin="6,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"
+											 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
 
 					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
 
