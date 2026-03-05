@@ -615,7 +615,7 @@
 							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
 					<ic:SymbolIcon Symbol="DocumentAdd" FontSize="36" HorizontalAlignment="Center"/>
 					<TextBlock Text="No files loaded" FontSize="16" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,8,0,2"/>
-					<TextBlock Text="Drop PDF files here or use File → Load" FontSize="13" HorizontalAlignment="Center"/>
+					<TextBlock Text="Drop PDF files or folders here, or use File → Load" FontSize="13" HorizontalAlignment="Center"/>
 				</StackPanel>
 
 				<!-- Drag-and-drop hint overlay -->
@@ -667,18 +667,24 @@
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
-				<Border Name="AppendixDropOverlay" IsVisible="False" IsHitTestVisible="False"
-						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-						BorderThickness="2" CornerRadius="8" Margin="4">
-					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
-						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
-						<TextBlock Text="Drop PDFs or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+					<StackPanel Name="AppendixEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+								IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+						<ic:SymbolIcon Symbol="Attach" FontSize="30" HorizontalAlignment="Center"/>
+						<TextBlock Text="No attached PDFs" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
+						<TextBlock Text="Drop PDFs or folders here to link them to the selected file" FontSize="12" HorizontalAlignment="Center"/>
 					</StackPanel>
-				</Border>
-				</Panel>
+					<Border Name="AppendixDropOverlay" IsVisible="False" IsHitTestVisible="False"
+							Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+							BorderThickness="2" CornerRadius="8" Margin="4">
+						<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
+							<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
+							<TextBlock Text="Drop PDFs or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+						</StackPanel>
+					</Border>
+					</Panel>
 
-				<Panel Grid.Column="1">
-				<DataGrid Name="OtherFilesGrid" Padding="0"
+					<Panel Grid.Column="1">
+					<DataGrid Name="OtherFilesGrid"
 						  ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  LoadingRow="DataGrid_OnLoadingRow">
@@ -711,6 +717,12 @@
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
+				<StackPanel Name="OtherFilesEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+					<ic:SymbolIcon Symbol="Document" FontSize="30" HorizontalAlignment="Center"/>
+					<TextBlock Text="No attached files" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
+					<TextBlock Text="Drop files or folders here to attach documents, images, etc." FontSize="12" HorizontalAlignment="Center"/>
+				</StackPanel>
 				<Border Name="OtherFilesDropOverlay" IsVisible="False" IsHitTestVisible="False"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
 						BorderThickness="2" CornerRadius="8" Margin="4">

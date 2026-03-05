@@ -131,6 +131,35 @@ namespace Finn.ViewModels
             CurrentProject = project;
         }
 
+        /// <summary>
+        /// Batched project + type switch that calls UpdateFilter exactly once,
+        /// avoiding the cascading filter/layout recalculations that occur when
+        /// SelectProject and SelectType are called separately.
+        /// </summary>
+        public void NavigateTo(string projectName, string typeName)
+        {
+            bool projectChanged = currentProject?.Namn != projectName;
+
+            if (projectChanged)
+            {
+                var project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == projectName);
+                if (project != null)
+                    currentProject = project;
+            }
+
+            if (!CurrentProject.Filetypes.Contains(typeName))
+                typeName = ALL_TYPES;
+
+            type = typeName;
+
+            UpdateFilter();
+
+            if (projectChanged)
+                OnPropertyChanged(nameof(CurrentProject));
+            OnPropertyChanged(nameof(Type));
+            OnPropertyChanged("UpdateColumns");
+        }
+
         public void ReselectProject()
         {
             SetProject(CurrentProject.Namn);

@@ -355,6 +355,11 @@ namespace Finn.ViewModels
                 set { searchText = value; OnPropertyChanged(nameof(SearchText)); }
             }
 
+            /// <summary>
+            /// True when the current view shows search results rather than a real stored project.
+            /// </summary>
+            public bool IsSearchResult => CurrentProject?.Category == SEARCH_CATEGORY;
+
             private bool indexedSearch = false;
             public bool IndexedSearch
             {

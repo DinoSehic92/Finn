@@ -162,6 +162,9 @@ public partial class MainView : UserControl
             case nameof(MainViewModel.NrFilteredFiles):
                 UpdateEmptyState();
                 break;
+            case nameof(MainViewModel.CurrentFile):
+                UpdateAttachedEmptyState();
+                break;
         }
     }
 
@@ -242,18 +245,21 @@ public partial class MainView : UserControl
             _ctx.AddDroppedFiles(files);
         if (folders.Count > 0)
             _ctx.AddDroppedFolders(folders);
+        UpdateEmptyState();
     }
 
     private void OnDropAppendedFiles(object? sender, DragEventArgs e)
     {
         var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
         _ctx.AddDroppedAppendedFiles(files, folders);
+        UpdateAttachedEmptyState();
     }
 
     private void OnDropOtherFiles(object? sender, DragEventArgs e)
     {
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
         _ctx.AddDroppedOtherFiles(files, folders);
+        UpdateAttachedEmptyState();
     }
 
     /// <summary>
@@ -366,6 +372,19 @@ public partial class MainView : UserControl
     {
         bool empty = _ctx.FilteredFiles == null || _ctx.FilteredFiles.Count == 0;
         EmptyStateHint.IsVisible = empty;
+
+        UpdateAttachedEmptyState();
+    }
+
+    private void UpdateAttachedEmptyState()
+    {
+        var file = _ctx.CurrentFile;
+
+        bool appendixEmpty = file?.AppendedFiles == null || file.AppendedFiles.Count == 0;
+        AppendixEmptyHint.IsVisible = appendixEmpty;
+
+        bool otherEmpty = file?.OtherFiles == null || file.OtherFiles.Count == 0;
+        OtherFilesEmptyHint.IsVisible = otherEmpty;
     }
 
     #endregion
@@ -468,17 +487,13 @@ public partial class MainView : UserControl
 
         if (tag == "All Types")
         {
-            _ctx.SelectType("All Types");
-            _ctx.SelectProject(selectedNode.Header);
+            _ctx.NavigateTo(selectedNode.Header, "All Types");
         }
         else
         {
             string header = selectedNode.Header;
-            _ctx.SelectType(header.Split("  ")[0]);
-            _ctx.SelectProject(tag ?? string.Empty);
+            _ctx.NavigateTo(tag ?? string.Empty, header.Split("  ")[0]);
         }
-
-        OnUpdateColumns();
     }
 
     private void SetupTreeview(object? sender, RoutedEventArgs e)
@@ -552,11 +567,12 @@ public partial class MainView : UserControl
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
-        {
-            var files = AppendixGrid.SelectedItems.Cast<FileData>().ToList();
-            _ctx.RemoveAttachedFile(files);
+            {
+                var files = AppendixGrid.SelectedItems.Cast<FileData>().ToList();
+                _ctx.RemoveAttachedFile(files);
+                UpdateAttachedEmptyState();
+            }
         }
-    }
 
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)
     {
@@ -564,7 +580,10 @@ public partial class MainView : UserControl
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed && OtherFilesGrid.SelectedItem is OtherData file)
+        {
             _ctx.RemoveOtherFile(file);
+            UpdateAttachedEmptyState();
+        }
     }
 
     private async void OnRemoveProject(object? sender, RoutedEventArgs e)

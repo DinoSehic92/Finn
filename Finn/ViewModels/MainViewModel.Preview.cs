@@ -71,9 +71,12 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Processes dropped file paths, adding PDFs to the current project.
+        /// Ignored when viewing search results to avoid adding files to a transient project.
         /// </summary>
         public void AddDroppedFiles(IEnumerable<string> paths)
         {
+            if (IsSearchResult) return;
+
             foreach (string path in paths)
                 AddFilesDrag(path);
 
@@ -82,10 +85,11 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Processes dropped paths for the appendix grid (attached PDFs and folders).
+        /// Ignored when viewing search results to avoid modifying a transient project.
         /// </summary>
         public void AddDroppedAppendedFiles(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
         {
-            if (CurrentFile == null) return;
+            if (CurrentFile == null || IsSearchResult) return;
 
             foreach (string path in filePaths)
                 AddAppendedFile(path);
@@ -100,10 +104,11 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Processes dropped paths for the other-files grid.
+        /// Ignored when viewing search results to avoid modifying a transient project.
         /// </summary>
         public void AddDroppedOtherFiles(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
         {
-            if (CurrentFile == null) return;
+            if (CurrentFile == null || IsSearchResult) return;
 
             foreach (string path in filePaths)
                 AddOtherFile(path);
@@ -118,9 +123,12 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Processes dropped folder paths for the folder grid.
+        /// Ignored when viewing search results to avoid adding folders to a transient project.
         /// </summary>
         public void AddDroppedFolders(IEnumerable<string> paths)
         {
+            if (IsSearchResult) return;
+
             foreach (string path in paths)
             {
                 CurrentProject.Folders.Add(new FolderData
@@ -151,8 +159,7 @@ namespace Finn.ViewModels
             var file = files.FirstOrDefault();
             if (file is { Uppdrag: not "", Filtyp: not "" })
             {
-                SelectProject(file.Uppdrag);
-                SelectType(file.Filtyp);
+                NavigateTo(file.Uppdrag, file.Filtyp);
             }
 
             SelectFiles(files);
