@@ -45,8 +45,6 @@ public partial class MainView : UserControl
         CollectionContent.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
         CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectFavorite);
 
-        FolderGrid.AddHandler(DragDrop.DropEvent, OnFolderDrop);
-
         AppendixGrid.AddHandler(DragDrop.DropEvent, OnDropAppendedFiles);
         AppendixGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenAppendedFile);
         AppendixGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestAppendedFiles);
@@ -233,18 +231,13 @@ public partial class MainView : UserControl
 
     #region Drag & Drop (extract paths only, delegate to ViewModel)
 
-    private void OnFolderDrop(object? sender, DragEventArgs e)
-    {
-        var paths = ExtractDroppedPaths(e, directoriesOnly: true);
-        if (paths.Count > 0)
-            _ctx.AddDroppedFolders(paths);
-    }
-
     private void OnDrop(object? sender, DragEventArgs e)
     {
-        var paths = ExtractDroppedPaths(e, filesOnly: true, extension: ".pdf");
-        if (paths.Count > 0)
-            _ctx.AddDroppedFiles(paths);
+        var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
+        if (files.Count > 0)
+            _ctx.AddDroppedFiles(files);
+        if (folders.Count > 0)
+            _ctx.AddDroppedFolders(folders);
     }
 
     private void OnDropAppendedFiles(object? sender, DragEventArgs e)
@@ -312,18 +305,53 @@ public partial class MainView : UserControl
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        if (e.Data.GetFiles() != null)
-            DropOverlay.IsVisible = true;
+        var items = e.Data.GetFiles();
+        if (items == null) return;
+
+        bool hasPdf = false;
+        bool hasNonPdfFile = false;
+        bool hasFolder = false;
+
+        foreach (var item in items)
+        {
+            string path = item.Path.LocalPath;
+            if (Directory.Exists(path))
+            {
+                hasFolder = true;
+            }
+            else if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                hasPdf = true;
+            }
+            else
+            {
+                hasNonPdfFile = true;
+            }
+        }
+
+        // FileGrid accepts PDFs and folders (folders are synced to project)
+        DropOverlay.IsVisible = hasPdf || hasFolder;
+        // AppendixGrid accepts PDFs and folders
+        AppendixDropOverlay.IsVisible = hasPdf || hasFolder;
+        // OtherFilesGrid accepts any file type and folders
+        OtherFilesDropOverlay.IsVisible = hasPdf || hasNonPdfFile || hasFolder;
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
     {
-        DropOverlay.IsVisible = false;
+        HideAllDropOverlays();
     }
 
     private void OnDragDropCompleted(object? sender, DragEventArgs e)
     {
+        HideAllDropOverlays();
+    }
+
+    private void HideAllDropOverlays()
+    {
         DropOverlay.IsVisible = false;
+        AppendixDropOverlay.IsVisible = false;
+        OtherFilesDropOverlay.IsVisible = false;
     }
 
     #endregion

@@ -126,6 +126,7 @@ namespace Finn.ViewModels
                 CurrentProject.Folders.Add(new FolderData
                 {
                     Name = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path)) ?? string.Empty,
+                    AttachToFile = "PROJECT",
                     Types = "PDF",
                     Path = path
                 });

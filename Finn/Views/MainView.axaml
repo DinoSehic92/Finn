@@ -614,7 +614,7 @@
 						BorderThickness="2" CornerRadius="8" Margin="4">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
-						<TextBlock Text="Drop files to add" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 					</StackPanel>
 				</Border>
 			</Panel>
@@ -622,7 +622,8 @@
 			<!-- Attached files panels -->
 			<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600" IsEnabled="{Binding FileSelected}">
 
-				<DataGrid Grid.Column="0" Name="AppendixGrid" Padding="0"
+				<Panel Grid.Column="0">
+				<DataGrid Name="AppendixGrid" Padding="0"
 						  ItemsSource="{Binding CurrentFile.AppendedFiles, Mode=OneWay}" SelectionMode="Extended"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  LoadingRow="DataGrid_OnLoadingRow">
@@ -656,8 +657,18 @@
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
+				<Border Name="AppendixDropOverlay" IsVisible="False" IsHitTestVisible="False"
+						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+						BorderThickness="2" CornerRadius="8" Margin="4">
+					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
+						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
+						<TextBlock Text="Drop PDFs or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+					</StackPanel>
+				</Border>
+				</Panel>
 
-				<DataGrid Grid.Column="1" Name="OtherFilesGrid" Padding="0"
+				<Panel Grid.Column="1">
+				<DataGrid Name="OtherFilesGrid" Padding="0"
 						  ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  LoadingRow="DataGrid_OnLoadingRow">
@@ -690,17 +701,25 @@
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
+				<Border Name="OtherFilesDropOverlay" IsVisible="False" IsHitTestVisible="False"
+						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+						BorderThickness="2" CornerRadius="8" Margin="4">
+					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
+						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
+						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+					</StackPanel>
+				</Border>
+				</Panel>
 			</Grid>
 
 			<!-- Folder sync grid -->
 			<DataGrid Name="FolderGrid" Grid.Row="2" MinHeight="200" MaxHeight="600"
 					  IsVisible="{Binding UI.ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}"
-					  SelectedItem="{Binding CurrentFolder}" SelectionMode="Single" IsReadOnly="True"
-					  DragDrop.AllowDrop="True">
+					  SelectedItem="{Binding CurrentFolder}" SelectionMode="Single" IsReadOnly="True">
 				<DataGrid.Columns>
 					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Folder"             Width="2*"   FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic"/>
-					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to File" Width="2*"   FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to:" Width="2*"   FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Types}"              Header="Types"            Width="1.5*" FontSize="14"/>
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
