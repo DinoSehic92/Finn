@@ -249,7 +249,7 @@
 			<!-- Layout group -->
             <ToggleButton ToolTip.Tip="Treeview: Ctrl + Q"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Tray: Ctrl + E"           HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" Height="30" Width="35" Padding="0"                           IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Attached Files: Ctrl + A" HotKey="Ctrl+A" Height="30" Width="35" Padding="0" IsEnabled="{Binding FileSelected}" IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
             <ToggleButton ToolTip.Tip="Folders: Ctrl + L"        HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
@@ -735,8 +735,9 @@
 			</Grid>
 
 			<!-- Folder sync grid -->
-			<DataGrid Name="FolderGrid" Grid.Row="2" MinHeight="200" MaxHeight="600"
-					  IsVisible="{Binding UI.ShowFolders}" ItemsSource="{Binding CurrentProject.Folders}"
+			<Panel Grid.Row="2" MinHeight="200" MaxHeight="600" IsVisible="{Binding UI.ShowFolders}">
+			<DataGrid Name="FolderGrid"
+					  ItemsSource="{Binding CurrentProject.Folders}"
 					  SelectedItem="{Binding CurrentFolder}" SelectionMode="Single" IsReadOnly="True">
 				<DataGrid.Columns>
 					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Folder"             Width="2*"   FontSize="14"/>
@@ -758,6 +759,13 @@
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
+				<StackPanel Name="FolderEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+					<ic:SymbolIcon Symbol="Folder" FontSize="30" HorizontalAlignment="Center"/>
+					<TextBlock Text="No synced folders" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
+					<TextBlock Text="Synced folders linked to this project will be listed here" FontSize="12" HorizontalAlignment="Center"/>
+				</StackPanel>
+			</Panel>
 		</Grid>
 
 		<!-- Preview splitter -->

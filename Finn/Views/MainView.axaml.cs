@@ -374,6 +374,7 @@ public partial class MainView : UserControl
         EmptyStateHint.IsVisible = empty;
 
         UpdateAttachedEmptyState();
+        UpdateFolderEmptyState();
     }
 
     private void UpdateAttachedEmptyState()
@@ -385,6 +386,12 @@ public partial class MainView : UserControl
 
         bool otherEmpty = file?.OtherFiles == null || file.OtherFiles.Count == 0;
         OtherFilesEmptyHint.IsVisible = otherEmpty;
+    }
+
+    private void UpdateFolderEmptyState()
+    {
+        bool empty = _ctx.CurrentProject?.Folders == null || _ctx.CurrentProject.Folders.Count == 0;
+        FolderEmptyHint.IsVisible = empty;
     }
 
     #endregion
@@ -608,7 +615,10 @@ public partial class MainView : UserControl
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
+        {
             _ctx.RemoveFolder();
+            UpdateFolderEmptyState();
+        }
     }
 
     #endregion

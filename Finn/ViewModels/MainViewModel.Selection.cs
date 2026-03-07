@@ -23,6 +23,10 @@ namespace Finn.ViewModels
             {
                 AttachedView = CurrentFile.HasAppendedFiles;
             }
+            else
+            {
+                AttachedView = false;
+            }
         }
 
         public void SelectType(string name)
