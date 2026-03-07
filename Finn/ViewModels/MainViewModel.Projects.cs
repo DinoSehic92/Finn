@@ -108,12 +108,18 @@ namespace Finn.ViewModels
         {
             ProjectData project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
 
-            SelectProjectAsync(project);
+            // Use backing fields directly to avoid cascading UpdateFilter calls.
+            // Previously SelectProjectAsync + Type setter each triggered UpdateFilter,
+            // doubling the work every time a project was switched.
+            currentProject = project;
 
-            if (!CurrentProject.Filetypes.Contains(Type))
-            {
-                Type = ALL_TYPES;
-            }
+            if (!CurrentProject.Filetypes.Contains(type))
+                type = ALL_TYPES;
+
+            UpdateFilter();
+
+            OnPropertyChanged(nameof(CurrentProject));
+            OnPropertyChanged(nameof(Type));
         }
 
         public void SelectProject(string name)
