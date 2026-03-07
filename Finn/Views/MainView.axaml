@@ -455,13 +455,13 @@
 							<MenuItem Header="Color">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
 								<MenuItem Header="None"        Tag=""        Click="EditColor"/>
-								<MenuItem Background="#F5C542" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
-								<MenuItem Background="#E8875A" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
-								<MenuItem Background="#A68A6B" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
-								<MenuItem Background="#5BAD7A" Opacity="0.6" Tag="Green"   Click="EditColor"/>
-								<MenuItem Background="#5B9BD5" Opacity="0.6" Tag="Blue"    Click="EditColor"/>
-								<MenuItem Background="#D9665F" Opacity="0.6" Tag="Red"     Click="EditColor"/>
-								<MenuItem Background="#9F7FBA" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
+								<MenuItem Background="#E5A820" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
+								<MenuItem Background="#E06830" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
+								<MenuItem Background="#9C6B3C" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
+								<MenuItem Background="#3DA35F" Opacity="0.6" Tag="Green"   Click="EditColor"/>
+								<MenuItem Background="#3B82D9" Opacity="0.6" Tag="Blue"    Click="EditColor"/>
+								<MenuItem Background="#D64045" Opacity="0.6" Tag="Red"     Click="EditColor"/>
+								<MenuItem Background="#9B5FC0" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
 							</MenuItem>
 							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>

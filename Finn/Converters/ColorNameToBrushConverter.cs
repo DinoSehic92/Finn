@@ -16,13 +16,13 @@ namespace Finn.Converters
 
         private static readonly Dictionary<string, Color> ColorMap = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["Yellow"]  = Color.Parse("#F5C542"),
-            ["Orange"]  = Color.Parse("#E8875A"),
-            ["Brown"]   = Color.Parse("#A68A6B"),
-            ["Green"]   = Color.Parse("#5BAD7A"),
-            ["Blue"]    = Color.Parse("#5B9BD5"),
-            ["Red"]     = Color.Parse("#D9665F"),
-            ["Magenta"] = Color.Parse("#9F7FBA"),
+            ["Yellow"]  = Color.Parse("#E5A820"),
+            ["Orange"]  = Color.Parse("#E06830"),
+            ["Brown"]   = Color.Parse("#9C6B3C"),
+            ["Green"]   = Color.Parse("#3DA35F"),
+            ["Blue"]    = Color.Parse("#3B82D9"),
+            ["Red"]     = Color.Parse("#D64045"),
+            ["Magenta"] = Color.Parse("#9B5FC0"),
         };
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
