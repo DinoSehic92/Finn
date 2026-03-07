@@ -38,26 +38,74 @@ namespace Finn.ViewModels
 
             public async Task AddFile(Avalonia.Visual window)
             {
-                if (CurrentProject != null)
+                if (CurrentProject == null) return;
+
+                var topLevel = TopLevel.GetTopLevel(window);
+                var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
-                    var topLevel = TopLevel.GetTopLevel(window);
-                    var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-                    {
-                        Title = "Add File",
-                        FileTypeFilter = new[] { FilePickerFileTypes.Pdf },
-                        AllowMultiple = true
-                    });
+                    Title = "Add File",
+                    FileTypeFilter = new[] { FilePickerFileTypes.Pdf },
+                    AllowMultiple = true
+                });
 
-                    foreach (var file in files)
+                if (files.Count == 0) return;
+
+                var mainWindow = topLevel as Window;
+                await AddFilesWithVersionCheck(
+                    files.Select(f => f.Path.LocalPath), mainWindow);
+            }
+
+            /// <summary>
+            /// Adds files to the current project. Files that match an existing entry
+            /// by name are collected and presented in a version-import dialog so the
+            /// user can choose the label before they are registered as versions.
+            /// </summary>
+            public async Task AddFilesWithVersionCheck(IEnumerable<string> paths, Window? mainWindow)
+            {
+                var newPaths = new List<string>();
+                var versionCandidates = new List<VersionImportEntry>();
+
+                foreach (string path in paths)
+                {
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
+
+                    if (CurrentProject.StoredFiles.Any(x => x.Sökväg == path))
+                        continue;
+
+                    var existing = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == fileName);
+                    if (existing != null)
                     {
-                        string path = file.Path.LocalPath;
-                        CurrentProject.Newfile(path);
+                        versionCandidates.Add(new VersionImportEntry
+                        {
+                            ExistingFile = existing,
+                            NewFilePath = path
+                        });
                     }
+                    else
+                    {
+                        newPaths.Add(path);
+                    }
+                }
 
-                    // Refresh the filter once after all files are added,
-                    // instead of per file.
-                    if (files.Count > 0)
-                        SetDefaultType();
+                foreach (var path in newPaths)
+                    CurrentProject.Newfile(path);
+
+                bool versionsAdded = false;
+                if (versionCandidates.Count > 0 && mainWindow != null)
+                {
+                    bool confirmed = await ShowVersionImportDialogAsync(mainWindow, versionCandidates);
+                    if (confirmed)
+                    {
+                        foreach (var entry in versionCandidates)
+                            entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
+                        versionsAdded = true;
+                    }
+                }
+
+                if (newPaths.Count > 0 || versionsAdded)
+                {
+                    SetDefaultType();
+                    MarkDirty();
                 }
             }
 

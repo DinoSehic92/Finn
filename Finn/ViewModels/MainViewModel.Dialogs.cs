@@ -146,6 +146,15 @@ namespace Finn.ViewModels
                 await window.ShowDialog(mainWindow);
             }
 
+            public async Task<bool> ShowVersionImportDialogAsync(Window mainWindow, List<VersionImportEntry> entries)
+            {
+                var window = new xVersionImportDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetEntries(entries);
+                await window.ShowDialog(mainWindow);
+                return window.Confirmed;
+            }
+
             public void OnInfoDia(Window mainWindow)
             {
                 var window = new xInfoDia();

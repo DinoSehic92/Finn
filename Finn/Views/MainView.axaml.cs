@@ -238,11 +238,12 @@ public partial class MainView : UserControl
 
     #region Drag & Drop (extract paths only, delegate to ViewModel)
 
-    private void OnDrop(object? sender, DragEventArgs e)
+    private async void OnDrop(object? sender, DragEventArgs e)
     {
         var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         if (files.Count > 0)
-            _ctx.AddDroppedFiles(files);
+            await _ctx.AddDroppedFilesAsync(files, window);
         if (folders.Count > 0)
             _ctx.AddDroppedFolders(folders);
         UpdateEmptyState();
@@ -539,9 +540,9 @@ public partial class MainView : UserControl
             _ctx.OpenPathDirect(file.Filepath);
     }
 
-    private void OnAddFiles(object? sender, RoutedEventArgs e)
+    private async void OnAddFiles(object? sender, RoutedEventArgs e)
     {
-        _ctx.AddFile(this);
+        await _ctx.AddFile(this);
         _ctx.BuildTreeData();
     }
 

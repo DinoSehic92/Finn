@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Finn.Model;
 
 namespace Finn.ViewModels
@@ -80,6 +81,18 @@ namespace Finn.ViewModels
             foreach (string path in paths)
                 AddFilesDrag(path);
 
+            UpdateTreeview();
+        }
+
+        /// <summary>
+        /// Async version of <see cref="AddDroppedFiles"/> that shows a version-import
+        /// dialog when any of the dropped files match existing entries by name.
+        /// </summary>
+        public async Task AddDroppedFilesAsync(IEnumerable<string> paths, Window mainWindow)
+        {
+            if (IsSearchResult) return;
+
+            await AddFilesWithVersionCheck(paths, mainWindow);
             UpdateTreeview();
         }
 
