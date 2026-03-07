@@ -604,6 +604,7 @@ public partial class MainView : UserControl
         if (_ctx.Confirmed)
         {
             _ctx.RemoveProject();
+            _ctx.MarkDirty();
             _ctx.BuildTreeData();
         }
     }
@@ -618,6 +619,7 @@ public partial class MainView : UserControl
         if (_ctx.Confirmed)
         {
             _ctx.RemoveFolder();
+            _ctx.MarkDirty();
             UpdateFolderEmptyState();
         }
     }
@@ -843,6 +845,7 @@ public partial class MainView : UserControl
     private void MetaWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
     {
         _ctx.SetMeta();
+        _ctx.MarkDirty();
         ProgressStatus.Content = "";
         ProgressBar.Value = 0;
         ProgressBar.IsVisible = false;
@@ -901,7 +904,10 @@ public partial class MainView : UserControl
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
+        {
             _ctx.CurrentFile.RemoveVersion(version);
+            _ctx.MarkDirty();
+        }
     }
 
     private void OnOpenVersion(object? sender, RoutedEventArgs e)
@@ -918,12 +924,14 @@ public partial class MainView : UserControl
     {
         if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not FileVersionData version) return;
         _ctx.CurrentFile.CurrentVersion = version.Label;
+        _ctx.MarkDirty();
     }
 
     private void OnVersionDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
     {
         if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not FileVersionData version) return;
         _ctx.CurrentFile.CurrentVersion = version.Label;
+        _ctx.MarkDirty();
     }
 
     private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
@@ -933,6 +941,7 @@ public partial class MainView : UserControl
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Any(v => v.Label == label))
                 file.CurrentVersion = label;
+        _ctx.MarkDirty();
     }
 
     private void OnSetFirstVersion(object? sender, RoutedEventArgs e)
@@ -943,6 +952,7 @@ public partial class MainView : UserControl
             if (file.Versions.Count > 0)
                 file.CurrentVersion = file.Versions[0].Label;
         }
+        _ctx.MarkDirty();
     }
 
     private void OnSetLastVersion(object? sender, RoutedEventArgs e)
@@ -953,6 +963,7 @@ public partial class MainView : UserControl
             if (file.Versions.Count > 0)
                 file.CurrentVersion = file.Versions[^1].Label;
         }
+        _ctx.MarkDirty();
     }
 
     private void OnLabelFirstVersion(object? sender, RoutedEventArgs e)
@@ -961,6 +972,7 @@ public partial class MainView : UserControl
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Count > 0)
                 file.SetVersionLabel(file.Versions[0], label);
+        _ctx.MarkDirty();
     }
 
     private void OnLabelLatestVersion(object? sender, RoutedEventArgs e)
@@ -969,6 +981,7 @@ public partial class MainView : UserControl
         foreach (var file in _ctx.CurrentFiles)
             if (file.Versions.Count > 0)
                 file.SetVersionLabel(file.Versions[^1], label);
+        _ctx.MarkDirty();
     }
 
     private void OnOpenVersionFolder(object? sender, RoutedEventArgs e)

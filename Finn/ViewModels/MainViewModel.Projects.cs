@@ -44,6 +44,7 @@ namespace Finn.ViewModels
             SetDefaultSelection();
             SortProjects();
             SetCollectionContent();
+            MarkDirty();
         }
 
         public void RemoveProjects(List<ProjectData> list)
@@ -72,6 +73,7 @@ namespace Finn.ViewModels
                 file.Uppdrag = projectName;
             }
             CurrentProject.SetFiletypeList();
+            MarkDirty();
         }
 
         public void Renameproject(string newProjectName)
@@ -93,6 +95,7 @@ namespace Finn.ViewModels
         public void SetGroups(string group)
         {
             CurrentProject.Parent = group;
+            MarkDirty();
         }
 
         public void SortProjects()
@@ -187,6 +190,7 @@ namespace Finn.ViewModels
             }
 
             SortProjects();
+            MarkDirty();
         }
 
         public void SetDefaultSelection()

@@ -39,6 +39,7 @@ public partial class xNewDia : Window
             }
 
             ctx.NewProject(Name, group, cat);
+            ctx.MarkDirty();
 
             ctx.UpdateTreeview();
         }

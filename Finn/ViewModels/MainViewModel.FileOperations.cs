@@ -352,6 +352,7 @@ namespace Finn.ViewModels
                 {
                     file.Tagg = "";
                 }
+                MarkDirty();
             }
 
             public void EditType(string type)
@@ -371,6 +372,7 @@ namespace Finn.ViewModels
                     });
 
                     SortAttachedFiles();
+                    MarkDirty();
                 }
             }
 
@@ -383,6 +385,7 @@ namespace Finn.ViewModels
 
                     CurrentFile.OtherFiles.Add(newFile);
                     SortOtherFiles();
+                    MarkDirty();
                 }
             }
 
@@ -395,6 +398,7 @@ namespace Finn.ViewModels
                 }
 
                 SortAttachedFiles();
+                MarkDirty();
             }
 
             public void RemoveOtherFile(OtherData file)
@@ -403,6 +407,7 @@ namespace Finn.ViewModels
                 {
                     CurrentFile.OtherFiles.Remove(file);
                     SortOtherFiles();
+                    MarkDirty();
                 }
             }
 
@@ -455,7 +460,7 @@ namespace Finn.ViewModels
 
                     CurrentFile.Sökväg = newPath;
                     CurrentFile.Namn = newName;
-
+                    MarkDirty();
                 }
             }
 
