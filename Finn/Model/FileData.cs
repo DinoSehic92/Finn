@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Finn.Utils;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -116,8 +117,8 @@ namespace Finn.Model
         private bool _isFromFolder;
         private string _fromFolder = string.Empty;
         private string? _syncFolder = string.Empty;
-        private ObservableCollection<FileData> _appendedFiles = new();
-        private ObservableCollection<OtherData> _otherFiles = new();
+        private BulkObservableCollection<FileData> _appendedFiles = new();
+        private BulkObservableCollection<OtherData> _otherFiles = new();
         private string _note = string.Empty;
         private bool _favorite;
         private ObservableCollection<string> _partOfCollections = new();
@@ -279,18 +280,18 @@ namespace Finn.Model
 
         public bool HasBookmarks => _favPages.Count > 0;
 
-        public ObservableCollection<FileData> AppendedFiles
+        public BulkObservableCollection<FileData> AppendedFiles
         {
             get => _appendedFiles;
             set
             {
-                if (EqualityComparer<ObservableCollection<FileData>>.Default.Equals(_appendedFiles, value))
+                if (EqualityComparer<BulkObservableCollection<FileData>>.Default.Equals(_appendedFiles, value))
                     return;
 
                 if (_appendedFiles != null)
                     _appendedFiles.CollectionChanged -= AppendedFiles_CollectionChanged;
 
-                _appendedFiles = value ?? new ObservableCollection<FileData>();
+                _appendedFiles = value ?? new BulkObservableCollection<FileData>();
                 _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
 
                 OnPropertyChanged(nameof(AppendedFiles));
@@ -298,18 +299,18 @@ namespace Finn.Model
             }
         }
 
-        public ObservableCollection<OtherData> OtherFiles
+        public BulkObservableCollection<OtherData> OtherFiles
         {
             get => _otherFiles;
             set
             {
-                if (EqualityComparer<ObservableCollection<OtherData>>.Default.Equals(_otherFiles, value))
+                if (EqualityComparer<BulkObservableCollection<OtherData>>.Default.Equals(_otherFiles, value))
                     return;
 
                 if (_otherFiles != null)
                     _otherFiles.CollectionChanged -= OtherFiles_CollectionChanged;
 
-                _otherFiles = value ?? new ObservableCollection<OtherData>();
+                _otherFiles = value ?? new BulkObservableCollection<OtherData>();
                 _otherFiles.CollectionChanged += OtherFiles_CollectionChanged;
 
                 OnPropertyChanged(nameof(OtherFiles));

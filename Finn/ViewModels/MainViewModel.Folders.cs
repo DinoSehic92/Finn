@@ -27,10 +27,7 @@ namespace Finn.ViewModels
                 {
                     if (CurrentFolder.IsProjectLevel)
                         {
-                            foreach (FileData file in CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
-                            {
-                                CurrentProject.StoredFiles.Remove(file);
-                            }
+                            CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && x.SyncFolder == CurrentFolder.Path);
 
                             UpdateFilter();
                             CurrentProject.Folders.Remove(CurrentFolder);
@@ -44,20 +41,16 @@ namespace Finn.ViewModels
                         {
                             if (CurrentFolder.Types == PDF_TYPE)
                             {
-                                foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
-                                {
-                                    file.AppendedFiles.Remove(fileToRemove);
-                                }
-                                SortAttachedFilesDirect(file);
+                                string folderPath = CurrentFolder.Path;
+                                file.AppendedFiles.ReplaceAll(
+                                    file.AppendedFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Namn));
                             }
 
                             if (CurrentFolder.Types == OTHER_FILES_TYPE)
                             {
-                                foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == CurrentFolder.Path).ToList())
-                                {
-                                    file.OtherFiles.Remove(fileToRemove);
-                                }
-                                SortOtherFilesDirect(file);
+                                string folderPath = CurrentFolder.Path;
+                                file.OtherFiles.ReplaceAll(
+                                    file.OtherFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Name));
                             }
                         }
 
@@ -105,32 +98,16 @@ namespace Finn.ViewModels
                     {
                         if (folder.Types == PDF_TYPE)
                         {
-                            foreach (FileData fileToRemove in file.AppendedFiles.Where(x => x.SyncFolder == folder.Path).ToList())
-                            {
-                                file.AppendedFiles.Remove(fileToRemove);
-                            }
-
-                            foreach (FileData fileToAdd in GetFilesFromFolder(folder))
-                            {
-                                file.AppendedFiles.Add(fileToAdd);
-                            }
-
-                            SortAttachedFilesDirect(file);
+                            var remaining = file.AppendedFiles.Where(x => x.SyncFolder != folder.Path);
+                            var newFiles = GetFilesFromFolder(folder);
+                            file.AppendedFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Namn));
                         }
 
                         if (folder.Types == OTHER_FILES_TYPE)
                         {
-                            foreach (OtherData fileToRemove in file.OtherFiles.Where(x => x.SyncFolder == folder.Path).ToList())
-                            {
-                                file.OtherFiles.Remove(fileToRemove);
-                            }
-
-                            foreach (OtherData fileToAdd in GetOtherFilesFromFolder(folder))
-                            {
-                                file.OtherFiles.Add(fileToAdd);
-                            }
-
-                            SortOtherFilesDirect(file);
+                            var remaining = file.OtherFiles.Where(x => x.SyncFolder != folder.Path);
+                            var newFiles = GetOtherFilesFromFolder(folder);
+                            file.OtherFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Name));
                         }
                     }
                 }
@@ -146,10 +123,12 @@ namespace Finn.ViewModels
                     List<FileData> filesToRemove = existingFiles.Where(p => !newPaths.Contains(p.Sökväg)).ToList();
                     List<FileData> filesToAdd = files.Where(p => !existingPaths.Contains(p.Sökväg)).ToList();
 
-                    foreach (FileData file in filesToRemove)
-                    {
-                        CurrentProject.StoredFiles.Remove(file);
-                    }
+                    var removeSet = new HashSet<FileData>(filesToRemove);
+                    if (removeSet.Count > 0)
+                        CurrentProject.StoredFiles.RemoveAll(f => removeSet.Contains(f));
+
+                    // Pre-compute actual additions (skip duplicates, register versions)
+                    var actualAdds = new List<FileData>();
                     foreach (FileData file in filesToAdd)
                     {
                         // Skip if the exact path is already registered anywhere in the project
@@ -162,8 +141,11 @@ namespace Finn.ViewModels
                         if (existing != null)
                             existing.AddVersion(file.Sökväg, "NEW");
                         else
-                            CurrentProject.StoredFiles.Add(file);
+                            actualAdds.Add(file);
                     }
+
+                    if (actualAdds.Count > 0)
+                        CurrentProject.StoredFiles.AddRange(actualAdds);
 
                     SetDefaultType();
                     OnPropertyChanged("TreeViewUpdate");

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -17,11 +18,49 @@ namespace Finn.Utils
         /// </summary>
         public void ReplaceAll(IEnumerable<T> items)
         {
+            // Always snapshot — the source may be a lazy query over this same collection
+            var snapshot = new List<T>(items);
+
             Items.Clear();
 
+            foreach (var item in snapshot)
+                Items.Add(item);
+
+            RaiseReset();
+        }
+
+        /// <summary>
+        /// Adds multiple items without per-item notifications,
+        /// raising a single <see cref="NotifyCollectionChangedAction.Reset"/> event.
+        /// </summary>
+        public void AddRange(IEnumerable<T> items)
+        {
             foreach (var item in items)
                 Items.Add(item);
 
+            RaiseReset();
+        }
+
+        /// <summary>
+        /// Removes all items that match <paramref name="predicate"/> without
+        /// per-item notifications, raising a single Reset event.
+        /// </summary>
+        public void RemoveAll(Func<T, bool> predicate)
+        {
+            var toRemove = new List<T>();
+            foreach (var item in Items)
+                if (predicate(item))
+                    toRemove.Add(item);
+
+            foreach (var item in toRemove)
+                Items.Remove(item);
+
+            if (toRemove.Count > 0)
+                RaiseReset();
+        }
+
+        private void RaiseReset()
+        {
             OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Count"));
             OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
             OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));

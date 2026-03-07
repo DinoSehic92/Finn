@@ -898,96 +898,36 @@ public partial class MainView : UserControl
 
     private async void OnRemoveVersion(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not Finn.Model.FileVersionData version) return;
+        if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
 
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
-        {
-            _ctx.CurrentFile.RemoveVersion(version);
-            _ctx.MarkDirty();
-        }
-    }
-
-    private void OnOpenVersion(object? sender, RoutedEventArgs e)
-    {
-        if (VersionsGrid.SelectedItem is not Finn.Model.FileVersionData version) return;
-        try
-        {
-            Process.Start(new ProcessStartInfo { FileName = version.Sökväg, UseShellExecute = true });
-        }
-        catch (Exception ex) { Debug.WriteLine(ex); }
-    }
-
-    private void OnSetActiveVersion(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not FileVersionData version) return;
-        _ctx.CurrentFile.CurrentVersion = version.Label;
-        _ctx.MarkDirty();
+            _ctx.RemoveSelectedVersion();
     }
 
     private void OnVersionDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
     {
-        if (_ctx.CurrentFile == null || VersionsGrid.SelectedItem is not FileVersionData version) return;
-        _ctx.CurrentFile.CurrentVersion = version.Label;
-        _ctx.MarkDirty();
+        _ctx.SetActiveVersion();
     }
 
     private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is not MenuItem { DataContext: FileVersionData version } || _ctx.CurrentFiles == null) return;
-        string label = version.Label;
-        foreach (var file in _ctx.CurrentFiles)
-            if (file.Versions.Any(v => v.Label == label))
-                file.CurrentVersion = label;
-        _ctx.MarkDirty();
-    }
-
-    private void OnSetFirstVersion(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFiles == null) return;
-        foreach (var file in _ctx.CurrentFiles)
-        {
-            if (file.Versions.Count > 0)
-                file.CurrentVersion = file.Versions[0].Label;
-        }
-        _ctx.MarkDirty();
-    }
-
-    private void OnSetLastVersion(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFiles == null) return;
-        foreach (var file in _ctx.CurrentFiles)
-        {
-            if (file.Versions.Count > 0)
-                file.CurrentVersion = file.Versions[^1].Label;
-        }
-        _ctx.MarkDirty();
+        if (e.Source is not MenuItem { DataContext: FileVersionData version }) return;
+        _ctx.SetCurrentVersionOnSelected(version.Label);
     }
 
     private void OnLabelFirstVersion(object? sender, RoutedEventArgs e)
     {
-        if (sender is not MenuItem { SelectedItem: string label } || _ctx.CurrentFiles == null) return;
-        foreach (var file in _ctx.CurrentFiles)
-            if (file.Versions.Count > 0)
-                file.SetVersionLabel(file.Versions[0], label);
-        _ctx.MarkDirty();
+        if (sender is not MenuItem { SelectedItem: string label }) return;
+        _ctx.LabelFirstVersionOnSelected(label);
     }
 
     private void OnLabelLatestVersion(object? sender, RoutedEventArgs e)
     {
-        if (sender is not MenuItem { SelectedItem: string label } || _ctx.CurrentFiles == null) return;
-        foreach (var file in _ctx.CurrentFiles)
-            if (file.Versions.Count > 0)
-                file.SetVersionLabel(file.Versions[^1], label);
-        _ctx.MarkDirty();
-    }
-
-    private void OnOpenVersionFolder(object? sender, RoutedEventArgs e)
-    {
-        if (VersionsGrid.SelectedItem is FileVersionData version)
-            _ctx.OpenPathDirect(version.Sökväg);
+        if (sender is not MenuItem { SelectedItem: string label }) return;
+        _ctx.LabelLastVersionOnSelected(label);
     }
 
     private async void OnCompareVersionWithCurrent(object? sender, RoutedEventArgs e)

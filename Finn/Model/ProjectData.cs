@@ -1,4 +1,5 @@
 ﻿using Avalonia.Media;
+using Finn.Utils;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -11,11 +12,10 @@ namespace Finn.Model
     /// </summary>
     public class ProjectData : INotifyPropertyChanged
     {
-        private ObservableCollection<FileData> storedFiles = new ObservableCollection<FileData>();
         /// <summary>
         /// Gets or sets the collection of stored files for the project.
         /// </summary>
-        public ObservableCollection<FileData> StoredFiles { get; set; } = new ObservableCollection<FileData>();
+        public BulkObservableCollection<FileData> StoredFiles { get; set; } = new BulkObservableCollection<FileData>();
 
         private string namn = string.Empty;
         /// <summary>

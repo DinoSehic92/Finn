@@ -421,9 +421,7 @@ namespace Finn.ViewModels
 
             private void SortAttachedFilesDirect(FileData file)
             {
-                List<FileData> tempList = file.AppendedFiles.OrderBy(x => x.Namn).ToList();
-                file.AppendedFiles.Clear();
-                file.AppendedFiles = new ObservableCollection<FileData>(tempList);
+                file.AppendedFiles.ReplaceAll(file.AppendedFiles.OrderBy(x => x.Namn));
             }
 
             private void SortOtherFiles()
@@ -436,9 +434,7 @@ namespace Finn.ViewModels
 
             private void SortOtherFilesDirect(FileData file)
             {
-                List<OtherData> tempList = file.OtherFiles.OrderBy(x => x.Name).ToList();
-                file.OtherFiles.Clear();
-                file.OtherFiles = new ObservableCollection<OtherData>(tempList);
+                file.OtherFiles.ReplaceAll(file.OtherFiles.OrderBy(x => x.Name));
             }
 
             public void RenameOriginal(string newName)

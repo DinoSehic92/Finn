@@ -473,10 +473,10 @@
 
 						<MenuItem Header="Version" IsVisible="{Binding AllSelectedFilesHaveVersions}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
-							<MenuItem Header="Set to First" Click="OnSetFirstVersion">
+							<MenuItem Header="Set to First" Command="{Binding SetFirstVersionCommand}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Set to Last" Click="OnSetLastVersion">
+							<MenuItem Header="Set to Last" Command="{Binding SetLastVersionCommand}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
@@ -1052,7 +1052,7 @@
 								<Border Classes="shadow">
 									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
 								</Border>
-								<Button Width="30" Click="OnSetActiveVersion" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
+								<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
 								<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 							</StackPanel>
 							<DataGrid Grid.Row="1" Name="VersionsGrid"
@@ -1089,14 +1089,14 @@
 								</DataGrid.Columns>
 								<DataGrid.ContextMenu>
 									<ContextMenu>
-										<MenuItem Header="Set as Active" Click="OnSetActiveVersion">
+										<MenuItem Header="Set as Active" Command="{Binding SetActiveVersionCommand}">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="CheckmarkCircle"/></MenuItem.Icon>
 										</MenuItem>
 										<Separator/>
-										<MenuItem Header="Open" Click="OnOpenVersion">
+										<MenuItem Header="Open" Command="{Binding OpenSelectedVersionCommand}">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Header="Open Folder" Click="OnOpenVersionFolder">
+										<MenuItem Header="Open Folder" Command="{Binding OpenSelectedVersionFolderCommand}">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
 										</MenuItem>
 										<MenuItem Header="Compare with Active" Click="OnCompareVersionWithCurrent">
