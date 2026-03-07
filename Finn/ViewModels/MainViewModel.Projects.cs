@@ -17,10 +17,16 @@ namespace Finn.ViewModels
                 ProjectData newProject = new() { Namn = name, Parent = group, Category = category };
 
                 Storage.StoredProjects.Add(newProject);
-                CurrentProject = newProject;
+
+                // Use backing fields to avoid cascading UpdateFilter calls
+                // from both the CurrentProject and Type property setters.
+                currentProject = newProject;
+                type = ALL_TYPES;
+                UpdateFilter();
+                OnPropertyChanged(nameof(CurrentProject));
+                OnPropertyChanged(nameof(Type));
 
                 SetProjectlist();
-                SetDefaultType();
                 SortProjects();
             }
         }
@@ -91,15 +97,14 @@ namespace Finn.ViewModels
 
         public void SortProjects()
         {
-            List<ProjectData> sortedLibrary = Storage.StoredProjects.Where(x => x.Category == "Library").OrderBy(x => x.Namn).ToList();
-            List<ProjectData> sortedArchive = Storage.StoredProjects.Where(x => x.Category == "Archive").OrderBy(x => x.Namn).ToList();
-            List<ProjectData> sortedProject = Storage.StoredProjects.Where(x => x.Category == PROJECT_CATEGORY).OrderBy(x => x.Namn).ToList();
+            var sorted = Storage.StoredProjects
+                .OrderBy(x => x.Category == "Library" ? 0 : x.Category == "Archive" ? 1 : 2)
+                .ThenBy(x => x.Namn)
+                .ToList();
 
-            Storage.StoredProjects.Clear();
-
-            foreach (var project in sortedLibrary) { Storage.StoredProjects.Add(project); }
-            foreach (var project in sortedArchive) { Storage.StoredProjects.Add(project); }
-            foreach (var project in sortedProject) { Storage.StoredProjects.Add(project); }
+            // Replace the entire collection in one shot instead of
+            // Clear + N individual Add calls (each firing CollectionChanged).
+            Storage.StoredProjects = new ObservableCollection<ProjectData>(sorted);
 
             SetProjectlist();
         }
@@ -187,8 +192,13 @@ namespace Finn.ViewModels
         public void SetDefaultSelection()
         {
             string defaultProject = Storage.StoredProjects.FirstOrDefault().Namn;
-            CurrentProject = GetProject(defaultProject);
-            Type = ALL_TYPES;
+
+            // Use backing fields to avoid cascading UpdateFilter calls.
+            currentProject = GetProject(defaultProject);
+            type = ALL_TYPES;
+            UpdateFilter();
+            OnPropertyChanged(nameof(CurrentProject));
+            OnPropertyChanged(nameof(Type));
         }
 
         public ProjectData GetProject(string name)

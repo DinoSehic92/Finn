@@ -1,4 +1,5 @@
 using Finn.Model;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -137,9 +138,13 @@ namespace Finn.ViewModels
                 {
                     List<FileData> files = GetFilesFromFolder(folder);
 
-                    IEnumerable<FileData> existingFiles = CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == folder.Path);
-                    IEnumerable<FileData> filesToRemove = existingFiles.Where(p => !files.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
-                    IEnumerable<FileData> filesToAdd = files.Where(p => !existingFiles.Any(p2 => p2.Sökväg == p.Sökväg)).ToList();
+                    // Use HashSets for O(1) path lookups instead of nested Any() which is O(n×m)
+                    var newPaths = new HashSet<string>(files.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
+                    List<FileData> existingFiles = CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == folder.Path).ToList();
+                    var existingPaths = new HashSet<string>(existingFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
+
+                    List<FileData> filesToRemove = existingFiles.Where(p => !newPaths.Contains(p.Sökväg)).ToList();
+                    List<FileData> filesToAdd = files.Where(p => !existingPaths.Contains(p.Sökväg)).ToList();
 
                     foreach (FileData file in filesToRemove)
                     {

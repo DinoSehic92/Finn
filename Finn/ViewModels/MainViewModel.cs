@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Finn.Model;
 using Finn.Storage;
+using Finn.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -245,8 +246,8 @@ namespace Finn.ViewModels
                 set { type = value; OnPropertyChanged(nameof(Type)); UpdateFilter(); }
             }
 
-            private ObservableCollection<FileData> filteredFiles = new();
-            public ObservableCollection<FileData> FilteredFiles
+            private BulkObservableCollection<FileData> filteredFiles = new();
+            public BulkObservableCollection<FileData> FilteredFiles
             {
                 get { return filteredFiles; }
                 set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }

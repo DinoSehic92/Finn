@@ -96,13 +96,9 @@ namespace Finn.ViewModels
                 ? CurrentProject.StoredFiles.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn)
                 : CurrentProject.StoredFiles.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp);
 
-            // Reuse the existing collection so the DataGrid stays bound to the same
-            // ItemsSource reference.  Replacing the collection forced a full tear-down
-            // and rebuild of every row container, which was the main source of sluggishness
-            // when switching projects.
-            filteredFiles.Clear();
-            foreach (var item in items)
-                filteredFiles.Add(item);
+            // ReplaceAll writes directly to the internal Items list and fires a
+            // single CollectionChanged.Reset, instead of N individual Add events.
+            filteredFiles.ReplaceAll(items);
             OnPropertyChanged(nameof(NrFilteredFiles));
 
             if (CurrentProject.Category != SEARCH_CATEGORY)

@@ -52,8 +52,12 @@ namespace Finn.ViewModels
                     {
                         string path = file.Path.LocalPath;
                         CurrentProject.Newfile(path);
-                        SetDefaultType();
                     }
+
+                    // Refresh the filter once after all files are added,
+                    // instead of per file.
+                    if (files.Count > 0)
+                        SetDefaultType();
                 }
             }
 
@@ -91,29 +95,29 @@ namespace Finn.ViewModels
 
             public void CopyListviewToClipboard(Avalonia.Visual window)
             {
-                string store = string.Empty;
+                var sb = new StringBuilder();
 
                 foreach (FileData file in CurrentFiles)
                 {
-                    if (CurrentProject.Meta_1 == true) { store += file.Namn + "\t"; }
-                    if (CurrentProject.Meta_2 == true) { store += file.Filtyp + "\t"; }
-                    if (CurrentProject.Meta_3 == true) { store += file.Uppdrag + "\t"; }
-                    if (CurrentProject.Meta_4 == true) { store += file.Tagg + "\t"; }
-                    if (CurrentProject.Meta_5 == true) { store += file.Färg + "\t"; }
-                    if (CurrentProject.Meta_6 == true) { store += file.Handling + "\t"; }
-                    if (CurrentProject.Meta_7 == true) { store += file.Status + "\t"; }
-                    if (CurrentProject.Meta_8 == true) { store += file.Datum + "\t"; }
-                    if (CurrentProject.Meta_9 == true) { store += file.Ritningstyp + "\t"; }
-                    if (CurrentProject.Meta_10 == true) { store += file.Beskrivning1 + "\t"; }
-                    if (CurrentProject.Meta_11 == true) { store += file.Beskrivning2 + "\t"; }
-                    if (CurrentProject.Meta_12 == true) { store += file.Beskrivning3 + "\t"; }
-                    if (CurrentProject.Meta_13 == true) { store += file.Beskrivning4 + "\t"; }
-                    if (CurrentProject.Meta_14 == true) { store += file.Revidering + "\t"; }
-                    if (CurrentProject.Meta_15 == true) { store += file.Sökväg + "\t"; }
+                    if (CurrentProject.Meta_1 == true) { sb.Append(file.Namn).Append('\t'); }
+                    if (CurrentProject.Meta_2 == true) { sb.Append(file.Filtyp).Append('\t'); }
+                    if (CurrentProject.Meta_3 == true) { sb.Append(file.Uppdrag).Append('\t'); }
+                    if (CurrentProject.Meta_4 == true) { sb.Append(file.Tagg).Append('\t'); }
+                    if (CurrentProject.Meta_5 == true) { sb.Append(file.Färg).Append('\t'); }
+                    if (CurrentProject.Meta_6 == true) { sb.Append(file.Handling).Append('\t'); }
+                    if (CurrentProject.Meta_7 == true) { sb.Append(file.Status).Append('\t'); }
+                    if (CurrentProject.Meta_8 == true) { sb.Append(file.Datum).Append('\t'); }
+                    if (CurrentProject.Meta_9 == true) { sb.Append(file.Ritningstyp).Append('\t'); }
+                    if (CurrentProject.Meta_10 == true) { sb.Append(file.Beskrivning1).Append('\t'); }
+                    if (CurrentProject.Meta_11 == true) { sb.Append(file.Beskrivning2).Append('\t'); }
+                    if (CurrentProject.Meta_12 == true) { sb.Append(file.Beskrivning3).Append('\t'); }
+                    if (CurrentProject.Meta_13 == true) { sb.Append(file.Beskrivning4).Append('\t'); }
+                    if (CurrentProject.Meta_14 == true) { sb.Append(file.Revidering).Append('\t'); }
+                    if (CurrentProject.Meta_15 == true) { sb.Append(file.Sökväg).Append('\t'); }
 
-                    store += Environment.NewLine;
+                    sb.AppendLine();
                 }
-                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(store);
+                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(sb.ToString());
             }
 
             public void CheckSingleFile()
