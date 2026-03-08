@@ -1,10 +1,15 @@
 using Finn.ViewModels;
+using Finn.Dialog;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using MuPDFCore;
 using MuPDFCore.MuPDFRenderer;
 using System.ComponentModel;
+using System.IO;
 
 namespace Finn.Views;
 
@@ -24,8 +29,8 @@ public partial class PreView : UserControl
     public MainViewModel ctx = null;
     public PreviewViewModel pwr = null;
     public RotateTransform rotation = new RotateTransform(0);
-    private bool ZoomMode = false;
     private bool _rendererPointerDown = false;
+    private bool ZoomMode = false;
 
     public void InitSetup(object sender, RoutedEventArgs e)
     {
@@ -176,39 +181,25 @@ public partial class PreView : UserControl
 
     private void ModifiedControlPointerWheelChanged(object sender, PointerWheelEventArgs e)
     {
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
-        {
-            ZoomMode = true;
-        }
-        else
-        {
-            ZoomMode = false;
-        }
+        bool ctrlHeld = e.KeyModifiers.HasFlag(KeyModifiers.Control);
 
-        PDFRenderer currentSender = (PDFRenderer)sender;
-
-        bool secondPage = false;
-
-        if (currentSender.Name.ToString() == "MuPDFRendererSecondary")
+        if (ctrlHeld != ZoomMode)
         {
-            secondPage = true;
+            ZoomMode = ctrlHeld;
+            MuPDFRenderer.ZoomEnabled = ZoomMode;
+            MuPDFRendererSecondary.ZoomEnabled = ZoomMode;
         }
 
-        MuPDFRenderer.ZoomEnabled = ZoomMode;
-        MuPDFRendererSecondary.ZoomEnabled = ZoomMode;
+        if (ZoomMode)
+            return;
 
-        if (!ZoomMode && !_rendererPointerDown && pwr.Pagecount > 0)
+        if (!_rendererPointerDown && pwr.Pagecount > 0)
         {
-            if (!e.KeyModifiers.HasFlag(KeyModifiers.Control))
-            {
-                Avalonia.Vector mode = e.Delta;
+            PDFRenderer currentSender = (PDFRenderer)sender;
+            bool secondPage = currentSender.Name?.ToString() == "MuPDFRendererSecondary";
 
-                if (mode.Y > 0)
-                    pwr.PrevPage(secondPage);
-
-                if (mode.Y < 0)
-                    pwr.NextPage(secondPage);
-            }
+            if (e.Delta.Y > 0) pwr.PrevPage(secondPage);
+            if (e.Delta.Y < 0) pwr.NextPage(secondPage);
         }
     }
 
@@ -220,4 +211,27 @@ public partial class PreView : UserControl
 
     private void OnRendererPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
         => _rendererPointerDown = false;
+
+    private async void OpenAnnotateDialog(object sender, RoutedEventArgs e)
+    {
+        if (pwr?.MainPreviewFile == null) return;
+
+        int page = pwr.RequestPage1;
+        if (page < 0 || page >= pwr.Pagecount) return;
+
+        using var ms = new MemoryStream();
+        pwr.MainPreviewFile.WriteImage(page, 2.0, PixelFormats.RGBA,
+            ms, RasterOutputFileTypes.PNG, true);
+        ms.Position = 0;
+
+        var bitmap = new Bitmap(ms);
+
+        var dialog = new xPaintDia(bitmap);
+        var window = TopLevel.GetTopLevel(this) as Window;
+        if (window != null)
+        {
+            dialog.RequestedThemeVariant = window.ActualThemeVariant;
+            await dialog.ShowDialog(window);
+        }
+    }
 }

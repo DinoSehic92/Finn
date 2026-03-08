@@ -1,98 +1,105 @@
 ﻿<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="1000"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="1000"
 		Width="1000"
 		Height="1000"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xPaintDia"
+		x:Class="Finn.Dialog.xPaintDia"
 		xmlns:inking="using:DotNetCampus.Inking"
-        Title="Whiteboard"
-		
-		
+		Title="Whiteboard"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True"
-		xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions" 
-
+		ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
 
-		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
-			<Panel Grid.Row="0" IsHitTestVisible="False"/>
+	<Grid RowDefinitions="30,*">
+		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
-			<Grid Grid.Row="1" ColumnDefinitions="45,*">
+		<Grid Grid.Row="1" ColumnDefinitions="45,*">
 
-				<StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Spacing="20">
-					<Border>
-						<StackPanel>
-							<ToggleButton Name="ToggleStrokeButton" Click="ToggleStroke" IsChecked="True" Padding="0" Height="30" Width="30" HorizontalAlignment="Right">
-								<ic:SymbolIcon Symbol="Pen" FontSize="16"/>
-							</ToggleButton>
-						</StackPanel>
-					</Border>
-					<Border>
-						<StackPanel>
+			<StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" Spacing="20">
+				<Border>
+					<StackPanel>
+						<ToggleButton Name="ToggleStrokeButton" Click="ToggleStroke" IsChecked="True" Padding="0" Height="30" Width="30" HorizontalAlignment="Right">
+							<ic:SymbolIcon Symbol="Pen" FontSize="16"/>
+						</ToggleButton>
+					</StackPanel>
+				</Border>
+				<Border>
+					<StackPanel>
+						<Slider Name="OpacitySlider" Orientation="Vertical" Height="100" Margin="5,0,0,0" Value="255" Minimum="5" Maximum="255"/>
+						<Label HorizontalContentAlignment="Right">
+							<ic:SymbolIcon Symbol="AddSubtractCircle" FontSize="18" Foreground="Gray" Margin="15,5,0,0"/>
+						</Label>
+					</StackPanel>
+				</Border>
+				<Border>
+					<StackPanel>
+						<Slider Name="ThicknessSlider" Orientation="Vertical" Height="100" Margin="5,0,0,0" Value="20" Minimum="5" Maximum="100"/>
+						<Label HorizontalContentAlignment="Right">
+							<ic:SymbolIcon Symbol="CircleEdit" FontSize="18" Foreground="Gray" Margin="15,5,0,0"/>
+						</Label>
+					</StackPanel>
+				</Border>
+				<Border>
+					<StackPanel Orientation="Vertical">
+						<Button Content="■" Foreground="Red" Tag="Red" Click="SetPenColor" FontSize="20" HotKey="D1" HorizontalAlignment="Right"/>
+						<Button Content="■" Foreground="Orange" Tag="Orange" Click="SetPenColor" FontSize="20" HotKey="D2" HorizontalAlignment="Right"/>
+						<Button Content="■" Foreground="Blue" Tag="Blue" Click="SetPenColor" FontSize="20" HotKey="D3" HorizontalAlignment="Right"/>
+						<Button Content="■" Foreground="Magenta" Tag="Magenta" Click="SetPenColor" FontSize="20" HotKey="D4" HorizontalAlignment="Right"/>
+						<Button Content="■" Foreground="Green" Tag="Green" Click="SetPenColor" FontSize="20" HotKey="D5" HorizontalAlignment="Right"/>
+						<ToggleButton Name="EraserToggle" Click="ToggleEraser" Padding="0" Height="30" Width="30" HotKey="D6" HorizontalAlignment="Right" ToolTip.Tip="Eraser">
+							<ic:SymbolIcon Symbol="Eraser" FontSize="18"/>
+						</ToggleButton>
+					</StackPanel>
+				</Border>
+				<Border Name="BackgroundColorSection">
+					<StackPanel Orientation="Vertical">
+						<Button Content="■" Foreground="Black" Tag="Black" Click="SetWhiteboardColor" FontSize="20" HorizontalAlignment="Right"/>
+						<Button Content="■" Foreground="AntiqueWhite" Tag="Antique" Click="SetWhiteboardColor" FontSize="20" HorizontalAlignment="Right"/>
+						<Button Content="■" Foreground="White" Tag="White" Click="SetWhiteboardColor" FontSize="20" HorizontalAlignment="Right"/>
+					</StackPanel>
+				</Border>
+				<Border Name="ZoomSection">
+					<StackPanel Orientation="Vertical">
+						<Button Click="ZoomOut" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Zoom out">
+							<ic:SymbolIcon Symbol="SubtractCircle" FontSize="18"/>
+						</Button>
+						<Button Click="ResetZoom" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Fit to window">
+							<ic:SymbolIcon Symbol="ArrowMinimize" FontSize="18"/>
+						</Button>
+						<Button Click="ZoomIn" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Zoom in">
+							<ic:SymbolIcon Symbol="AddCircle" FontSize="18"/>
+						</Button>
+						<TextBlock Name="ZoomLabel" Text="100%" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+					</StackPanel>
+				</Border>
+				<Border>
+					<StackPanel Orientation="Vertical">
+						<Button Click="UndoLine" HotKey="Ctrl+Z" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Undo stroke">
+							<ic:SymbolIcon Symbol="ArrowUndo" FontSize="18"/>
+						</Button>
+						<Button Click="CleanCanvas" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Clear all">
+							<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
+						</Button>
+						<Button Click="SaveImage" HotKey="Ctrl+S" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Save">
+							<ic:SymbolIcon Symbol="Save" FontSize="18"/>
+						</Button>
+					</StackPanel>
+				</Border>
+			</StackPanel>
 
-							<Slider Name="OpacitySlider" Orientation="Vertical" Height="100" Margin="5,0,0,0" Value="255" Minimum="5" Maximum="255"/>
-							<Label HorizontalContentAlignment="Right">
-								<ic:SymbolIcon Symbol="AddSubtractCircle" FontSize="18" Foreground="Gray" Margin="15,5,0,0"/>
-							</Label>
-						</StackPanel>
-					</Border>
-					<Border>
-						<StackPanel>
-							<Slider Name="ThicknessSlider" Orientation="Vertical" Height="100" Margin="5,0,0,0" Value="20" Minimum="5" Maximum="100"/>
-							<Label HorizontalContentAlignment="Right">
-								<ic:SymbolIcon Symbol="CircleEdit" FontSize="18" Foreground="Gray" Margin="15,5,0,0"/>
-							</Label>
-						</StackPanel>
-					</Border>
-					<Border>
-						<StackPanel Orientation="Vertical">
-							<Button Content="■" Foreground="Red" Tag="Red" Click="SetPenColor" FontSize="20" HotKey="D1" HorizontalAlignment="Right"/>
-							<Button Content="■" Foreground="Orange" Tag="Orange" Click="SetPenColor" FontSize="20" HotKey="D2" HorizontalAlignment="Right"/>
-							<Button Content="■" Foreground="Blue" Tag="Blue" Click="SetPenColor" FontSize="20" HotKey="D3" HorizontalAlignment="Right"/>
-							<Button Content="■" Foreground="Magenta" Tag="Magenta" Click="SetPenColor" FontSize="20" HotKey="D4" HorizontalAlignment="Right"/>
-							<Button Content="■" Foreground="Green" Tag="Green" Click="SetPenColor" FontSize="20" HotKey="D5" HorizontalAlignment="Right"/>
-							<Button Content="x" Click="SetEraser" FontSize="20" HotKey="D6" Width="30" HorizontalAlignment="Right">
-								<ic:SymbolIcon Symbol="Eraser" FontSize="18"/>
-							</Button>
-						</StackPanel>
-					</Border>
-					<Border>
-						<StackPanel Orientation="Vertical">
-							<Button Content="■" Foreground="Black" Tag="Black" Click="SetWhiteboardColor" FontSize="20" HorizontalAlignment="Right"/>
-							<Button Content="■" Foreground="AntiqueWhite" Tag="Antique" Click="SetWhiteboardColor" FontSize="20" HorizontalAlignment="Right"/>
-							<Button Content="■" Foreground="White" Tag="White" Click="SetWhiteboardColor" FontSize="20" HorizontalAlignment="Right"/>
-						</StackPanel>
-					</Border>
-
-					<Border>
-						<StackPanel Orientation="Vertical">
-							<Button Content="■" Foreground="White" Tag="White" Click="UndoLine" HotKey="Ctrl+Z" FontSize="20" Width="30" HorizontalAlignment="Right">
-								<ic:SymbolIcon Symbol="ArrowUndo" FontSize="18"/>
-							</Button>
-
-							<Button Content="■" Foreground="White" Tag="White" Click="CleanWhiteboard" HotKey="Ctrl+N" FontSize="20" Width="30" HorizontalAlignment="Right">
-								<ic:SymbolIcon Symbol="Delete" FontSize="18"/>
-							</Button>
-
-							<Button Content="■" Foreground="White" Tag="White" Click="SaveImage" HotKey="Ctrl+N" FontSize="20" Width="30" HorizontalAlignment="Right">
-								<ic:SymbolIcon Symbol="Save" FontSize="18"/>
-							</Button>
-						</StackPanel>
-					</Border>
-
-
-
-				</StackPanel>
-			
-				<Panel Name="WhiteboardPanel" Grid.Column="1" Background="White" Margin="10">
-					<inking:InkCanvas x:Name="InkCanvas" Name="Whiteboard" EditingMode="Ink" />
+			<!-- Canvas viewport with zoom/pan -->
+			<Panel Name="ZoomViewport" Grid.Column="1" ClipToBounds="True" Background="Transparent" Margin="4">
+				<Panel Name="DrawingArea" Background="White" HorizontalAlignment="Left" VerticalAlignment="Top">
+					<Image Name="PageImage" Stretch="Fill"/>
+					<inking:InkCanvas x:Name="InkCanvas" EditingMode="Ink"/>
 				</Panel>
-			</Grid>
+			</Panel>
 		</Grid>
-    
+	</Grid>
+
 </Window>

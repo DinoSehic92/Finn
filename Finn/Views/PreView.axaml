@@ -7,7 +7,7 @@
 			 xmlns:ic="using:FluentIcons.Avalonia" 
 			 xmlns:converter="clr-namespace:Finn.Converters"
 			 xmlns:ctrl="clr-namespace:Finn.Controls"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+						 mc:Ignorable="d"
              x:DataType="vm:MainViewModel"
              x:Class="Finn.Views.PreView">
 	
@@ -65,8 +65,8 @@
 						</mupdf:PDFRenderer.ContextMenu>
 					</mupdf:PDFRenderer>
 
-					<!-- Inversion overlay: renders LAST, spans all columns, passes input through -->
-					<ctrl:InvertColorControl Grid.ColumnSpan="3"
+						<!-- Inversion overlay: renders LAST, spans all columns, passes input through -->
+						<ctrl:InvertColorControl Grid.ColumnSpan="3"
 						IsInverted="{Binding PreviewVM.DarkMode}"
 						BackgroundColor="{Binding PreviewVM.ThemeRegionColor}"
 						IsHitTestVisible="False" />
@@ -81,7 +81,7 @@
 					</Grid>
 				</Grid>
 			</LayoutTransformControl>
-		</Grid>
+				</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
 			<Border Name="SearchGridBorder" Classes="shadow" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}">
@@ -185,6 +185,10 @@
 					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
 						<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
+
+					<Button ToolTip.Tip="Annotate Page" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OpenAnnotateDialog">
+						<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
+					</Button>
 
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10 0 5 0" IsVisible="False">
 						<ic:SymbolIcon Symbol="Checkmark" IconVariant="Regular" FontSize="16" IsVisible="{Binding !FileWorkerBusy}"/>
