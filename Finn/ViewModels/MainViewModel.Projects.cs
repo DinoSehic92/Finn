@@ -24,6 +24,7 @@ namespace Finn.ViewModels
                 type = ALL_TYPES;
                 UpdateFilter();
                 OnPropertyChanged(nameof(CurrentProject));
+                OnPropertyChanged(nameof(IsSearchResult));
                 OnPropertyChanged(nameof(Type));
 
                 SetProjectlist();
@@ -127,6 +128,7 @@ namespace Finn.ViewModels
             UpdateFilter();
 
             OnPropertyChanged(nameof(CurrentProject));
+            OnPropertyChanged(nameof(IsSearchResult));
             OnPropertyChanged(nameof(Type));
         }
 
@@ -169,7 +171,10 @@ namespace Finn.ViewModels
             UpdateFilter();
 
             if (projectChanged)
+            {
                 OnPropertyChanged(nameof(CurrentProject));
+                OnPropertyChanged(nameof(IsSearchResult));
+            }
             OnPropertyChanged(nameof(Type));
             OnPropertyChanged("UpdateColumns");
         }
@@ -202,6 +207,7 @@ namespace Finn.ViewModels
             type = ALL_TYPES;
             UpdateFilter();
             OnPropertyChanged(nameof(CurrentProject));
+            OnPropertyChanged(nameof(IsSearchResult));
             OnPropertyChanged(nameof(Type));
         }
 

@@ -26,6 +26,19 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
+        /// Maps a filetype name to a Fluent icon symbol for the tree view.
+        /// </summary>
+        private static string GetFiletypeIcon(string filetype) => filetype switch
+        {
+            "PDF"         => "DocumentPdf",
+            "Drawing"     => "PaintBrush",
+            "Document"    => "DocumentText",
+            "New"         => "DocumentAdd",
+            "Other Files" or "Other" => "DocumentQuestionMark",
+            _             => "Document"
+        };
+
+        /// <summary>
         /// Builds the tree data model. The view binds to <see cref="TreeNodes"/>
         /// via HierarchicalDataTemplate instead of constructing TreeViewItems in code-behind.
         /// </summary>
@@ -70,6 +83,7 @@ namespace Finn.ViewModels
                         {
                             Header = group,
                             Tag = "Group",
+                            IconSymbol = "Album",
                             FontSize = 15,
                             FontWeight = FontWeight.Bold,
                             IsExpanded = true,
@@ -78,10 +92,18 @@ namespace Finn.ViewModels
                     }
                 }
 
+                string categoryIcon = category switch
+                {
+                    "Archive" => "Archive",
+                    "Library" => "Library",
+                    _ => "Briefcase"
+                };
+
                 nodes.Add(new TreeNodeData
                 {
                     Header = category,
                     Tag = "Header",
+                    IconSymbol = categoryIcon,
                     FontSize = 16,
                     FontWeight = FontWeight.Bold,
                     FontStyle = FontStyle.Italic,
@@ -138,7 +160,7 @@ namespace Finn.ViewModels
         /// </summary>
         private TreeNodeData? TrySelectProjectNode(TreeNodeData projectNode)
         {
-            if (projectNode.Tag != "All Types" || projectNode.Header != CurrentProject?.Namn)
+            if (projectNode.Tag != "All Types" || projectNode.Header.Split("  ")[0] != CurrentProject?.Namn)
             {
                 projectNode.IsExpanded = false;
                 return null;
@@ -177,6 +199,7 @@ namespace Finn.ViewModels
                 {
                     Header = $"{filetype}  ({count})",
                     Tag = project.Namn,
+                    IconSymbol = GetFiletypeIcon(filetype),
                     FontSize = 13,
                     FontWeight = FontWeight.Light,
                     Foreground = foreground
@@ -191,10 +214,13 @@ namespace Finn.ViewModels
                 children.Add(child);
             }
 
+            int totalFiles = project.StoredFiles.Count;
+
             var node = new TreeNodeData
             {
-                Header = project.Namn,
+                Header = totalFiles > 0 ? $"{project.Namn}  ({totalFiles})" : project.Namn,
                 Tag = "All Types",
+                IconSymbol = "Folder",
                 FontSize = 15,
                 IsExpanded = isCurrent,
                 Foreground = foreground,
@@ -207,5 +233,6 @@ namespace Finn.ViewModels
 
             return (node, matched);
         }
-    }
-}
+
+            }
+        }

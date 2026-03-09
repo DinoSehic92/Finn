@@ -229,10 +229,18 @@
 
 		<!-- Center search bar -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
-                <Grid ColumnDefinitions="*,30,30">
-                 	<Border Classes="shadow">
-						<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch"/>
-                	</Border>
+				<Grid ColumnDefinitions="*,30,30">
+					<Border Classes="shadow">
+						<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
+							<TextBox.InnerRightContent>
+								<Button Click="OnClearSearch" Height="20" Width="20" Padding="0" Margin="0,0,4,0"
+										ToolTip.Tip="Clear Search" IsVisible="{Binding IsSearchResult}"
+										Background="Transparent" BorderThickness="0">
+									<ic:SymbolIcon Symbol="Dismiss" IconVariant="Regular" FontSize="12"/>
+								</Button>
+							</TextBox.InnerRightContent>
+						</TextBox>
+					</Border>
 				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
@@ -1141,12 +1149,18 @@
 							</TreeView.Styles>
 							<TreeView.ItemTemplate>
 								<TreeDataTemplate ItemsSource="{Binding Children}">
-                                    <TextBlock Text="{Binding Header}"
-                                               FontSize="{Binding FontSize}"
-                                               FontWeight="{Binding FontWeight}"
-                                               FontStyle="{Binding FontStyle}"
-                                               Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
-								</TreeDataTemplate>
+										<StackPanel Orientation="Horizontal" Spacing="6"
+															Background="Transparent">
+											<ic:SymbolIcon Symbol="{Binding IconSymbol}" FontSize="14"
+														   IsVisible="{Binding IconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+														   Opacity="0.7"/>
+											<TextBlock Text="{Binding Header}"
+													   FontSize="{Binding FontSize}"
+													   FontWeight="{Binding FontWeight}"
+													   FontStyle="{Binding FontStyle}"
+													   Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
+										</StackPanel>
+									</TreeDataTemplate>
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>
 								<ContextMenu Name="TreeMenu">

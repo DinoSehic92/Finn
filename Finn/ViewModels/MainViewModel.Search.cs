@@ -43,6 +43,7 @@ namespace Finn.ViewModels
                 // CurrentProject property setter — we populate FilteredFiles manually.
                 currentProject = new ProjectData() { Namn = SearchText, Category = SEARCH_CATEGORY };
                 OnPropertyChanged(nameof(CurrentProject));
+                OnPropertyChanged(nameof(IsSearchResult));
 
                 // HashSet for O(1) path lookups instead of O(n) List.Contains
                 HashSet<string> filepaths = new(StringComparer.OrdinalIgnoreCase);
@@ -78,6 +79,7 @@ namespace Finn.ViewModels
                 // CurrentProject property setter — we populate FilteredFiles manually.
                 currentProject = new ProjectData() { Namn = SearchText, Category = "Search" };
                 OnPropertyChanged(nameof(CurrentProject));
+                OnPropertyChanged(nameof(IsSearchResult));
 
                 var matches = new List<FileData>();
                 foreach (ProjectData project in Storage.StoredProjects)

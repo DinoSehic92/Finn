@@ -16,6 +16,12 @@ namespace Finn.ViewModels
         public string Header { get; init; } = string.Empty;
         public string Tag { get; init; } = string.Empty;
 
+        /// <summary>
+        /// Fluent icon symbol name for the node (e.g. "Folder", "Document").
+        /// Bound in XAML via &lt;ic:SymbolIcon Symbol="{Binding IconSymbol}"/&gt;.
+        /// </summary>
+        public string? IconSymbol { get; init; }
+
         private bool _isExpanded;
         public bool IsExpanded
         {

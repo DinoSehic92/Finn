@@ -236,7 +236,7 @@ namespace Finn.ViewModels
             public ProjectData CurrentProject
             {
                 get { return currentProject; }
-                set { currentProject = value; OnPropertyChanged(nameof(CurrentProject)); UpdateFilter(); }
+                set { currentProject = value; OnPropertyChanged(nameof(CurrentProject)); OnPropertyChanged(nameof(IsSearchResult)); UpdateFilter(); }
             }
 
             private string type = null;

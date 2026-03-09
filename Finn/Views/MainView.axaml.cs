@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+﻿using Avalonia;
+using Avalonia.Controls;
 using System;
 using Avalonia.Interactivity;
 using System.Linq;
@@ -52,6 +53,8 @@ public partial class MainView : UserControl
 
         OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
         OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
+
+        FolderGrid.AddHandler(DataGrid.DoubleTappedEvent, OnFolderDoubleClick);
 
         RecentGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectRecent);
 
@@ -413,6 +416,15 @@ public partial class MainView : UserControl
             OnSearch(null, null);
     }
 
+    private void OnClearSearch(object? sender, RoutedEventArgs e)
+    {
+        _ctx.SearchText = string.Empty;
+        _ctx.SetDefaultSelection();
+        _ctx.BuildTreeData();
+        OnUpdateColumns();
+        UpdateEmptyState();
+    }
+
     #endregion
 
     #region Preview Requests (thin wrappers → ViewModel does the work)
@@ -497,7 +509,7 @@ public partial class MainView : UserControl
 
         if (tag == "All Types")
         {
-            _ctx.NavigateTo(selectedNode.Header, "All Types");
+            _ctx.NavigateTo(selectedNode.Header.Split("  ")[0], "All Types");
         }
         else
         {
@@ -619,6 +631,12 @@ public partial class MainView : UserControl
             if (!string.IsNullOrEmpty(folder.Path))
                 _ctx.OpenFileDirect(folder.Path);
         }
+    }
+
+    private void OnFolderDoubleClick(object? sender, RoutedEventArgs e)
+    {
+        if (FolderGrid.SelectedItem is FolderData folder && !string.IsNullOrEmpty(folder.Path))
+            _ctx.OpenFileDirect(folder.Path);
     }
 
     private async void OnSyncSelectedFolders(object? sender, RoutedEventArgs e)
