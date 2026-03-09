@@ -246,21 +246,21 @@ public partial class MainView : UserControl
         if (files.Count > 0)
             await _ctx.AddDroppedFilesAsync(files, window);
         if (folders.Count > 0)
-            _ctx.AddDroppedFolders(folders);
+            await _ctx.AddDroppedFoldersAsync(folders, window);
         UpdateEmptyState();
     }
 
-    private void OnDropAppendedFiles(object? sender, DragEventArgs e)
+    private async void OnDropAppendedFiles(object? sender, DragEventArgs e)
     {
         var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
-        _ctx.AddDroppedAppendedFiles(files, folders);
+        await _ctx.AddDroppedAppendedFilesAsync(files, folders);
         UpdateAttachedEmptyState();
     }
 
-    private void OnDropOtherFiles(object? sender, DragEventArgs e)
+    private async void OnDropOtherFiles(object? sender, DragEventArgs e)
     {
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
-        _ctx.AddDroppedOtherFiles(files, folders);
+        await _ctx.AddDroppedOtherFilesAsync(files, folders);
         UpdateAttachedEmptyState();
     }
 
@@ -621,17 +621,19 @@ public partial class MainView : UserControl
         }
     }
 
-    private void OnSyncSelectedFolders(object? sender, RoutedEventArgs e)
+    private async void OnSyncSelectedFolders(object? sender, RoutedEventArgs e)
     {
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
         if (folders.Count == 0) return;
 
-        _ctx.SyncFolders(folders);
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.SyncFoldersAsync(folders, window);
     }
 
-    private void OnSyncAllFolders(object? sender, RoutedEventArgs e)
+    private async void OnSyncAllFolders(object? sender, RoutedEventArgs e)
     {
-        _ctx.SyncFolders(_ctx.CurrentProject.Folders.ToList());
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
     }
 
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)

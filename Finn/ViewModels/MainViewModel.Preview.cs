@@ -100,7 +100,7 @@ namespace Finn.ViewModels
         /// Processes dropped paths for the appendix grid (attached PDFs and folders).
         /// Ignored when viewing search results to avoid modifying a transient project.
         /// </summary>
-        public void AddDroppedAppendedFiles(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
+        public async Task AddDroppedAppendedFilesAsync(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
         {
             if (CurrentFile == null || IsSearchResult) return;
 
@@ -111,7 +111,7 @@ namespace Finn.ViewModels
             {
                 var folder = CreateAttachedFolder(path, "PDF");
                 CurrentProject.Folders.Add(folder);
-                SyncFolder(folder);
+                await SyncFolderAsync(folder);
             }
         }
 
@@ -119,7 +119,7 @@ namespace Finn.ViewModels
         /// Processes dropped paths for the other-files grid.
         /// Ignored when viewing search results to avoid modifying a transient project.
         /// </summary>
-        public void AddDroppedOtherFiles(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
+        public async Task AddDroppedOtherFilesAsync(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
         {
             if (CurrentFile == null || IsSearchResult) return;
 
@@ -130,7 +130,7 @@ namespace Finn.ViewModels
             {
                 var folder = CreateAttachedFolder(path, "Other Files");
                 CurrentProject.Folders.Add(folder);
-                SyncFolder(folder);
+                await SyncFolderAsync(folder);
             }
         }
 
@@ -138,7 +138,7 @@ namespace Finn.ViewModels
         /// Processes dropped folder paths for the folder grid.
         /// Ignored when viewing search results to avoid adding folders to a transient project.
         /// </summary>
-        public void AddDroppedFolders(IEnumerable<string> paths)
+        public async Task AddDroppedFoldersAsync(IEnumerable<string> paths, Window? mainWindow = null)
         {
             if (IsSearchResult) return;
 
@@ -152,7 +152,7 @@ namespace Finn.ViewModels
                     Path = path
                 };
                 CurrentProject.Folders.Add(folder);
-                SyncFolder(folder);
+                await SyncFolderAsync(folder, mainWindow);
             }
         }
 

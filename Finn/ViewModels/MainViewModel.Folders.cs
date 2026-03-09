@@ -1,8 +1,10 @@
+using Avalonia.Controls;
 using Finn.Model;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Finn.ViewModels
     {
@@ -58,26 +60,26 @@ namespace Finn.ViewModels
                 }
             }
 
-            public void SyncFolders(List<FolderData> folders)
+            public async Task SyncFoldersAsync(List<FolderData> folders, Window? mainWindow = null)
             {
                 foreach (var folder in folders)
                 {
-                    SyncFolder(folder);
+                    await SyncFolderAsync(folder, mainWindow);
                 }
             }
 
-            public void SyncFile()
+            public async Task SyncFileAsync()
             {
                 if (CurrentFile != null)
                 {
                     foreach (FolderData folder in CurrentProject.Folders.Where(x => x.AttachToFilePath == CurrentFile.Sökväg))
                     {
-                        SyncFolder(folder);
+                        await SyncFolderAsync(folder);
                     }
                 }
             }
 
-            public void SyncFolder(FolderData folder)
+            public async Task SyncFolderAsync(FolderData folder, Window? mainWindow = null)
             {
                 if (folder?.IsValid() != true || folder.Path == null)
                 {
@@ -127,25 +129,41 @@ namespace Finn.ViewModels
                     if (removeSet.Count > 0)
                         CurrentProject.StoredFiles.RemoveAll(f => removeSet.Contains(f));
 
-                    // Pre-compute actual additions (skip duplicates, register versions)
                     var actualAdds = new List<FileData>();
+                    var versionCandidates = new List<VersionImportEntry>();
+
                     foreach (FileData file in filesToAdd)
                     {
-                        // Skip if the exact path is already registered anywhere in the project
                         if (CurrentProject.StoredFiles.Any(x => x.Sökväg == file.Sökväg))
                             continue;
 
-                        // If a file with the same name already exists, register the folder
-                        // file as a new version rather than adding a duplicate entry
                         var existing = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == file.Namn);
                         if (existing != null)
-                            existing.AddVersion(file.Sökväg, "NEW");
+                        {
+                            versionCandidates.Add(new VersionImportEntry
+                            {
+                                ExistingFile = existing,
+                                NewFilePath = file.Sökväg
+                            });
+                        }
                         else
+                        {
                             actualAdds.Add(file);
+                        }
                     }
 
                     if (actualAdds.Count > 0)
                         CurrentProject.StoredFiles.AddRange(actualAdds);
+
+                    if (versionCandidates.Count > 0 && mainWindow != null)
+                    {
+                        bool confirmed = await ShowVersionImportDialogAsync(mainWindow, versionCandidates);
+                        if (confirmed)
+                        {
+                            foreach (var entry in versionCandidates)
+                                entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
+                        }
+                    }
 
                     folder.SyncedFileCount = CurrentProject.StoredFiles.Count(x => x.IsFromFolder && x.SyncFolder == folder.Path);
 
