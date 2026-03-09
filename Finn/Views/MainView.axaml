@@ -630,7 +630,7 @@
 			</Panel>
 
 			<!-- Attached files panels -->
-			<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="600" IsEnabled="{Binding FileSelected}">
+			<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="400" IsEnabled="{Binding FileSelected}">
 
 				<Panel Grid.Column="0">
 				<DataGrid Name="AppendixGrid" Padding="0"
@@ -735,12 +735,12 @@
 			</Grid>
 
 			<!-- Folder sync grid -->
-			<Panel Grid.Row="2" MinHeight="200" MaxHeight="600" IsVisible="{Binding UI.ShowFolders}">
+			<Panel Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}">
 			<DataGrid Name="FolderGrid"
 					  ItemsSource="{Binding CurrentProject.Folders}"
 					  SelectionMode="Extended" IsReadOnly="True">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding NameWithAttributes}" Header="Folder"             Width="2*"   FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Name}" Header="Folder"             Width="2*"   FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"            Width="Auto"  FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic"/>
 					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to:" Width="2*"   FontSize="14"/>
@@ -753,6 +753,9 @@
 						</MenuItem>
 						<Separator/>
 						<MenuItem Header="Sync Selected" Click="OnSyncSelectedFolders">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Sync All" Click="OnSyncAllFolders">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 						</MenuItem>
 						<MenuItem Header="Delete" Click="OnRemoveFolder">

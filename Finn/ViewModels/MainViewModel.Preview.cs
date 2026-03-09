@@ -144,13 +144,15 @@ namespace Finn.ViewModels
 
             foreach (string path in paths)
             {
-                CurrentProject.Folders.Add(new FolderData
+                var folder = new FolderData
                 {
                     Name = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path)) ?? string.Empty,
                     AttachToFile = "PROJECT",
                     Types = "PDF",
                     Path = path
-                });
+                };
+                CurrentProject.Folders.Add(folder);
+                SyncFolder(folder);
             }
         }
 

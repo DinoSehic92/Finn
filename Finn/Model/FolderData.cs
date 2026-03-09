@@ -15,24 +15,7 @@ namespace Finn.Model
         public string Name
         {
             get => name;
-            set { name = value; RaisePropertyChanged(nameof(Name)); RaisePropertyChanged(nameof(NameWithAttributes)); }
-        }
-
-        /// <summary>
-        /// Gets the folder name with attributes (valid/invalid).
-        /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
-        public string NameWithAttributes
-        {
-            get
-            {
-                string nameWithAttributes = Name;
-                if (IsValid())
-                    nameWithAttributes += "⠀✓";
-                else
-                    nameWithAttributes += "⠀✗";
-                return nameWithAttributes;
-            }
+            set { name = value; RaisePropertyChanged(nameof(Name)); }
         }
 
         private string path = string.Empty;
@@ -42,7 +25,7 @@ namespace Finn.Model
         public string Path
         {
             get => path;
-            set { path = value; RaisePropertyChanged(nameof(Path)); RaisePropertyChanged(nameof(NameWithAttributes)); }
+            set { path = value; RaisePropertyChanged(nameof(Path)); }
         }
 
         private string types = string.Empty;
@@ -73,7 +56,6 @@ namespace Finn.Model
         /// <summary>
         /// Number of files synced from this folder during the last sync.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
         public int SyncedFileCount
         {
             get => syncedFileCount;

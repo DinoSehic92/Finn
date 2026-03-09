@@ -629,6 +629,11 @@ public partial class MainView : UserControl
         _ctx.SyncFolders(folders);
     }
 
+    private void OnSyncAllFolders(object? sender, RoutedEventArgs e)
+    {
+        _ctx.SyncFolders(_ctx.CurrentProject.Folders.ToList());
+    }
+
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)
     {
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
