@@ -611,16 +611,35 @@ public partial class MainView : UserControl
         }
     }
 
+    private void OnOpenFolderPath(object? sender, RoutedEventArgs e)
+    {
+        var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
+        foreach (var folder in folders)
+        {
+            if (!string.IsNullOrEmpty(folder.Path))
+                _ctx.OpenFileDirect(folder.Path);
+        }
+    }
+
+    private void OnSyncSelectedFolders(object? sender, RoutedEventArgs e)
+    {
+        var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
+        if (folders.Count == 0) return;
+
+        _ctx.SyncFolders(folders);
+    }
+
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.CurrentFolder == null) return;
+        var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
+        if (folders.Count == 0) return;
 
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
         {
-            _ctx.RemoveFolder();
+            _ctx.RemoveFolders(folders);
             _ctx.MarkDirty();
             UpdateFolderEmptyState();
         }

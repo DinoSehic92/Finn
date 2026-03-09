@@ -21,55 +21,49 @@ namespace Finn.ViewModels
                 }
             }
 
-            public void RemoveFolder()
+            public void RemoveFolders(List<FolderData> folders)
             {
-                if (CurrentFolder != null)
+                foreach (var folder in folders)
                 {
-                    if (CurrentFolder.IsProjectLevel)
-                        {
-                            CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && x.SyncFolder == CurrentFolder.Path);
-
-                            UpdateFilter();
-                            CurrentProject.Folders.Remove(CurrentFolder);
-                            OnPropertyChanged("TreeViewUpdate");
-                        }
-                        else
+                    if (folder.IsProjectLevel)
                     {
-                        FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == CurrentFolder.AttachToFile);
+                        CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && x.SyncFolder == folder.Path);
+                        UpdateFilter();
+                        CurrentProject.Folders.Remove(folder);
+                        OnPropertyChanged("TreeViewUpdate");
+                    }
+                    else
+                    {
+                        FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile);
 
                         if (file != null)
                         {
-                            if (CurrentFolder.Types == PDF_TYPE)
+                            if (folder.Types == PDF_TYPE)
                             {
-                                string folderPath = CurrentFolder.Path;
+                                string folderPath = folder.Path;
                                 file.AppendedFiles.ReplaceAll(
                                     file.AppendedFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Namn));
                             }
 
-                            if (CurrentFolder.Types == OTHER_FILES_TYPE)
+                            if (folder.Types == OTHER_FILES_TYPE)
                             {
-                                string folderPath = CurrentFolder.Path;
+                                string folderPath = folder.Path;
                                 file.OtherFiles.ReplaceAll(
                                     file.OtherFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Name));
                             }
                         }
 
-                        CurrentProject.Folders.Remove(CurrentFolder);
+                        CurrentProject.Folders.Remove(folder);
                     }
                 }
             }
 
-            public void SyncAllFolders()
+            public void SyncFolders(List<FolderData> folders)
             {
-                foreach (FolderData folder in CurrentProject.Folders)
+                foreach (var folder in folders)
                 {
                     SyncFolder(folder);
                 }
-            }
-
-            public void SyncSelectedFolder()
-            {
-                SyncFolder(CurrentFolder);
             }
 
             public void SyncFile()
@@ -96,10 +90,13 @@ namespace Finn.ViewModels
 
                     if (file != null)
                     {
+                        int count = 0;
+
                         if (folder.Types == PDF_TYPE)
                         {
                             var remaining = file.AppendedFiles.Where(x => x.SyncFolder != folder.Path);
                             var newFiles = GetFilesFromFolder(folder);
+                            count = newFiles.Count;
                             file.AppendedFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Namn));
                         }
 
@@ -107,8 +104,11 @@ namespace Finn.ViewModels
                         {
                             var remaining = file.OtherFiles.Where(x => x.SyncFolder != folder.Path);
                             var newFiles = GetOtherFilesFromFolder(folder);
+                            count = newFiles.Count;
                             file.OtherFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Name));
                         }
+
+                        folder.SyncedFileCount = count;
                     }
                 }
                 else
@@ -146,6 +146,8 @@ namespace Finn.ViewModels
 
                     if (actualAdds.Count > 0)
                         CurrentProject.StoredFiles.AddRange(actualAdds);
+
+                    folder.SyncedFileCount = CurrentProject.StoredFiles.Count(x => x.IsFromFolder && x.SyncFolder == folder.Path);
 
                     SetDefaultType();
                     OnPropertyChanged("TreeViewUpdate");

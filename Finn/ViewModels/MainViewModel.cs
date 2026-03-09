@@ -368,13 +368,6 @@ namespace Finn.ViewModels
                 set { indexedSearch = value; OnPropertyChanged(nameof(IndexedSearch)); }
             }
 
-            private FolderData currentFolder;
-            public FolderData CurrentFolder
-            {
-                get { return currentFolder; }
-                set { currentFolder = value; OnPropertyChanged(nameof(CurrentFolder)); }
-            }
-
             public void ResetPreviewer()
             {
                 PreviewVM.FileWorkerBusy = false;

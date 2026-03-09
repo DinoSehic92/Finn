@@ -69,6 +69,17 @@ namespace Finn.Model
             set { attachToFilePath = value; RaisePropertyChanged("AttachToFilePath"); }
         }
 
+        private int syncedFileCount;
+        /// <summary>
+        /// Number of files synced from this folder during the last sync.
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public int SyncedFileCount
+        {
+            get => syncedFileCount;
+            set { syncedFileCount = value; RaisePropertyChanged(nameof(SyncedFileCount)); }
+        }
+
         /// <summary>
         /// True when this folder syncs to the project file grid rather than a specific file.
         /// </summary>
