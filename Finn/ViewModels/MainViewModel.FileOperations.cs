@@ -59,21 +59,32 @@ namespace Finn.ViewModels
             /// Adds files to the current project. Files that match an existing entry
             /// by name are collected and presented in a version-import dialog so the
             /// user can choose the label before they are registered as versions.
+            /// Uses HashSet lookups and batch additions for performance with large
+            /// file counts (e.g. drag-and-drop from a slow network share).
             /// </summary>
             public async Task AddFilesWithVersionCheck(IEnumerable<string> paths, Window? mainWindow)
             {
-                var newPaths = new List<string>();
+                // Build O(1) lookup structures to avoid linear scans per file
+                var existingPaths = new HashSet<string>(
+                    CurrentProject.StoredFiles.Select(f => f.Sökväg),
+                    StringComparer.OrdinalIgnoreCase);
+                var existingByName = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
+                foreach (var f in CurrentProject.StoredFiles)
+                {
+                    existingByName.TryAdd(f.Namn, f);
+                }
+
+                var newFiles = new List<FileData>();
                 var versionCandidates = new List<VersionImportEntry>();
 
                 foreach (string path in paths)
                 {
-                    string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
-
-                    if (CurrentProject.StoredFiles.Any(x => x.Sökväg == path))
+                    if (existingPaths.Contains(path))
                         continue;
 
-                    var existing = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == fileName);
-                    if (existing != null)
+                    string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
+
+                    if (existingByName.TryGetValue(fileName, out var existing))
                     {
                         versionCandidates.Add(new VersionImportEntry
                         {
@@ -83,12 +94,23 @@ namespace Finn.ViewModels
                     }
                     else
                     {
-                        newPaths.Add(path);
+                        var fileData = new FileData
+                        {
+                            Namn = fileName,
+                            Filtyp = "New",
+                            Uppdrag = CurrentProject.Namn,
+                            Sökväg = path
+                        };
+                        newFiles.Add(fileData);
+                        // Track so subsequent duplicates in the same drop are caught
+                        existingPaths.Add(path);
+                        existingByName.TryAdd(fileName, fileData);
                     }
                 }
 
-                foreach (var path in newPaths)
-                    CurrentProject.Newfile(path);
+                // Batch-add: single Reset notification + single SetFiletypeList call
+                if (newFiles.Count > 0)
+                    CurrentProject.AddFiles(newFiles);
 
                 bool versionsAdded = false;
                 if (versionCandidates.Count > 0 && mainWindow != null)
@@ -102,7 +124,7 @@ namespace Finn.ViewModels
                     }
                 }
 
-                if (newPaths.Count > 0 || versionsAdded)
+                if (newFiles.Count > 0 || versionsAdded)
                 {
                     SetDefaultType();
                     MarkDirty();

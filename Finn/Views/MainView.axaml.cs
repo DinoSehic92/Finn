@@ -10,6 +10,7 @@ using Avalonia.Input;
 using System.Collections.Generic;
 using Finn.Model;
 using System.IO;
+using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using System.Diagnostics;
 using System.Threading;
@@ -277,8 +278,8 @@ public partial class MainView : UserControl
         {
             string path = item.Path.LocalPath;
 
-            if (directoriesOnly && !Directory.Exists(path)) continue;
-            if (filesOnly && !item.Path.IsFile) continue;
+            if (directoriesOnly && item is not IStorageFolder) continue;
+            if (filesOnly && item is not IStorageFile) continue;
             if (extension != null && !Path.GetExtension(path).Equals(extension, StringComparison.OrdinalIgnoreCase)) continue;
 
             result.Add(path);
@@ -288,6 +289,8 @@ public partial class MainView : UserControl
 
     /// <summary>
     /// Splits dropped items into file paths and directory paths.
+    /// Uses Avalonia storage-item types instead of File.Exists / Directory.Exists
+    /// to avoid costly network round-trips for files on slow servers.
     /// </summary>
     private static (List<string> files, List<string> folders) ExtractDroppedFilesAndFolders(
         DragEventArgs e, string? extension = null)
@@ -301,14 +304,14 @@ public partial class MainView : UserControl
         {
             string path = item.Path.LocalPath;
 
-            if (File.Exists(path))
+            if (item is IStorageFolder)
+            {
+                folders.Add(path);
+            }
+            else if (item is IStorageFile)
             {
                 if (extension == null || Path.GetExtension(path).Equals(extension, StringComparison.OrdinalIgnoreCase))
                     files.Add(path);
-            }
-            else if (Directory.Exists(path))
-            {
-                folders.Add(path);
             }
         }
         return (files, folders);
@@ -325,12 +328,11 @@ public partial class MainView : UserControl
 
         foreach (var item in items)
         {
-            string path = item.Path.LocalPath;
-            if (Directory.Exists(path))
+            if (item is IStorageFolder)
             {
                 hasFolder = true;
             }
-            else if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            else if (Path.GetExtension(item.Path.LocalPath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
             {
                 hasPdf = true;
             }

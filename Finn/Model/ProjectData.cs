@@ -219,6 +219,17 @@ namespace Finn.Model
             SetFiletypeList();
         }
 
+        /// <summary>
+        /// Adds multiple files in a single batch, firing only one collection-change
+        /// notification and one <see cref="SetFiletypeList"/> call.
+        /// Callers are responsible for duplicate/version checking before calling this.
+        /// </summary>
+        public void AddFiles(IEnumerable<FileData> files)
+        {
+            StoredFiles.AddRange(files);
+            SetFiletypeList();
+        }
+
         public void RemoveFile(FileData file)
         {
             StoredFiles.Remove(file);
