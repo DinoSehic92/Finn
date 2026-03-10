@@ -258,6 +258,7 @@ public partial class MainView : UserControl
         var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
         await _ctx.AddDroppedAppendedFilesAsync(files, folders);
         UpdateAttachedEmptyState();
+        UpdateFolderEmptyState();
     }
 
     private async void OnDropOtherFiles(object? sender, DragEventArgs e)
@@ -265,6 +266,7 @@ public partial class MainView : UserControl
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
         await _ctx.AddDroppedOtherFilesAsync(files, folders);
         UpdateAttachedEmptyState();
+        UpdateFolderEmptyState();
     }
 
     /// <summary>
