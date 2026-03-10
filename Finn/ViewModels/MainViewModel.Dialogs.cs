@@ -162,16 +162,14 @@ namespace Finn.ViewModels
                 window.ShowDialog(mainWindow);
             }
 
-            public void OnIndexDia(Window mainWindow)
+            public async Task OnIndexDia(Window mainWindow)
             {
-                // Load existing indexed content from disk so the inspect dialog
-                // shows previously indexed entries immediately.
                 try
                 {
                     string indexPath = $"{SavePath}\\Content.json";
                     if (System.IO.File.Exists(indexPath))
                     {
-                        LoadIndexFile(indexPath);
+                        await LoadIndexFileAsync(indexPath);
                     }
                     else
                     {
@@ -180,13 +178,12 @@ namespace Finn.ViewModels
                 }
                 catch
                 {
-                    // If loading fails, ensure collection is non-null so the dialog can bind to it.
                     TextContent ??= new ObservableCollection<ContentData>();
                 }
 
                 var window = new xContentDia();
                 ConfigureWindow(window, mainWindow);
-                window.ShowDialog(mainWindow);
+                await window.ShowDialog(mainWindow);
             }
 
             public async Task OpenDiffDia(Window mainWindow)

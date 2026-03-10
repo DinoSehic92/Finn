@@ -4,16 +4,17 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Finn.ViewModels
     {
         public partial class MainViewModel
         {
-            public void Search()
+            public async Task Search()
             {
                 if (IndexedSearch)
                 {
-                    SearchIndex();
+                    await SearchIndexAsync();
                 }
                 else
                 {
@@ -23,7 +24,7 @@ namespace Finn.ViewModels
                 OnPropertyChanged("UpdateColumns");
             }
 
-            public void SearchIndex()
+            public async Task SearchIndexAsync()
             {
                 string indexPath = Path.Combine(SavePath, "Content.json");
 
@@ -31,7 +32,7 @@ namespace Finn.ViewModels
                 {
                     if (System.IO.File.Exists(indexPath))
                     {
-                        LoadIndexFile(indexPath);
+                        await LoadIndexFileAsync(indexPath);
                     }
                     else
                     {
