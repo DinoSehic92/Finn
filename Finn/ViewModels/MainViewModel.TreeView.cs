@@ -214,11 +214,9 @@ namespace Finn.ViewModels
                 children.Add(child);
             }
 
-            int totalFiles = project.StoredFiles.Count;
-
             var node = new TreeNodeData
             {
-                Header = totalFiles > 0 ? $"{project.Namn}  ({totalFiles})" : project.Namn,
+                Header = project.Namn,
                 Tag = "All Types",
                 IconSymbol = "Folder",
                 FontSize = 15,
