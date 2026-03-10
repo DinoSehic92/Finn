@@ -61,7 +61,7 @@ namespace Finn.ViewModels
                 {
                     foreach (FileData file in project.StoredFiles)
                     {
-                        var paths = file.AllPdfPaths();
+                        var paths = file.AllPdfPaths(checkExists: false);
                         if (paths.Any(p => filepaths.Contains(p)))
                         {
                             matches.Add(file);
