@@ -88,6 +88,9 @@
 						<Button Click="SaveImage" HotKey="Ctrl+S" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Save">
 							<ic:SymbolIcon Symbol="Save" FontSize="18"/>
 						</Button>
+						<Button Click="CopyToClipboard" HotKey="Ctrl+C" Width="30" HorizontalAlignment="Right" ToolTip.Tip="Copy to Clipboard">
+							<ic:SymbolIcon Symbol="Clipboard" FontSize="18"/>
+						</Button>
 					</StackPanel>
 				</Border>
 			</StackPanel>

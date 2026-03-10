@@ -28,7 +28,6 @@
 		<Style Selector="TreeViewItem">
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="Padding" Value="2,1"/>
-			<Setter Property="MaxWidth" Value="250"/>
 			<Setter Property="MinHeight" Value="26"/>
 			<Setter Property="Transitions">
 				<Transitions>

@@ -155,7 +155,7 @@ namespace Finn.ViewModels
 
             if (File.Exists(indexPath))
             {
-                LoadIndexFile(indexPath);
+                await LoadIndexFileAsync(indexPath);
             }
 
             TextContent ??= new ObservableCollection<ContentData>();
@@ -288,25 +288,23 @@ namespace Finn.ViewModels
             }
         }
 
-        public void LoadIndexFile(string indexPath)
+        public async Task LoadIndexFileAsync(string indexPath)
         {
-            using StreamReader streamReader = new(indexPath);
-            string fileContent = streamReader.ReadToEnd();
-            TextContent = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent);
+            string fileContent = await File.ReadAllTextAsync(indexPath);
+            var content = await Task.Run(() =>
+                JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent));
+            TextContent = content;
 
-            List<string> indexedFiles = new();
-
-            foreach (ContentData content in TextContent!)
-            {
-                indexedFiles.Add(content.Filepath);
-            }
+            var indexedFiles = new HashSet<string>(
+                TextContent!.Select(c => c.Filepath),
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (ProjectData project in Storage.StoredProjects)
             {
                 foreach (FileData file in project.StoredFiles)
                 {
-                    var paths = file.AllPdfPaths();
-                    file.HasPlainText = paths.Any(p => indexedFiles.Contains(p));
+                    var paths = file.AllPdfPaths(checkExists: false);
+                    file.HasPlainText = paths.Any(indexedFiles.Contains);
                 }
             }
         }

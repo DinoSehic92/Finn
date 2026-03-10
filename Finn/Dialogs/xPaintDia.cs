@@ -11,6 +11,7 @@ using SkiaSharp;
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace Finn.Dialog;
 
@@ -283,6 +284,75 @@ public partial class xPaintDia : Window
     }
     #endregion
 
+    #region Clipboard
+    private void CopyToClipboard(object sender, RoutedEventArgs e)
+    {
+        var rtb = RenderDrawingArea();
+        if (rtb == null) return;
+
+        using var pngStream = new MemoryStream();
+        rtb.Save(pngStream);
+        var pngBytes = pngStream.ToArray();
+
+        pngStream.Position = 0;
+        using var skBitmap = SKBitmap.Decode(pngStream);
+        if (skBitmap == null) return;
+
+        if (!OpenClipboard(IntPtr.Zero)) return;
+        try
+        {
+            EmptyClipboard();
+            SetClipboardBytes(8 /* CF_DIB */, BuildDib(skBitmap));
+            SetClipboardBytes(RegisterClipboardFormat("PNG"), pngBytes);
+        }
+        finally { CloseClipboard(); }
+    }
+
+    private static byte[] BuildDib(SKBitmap source)
+    {
+        using var bgra = source.ColorType == SKColorType.Bgra8888 ? null : source.Copy(SKColorType.Bgra8888);
+        var bmp = bgra ?? source;
+        int w = bmp.Width, h = bmp.Height, stride = w * 4, pixels = stride * h;
+
+        var dib = new byte[40 + pixels];
+        BitConverter.TryWriteBytes(dib.AsSpan(0), 40);
+        BitConverter.TryWriteBytes(dib.AsSpan(4), w);
+        BitConverter.TryWriteBytes(dib.AsSpan(8), -h);
+        BitConverter.TryWriteBytes(dib.AsSpan(12), (short)1);
+        BitConverter.TryWriteBytes(dib.AsSpan(14), (short)32);
+        BitConverter.TryWriteBytes(dib.AsSpan(20), pixels);
+
+        var src = bmp.GetPixelSpan();
+        int srcStride = bmp.RowBytes;
+        if (srcStride == stride)
+            src[..pixels].CopyTo(dib.AsSpan(40));
+        else
+            for (int y = 0; y < h; y++)
+                src.Slice(y * srcStride, stride).CopyTo(dib.AsSpan(40 + y * stride));
+        return dib;
+    }
+
+    private static void SetClipboardBytes(uint format, byte[] data)
+    {
+        var hGlobal = GlobalAlloc(0x0002 /* GMEM_MOVEABLE */, (nuint)data.Length);
+        if (hGlobal == IntPtr.Zero) return;
+        var ptr = GlobalLock(hGlobal);
+        if (ptr == IntPtr.Zero) return;
+        Marshal.Copy(data, 0, ptr, data.Length);
+        GlobalUnlock(hGlobal);
+        SetClipboardData(format, hGlobal);
+    }
+
+    [DllImport("user32.dll")] private static extern bool OpenClipboard(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool EmptyClipboard();
+    [DllImport("user32.dll")] private static extern bool CloseClipboard();
+    [DllImport("user32.dll")] private static extern IntPtr SetClipboardData(uint fmt, IntPtr hMem);
+    [DllImport("user32.dll")] private static extern uint RegisterClipboardFormat(string name);
+    [DllImport("kernel32.dll")] private static extern IntPtr GlobalAlloc(uint flags, nuint bytes);
+    [DllImport("kernel32.dll")] private static extern IntPtr GlobalLock(IntPtr hMem);
+    [DllImport("kernel32.dll")] private static extern bool GlobalUnlock(IntPtr hMem);
+    #endregion
+
     #region Save
     private void SaveImage(object sender, RoutedEventArgs e)
     {
@@ -292,19 +362,43 @@ public partial class xPaintDia : Window
             SaveWhiteboard();
     }
 
+    private RenderTargetBitmap? RenderDrawingArea()
+    {
+        if (_isAnnotateMode)
+        {
+            if (_originalPixelSize.Width <= 0 || _originalPixelSize.Height <= 0) return null;
+
+            var saved = _drawingTransform.Matrix;
+            double sx = _originalPixelSize.Width / DrawingArea.Width;
+            double sy = _originalPixelSize.Height / DrawingArea.Height;
+            _drawingTransform.Matrix = Matrix.CreateScale(sx, sy);
+
+            var rtb = new RenderTargetBitmap(_originalPixelSize);
+            rtb.Render(DrawingArea);
+
+            _drawingTransform.Matrix = saved;
+            return rtb;
+        }
+        else
+        {
+            var size = new PixelSize((int)DrawingArea.Width, (int)DrawingArea.Height);
+            if (size.Width <= 0 || size.Height <= 0) return null;
+
+            var saved = _drawingTransform.Matrix;
+            _drawingTransform.Matrix = Matrix.Identity;
+
+            var rtb = new RenderTargetBitmap(size);
+            rtb.Render(DrawingArea);
+
+            _drawingTransform.Matrix = saved;
+            return rtb;
+        }
+    }
+
     private void SaveAnnotation()
     {
-        if (_originalPixelSize.Width <= 0 || _originalPixelSize.Height <= 0) return;
-
-        var saved = _drawingTransform.Matrix;
-        double sx = _originalPixelSize.Width / DrawingArea.Width;
-        double sy = _originalPixelSize.Height / DrawingArea.Height;
-        _drawingTransform.Matrix = Matrix.CreateScale(sx, sy);
-
-        var rtb = new RenderTargetBitmap(_originalPixelSize);
-        rtb.Render(DrawingArea);
-
-        _drawingTransform.Matrix = saved;
+        var rtb = RenderDrawingArea();
+        if (rtb == null) return;
 
         Directory.CreateDirectory("C:\\Finn\\Annotations");
         string path = Path.Combine("C:\\Finn\\Annotations",

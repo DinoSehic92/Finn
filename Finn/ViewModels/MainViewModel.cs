@@ -107,7 +107,7 @@ namespace Finn.ViewModels
             public Task GetContentAsync(IProgress<int>? progress = null) => Data.GetContentAsync(progress);
             public void ClearIndexedContent() => Data.ClearIndexedContent();
             public void SyncPlainText() => Data.SyncPlainText();
-            public void LoadIndexFile(string indexPath) => Data.LoadIndexFile(indexPath);
+            public Task LoadIndexFileAsync(string indexPath) => Data.LoadIndexFileAsync(indexPath);
             public void SelectFilesForMetaworker(bool singleMode) => Data.SelectFilesForMetaworker(singleMode);
             public int GetNrSelectedFiles() => Data.GetNrSelectedFiles();
             public void GetMetadata(int k) => Data.GetMetadata(k);

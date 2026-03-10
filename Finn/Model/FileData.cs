@@ -468,7 +468,7 @@ namespace Finn.Model
         /// Returns all unique PDF paths for this file, including every version.
         /// When no versions exist the current Sökväg is returned if it is a valid PDF.
         /// </summary>
-        public List<string> AllPdfPaths()
+        public List<string> AllPdfPaths(bool checkExists = true)
         {
             var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -476,13 +476,16 @@ namespace Finn.Model
             {
                 if (!string.IsNullOrEmpty(v.Sökväg)
                     && v.Sökväg.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase)
-                    && File.Exists(v.Sökväg))
+                    && (!checkExists || File.Exists(v.Sökväg)))
                 {
                     paths.Add(v.Sökväg);
                 }
             }
 
-            if (paths.Count == 0 && IsValidPdf())
+            if (paths.Count == 0
+                && !string.IsNullOrEmpty(_sökväg)
+                && _sökväg.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase)
+                && (!checkExists || File.Exists(_sökväg)))
                 paths.Add(_sökväg);
 
             return paths.ToList();

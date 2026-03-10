@@ -406,9 +406,9 @@ public partial class MainView : UserControl
 
     #region Search
 
-    private void OnSearch(object? sender, RoutedEventArgs e)
+    private async void OnSearch(object? sender, RoutedEventArgs e)
     {
-        _ctx.Search();
+        await _ctx.Search();
         OnUpdateColumns();
     }
 
