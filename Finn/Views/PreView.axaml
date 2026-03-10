@@ -90,7 +90,7 @@
 					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
 						<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">
 							<Border Grid.Column="0" Classes="shadow">
-								<TextBox Watermark="Seach String" Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
+								<TextBox Watermark="Search text..." Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
 							</Border>
 							<Button Grid.Column="1" Margin="0" Click="OnSeachRegex" BorderThickness="0" IsEnabled="{Binding !PreviewVM.SearchBusy}">
 								<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
@@ -103,11 +103,11 @@
 
 					<Border Grid.Row="2" BorderThickness="0 0 0 1" CornerRadius="0" BorderBrush="{DynamicResource DataGridGridLinesBrush}">
 						<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-							<Button ToolTip.Tip="Prev Search" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.PrevSearchPage}">
+							<Button ToolTip.Tip="Previous Result" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.PrevSearchPage}">
 								<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
 							</Button>
 
-							<Button ToolTip.Tip="Next Search" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.NextSearchPage}">
+							<Button ToolTip.Tip="Next Result" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.NextSearchPage}">
 								<ic:SymbolIcon Symbol="ArrowNext" IconVariant="Regular" FontSize="16"/>
 							</Button>
 
@@ -146,47 +146,47 @@
 						<Label Content="{Binding Pagecount}" VerticalAlignment="Center"/>
 					</StackPanel>
 
-					<Button ToolTip.Tip="Previous Page, Left" HotKey="Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding PrevPage}" CommandParameter="false">
+					<Button ToolTip.Tip="Previous Page (Left)" HotKey="Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding PrevPage}" CommandParameter="false">
 						<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-					<Button ToolTip.Tip="Next Page, Right" HotKey="Right" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding NextPage}" CommandParameter="false">
+					<Button ToolTip.Tip="Next Page (Right)" HotKey="Right" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding NextPage}" CommandParameter="false">
 						<ic:SymbolIcon Symbol="ArrowNext" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-					<Button ToolTip.Tip="Rotate Page, counter clockwise" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateLeft">
+					<Button ToolTip.Tip="Rotate Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateLeft">
 						<ic:SymbolIcon Symbol="RotateLeft" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-					<Button ToolTip.Tip="Rotate Page, clockwise" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateRight">
+					<Button ToolTip.Tip="Rotate Right" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateRight">
 						<ic:SymbolIcon Symbol="RotateRight" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-                    <ToggleButton ToolTip.Tip="Open file in place" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
+					<ToggleButton ToolTip.Tip="Fast Open" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
 						<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Toggle Dimmed Background, Ctrl + G" HotKey="Ctrl+G" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
+					<ToggleButton ToolTip.Tip="Dimmed Background (Ctrl+G)" HotKey="Ctrl+G" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
 						<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Dual Page Mode, Ctrl + D" HotKey="Ctrl+D" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}">
+					<ToggleButton ToolTip.Tip="Dual Page (Ctrl+D)" HotKey="Ctrl+D" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}">
 						<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Dual File Mode" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}">
+					<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}">
 						<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Linked page, Ctrl + L" HotKey="Ctrl+L" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
+					<ToggleButton ToolTip.Tip="Linked Pages (Ctrl+L)" HotKey="Ctrl+L" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
 						<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<ToggleButton ToolTip.Tip="Open Search, Ctrl + F" HotKey="Ctrl+F" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
+					<ToggleButton ToolTip.Tip="Search (Ctrl+F)" HotKey="Ctrl+F" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
 						<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<Button ToolTip.Tip="Annotate Page" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OpenAnnotateDialog">
+					<Button ToolTip.Tip="Annotate" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OpenAnnotateDialog">
 						<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
