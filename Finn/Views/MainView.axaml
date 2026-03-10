@@ -1133,20 +1133,23 @@
 		</Grid>
 
 		<!-- Tree view -->
-		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="250" Classes="AnimatedPanel">
+		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="{Binding UI.TreeViewWidth}" Classes="AnimatedPanel">
 			<Border Classes="shadow" Background="{DynamicResource TextControlBackground}">
-				<ScrollViewer>
-					<Grid RowDefinitions="31,*">
-						<TextBlock Text="Project Tree" Height="23" FontSize="14" FontWeight="Normal"
-								   FontStyle="Italic" Margin="16,8,0,0"/>
-						<TreeView Grid.Row="1" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
-								  ItemsSource="{Binding TreeNodes}"
-								  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
-							<TreeView.Styles>
-								<Style Selector="TreeViewItem" x:DataType="vm:TreeNodeData">
-									<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
-								</Style>
-							</TreeView.Styles>
+				<Grid RowDefinitions="31,*">
+					<TextBlock Text="Project Tree" Height="23" FontSize="14" FontWeight="Normal"
+							   FontStyle="Italic" Margin="16,8,0,0"/>
+					<TreeView Grid.Row="1" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
+							  ItemsSource="{Binding TreeNodes}"
+							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
+						<TreeView.Styles>
+							<Style Selector="TreeViewItem" x:DataType="vm:TreeNodeData">
+								<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+								<Setter Property="HorizontalAlignment" Value="Stretch"/>
+							</Style>
+							<Style Selector="TreeView /template/ ScrollViewer">
+								<Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+							</Style>
+						</TreeView.Styles>
 							<TreeView.ItemTemplate>
 								<TreeDataTemplate ItemsSource="{Binding Children}">
 										<StackPanel Orientation="Horizontal" Spacing="6"
@@ -1179,10 +1182,9 @@
 									</MenuItem>
 								</ContextMenu>
 							</TreeView.ContextMenu>
-						</TreeView>
-					</Grid>
-				</ScrollViewer>
-			</Border>
-		</Grid>
+									</TreeView>
+								</Grid>
+							</Border>
+						</Grid>
 	</Grid>
 </UserControl>

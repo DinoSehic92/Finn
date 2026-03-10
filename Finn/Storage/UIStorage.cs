@@ -38,6 +38,7 @@ namespace Finn.Storage
         public bool ShowFolders { get; set; }
         public bool ShowThumbnails { get; set; }
         public bool TrayViewOpen { get; set; }
+        public int TreeViewWidth { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

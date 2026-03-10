@@ -24,6 +24,7 @@ namespace Finn.ViewModels
             public const bool DefaultShadowVal = false;
             public const bool DefaultShowBorders = false;
             public const bool DefaultDarkMode = true;
+            public const int DefaultTreeViewWidth = 300;
         }
 
         public UISettingsViewModel()
@@ -54,6 +55,8 @@ namespace Finn.ViewModels
             TrayVersions = false;
             ColorTagDot = false;
 
+            TreeViewWidth = Defaults.DefaultTreeViewWidth;
+
             // View visibility flags persisted in UI settings
             TreeViewOpen = true;
             CalendarOpen = false;
@@ -66,6 +69,9 @@ namespace Finn.ViewModels
 
         private bool treeViewOpen;
         public bool TreeViewOpen { get => treeViewOpen; set { treeViewOpen = value; RaisePropertyChanged(nameof(TreeViewOpen)); } }
+
+        private int treeViewWidth;
+        public int TreeViewWidth { get => treeViewWidth; set { treeViewWidth = value; RaisePropertyChanged(nameof(TreeViewWidth)); } }
 
         private bool calendarOpen;
         public bool CalendarOpen { get => calendarOpen; set { calendarOpen = value; RaisePropertyChanged(nameof(CalendarOpen)); } }
@@ -214,7 +220,8 @@ namespace Finn.ViewModels
                 TimeSheetOpen = this.TimeSheetOpen,
                 ShowFolders = this.ShowFolders,
                 ShowThumbnails = this.ShowThumbnails,
-                TrayViewOpen = this.TrayViewOpen
+                TrayViewOpen = this.TrayViewOpen,
+                TreeViewWidth = this.TreeViewWidth
             };
         }
 
@@ -254,6 +261,8 @@ namespace Finn.ViewModels
                 this.ShowFolders = ui.ShowFolders;
                 this.ShowThumbnails = ui.ShowThumbnails;
                 this.TrayViewOpen = ui.TrayViewOpen;
+                if (ui.TreeViewWidth >= 250 && ui.TreeViewWidth <= 350)
+                    this.TreeViewWidth = ui.TreeViewWidth;
             }
             catch
             {
