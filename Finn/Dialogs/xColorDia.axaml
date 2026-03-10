@@ -8,7 +8,7 @@
 		MaxWidth="320"
 		MaxHeight="840"
 		xmlns:ic="using:FluentIcons.Avalonia"
-		x:Class="Finn.Dialog.xColorDia"
+		x:Class="Finn.Dialogs.xColorDia"
 		Title="Edit Theme Colors"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions"

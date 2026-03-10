@@ -5,7 +5,7 @@ using Avalonia.Media;
 using Finn.ViewModels;
 using Finn.Views;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xEditDia : Window
 {

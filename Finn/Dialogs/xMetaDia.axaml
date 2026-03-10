@@ -8,7 +8,7 @@
         MaxWidth="590"
         MaxHeight="690"
         xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xMetaDia"
+        x:Class="Finn.Dialogs.xMetaDia"
         Title="Edit Metadata"
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"

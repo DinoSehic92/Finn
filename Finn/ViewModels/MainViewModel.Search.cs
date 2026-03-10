@@ -28,15 +28,15 @@ namespace Finn.ViewModels
             {
                 string indexPath = Path.Combine(SavePath, "Content.json");
 
-                if (TextContent == null)
+                if (Data.TextContent == null)
                 {
                     if (System.IO.File.Exists(indexPath))
                     {
-                        await LoadIndexFileAsync(indexPath);
+                        await Data.LoadIndexFileAsync(indexPath);
                     }
                     else
                     {
-                        TextContent = new ObservableCollection<ContentData>();
+                        Data.TextContent = new ObservableCollection<ContentData>();
                     }
                 }
 
@@ -49,7 +49,7 @@ namespace Finn.ViewModels
                 // HashSet for O(1) path lookups instead of O(n) List.Contains
                 HashSet<string> filepaths = new(StringComparer.OrdinalIgnoreCase);
 
-                foreach (ContentData content in TextContent)
+                foreach (ContentData content in Data.TextContent)
                 {
                     if (content.PlainText.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                     {

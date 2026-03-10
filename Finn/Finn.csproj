@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <RootNamespace>FPM</RootNamespace>
+    <RootNamespace>Finn</RootNamespace>
   </PropertyGroup>
 
   

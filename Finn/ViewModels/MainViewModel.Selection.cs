@@ -62,7 +62,7 @@ namespace Finn.ViewModels
             {
                 CurrentProject.RemoveFile(file);
                 PreviewVM.RecentFiles.Remove(file);
-                SetCollectionContent();
+                Collections.SetCollectionContent();
             }
 
             CurrentProject.SetFiletypeList();

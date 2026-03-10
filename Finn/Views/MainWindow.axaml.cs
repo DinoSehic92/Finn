@@ -1,6 +1,6 @@
 ﻿using Finn.ViewModels;
 using Avalonia.Controls;
-using Finn.Dialog;
+using Finn.Dialogs;
 using System.ComponentModel;
 using System.Diagnostics;
 
@@ -10,7 +10,7 @@ namespace Finn.Views;
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
 
-    public bool confirmLeave = true;
+    public bool ConfirmLeave { get; set; } = true;
 
     public MainWindow()
     {
@@ -35,20 +35,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    protected override void OnClosing(WindowClosingEventArgs e)
+    protected override async void OnClosing(WindowClosingEventArgs e)
     {
         MainViewModel ctx = (MainViewModel)this.DataContext;
         ctx.Calendar.SaveStorage(MainViewModel.SavePath);
 
         if (ctx.IsStorageDifferentFromFile())
         {
-            if (confirmLeave)
+            if (ConfirmLeave)
             {
                 e.Cancel = true;
                 OpenClosingDia();
             }
             else
             {
+                await ctx.PreviewVM.SafeDisposeAsync();
 
                 if (ctx.PreviewWindowOpen)
                 {
@@ -57,6 +58,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
                 e.Cancel = false;
             }
+        }
+        else
+        {
+            await ctx.PreviewVM.SafeDisposeAsync();
         }
     }
 

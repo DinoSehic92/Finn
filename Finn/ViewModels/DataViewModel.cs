@@ -83,7 +83,8 @@ namespace Finn.ViewModels
                     file.RemoveThumbnail();
 
                     byte[] bytes = File.ReadAllBytes(file.Sökväg);
-                    MuPDFDocument fileDocument = new(new MuPDFContext(1), bytes, InputFileTypes.PDF);
+                    using var ctx = new MuPDFContext(1);
+                    MuPDFDocument fileDocument = new(ctx, bytes, InputFileTypes.PDF);
 
                     file.ThumbnailSource = $"{thumbnailPath}{file.Namn}.jpeg";
                     fileDocument.SaveImageAsJPEG(0, 1, file.ThumbnailSource, 20);
@@ -107,7 +108,8 @@ namespace Finn.ViewModels
                 file.RemoveThumbnail();
 
                 byte[] bytes = File.ReadAllBytes(file.Sökväg);
-                using var doc = new MuPDFDocument(new MuPDFContext(1), bytes, InputFileTypes.PDF);
+                using var ctx = new MuPDFContext(1);
+                using var doc = new MuPDFDocument(ctx, bytes, InputFileTypes.PDF);
 
                 string target = Path.Combine(thumbnailDir, file.Namn + ".jpeg");
                 file.ThumbnailSource = target;
@@ -174,7 +176,8 @@ namespace Finn.ViewModels
                         try
                         {
                             byte[] bytes = File.ReadAllBytes(path);
-                            using var fileDocument = new MuPDFDocument(new MuPDFContext(1), bytes, InputFileTypes.PDF);
+                            using var ctx = new MuPDFContext(1);
+                            using var fileDocument = new MuPDFDocument(ctx, bytes, InputFileTypes.PDF);
                             var content = new ContentData
                             {
                                 Name = file.Namn,

@@ -7,7 +7,7 @@ using Finn.Views;
 using System.IO;
 using System.Reflection;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xProgDia : Window
 {

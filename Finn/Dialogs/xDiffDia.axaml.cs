@@ -4,7 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Finn.ViewModels;
 
-namespace Finn.Dialog
+namespace Finn.Dialogs
 {
     public partial class xDiffDia : Window
     {

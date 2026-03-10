@@ -5,7 +5,7 @@ using Finn.Model;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xVersionImportDia : Window
 {

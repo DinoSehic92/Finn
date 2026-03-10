@@ -9,7 +9,7 @@
 		MaxWidth="290"
 		MaxHeight="355"
 		xmlns:ic="using:FluentIcons.Avalonia"
-		x:Class="Finn.Dialog.xEditDia"
+		x:Class="Finn.Dialogs.xEditDia"
 		Title="Edit Project"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"

@@ -5,7 +5,7 @@ using Finn.Views;
 using System;
 using System.Linq;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xReinDia : Window
 {

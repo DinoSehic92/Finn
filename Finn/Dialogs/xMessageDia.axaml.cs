@@ -3,7 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Finn.Views;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xMessageDia : Window
 {

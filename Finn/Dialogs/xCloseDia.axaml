@@ -8,7 +8,7 @@
         MaxWidth="250"
         MaxHeight="150"
         xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xCloseDia"
+        x:Class="Finn.Dialogs.xCloseDia"
         Title="Save before close?"
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"

@@ -5,7 +5,7 @@ using Finn.Model;
 using Finn.ViewModels;
 using Finn.Views;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xPlaceholderDia : Window
 {

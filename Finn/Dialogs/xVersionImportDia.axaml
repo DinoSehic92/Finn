@@ -7,7 +7,7 @@
         MinWidth="460" MinHeight="340"
         xmlns:ic="using:FluentIcons.Avalonia"
         xmlns:model="clr-namespace:Finn.Model"
-        x:Class="Finn.Dialog.xVersionImportDia"
+        x:Class="Finn.Dialogs.xVersionImportDia"
         Title="Version Import"
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="True"

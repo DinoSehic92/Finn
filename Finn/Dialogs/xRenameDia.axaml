@@ -8,7 +8,7 @@
 		MaxWidth="390"
 		MaxHeight="190"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xRenameDia"
+        x:Class="Finn.Dialogs.xRenameDia"
         Title="xRenameDia"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"

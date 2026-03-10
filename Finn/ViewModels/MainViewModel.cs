@@ -82,39 +82,6 @@ namespace Finn.ViewModels
                 set { _data = value; OnPropertyChanged(nameof(Data)); }
             }
 
-            // Forwarding properties for code-behind and other partials
-            public List<string[]> MetaStore => Data.MetaStore;
-            public List<string> PathStore => Data.PathStore;
-
-            public ObservableCollection<ContentData>? TextContent
-            {
-                get => Data.TextContent;
-                set => Data.TextContent = value;
-            }
-
-            public ContentData? SelectedTextContent
-            {
-                get => Data.SelectedTextContent;
-                set => Data.SelectedTextContent = value;
-            }
-
-            // Delegation methods so code-behind can call _ctx.MethodName() unchanged.
-            // TODO: Migrate call sites to use _ctx.Data.X() directly, then remove these shims.
-            public void GetThumbnails() => Data.GetThumbnails();
-            public void GenerateThumbnail(FileData file, string thumbnailDir) => Data.GenerateThumbnail(file, thumbnailDir);
-            public void ClearThumbnails() => Data.ClearThumbnails();
-            public void SyncThumbnails() => Data.SyncThumbnails();
-            public Task GetContentAsync(IProgress<int>? progress = null) => Data.GetContentAsync(progress);
-            public void ClearIndexedContent() => Data.ClearIndexedContent();
-            public void SyncPlainText() => Data.SyncPlainText();
-            public Task LoadIndexFileAsync(string indexPath) => Data.LoadIndexFileAsync(indexPath);
-            public void SelectFilesForMetaworker(bool singleMode) => Data.SelectFilesForMetaworker(singleMode);
-            public int GetNrSelectedFiles() => Data.GetNrSelectedFiles();
-            public void GetMetadata(int k) => Data.GetMetadata(k);
-            public void SetMeta() => Data.SetMeta();
-            public void ClearMeta() => Data.ClearMeta();
-            public void ClearSelectedMetadata() => Data.ClearSelectedMetadata();
-
             private ObservableCollection<string> favorites = new() { "Default" };
             public ObservableCollection<string> Favorites
             {
@@ -129,39 +96,6 @@ namespace Finn.ViewModels
                 get => _collections;
                 set { _collections = value; OnPropertyChanged(nameof(Collections)); }
             }
-
-            // Forwarding properties so existing XAML bindings and code-behind continue to work
-            public string CurrentCollection
-            {
-                get => Collections.CurrentCollection;
-                set => Collections.CurrentCollection = value;
-            }
-
-            public ObservableCollection<FileData> CollectionContent
-            {
-                get => Collections.CollectionContent;
-                set => Collections.CollectionContent = value;
-            }
-
-            public PageData? FavPage
-            {
-                get => Collections.FavPage;
-                set => Collections.FavPage = value;
-            }
-
-            // Delegation methods so code-behind can call _ctx.MethodName() unchanged.
-            // TODO: Migrate call sites to use _ctx.Collections.X() directly, then remove these shims.
-            public void SetBookmark(PageData page) => Collections.SetBookmark(page);
-            public void AddBookmark(string pageName) => Collections.AddBookmark(pageName);
-            public void RenameBookmark(string pageName) => Collections.RenameBookmark(pageName);
-            public void RemoveBookmark(PageData page) => Collections.RemoveBookmark(page);
-            public void MarkFavorite() => Collections.MarkFavorite();
-            public void NewCollection(string name) => Collections.NewCollection(name);
-            public void RemoveCollection() => Collections.RemoveCollection();
-            public void AddFileToCollection(string collection) => Collections.AddFileToCollection(collection);
-            public void RemoveFileFromCollection() => Collections.RemoveFileFromCollection();
-            public void SetCollectionContent() => Collections.SetCollectionContent();
-            public void RenameCollection(string newName) => Collections.RenameCollection(newName);
 
             private Window? _previewWindow;
             public Window? PreviewWindow

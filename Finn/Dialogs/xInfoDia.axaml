@@ -7,7 +7,7 @@
 		MaxWidth="460"
 		SizeToContent="Height"
 		xmlns:ic="using:FluentIcons.Avalonia"
-		x:Class="Finn.Dialog.xInfoDia"
+		x:Class="Finn.Dialogs.xInfoDia"
 		Title="File Info"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"

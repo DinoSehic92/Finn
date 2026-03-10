@@ -8,7 +8,7 @@
 		MaxWidth="300"
 		MaxHeight="175"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xMessageDia"
+        x:Class="Finn.Dialogs.xMessageDia"
         Title="xMessageDia"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"

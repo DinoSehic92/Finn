@@ -8,7 +8,7 @@
 		MaxWidth="190"
 		MaxHeight="190"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xPlaceholderDia"
+        x:Class="Finn.Dialogs.xPlaceholderDia"
         Title="New Placeholder File"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"

@@ -8,7 +8,7 @@
 		MaxWidth="350"
 		MaxHeight="230"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xProgDia"
+        x:Class="Finn.Dialogs.xProgDia"
         Title="Info"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"

@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 using Finn.Storage;
 using Finn.ViewModels;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xColorDia : Window
 {

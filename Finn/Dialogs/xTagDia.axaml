@@ -8,7 +8,7 @@
         MaxWidth="210"
         MaxHeight="200"
         xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xTagDia"
+        x:Class="Finn.Dialogs.xTagDia"
         Title="Edit Tag"
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"

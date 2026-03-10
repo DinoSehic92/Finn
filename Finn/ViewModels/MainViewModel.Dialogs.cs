@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Styling;
-using Finn.Dialog;
+using Finn.Dialogs;
 using Finn.Model;
 using Finn.Views;
 using System;
@@ -169,16 +169,16 @@ namespace Finn.ViewModels
                     string indexPath = $"{SavePath}\\Content.json";
                     if (System.IO.File.Exists(indexPath))
                     {
-                        await LoadIndexFileAsync(indexPath);
+                        await Data.LoadIndexFileAsync(indexPath);
                     }
                     else
                     {
-                        TextContent ??= new ObservableCollection<ContentData>();
+                        Data.TextContent ??= new ObservableCollection<ContentData>();
                     }
                 }
                 catch
                 {
-                    TextContent ??= new ObservableCollection<ContentData>();
+                    Data.TextContent ??= new ObservableCollection<ContentData>();
                 }
 
                 var window = new xContentDia();

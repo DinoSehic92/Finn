@@ -137,7 +137,7 @@ public partial class MainView : UserControl
                 Debug.WriteLine(ex);
             }
         }
-        catch { }
+        catch (Exception ex) { Debug.WriteLine($"InitStartup failed: {ex}"); }
 
         UpdateEmptyState();
     }
@@ -831,7 +831,7 @@ public partial class MainView : UserControl
                 for (int i = 0; i < total; i++)
                 {
                     var file = vm.CurrentFiles[i];
-                    vm.GenerateThumbnail(file, thumbnailPath);
+                    vm.Data.GenerateThumbnail(file, thumbnailPath);
                     _metaWorker.ReportProgress((i + 1) * 100 / Math.Max(1, total));
                 }
             }
@@ -843,7 +843,7 @@ public partial class MainView : UserControl
                     // Pass a progress reporter that forwards to the background worker
                     var progress = new Progress<int>(p => _metaWorker.ReportProgress(p));
                     // Call the async indexing and wait for completion on this background thread
-                    _ctx.GetContentAsync(progress).GetAwaiter().GetResult();
+                    _ctx.Data.GetContentAsync(progress).GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
@@ -872,17 +872,17 @@ public partial class MainView : UserControl
     private void RunMetaWorker(bool singleFile)
     {
         ProgressStatus.Content = "Fetching Metadata";
-        _ctx.SelectFilesForMetaworker(singleFile);
+        _ctx.Data.SelectFilesForMetaworker(singleFile);
         ProgressBar.IsVisible = true;
         _metaWorker.RunWorkerAsync();
     }
 
     private void MetaWorkerDoWork(object? sender, DoWorkEventArgs e)
     {
-        int total = _ctx.GetNrSelectedFiles();
+        int total = _ctx.Data.GetNrSelectedFiles();
         for (int k = 0; k < total; k++)
         {
-            _ctx.GetMetadata(k);
+            _ctx.Data.GetMetadata(k);
             _metaWorker.ReportProgress((k + 1) * 100 / total);
         }
     }
@@ -892,7 +892,7 @@ public partial class MainView : UserControl
 
     private void MetaWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
     {
-        _ctx.SetMeta();
+        _ctx.Data.SetMeta();
         _ctx.MarkDirty();
         ProgressStatus.Content = "";
         ProgressBar.Value = 0;
@@ -908,28 +908,28 @@ public partial class MainView : UserControl
     private void BookmarkSelected(object? sender, RoutedEventArgs e)
     {
         if ((_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen) && BookmarkGrid.SelectedItem is PageData page)
-            _ctx.SetBookmark(page);
+            _ctx.Collections.SetBookmark(page);
     }
 
     private void OnAddBookmark(object? sender, RoutedEventArgs e)
     {
         if (_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen)
         {
-            _ctx.AddBookmark(BookmarkInput.Text);
+            _ctx.Collections.AddBookmark(BookmarkInput.Text);
             BookmarkInput.Clear();
         }
     }
 
     private void OnRenameBookmark(object? sender, RoutedEventArgs e)
     {
-        _ctx.RenameBookmark(BookmarkInput.Text);
+        _ctx.Collections.RenameBookmark(BookmarkInput.Text);
         BookmarkInput.Clear();
     }
 
     private void OnRemoveBookmark(object? sender, RoutedEventArgs e)
     {
         if (BookmarkGrid.SelectedItem is PageData page)
-            _ctx.RemoveBookmark(page);
+            _ctx.Collections.RemoveBookmark(page);
     }
 
     #endregion
@@ -1015,7 +1015,7 @@ public partial class MainView : UserControl
     {
         if (!string.IsNullOrEmpty(CollectionInput.Text))
         {
-            _ctx.NewCollection(CollectionInput.Text);
+            _ctx.Collections.NewCollection(CollectionInput.Text);
             CollectionInput.Clear();
         }
     }
@@ -1024,7 +1024,7 @@ public partial class MainView : UserControl
     {
         if (!string.IsNullOrEmpty(CollectionInput.Text))
         {
-            _ctx.RenameCollection(CollectionInput.Text);
+            _ctx.Collections.RenameCollection(CollectionInput.Text);
             CollectionInput.Clear();
         }
     }
@@ -1032,7 +1032,7 @@ public partial class MainView : UserControl
     private void OnAddToCollection(object? sender, RoutedEventArgs e)
     {
         if (e.Source is MenuItem { Header: string header } && header != "Collection")
-            _ctx.AddFileToCollection(header);
+            _ctx.Collections.AddFileToCollection(header);
     }
 
     #endregion

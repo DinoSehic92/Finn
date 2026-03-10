@@ -7,7 +7,7 @@
         Width="1200" Height="800"
         xmlns:ic="using:FluentIcons.Avalonia"
         xmlns:converter="clr-namespace:Finn.Converters"
-        x:Class="Finn.Dialog.xDiffDia"
+        x:Class="Finn.Dialogs.xDiffDia"
         Title="PDF Compare"
         xmlns:vm="clr-namespace:Finn.ViewModels"
         xmlns:model="clr-namespace:Finn.Model"

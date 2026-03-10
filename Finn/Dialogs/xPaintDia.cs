@@ -13,7 +13,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xPaintDia : Window
 {

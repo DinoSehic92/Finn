@@ -26,33 +26,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var vm = new MainViewModel();
-            // Load persisted UI settings if present (one-time load at startup)
-            try
-            {
-                var file = System.IO.Path.Combine(MainViewModel.SavePath, "UISettings.json");
-                if (System.IO.File.Exists(file))
-                {
-                    var json = System.IO.File.ReadAllText(file);
-                    var ui = Newtonsoft.Json.JsonConvert.DeserializeObject<Finn.Storage.UIStorage>(json);
-                    if (ui != null)
-                    {
-                        vm.UI.FromStorage(ui);
-                    }
-                }
-            }
-            catch { }
-
-            // Apply theme and subscribe to UI changes to update theme live
-            vm.UI.ApplyTheme();
-            vm.UI.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
-                {
-                    vm.UI.ApplyTheme();
-                }
-            };
-
+            var vm = InitializeViewModel();
             desktop.MainWindow = new MainWindow
             {
                 DataContext = vm
@@ -60,34 +34,7 @@ public partial class App : Application
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {
-            var vm = new MainViewModel();
-
-            // Load persisted UI settings if present (one-time load at startup)
-            try
-            {
-                var file = System.IO.Path.Combine(MainViewModel.SavePath, "UISettings.json");
-                if (System.IO.File.Exists(file))
-                {
-                    var json = System.IO.File.ReadAllText(file);
-                    var ui = Newtonsoft.Json.JsonConvert.DeserializeObject<Finn.Storage.UIStorage>(json);
-                    if (ui != null)
-                    {
-                        vm.UI.FromStorage(ui);
-                    }
-                }
-            }
-            catch { }
-
-            // Apply theme and subscribe to UI changes to update theme live
-            vm.UI.ApplyTheme();
-            vm.UI.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
-                {
-                    vm.UI.ApplyTheme();
-                }
-            };
-
+            var vm = InitializeViewModel();
             singleViewPlatform.MainView = new MainView
             {
                 DataContext = vm
@@ -107,5 +54,37 @@ public partial class App : Application
         };
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private static MainViewModel InitializeViewModel()
+    {
+        var vm = new MainViewModel();
+        // Load persisted UI settings if present (one-time load at startup)
+        try
+        {
+            var file = System.IO.Path.Combine(MainViewModel.SavePath, "UISettings.json");
+            if (System.IO.File.Exists(file))
+            {
+                var json = System.IO.File.ReadAllText(file);
+                var ui = Newtonsoft.Json.JsonConvert.DeserializeObject<Finn.Storage.UIStorage>(json);
+                if (ui != null)
+                {
+                    vm.UI.FromStorage(ui);
+                }
+            }
+        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to load UISettings: {ex}"); }
+
+        // Apply theme and subscribe to UI changes to update theme live
+        vm.UI.ApplyTheme();
+        vm.UI.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
+            {
+                vm.UI.ApplyTheme();
+            }
+        };
+
+        return vm;
     }
 }

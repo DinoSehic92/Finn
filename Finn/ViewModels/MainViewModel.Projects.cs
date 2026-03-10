@@ -44,7 +44,7 @@ namespace Finn.ViewModels
             SetProjectlist();
             SetDefaultSelection();
             SortProjects();
-            SetCollectionContent();
+            Collections.SetCollectionContent();
             MarkDirty();
         }
 
@@ -62,7 +62,7 @@ namespace Finn.ViewModels
             SetProjectlist();
             SetDefaultSelection();
             SortProjects();
-            SetCollectionContent();
+            Collections.SetCollectionContent();
         }
 
         public void RenameProject(string projectName)

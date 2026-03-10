@@ -87,7 +87,7 @@ namespace Finn.ViewModels
                 SetDefaultSelection();
                 GetGroups();
                 SyncPreviewRegionColor();
-                SyncPlainText();
+                Data.SyncPlainText();
             }
 
             public async Task SaveFile(Avalonia.Visual window)
@@ -124,12 +124,11 @@ namespace Finn.ViewModels
                     Directory.CreateDirectory(SavePath);
                 }
 
-                string path = $"{SavePath}\\Projects.json";
+                string path = Path.Combine(SavePath, "Projects.json");
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
-                using StreamWriter streamWriter = new(path);
                 var data = JsonConvert.SerializeObject(Storage);
-                await streamWriter.WriteLineAsync(data);
+                await File.WriteAllTextAsync(path, data);
                 ClearDirty();
             }
 

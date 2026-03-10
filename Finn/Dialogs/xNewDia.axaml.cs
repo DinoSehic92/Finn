@@ -4,7 +4,7 @@ using Avalonia.Interactivity;
 using Finn.ViewModels;
 using Finn.Views;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xNewDia : Window
 {

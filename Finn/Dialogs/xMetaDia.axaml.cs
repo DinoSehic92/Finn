@@ -7,7 +7,7 @@ using Finn.Views;
 using System.IO;
 using System.Linq;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xMetaDia : Window
 {

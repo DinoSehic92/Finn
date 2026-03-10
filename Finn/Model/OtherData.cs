@@ -11,9 +11,6 @@ namespace Finn.Model
     /// <summary>
     /// Represents other file data, including icon and folder info.
     /// </summary>
-    /// <summary>
-    /// Represents other file data, including icon and folder info.
-    /// </summary>
     public class OtherData : INotifyPropertyChanged
     {
         private string name = string.Empty;
@@ -79,35 +76,32 @@ namespace Finn.Model
         private byte[] iconBytes = Array.Empty<byte>();
         /// <summary>
         /// Gets or sets the icon bytes.
-        /// If empty, attempts to extract the associated icon from the file path and caches it.
         /// </summary>
         public byte[] IconBytes
         {
-            get
-            {
-                if ((iconBytes == null || iconBytes.Length == 0) && !string.IsNullOrEmpty(filepath) && File.Exists(filepath))
-                {
-                    try
-                    {
-                        System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath).ToBitmap();
-                        iconBytes = BitmapToByteArray(bitmap);
-                        // Notify listeners that the bytes have been populated
-                        RaisePropertyChanged(nameof(IconBytes));
-                    }
-                    catch
-                    {
-                        // Ignore extraction errors and return empty array
-                        iconBytes = Array.Empty<byte>();
-                    }
-                }
-                return iconBytes;
-            }
+            get => iconBytes;
             set { iconBytes = value; RaisePropertyChanged(nameof(IconBytes)); }
         }
 
         /// <summary>
-        /// Gets the Avalonia bitmap for the icon.
+        /// Loads the icon from the file system if not already cached.
         /// </summary>
+        public void LoadIconIfEmpty()
+        {
+            if ((iconBytes == null || iconBytes.Length == 0) && !string.IsNullOrEmpty(filepath) && File.Exists(filepath))
+            {
+                try
+                {
+                    System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath).ToBitmap();
+                    IconBytes = BitmapToByteArray(bitmap);
+                }
+                catch
+                {
+                    iconBytes = Array.Empty<byte>();
+                }
+            }
+        }
+
         /// <summary>
         /// Gets the Avalonia bitmap for the icon.
         /// </summary>

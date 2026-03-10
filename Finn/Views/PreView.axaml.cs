@@ -1,6 +1,5 @@
 using Finn.ViewModels;
-using Finn.Dialog;
-using Avalonia;
+using Finn.Dialogs;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;

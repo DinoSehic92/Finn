@@ -10,7 +10,7 @@
 		MinWidth="600"
 		MinHeight="500"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialog.xContentDia"
+        x:Class="Finn.Dialogs.xContentDia"
         Title="Content"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"

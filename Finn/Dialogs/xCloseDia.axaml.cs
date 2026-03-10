@@ -4,7 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xCloseDia : Window
 {
@@ -33,7 +33,7 @@ public partial class xCloseDia : Window
 
     public void OnLeave(object sender, RoutedEventArgs args)
     {
-        mainWindow.confirmLeave = false;
+        mainWindow.ConfirmLeave = false;
         mainWindow.Close();
     }
 

@@ -7,7 +7,7 @@
         mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="520"
         Width="420"
         Height="640"
-        x:Class="Finn.Dialog.xReinDia"
+        x:Class="Finn.Dialogs.xReinDia"
         Title="Reinforcement Calculator"
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"

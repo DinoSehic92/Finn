@@ -5,7 +5,7 @@ using Finn.ViewModels;
 using Finn.Views;
 using System.ComponentModel;
 
-namespace Finn.Dialog;
+namespace Finn.Dialogs;
 
 public partial class xContentDia : Window
 {

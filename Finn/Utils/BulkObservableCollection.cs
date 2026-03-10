@@ -47,16 +47,23 @@ namespace Finn.Utils
         /// </summary>
         public void RemoveAll(Func<T, bool> predicate)
         {
-            var toRemove = new List<T>();
+            var kept = new List<T>();
+            bool anyRemoved = false;
             foreach (var item in Items)
+            {
                 if (predicate(item))
-                    toRemove.Add(item);
+                    anyRemoved = true;
+                else
+                    kept.Add(item);
+            }
 
-            foreach (var item in toRemove)
-                Items.Remove(item);
-
-            if (toRemove.Count > 0)
+            if (anyRemoved)
+            {
+                Items.Clear();
+                foreach (var item in kept)
+                    Items.Add(item);
                 RaiseReset();
+            }
         }
 
         private void RaiseReset()
