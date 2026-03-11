@@ -889,8 +889,13 @@ namespace Finn.ViewModels
 
             try
             {
-                if (RecentFiles.Contains(file))
-                    RecentFiles.Remove(file);
+                int index = RecentFiles.IndexOf(file);
+
+                // Already at the top — nothing to do
+                if (index == 0) return;
+
+                if (index > 0)
+                    RecentFiles.RemoveAt(index);
 
                 RecentFiles.Insert(0, file);
 

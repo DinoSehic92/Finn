@@ -1097,12 +1097,22 @@
 			</DataGrid>
 
 			<!-- Collection content -->
-            <DataGrid Grid.Row="3" IsVisible="{Binding UI.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
+			<DataGrid Grid.Row="3" IsVisible="{Binding UI.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
 					  ItemsSource="{Binding Collections.CollectionContent, Mode=OneWay}" SelectionMode="Single"
+					  SelectedItem="{Binding Collections.SelectedCollectionFile}"
 					  AutoGenerateColumns="False" IsReadOnly="True" LoadingRow="DataGrid_OnLoadingRow"
-                      ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
+					  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Namn}" Header="Collection Content" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
+					<DataGridTemplateColumn Header="Collection Content" Width="*" MinWidth="120">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate x:DataType="model:FileData">
+								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
+										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
@@ -1151,7 +1161,15 @@
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Namn}" Header="Recent Files" Width="*" FontSize="{Binding UI.FontSize}"/>
+					<DataGridTemplateColumn Header="Recent Files" Width="*">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate x:DataType="model:FileData">
+								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
+										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
 				</DataGrid.Columns>
 			</DataGrid>
 

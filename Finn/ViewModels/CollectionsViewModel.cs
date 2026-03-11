@@ -55,6 +55,13 @@ namespace Finn.ViewModels
             set { collectionContent = value; OnPropertyChanged(nameof(CollectionContent)); }
         }
 
+        private FileData? selectedCollectionFile;
+        public FileData? SelectedCollectionFile
+        {
+            get => selectedCollectionFile;
+            set { selectedCollectionFile = value; OnPropertyChanged(nameof(SelectedCollectionFile)); }
+        }
+
         #endregion
 
         #region Bookmark State
@@ -183,7 +190,8 @@ namespace Finn.ViewModels
 
         public void RemoveFileFromCollection()
         {
-            CurrentFile?.PartOfCollections.Remove(CurrentCollection);
+            var target = SelectedCollectionFile ?? CurrentFile;
+            target?.PartOfCollections.Remove(CurrentCollection);
             SetCollectionContent();
             _markDirty?.Invoke();
         }

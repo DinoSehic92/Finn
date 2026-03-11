@@ -60,6 +60,15 @@ namespace Finn.ViewModels
         {
             foreach (FileData file in CurrentFiles)
             {
+                // Clean up appended files before removing the parent:
+                // clear collection membership and remove from recent files.
+                foreach (var appended in file.AppendedFiles)
+                {
+                    appended.PartOfCollections.Clear();
+                    appended.ParentFile = null;
+                    PreviewVM.RecentFiles.Remove(appended);
+                }
+
                 CurrentProject.RemoveFile(file);
                 PreviewVM.RecentFiles.Remove(file);
                 Collections.SetCollectionContent();

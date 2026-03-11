@@ -135,6 +135,12 @@ namespace Finn.Model
         [JsonIgnore]
         public FileData? ParentFile { get; set; }
 
+        /// <summary>
+        /// True when this file is an appended child of another file.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsAppendedFile => ParentFile != null;
+
         #endregion
 
         #region Properties

@@ -450,12 +450,21 @@ public partial class MainView : UserControl
         _pwr.AddRecentFile(file);
     }
 
+    private bool _suppressAppendixRecent;
+
     private void SetPreviewRequestAppendedFiles(object? sender, RoutedEventArgs r)
     {
+        // Clear the flag first — even for deferred events that arrive
+        // after _isUpdatingSelection has been reset to false.
+        bool suppress = _suppressAppendixRecent;
+        _suppressAppendixRecent = false;
+
+        if (_isUpdatingSelection) return;
         ClearOtherGridSelections(AppendixGrid);
         var file = AppendixGrid.SelectedItem as FileData;
         RequestPreview(file);
-        _pwr.AddRecentFile(file);
+        if (!suppress)
+            _pwr.AddRecentFile(file);
     }
 
     private async void RequestPreview(FileData? file)
@@ -723,6 +732,7 @@ public partial class MainView : UserControl
                 // Preview the appended file and select it in the AppendixGrid
                 RequestPreview(target);
                 _pwr.AddRecentFile(target);
+                _suppressAppendixRecent = true;
                 AppendixGrid.SelectedItem = target;
             }
             else
@@ -754,6 +764,7 @@ public partial class MainView : UserControl
                 SelectInFileGrid(parent, addRecent: false);
 
                 RequestPreview(target);
+                _suppressAppendixRecent = true;
                 AppendixGrid.SelectedItem = target;
             }
             else
