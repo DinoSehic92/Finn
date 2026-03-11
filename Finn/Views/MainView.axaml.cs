@@ -685,6 +685,27 @@ public partial class MainView : UserControl
         await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
     }
 
+    private async void OnAddVersionFolder(object? sender, RoutedEventArgs e)
+    {
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var picker = await window.StorageProvider.OpenFolderPickerAsync(
+            new Avalonia.Platform.Storage.FolderPickerOpenOptions
+            {
+                Title = "Select Version Delivery Folder",
+                AllowMultiple = false
+            });
+
+        if (picker.Count > 0)
+        {
+            string path = picker[0].Path.LocalPath;
+            _ctx.NewVersionFolder(path);
+            var folder = _ctx.CurrentProject.Folders.LastOrDefault();
+            if (folder != null)
+                await _ctx.SyncVersionFolderAsync(folder, window);
+            UpdateFolderEmptyState();
+        }
+    }
+
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)
     {
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();

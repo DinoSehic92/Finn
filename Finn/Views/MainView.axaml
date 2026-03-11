@@ -619,6 +619,9 @@
 									</DataTemplate>
 								</MenuItem.ItemTemplate>
 							</MenuItem>
+							<MenuItem Header="Reset to Original" Command="{Binding ResetToOriginalCommand}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUndo"/></MenuItem.Icon>
+							</MenuItem>
 							<Separator/>
 							<MenuItem Header="Rename First" ItemsSource="{Binding VersionLabels}" Click="OnLabelFirstVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
@@ -890,6 +893,10 @@
 					<ContextMenu>
 						<MenuItem Header="Open Folder" Click="OnOpenFolderPath">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+						</MenuItem>
+						<Separator/>
+						<MenuItem Header="Add Version Folder" Click="OnAddVersionFolder">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
 						</MenuItem>
 						<Separator/>
 						<MenuItem Header="Sync Selected" Click="OnSyncSelectedFolders">
@@ -1216,6 +1223,7 @@
 									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
 								</Border>
 								<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
+								<Button Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
 								<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 							</StackPanel>
 							<DataGrid Grid.Row="1" Name="VersionsGrid"
@@ -1254,6 +1262,9 @@
 									<ContextMenu>
 										<MenuItem Header="Set as Active" Command="{Binding SetActiveVersionCommand}">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="CheckmarkCircle"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Reset to Original" Command="{Binding ResetToOriginalCommand}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUndo"/></MenuItem.Icon>
 										</MenuItem>
 										<Separator/>
 										<MenuItem Header="Open" Command="{Binding OpenSelectedVersionCommand}">

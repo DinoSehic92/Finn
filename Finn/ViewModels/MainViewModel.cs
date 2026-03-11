@@ -26,6 +26,7 @@ namespace Finn.ViewModels
             private const string TOTAL_PROJECT = "Total";
             private const string PDF_TYPE = "PDF";
             private const string OTHER_FILES_TYPE = "Other Files";
+            private const string VERSIONS_TYPE = "Versions";
             private const string DRAWING_TYPE = "Drawing";
             private const string DOCUMENT_TYPE = "Document";
             public static string SavePath { get; } = ResolveSavePath();

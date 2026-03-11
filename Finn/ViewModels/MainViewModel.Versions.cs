@@ -15,6 +15,9 @@ namespace Finn.ViewModels
         private ICommand? _setActiveVersionCommand;
         public ICommand SetActiveVersionCommand => _setActiveVersionCommand ??= new RelayCommand(SetActiveVersion);
 
+        private ICommand? _resetToOriginalCommand;
+        public ICommand ResetToOriginalCommand => _resetToOriginalCommand ??= new RelayCommand(ResetToOriginal);
+
         private ICommand? _openSelectedVersionCommand;
         public ICommand OpenSelectedVersionCommand => _openSelectedVersionCommand ??= new RelayCommand(OpenSelectedVersion);
 
@@ -33,6 +36,15 @@ namespace Finn.ViewModels
         {
             if (CurrentFile == null || SelectedVersion == null) return;
             CurrentFile.CurrentVersion = SelectedVersion.Label;
+            MarkDirty();
+        }
+
+        public void ResetToOriginal()
+        {
+            if (CurrentFiles == null) return;
+            foreach (var file in CurrentFiles)
+                if (file.HasVersions)
+                    file.CurrentVersion = string.Empty;
             MarkDirty();
         }
 

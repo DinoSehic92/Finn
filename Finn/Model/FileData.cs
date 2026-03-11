@@ -127,6 +127,7 @@ namespace Finn.Model
         private bool _hasPlainText;
         private ObservableCollection<FileVersionData> _versions = new();
         private string _currentVersion = string.Empty;
+        private string _originalPath = string.Empty;
 
         /// <summary>
         /// Back-reference to the parent file when this is an appended file.
@@ -429,10 +430,31 @@ namespace Finn.Model
                         if (version != null)
                             Sökväg = version.Sökväg;
                     }
+                    else if (!string.IsNullOrEmpty(_originalPath))
+                    {
+                        Sökväg = _originalPath;
+                    }
                     UpdateVersionActiveStates();
+                    OnPropertyChanged(nameof(IsOnOriginalVersion));
                 }
             }
         }
+
+        /// <summary>
+        /// The file's original path before any version was activated.
+        /// Persisted so that "Reset to Original" survives save/load.
+        /// </summary>
+        public string OriginalPath
+        {
+            get => _originalPath;
+            set => SetProperty(ref _originalPath, value);
+        }
+
+        /// <summary>
+        /// True when the file has versions but is currently showing the original.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsOnOriginalVersion => _versions.Count > 0 && string.IsNullOrEmpty(_currentVersion);
         #endregion
 
         #region Methods
@@ -455,19 +477,15 @@ namespace Finn.Model
         {
             _versions.Remove(version);
 
-            if (_versions.Count == 1)
+            // Versions_CollectionChanged handles fallback when the active version
+            // is removed (restores to original via CurrentVersion = "").
+            // When the list becomes empty, clear OriginalPath since the file
+            // reverts to a non-versioned state.
+            if (_versions.Count == 0 && !string.IsNullOrEmpty(_originalPath))
             {
-                var last = _versions[0];
-                last.PropertyChanged -= Version_PropertyChanged;
-                Sökväg = last.Sökväg;
-                _currentVersion = string.Empty;
-
-                _versions.CollectionChanged -= Versions_CollectionChanged;
-                _versions.Clear();
-                _versions.CollectionChanged += Versions_CollectionChanged;
-
-                OnPropertyChanged(nameof(CurrentVersion));
-                OnPropertyChanged(nameof(HasVersions));
+                _originalPath = string.Empty;
+                OnPropertyChanged(nameof(OriginalPath));
+                OnPropertyChanged(nameof(IsOnOriginalVersion));
             }
         }
 
@@ -485,6 +503,12 @@ namespace Finn.Model
         public List<string> AllPdfPaths(bool checkExists = true)
         {
             var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Include original path when the file has been versioned
+            if (!string.IsNullOrEmpty(_originalPath)
+                && _originalPath.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase)
+                && (!checkExists || File.Exists(_originalPath)))
+                paths.Add(_originalPath);
 
             foreach (var v in _versions)
             {
@@ -534,19 +558,15 @@ namespace Finn.Model
         /// </summary>
         public void AddVersion(string filepath, string label)
         {
-            // Skip if this path is already the current file or already registered as a version
-            if (filepath == _sökväg || _versions.Any(v => v.Sökväg == filepath))
+            // Skip if this path is already the current file, the original, or already registered
+            if (string.Equals(filepath, _sökväg, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(filepath, _originalPath, StringComparison.OrdinalIgnoreCase)
+                || _versions.Any(v => string.Equals(v.Sökväg, filepath, StringComparison.OrdinalIgnoreCase)))
                 return;
 
-            if (_versions.Count == 0)
-            {
-                _versions.Add(new FileVersionData
-                {
-                    Sökväg = _sökväg,
-                    Label = "ORIGINAL",
-                    AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
-                });
-            }
+            // Remember the original path before any version switches
+            if (string.IsNullOrEmpty(_originalPath))
+                OriginalPath = _sökväg;
 
             _versions.Add(new FileVersionData
             {
@@ -564,8 +584,9 @@ namespace Finn.Model
         /// </summary>
         public void SetVersionLabel(FileVersionData version, string label)
         {
-            if (_versions.Contains(version))
-                version.Label = ResolveUniqueLabel(label, exclude: version);
+            if (!_versions.Contains(version))
+                return;
+            version.Label = ResolveUniqueLabel(label, exclude: version);
         }
 
         /// <summary>
@@ -595,7 +616,8 @@ namespace Finn.Model
 
         /// <summary>
         /// Sorts <see cref="Versions"/> in-place according to the predefined label order.
-        /// Versions with unrecognised labels are placed after the known ones.
+        /// Versions with unrecognised labels (e.g. dates, letters) are placed after
+        /// the known ones and sorted alphabetically among themselves.
         /// </summary>
         public void SortVersions()
         {
@@ -606,6 +628,7 @@ namespace Finn.Model
                 var order = FileVersionData.LabelOrder;
                 var sorted = _versions
                     .OrderBy(v => order.TryGetValue(v.Label, out int idx) ? idx : int.MaxValue)
+                    .ThenBy(v => v.Label, StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 for (int i = 0; i < sorted.Count; i++)
                 {

@@ -2,8 +2,10 @@ using Avalonia.Controls;
 using Finn.Model;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Finn.ViewModels
@@ -90,6 +92,12 @@ namespace Finn.ViewModels
             {
                 if (folder?.IsValid() != true || folder.Path == null)
                 {
+                    return;
+                }
+
+                if (folder.Types == VERSIONS_TYPE)
+                {
+                    await SyncVersionFolderAsync(folder, mainWindow);
                     return;
                 }
 
@@ -184,6 +192,145 @@ namespace Finn.ViewModels
                     OnPropertyChanged("TreeViewUpdate");
                 }
             }
+
+            public void NewVersionFolder(string path)
+            {
+                if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+                    return;
+
+                var folder = new FolderData
+                {
+                    Name = new DirectoryInfo(path).Name,
+                    AttachToFile = "PROJECT",
+                    Types = VERSIONS_TYPE,
+                    Path = path
+                };
+                CurrentProject.Folders.Add(folder);
+                MarkDirty();
+            }
+
+            /// <summary>
+            /// Scans a folder and all subfolders for PDFs that match existing project files
+            /// by name, then presents a version import dialog for the user to confirm and label.
+            /// Already-registered version paths are skipped. Multiple matches for the same
+            /// file are auto-labeled A, B, C, D… based on subfolder order.
+            /// </summary>
+            public async Task SyncVersionFolderAsync(FolderData folder, Window? mainWindow = null)
+            {
+                if (folder?.IsValid() != true || folder.Path == null) return;
+
+                // Collect all PDFs recursively, sorted by path so subfolder order is consistent
+                var allPdfs = Directory.EnumerateFiles(folder.Path, "*.pdf", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                // Build a lookup of existing files by name for O(1) matching
+                var filesByName = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in CurrentProject.StoredFiles)
+                    filesByName.TryAdd(file.Namn, file);
+
+                // Collect all paths already registered as versions for quick dedup
+                var knownPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in CurrentProject.StoredFiles)
+                {
+                    if (!string.IsNullOrEmpty(file.Sökväg))
+                        knownPaths.Add(file.Sökväg);
+                    if (!string.IsNullOrEmpty(file.OriginalPath))
+                        knownPaths.Add(file.OriginalPath);
+                    foreach (var v in file.Versions)
+                        if (!string.IsNullOrEmpty(v.Sökväg))
+                            knownPaths.Add(v.Sökväg);
+                }
+
+                // Group matched PDFs per existing file to assign sequential labels
+                var matchesPerFile = new Dictionary<FileData, List<string>>();
+
+                foreach (string pdfPath in allPdfs)
+                {
+                    if (knownPaths.Contains(pdfPath))
+                        continue;
+
+                    string name = Path.GetFileNameWithoutExtension(pdfPath);
+                    if (filesByName.TryGetValue(name, out var existing))
+                    {
+                        if (!matchesPerFile.TryGetValue(existing, out var paths))
+                        {
+                            paths = [];
+                            matchesPerFile[existing] = paths;
+                        }
+                        paths.Add(pdfPath);
+                    }
+                }
+
+                // Build entries — use parent folder name as label when it looks like
+                // a date (yyyy-MM-dd), otherwise fall back to sequential A, B, C…
+                var candidates = new List<VersionImportEntry>();
+                foreach (var (existing, paths) in matchesPerFile)
+                {
+                    int letterIndex = existing.Versions
+                        .Count(v => v.Label.Length <= 2 && v.Label.All(char.IsLetter));
+
+                    for (int i = 0; i < paths.Count; i++)
+                    {
+                        string folderName = new DirectoryInfo(Path.GetDirectoryName(paths[i])!).Name;
+                        string label = TryExtractDate(folderName, out string date)
+                            ? date
+                            : GetSequentialLabel(letterIndex++);
+
+                        candidates.Add(new VersionImportEntry
+                        {
+                            ExistingFile = existing,
+                            NewFilePath = paths[i],
+                            SelectedLabel = label
+                        });
+                    }
+                }
+
+                if (candidates.Count > 0 && mainWindow != null)
+                {
+                    bool confirmed = await ShowVersionImportDialogAsync(mainWindow, candidates);
+                    if (confirmed)
+                    {
+                        foreach (var entry in candidates)
+                            entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
+                        MarkDirty();
+                    }
+                }
+
+                folder.SyncedFileCount = candidates.Count;
+            }
+
+            /// <summary>
+            /// Returns a sequential label: 0→A, 1→B, … 25→Z, 26→AA, 27→AB, etc.
+            /// </summary>
+            private static string GetSequentialLabel(int index)
+            {
+                if (index < 26)
+                    return ((char)('A' + index)).ToString();
+                return GetSequentialLabel(index / 26 - 1) + (char)('A' + index % 26);
+            }
+
+            /// <summary>
+            /// Attempts to extract a yyyy-MM-dd date from anywhere in <paramref name="name"/>.
+            /// Returns true when found, with the matched date in <paramref name="date"/>.
+            /// Handles folder names like "2024-01-15 Granskningshandling" or "BH_2024-01-15_rev2".
+            /// </summary>
+            private static bool TryExtractDate(string name, out string date)
+            {
+                var match = DatePattern().Match(name);
+                if (match.Success
+                    && DateTime.TryParseExact(match.Value, "yyyy-MM-dd",
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+                {
+                    date = match.Value;
+                    return true;
+                }
+                date = string.Empty;
+                return false;
+            }
+
+            [GeneratedRegex(@"\d{4}-\d{2}-\d{2}")]
+            private static partial Regex DatePattern();
 
             private List<FileData> GetFilesFromFolder(FolderData folder)
             {

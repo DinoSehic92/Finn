@@ -86,6 +86,20 @@ namespace Finn.ViewModels
                         if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
                             file.ThumbnailSource = string.Empty;
 
+                        // Migrate legacy ORIGINAL version entries to OriginalPath.
+                        if (file.Versions.Count > 0 && string.IsNullOrEmpty(file.OriginalPath))
+                        {
+                            var original = file.Versions.FirstOrDefault(v => v.Label == "ORIGINAL");
+                            if (original != null)
+                            {
+                                file.OriginalPath = original.Sökväg;
+                                bool wasOnOriginal = file.CurrentVersion == "ORIGINAL";
+                                if (wasOnOriginal)
+                                    file.CurrentVersion = string.Empty;
+                                file.Versions.Remove(original);
+                            }
+                        }
+
                         foreach (var appended in file.AppendedFiles)
                         {
                             appended.ParentFile = file;
