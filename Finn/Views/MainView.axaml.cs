@@ -1137,10 +1137,12 @@ public partial class MainView : UserControl
         if (row.DataContext is not FileData data)
             return;
 
-        if (data.IsFileMissing)
+        bool isPlaceholder = data.Sökväg == string.Empty;
+
+        if (data.IsFileMissing && !isPlaceholder)
             row.Classes.Add("RedForeground");
 
-        if (data.Sökväg == string.Empty)
+        if (isPlaceholder)
             row.Classes.Add("Placeholder");
 
         if (!dotMode && !string.IsNullOrEmpty(data.Färg))

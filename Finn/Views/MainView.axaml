@@ -752,7 +752,7 @@
 				<!-- Drag-and-drop hint overlay -->
 				<Border Name="DropOverlay" Classes="DropHint"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-						BorderThickness="2" CornerRadius="8" Margin="4">
+						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}" Margin="4">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
 						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
@@ -806,7 +806,7 @@
 					</StackPanel>
 					<Border Name="AppendixDropOverlay" Classes="DropHint"
 							Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-							BorderThickness="2" CornerRadius="8" Margin="4">
+							BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}" Margin="4">
 						<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 							<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
 							<TextBlock Text="Drop PDFs or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
@@ -856,7 +856,7 @@
 				</StackPanel>
 				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-						BorderThickness="2" CornerRadius="8" Margin="4">
+						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}" Margin="4">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
 						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
