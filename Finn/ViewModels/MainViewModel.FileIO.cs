@@ -78,10 +78,24 @@ namespace Finn.ViewModels
                 }
 
                 // Clear ThumbnailSource for any file whose thumbnail no longer exists on disk
+                // and wire ParentFile back-references for appended files.
                 foreach (var project in Storage.StoredProjects)
+                {
                     foreach (var file in project.StoredFiles)
+                    {
                         if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
                             file.ThumbnailSource = string.Empty;
+
+                        foreach (var appended in file.AppendedFiles)
+                        {
+                            appended.ParentFile = file;
+                            if (string.IsNullOrEmpty(appended.Uppdrag))
+                                appended.Uppdrag = file.Uppdrag;
+                            if (string.IsNullOrEmpty(appended.Filtyp))
+                                appended.Filtyp = file.Filtyp;
+                        }
+                    }
+                }
 
                 SetProjectlist();
                 SetDefaultSelection();

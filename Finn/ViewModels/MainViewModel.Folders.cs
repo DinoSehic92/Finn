@@ -43,6 +43,12 @@ namespace Finn.ViewModels
                             if (folder.Types == PDF_TYPE)
                             {
                                 string folderPath = folder.Path;
+                                var removed = file.AppendedFiles.Where(x => x.SyncFolder == folderPath).ToList();
+                                foreach (var r in removed)
+                                {
+                                    r.PartOfCollections.Clear();
+                                    r.ParentFile = null;
+                                }
                                 file.AppendedFiles.ReplaceAll(
                                     file.AppendedFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Namn));
                             }
@@ -55,6 +61,7 @@ namespace Finn.ViewModels
                             }
                         }
 
+                        Collections.SetCollectionContent();
                         CurrentProject.Folders.Remove(folder);
                     }
                 }
@@ -98,6 +105,12 @@ namespace Finn.ViewModels
                         {
                             var remaining = file.AppendedFiles.Where(x => x.SyncFolder != folder.Path);
                             var newFiles = GetFilesFromFolder(folder);
+                            foreach (var f in newFiles)
+                            {
+                                f.ParentFile = file;
+                                f.Uppdrag = file.Uppdrag;
+                                f.Filtyp = file.Filtyp;
+                            }
                             count = newFiles.Count;
                             file.AppendedFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Namn));
                         }

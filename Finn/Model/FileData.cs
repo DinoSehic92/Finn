@@ -1,4 +1,5 @@
 ﻿using Finn.Utils;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -126,6 +127,13 @@ namespace Finn.Model
         private bool _hasPlainText;
         private ObservableCollection<FileVersionData> _versions = new();
         private string _currentVersion = string.Empty;
+
+        /// <summary>
+        /// Back-reference to the parent file when this is an appended file.
+        /// Not serialized — wired up at load time and when appended files are added.
+        /// </summary>
+        [JsonIgnore]
+        public FileData? ParentFile { get; set; }
 
         #endregion
 

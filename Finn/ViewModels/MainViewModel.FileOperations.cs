@@ -390,7 +390,10 @@ namespace Finn.ViewModels
                     {
                         Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
                         Sökväg = filepath,
-                        IsFromFolder = fromFolder
+                        IsFromFolder = fromFolder,
+                        Uppdrag = CurrentFile.Uppdrag,
+                        Filtyp = CurrentFile.Filtyp,
+                        ParentFile = CurrentFile
                     });
 
                     SortAttachedFiles();
@@ -416,9 +419,12 @@ namespace Finn.ViewModels
             {
                 foreach (FileData file in files)
                 {
+                    file.PartOfCollections.Clear();
+                    file.ParentFile = null;
                     CurrentFile.AppendedFiles.Remove(file);
                 }
 
+                Collections.SetCollectionContent();
                 SortAttachedFiles();
                 MarkDirty();
             }
@@ -495,6 +501,8 @@ namespace Finn.ViewModels
                             CurrentProject.StoredFiles.Remove(file);
                             file.Filtyp = "New";
                             file.Uppdrag = project.Namn;
+                            foreach (var appended in file.AppendedFiles)
+                                appended.Uppdrag = project.Namn;
                             project.StoredFiles.Add(file);
                         }
                     }

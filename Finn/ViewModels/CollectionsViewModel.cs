@@ -171,6 +171,16 @@ namespace Finn.ViewModels
             _markDirty?.Invoke();
         }
 
+        public void AddFilesToCollection(IEnumerable<FileData> files, string collection)
+        {
+            foreach (FileData file in files.Where(x => !x.PartOfCollections.Contains(collection)))
+            {
+                file.PartOfCollections.Add(collection);
+            }
+            CurrentCollection = collection;
+            _markDirty?.Invoke();
+        }
+
         public void RemoveFileFromCollection()
         {
             CurrentFile?.PartOfCollections.Remove(CurrentCollection);
@@ -184,7 +194,7 @@ namespace Finn.ViewModels
 
             foreach (ProjectData project in Storage.StoredProjects)
             {
-                foreach (FileData file in project.StoredFiles.Where(x => x.PartOfCollections.Contains(CurrentCollection)))
+                foreach (FileData file in project.AllFiles.Where(x => x.PartOfCollections.Contains(CurrentCollection)))
                 {
                     CollectionContent.Add(file);
                 }

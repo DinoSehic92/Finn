@@ -17,6 +17,12 @@ namespace Finn.Model
         /// </summary>
         public BulkObservableCollection<FileData> StoredFiles { get; set; } = new BulkObservableCollection<FileData>();
 
+        /// <summary>
+        /// Returns all files in the project, including appended files nested under each stored file.
+        /// </summary>
+        public IEnumerable<FileData> AllFiles =>
+            StoredFiles.Concat(StoredFiles.SelectMany(f => f.AppendedFiles));
+
         private string namn = string.Empty;
         /// <summary>
         /// Gets or sets the project name.

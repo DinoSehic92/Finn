@@ -168,13 +168,20 @@ namespace Finn.ViewModels
         /// <summary>
         /// Selects files from a secondary list (collection/recent) and navigates to the project.
         /// Uses lightweight tree navigation instead of a full rebuild.
+        /// For appended files, falls back to the parent file's project context.
         /// </summary>
         public void SelectAndNavigateFiles(IList<FileData> files)
         {
             var file = files.FirstOrDefault();
-            if (file is { Uppdrag: not "", Filtyp: not "" })
+            var nav = file;
+
+            // Appended files may have empty Uppdrag in legacy data — use parent
+            if (nav != null && string.IsNullOrEmpty(nav.Uppdrag) && nav.ParentFile != null)
+                nav = nav.ParentFile;
+
+            if (nav is { Uppdrag: not "", Filtyp: not "" })
             {
-                NavigateTo(file.Uppdrag, file.Filtyp);
+                NavigateTo(nav.Uppdrag, nav.Filtyp);
             }
 
             SelectFiles(files);

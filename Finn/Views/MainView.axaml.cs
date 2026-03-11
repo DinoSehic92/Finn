@@ -539,7 +539,18 @@ public partial class MainView : UserControl
 
     #region File Operations
 
-    private void OnOpenFile(object? sender, RoutedEventArgs e) => _ctx.OpenFile();
+    private void OnOpenFile(object? sender, RoutedEventArgs e)
+    {
+        // When double-clicking a collection/recent item that is an appended file,
+        // open it directly rather than relying on CurrentFiles (which holds the parent).
+        if (sender is DataGrid grid && grid == CollectionContent
+            && CollectionContent.SelectedItem is FileData cf && cf.ParentFile != null)
+        {
+            _ctx.OpenFileDirect(cf.Sökväg);
+            return;
+        }
+        _ctx.OpenFile();
+    }
 
     private void OnOpenAppendedFile(object? sender, RoutedEventArgs e)
     {
@@ -700,8 +711,25 @@ public partial class MainView : UserControl
         try
         {
             var files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
-            _ctx.SelectAndNavigateFiles(files);
-            SelectInFileGrid(_ctx.CurrentFile, addRecent: true);
+            var target = files.FirstOrDefault();
+            if (target == null) return;
+
+            if (target.ParentFile is { } parent)
+            {
+                // Navigate to the parent's project so it appears in the main grid
+                _ctx.SelectAndNavigateFiles([parent]);
+                SelectInFileGrid(parent, addRecent: false);
+
+                // Preview the appended file and select it in the AppendixGrid
+                RequestPreview(target);
+                _pwr.AddRecentFile(target);
+                AppendixGrid.SelectedItem = target;
+            }
+            else
+            {
+                _ctx.SelectAndNavigateFiles(files);
+                SelectInFileGrid(target, addRecent: true);
+            }
         }
         finally
         {
@@ -717,8 +745,22 @@ public partial class MainView : UserControl
         try
         {
             var files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
-            _ctx.SelectAndNavigateFiles(files);
-            SelectInFileGrid(_ctx.CurrentFile, addRecent: false);
+            var target = files.FirstOrDefault();
+            if (target == null) return;
+
+            if (target.ParentFile is { } parent)
+            {
+                _ctx.SelectAndNavigateFiles([parent]);
+                SelectInFileGrid(parent, addRecent: false);
+
+                RequestPreview(target);
+                AppendixGrid.SelectedItem = target;
+            }
+            else
+            {
+                _ctx.SelectAndNavigateFiles(files);
+                SelectInFileGrid(target, addRecent: false);
+            }
         }
         finally
         {
@@ -1061,7 +1103,7 @@ public partial class MainView : UserControl
     {
         string? name = sender switch
         {
-            MenuItem { Header: string h } when h != "Collection" => h,
+            MenuItem { SelectedItem: string s } => s,
             Button { Content: string c } => c,
             _ => null
         };
@@ -1070,6 +1112,19 @@ public partial class MainView : UserControl
 
         if (sender is Button)
             CollectionButton.Flyout?.Hide();
+    }
+
+    private void OnAddAppendedToCollection(object? sender, RoutedEventArgs e)
+    {
+        string? name = sender switch
+        {
+            MenuItem { SelectedItem: string s } => s,
+            _ => null
+        };
+        if (name == null) return;
+        var files = AppendixGrid.SelectedItems.Cast<FileData>().ToList();
+        if (files.Count > 0)
+            _ctx.Collections.AddFilesToCollection(files, name);
     }
 
     #endregion

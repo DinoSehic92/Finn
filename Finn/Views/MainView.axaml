@@ -792,6 +792,12 @@
 										<MenuItem.Icon><ic:SymbolIcon Symbol="PanelRight"/></MenuItem.Icon>
 									</MenuItem>
 								</MenuItem>
+								<MenuItem Header="Collection" ItemsSource="{Binding Storage.Collections}" Click="OnAddAppendedToCollection">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Collections"/></MenuItem.Icon>
+									<MenuItem.ItemTemplate>
+										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+									</MenuItem.ItemTemplate>
+								</MenuItem>
 								<MenuItem Header="Remove" Click="OnRemoveAttachedFile">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 							</MenuItem>
