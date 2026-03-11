@@ -231,14 +231,27 @@
 				</Button>
 			</Border>
 
-					<StackPanel Orientation="Horizontal" FlowDirection="LeftToRight" Spacing="5" HorizontalAlignment="Right" IsVisible="{Binding UI.TrayViewOpen}">
-					<ToggleButton IsChecked="{Binding UI.TrayNote}"        Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Notebook"       IconVariant="Regular" FontSize="15"/></ToggleButton>
-					<ToggleButton IsChecked="{Binding UI.TrayCollections}" Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Collections"    IconVariant="Regular" FontSize="15"/></ToggleButton>
-					<ToggleButton IsChecked="{Binding UI.TrayBookmarks}"   Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Bookmark"       IconVariant="Regular" FontSize="15"/></ToggleButton>
-					<ToggleButton IsChecked="{Binding UI.TrayRecent}"      Height="30" Width="30" Padding="0"><ic:SymbolIcon Symbol="Timer"          IconVariant="Regular" FontSize="15"/></ToggleButton>
-					<ToggleButton IsChecked="{Binding UI.TrayDiff}"        Height="30" Width="30" Padding="0" ToolTip.Tip="PDF Compare"><ic:SymbolIcon Symbol="DocumentSearch" IconVariant="Regular" FontSize="15"/></ToggleButton>
-					<ToggleButton IsChecked="{Binding UI.TrayVersions}"    Height="30" Width="30" Padding="0" ToolTip.Tip="File Versions"><ic:SymbolIcon Symbol="History"        IconVariant="Regular" FontSize="15"/></ToggleButton>
-				</StackPanel>
+					<Border Classes="shadow" Height="30" IsVisible="{Binding UI.TrayViewOpen}">
+						<Button Height="30" MinHeight="30" Width="140" Background="{DynamicResource TextControlBackground}">
+							<Grid ColumnDefinitions="25,*,20" Height="30">
+								<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
+								<Label Grid.Column="1" Content="Tray Panels" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+								<ic:SymbolIcon Grid.Column="2" Symbol="PanelRight" IconVariant="Regular" FontSize="18"/>
+							</Grid>
+							<Button.Flyout>
+								<Flyout HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
+									<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="120" Margin="0" Spacing="2">
+										<CheckBox Content="Notepad"      Height="28" IsChecked="{Binding UI.TrayNote, Mode=TwoWay}"/>
+										<CheckBox Content="Collections"  Height="28" IsChecked="{Binding UI.TrayCollections, Mode=TwoWay}"/>
+										<CheckBox Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}"/>
+										<CheckBox Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}"/>
+										<CheckBox Content="PDF Compare"  Height="28" IsChecked="{Binding UI.TrayDiff, Mode=TwoWay}"/>
+										<CheckBox Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}"/>
+									</StackPanel>
+								</Flyout>
+							</Button.Flyout>
+						</Button>
+					</Border>
 		</StackPanel>
 
 		<!-- Center search bar with optional action bar -->
@@ -347,7 +360,7 @@
 			<!-- Layout group -->
 			<ToggleButton ToolTip.Tip="Tree View (Ctrl+Q)"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Tray (Ctrl+E)"            HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Attached Files (Ctrl+A)"  HotKey="Ctrl+A" Height="30" Width="35" Padding="0" IsEnabled="{Binding FileSelected}" IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Attached Files (Ctrl+A)"  HotKey="Ctrl+A" Height="30" Width="35" Padding="0" IsVisible="{Binding FileSelected}" IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Folders (Ctrl+L)"         HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
