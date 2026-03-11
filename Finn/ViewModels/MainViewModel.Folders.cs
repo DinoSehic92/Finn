@@ -188,8 +188,9 @@ namespace Finn.ViewModels
 
                     folder.SyncedFileCount = CurrentProject.StoredFiles.Count(x => x.IsFromFolder && x.SyncFolder == folder.Path);
 
-                    SetDefaultType();
-                    OnPropertyChanged("TreeViewUpdate");
+                    CurrentProject.SetFiletypeList();
+                    UpdateFilter();
+                    BuildTreeData();
                 }
             }
 
@@ -211,9 +212,9 @@ namespace Finn.ViewModels
 
             /// <summary>
             /// Scans a folder and all subfolders for PDFs that match existing project files
-            /// by name, then presents a version import dialog for the user to confirm and label.
-            /// Already-registered version paths are skipped. Multiple matches for the same
-            /// file are auto-labeled A, B, C, D… based on subfolder order.
+            /// by name, then presents a delivery import dialog grouped by subfolder.
+            /// Each delivery folder gets one label applied to all matched files.
+            /// Already-registered version paths are skipped.
             /// </summary>
             public async Task SyncVersionFolderAsync(FolderData folder, Window? mainWindow = null)
             {
@@ -229,6 +230,8 @@ namespace Finn.ViewModels
                 foreach (var file in CurrentProject.StoredFiles)
                     filesByName.TryAdd(file.Namn, file);
 
+                int totalProjectFiles = CurrentProject.StoredFiles.Count;
+
                 // Collect all paths already registered as versions for quick dedup
                 var knownPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var file in CurrentProject.StoredFiles)
@@ -242,8 +245,8 @@ namespace Finn.ViewModels
                             knownPaths.Add(v.Sökväg);
                 }
 
-                // Group matched PDFs per existing file to assign sequential labels
-                var matchesPerFile = new Dictionary<FileData, List<string>>();
+                // Group matched PDFs by their parent subfolder
+                var matchesPerFolder = new Dictionary<string, List<(FileData File, string PdfPath)>>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (string pdfPath in allPdfs)
                 {
@@ -253,51 +256,58 @@ namespace Finn.ViewModels
                     string name = Path.GetFileNameWithoutExtension(pdfPath);
                     if (filesByName.TryGetValue(name, out var existing))
                     {
-                        if (!matchesPerFile.TryGetValue(existing, out var paths))
+                        string dir = Path.GetDirectoryName(pdfPath)!;
+                        if (!matchesPerFolder.TryGetValue(dir, out var list))
                         {
-                            paths = [];
-                            matchesPerFile[existing] = paths;
+                            list = [];
+                            matchesPerFolder[dir] = list;
                         }
-                        paths.Add(pdfPath);
+                        list.Add((existing, pdfPath));
                     }
                 }
 
-                // Build entries — use parent folder name as label when it looks like
-                // a date (yyyy-MM-dd), otherwise fall back to sequential A, B, C…
-                var candidates = new List<VersionImportEntry>();
-                foreach (var (existing, paths) in matchesPerFile)
-                {
-                    int letterIndex = existing.Versions
-                        .Count(v => v.Label.Length <= 2 && v.Label.All(char.IsLetter));
+                if (matchesPerFolder.Count == 0) { folder.SyncedFileCount = 0; return; }
 
-                    for (int i = 0; i < paths.Count; i++)
+                // Build delivery entries — one row per subfolder, auto-label from date or letter
+                var deliveries = new List<DeliveryFolderEntry>();
+                int letterIndex = 0;
+
+                foreach (var (dir, matches) in matchesPerFolder.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    string folderName = new DirectoryInfo(dir).Name;
+                    string label = TryExtractDate(folderName, out string date)
+                        ? date
+                        : GetSequentialLabel(letterIndex++);
+
+                    deliveries.Add(new DeliveryFolderEntry
                     {
-                        string folderName = new DirectoryInfo(Path.GetDirectoryName(paths[i])!).Name;
-                        string label = TryExtractDate(folderName, out string date)
-                            ? date
-                            : GetSequentialLabel(letterIndex++);
-
-                        candidates.Add(new VersionImportEntry
-                        {
-                            ExistingFile = existing,
-                            NewFilePath = paths[i],
-                            SelectedLabel = label
-                        });
-                    }
+                        FolderPath = dir,
+                        MatchedFiles = matches,
+                        TotalProjectFiles = totalProjectFiles,
+                        SelectedLabel = label
+                    });
                 }
 
-                if (candidates.Count > 0 && mainWindow != null)
+                int importedCount = 0;
+
+                if (mainWindow != null)
                 {
-                    bool confirmed = await ShowVersionImportDialogAsync(mainWindow, candidates);
+                    bool confirmed = await ShowDeliveryImportDialogAsync(mainWindow, deliveries);
                     if (confirmed)
                     {
-                        foreach (var entry in candidates)
-                            entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
+                        foreach (var delivery in deliveries)
+                        {
+                            foreach (var (file, pdfPath) in delivery.MatchedFiles)
+                            {
+                                file.AddVersion(pdfPath, delivery.SelectedLabel);
+                                importedCount++;
+                            }
+                        }
                         MarkDirty();
                     }
                 }
 
-                folder.SyncedFileCount = candidates.Count;
+                folder.SyncedFileCount = importedCount;
             }
 
             /// <summary>
@@ -311,13 +321,14 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
-            /// Attempts to extract a yyyy-MM-dd date from anywhere in <paramref name="name"/>.
-            /// Returns true when found, with the matched date in <paramref name="date"/>.
-            /// Handles folder names like "2024-01-15 Granskningshandling" or "BH_2024-01-15_rev2".
+            /// Attempts to extract a date from anywhere in <paramref name="name"/>.
+            /// Tries yyyy-MM-dd first (e.g. "2024-01-15 Granskningshandling"),
+            /// then yyMMdd (e.g. "240115_BH"). The returned label is always yyyy-MM-dd.
             /// </summary>
             private static bool TryExtractDate(string name, out string date)
             {
-                var match = DatePattern().Match(name);
+                // Try yyyy-MM-dd first
+                var match = DatePatternLong().Match(name);
                 if (match.Success
                     && DateTime.TryParseExact(match.Value, "yyyy-MM-dd",
                         CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
@@ -325,12 +336,26 @@ namespace Finn.ViewModels
                     date = match.Value;
                     return true;
                 }
+
+                // Fall back to yyMMdd (6 digits, no separators)
+                match = DatePatternShort().Match(name);
+                if (match.Success
+                    && DateTime.TryParseExact(match.Value, "yyMMdd",
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsed))
+                {
+                    date = parsed.ToString("yyyy-MM-dd");
+                    return true;
+                }
+
                 date = string.Empty;
                 return false;
             }
 
             [GeneratedRegex(@"\d{4}-\d{2}-\d{2}")]
-            private static partial Regex DatePattern();
+            private static partial Regex DatePatternLong();
+
+            [GeneratedRegex(@"(?<!\d)\d{6}(?!\d)")]
+            private static partial Regex DatePatternShort();
 
             private List<FileData> GetFilesFromFolder(FolderData folder)
             {

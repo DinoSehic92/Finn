@@ -173,6 +173,15 @@ namespace Finn.ViewModels
                 return window.Confirmed;
             }
 
+            public async Task<bool> ShowDeliveryImportDialogAsync(Window mainWindow, List<DeliveryFolderEntry> entries)
+            {
+                var window = new xDeliveryImportDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetEntries(entries);
+                await window.ShowDialog(mainWindow);
+                return window.Confirmed;
+            }
+
             public void OnInfoDia(Window mainWindow)
             {
                 var window = new xInfoDia();

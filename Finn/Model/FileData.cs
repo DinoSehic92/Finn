@@ -564,6 +564,9 @@ namespace Finn.Model
                 || _versions.Any(v => string.Equals(v.Sökväg, filepath, StringComparison.OrdinalIgnoreCase)))
                 return;
 
+            if (string.IsNullOrWhiteSpace(label))
+                label = "NEW";
+
             // Remember the original path before any version switches
             if (string.IsNullOrEmpty(_originalPath))
                 OriginalPath = _sökväg;
@@ -575,7 +578,6 @@ namespace Finn.Model
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
             SortVersions();
-            CurrentVersion = _versions[^1].Label;
         }
 
         /// <summary>

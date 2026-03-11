@@ -271,29 +271,6 @@ public partial class MainView : UserControl
     }
 
     /// <summary>
-    /// Extracts local paths from a drag event, filtering by type and optional extension.
-    /// </summary>
-    private static List<string> ExtractDroppedPaths(DragEventArgs e,
-        bool filesOnly = false, bool directoriesOnly = false, string? extension = null)
-    {
-        var result = new List<string>();
-        var items = e.Data.GetFiles();
-        if (items == null) return result;
-
-        foreach (var item in items)
-        {
-            string path = item.Path.LocalPath;
-
-            if (directoriesOnly && item is not IStorageFolder) continue;
-            if (filesOnly && item is not IStorageFile) continue;
-            if (extension != null && !Path.GetExtension(path).Equals(extension, StringComparison.OrdinalIgnoreCase)) continue;
-
-            result.Add(path);
-        }
-        return result;
-    }
-
-    /// <summary>
     /// Splits dropped items into file paths and directory paths.
     /// Uses Avalonia storage-item types instead of File.Exists / Directory.Exists
     /// to avoid costly network round-trips for files on slow servers.
