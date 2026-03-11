@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Input;
 using Finn.Model;
+using System.IO;
 using System.Linq;
 using System.Windows.Input;
 
@@ -110,6 +111,25 @@ namespace Finn.ViewModels
                 if (file.Versions.Count > 0)
                     file.SetVersionLabel(file.Versions[^1], label);
             MarkDirty();
+        }
+
+        /// <summary>
+        /// Attempts to extract a date from the parent folder name of the selected
+        /// version and applies it as the label. Useful when the user has renamed a
+        /// label and wants to restore the original date-based label from import.
+        /// </summary>
+        public void LabelVersionFromFolderDate()
+        {
+            if (CurrentFile == null || SelectedVersion == null) return;
+
+            string dirName = Path.GetFileName(SelectedVersion.DirectoryPath);
+            if (string.IsNullOrEmpty(dirName)) return;
+
+            if (TryExtractDate(dirName, out string date))
+            {
+                CurrentFile.SetVersionLabel(SelectedVersion, date);
+                MarkDirty();
+            }
         }
     }
 }

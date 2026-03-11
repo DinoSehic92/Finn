@@ -1057,15 +1057,13 @@ public partial class MainView : UserControl
         _ctx.LabelLastVersionOnSelected(label);
     }
 
-    private async void OnCompareVersionWithCurrent(object? sender, RoutedEventArgs e)
+    private async void OnCompareVersionWithOriginal(object? sender, RoutedEventArgs e)
     {
         if (_ctx.CurrentFile is not { HasVersions: true } file) return;
         if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
+        if (string.IsNullOrEmpty(file.OriginalPath)) return;
 
-        var current = file.Versions.FirstOrDefault(v => v.Label == file.CurrentVersion);
-        if (current == null || current == selected) return;
-
-        string pathA = current.Sökväg;
+        string pathA = file.OriginalPath;
         string pathB = selected.Sökväg;
 
         if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)
@@ -1076,8 +1074,52 @@ public partial class MainView : UserControl
 
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.OpenDiffDia(window,
-            $"{file.Namn} ({current.Label})", pathA,
+            $"{file.Namn} (Original)", pathA,
             $"{file.Namn} ({selected.Label})", pathB);
+    }
+
+    private async void OnCompareVersionWithPrevious(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile is not { HasVersions: true } file) return;
+        if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
+
+        int idx = file.Versions.IndexOf(selected);
+        if (idx <= 0) return;
+
+        // Previous version in the sorted list; if selected is the first version,
+        // compare against original instead.
+        string pathA;
+        string nameA;
+        if (idx == 0 && !string.IsNullOrEmpty(file.OriginalPath))
+        {
+            pathA = file.OriginalPath;
+            nameA = $"{file.Namn} (Original)";
+        }
+        else
+        {
+            var prev = file.Versions[idx - 1];
+            pathA = prev.Sökväg;
+            nameA = $"{file.Namn} ({prev.Label})";
+        }
+
+        string pathB = selected.Sökväg;
+
+        if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)
+            || !pathA.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+            || !pathB.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+            || !File.Exists(pathA) || !File.Exists(pathB))
+            return;
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.OpenDiffDia(window,
+            nameA, pathA,
+            $"{file.Namn} ({selected.Label})", pathB);
+    }
+
+    private void OnLabelFromFolderDate(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
+        _ctx.LabelVersionFromFolderDate();
     }
 
     private async void OnCompareVersionDiff(object? sender, RoutedEventArgs e)

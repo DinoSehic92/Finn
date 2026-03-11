@@ -1224,7 +1224,6 @@
 								</Border>
 								<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
 								<Button Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
-								<Button Width="30" Click="OnRemoveVersion" ToolTip.Tip="Remove Version"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 							</StackPanel>
 							<DataGrid Grid.Row="1" Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
@@ -1273,8 +1272,15 @@
 										<MenuItem Header="Open Folder" Command="{Binding OpenSelectedVersionFolderCommand}">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Header="Compare with Active" Click="OnCompareVersionWithCurrent">
+										<MenuItem Header="Compare with Original" Click="OnCompareVersionWithOriginal">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Compare with Previous" Click="OnCompareVersionWithPrevious">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
+										</MenuItem>
+										<Separator/>
+										<MenuItem Header="Label from Folder Date" Click="OnLabelFromFolderDate">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="CalendarSearch"/></MenuItem.Icon>
 										</MenuItem>
 										<Separator/>
 										<MenuItem Header="Remove" Click="OnRemoveVersion">
