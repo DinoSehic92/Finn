@@ -36,6 +36,24 @@
 			<Setter Property="Margin" Value="0,2"/>
 			<Setter Property="Height" Value="36"/>
 		</Style>
+		<Style Selector="Grid.SettingRow > Label">
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="0"/>
+		</Style>
+		<Style Selector="Grid.SettingRow > ToggleSwitch">
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="Margin" Value="0,-4,0,0"/>
+			<Setter Property="MinHeight" Value="0"/>
+		</Style>
+		<Style Selector="Grid.SettingRow > ColorPicker">
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
+		<Style Selector="Grid.SettingRow > Slider">
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
+		<Style Selector="Grid.SettingRow > Border">
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
 	</Window.Styles>
 
 	<Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
