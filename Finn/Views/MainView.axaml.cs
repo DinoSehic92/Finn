@@ -758,6 +758,10 @@ public partial class MainView : UserControl
         if (color != null)
             _ctx.AddColor(color);
 
+        // Close the action bar color picker flyout
+        if (sender is Button)
+            ColorTagButton.Flyout?.Hide();
+
         FileGrid.SelectedItem = null;
         UpdateRowColor();
     }
