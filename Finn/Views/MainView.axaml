@@ -90,6 +90,20 @@
 			</Setter>
 		</Style>
 
+		<!-- Fade-in for drag-and-drop overlays -->
+		<Style Selector="Border.DropHint">
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.DropHint.Active">
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+
 		<!-- Empty state hint when DataGrid has no rows -->
 		<Style Selector="DataGrid:empty /template/ Border#DataGridBorder">
 			<Setter Property="Opacity" Value="0.6"/>
@@ -627,7 +641,7 @@
 				</StackPanel>
 
 				<!-- Drag-and-drop hint overlay -->
-				<Border Name="DropOverlay" IsVisible="False" IsHitTestVisible="False"
+				<Border Name="DropOverlay" Classes="DropHint"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
 						BorderThickness="2" CornerRadius="8" Margin="4">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
@@ -681,7 +695,7 @@
 						<TextBlock Text="No attached PDFs" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
 						<TextBlock Text="Drop PDFs or folders here to link them to the selected file" FontSize="12" HorizontalAlignment="Center"/>
 					</StackPanel>
-					<Border Name="AppendixDropOverlay" IsVisible="False" IsHitTestVisible="False"
+					<Border Name="AppendixDropOverlay" Classes="DropHint"
 							Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
 							BorderThickness="2" CornerRadius="8" Margin="4">
 						<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
@@ -731,7 +745,7 @@
 					<TextBlock Text="No attached files" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
 					<TextBlock Text="Drop files or folders here to attach documents, images, etc." FontSize="12" HorizontalAlignment="Center"/>
 				</StackPanel>
-				<Border Name="OtherFilesDropOverlay" IsVisible="False" IsHitTestVisible="False"
+				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
 						BorderThickness="2" CornerRadius="8" Margin="4">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">

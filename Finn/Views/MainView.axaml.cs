@@ -348,11 +348,11 @@ public partial class MainView : UserControl
         }
 
         // FileGrid accepts PDFs and folders (folders are synced to project)
-        DropOverlay.IsVisible = hasPdf || hasFolder;
+        SetDropHintActive(DropOverlay, hasPdf || hasFolder);
         // AppendixGrid accepts PDFs and folders
-        AppendixDropOverlay.IsVisible = hasPdf || hasFolder;
+        SetDropHintActive(AppendixDropOverlay, hasPdf || hasFolder);
         // OtherFilesGrid accepts any file type and folders
-        OtherFilesDropOverlay.IsVisible = hasPdf || hasNonPdfFile || hasFolder;
+        SetDropHintActive(OtherFilesDropOverlay, hasPdf || hasNonPdfFile || hasFolder);
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
@@ -367,9 +367,17 @@ public partial class MainView : UserControl
 
     private void HideAllDropOverlays()
     {
-        DropOverlay.IsVisible = false;
-        AppendixDropOverlay.IsVisible = false;
-        OtherFilesDropOverlay.IsVisible = false;
+        SetDropHintActive(DropOverlay, false);
+        SetDropHintActive(AppendixDropOverlay, false);
+        SetDropHintActive(OtherFilesDropOverlay, false);
+    }
+
+    private static void SetDropHintActive(Avalonia.Controls.Border overlay, bool active)
+    {
+        if (active)
+            overlay.Classes.Add("Active");
+        else
+            overlay.Classes.Remove("Active");
     }
 
     #endregion
