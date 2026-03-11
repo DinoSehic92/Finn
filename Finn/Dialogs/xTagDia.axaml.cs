@@ -30,9 +30,9 @@ public partial class xTagDia : Window
     private void CloseKey(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
-        {
             this.Close();
-        }
+        else if (e.Key == Key.Enter)
+            OnSetTag(sender, e);
     }
 
 }

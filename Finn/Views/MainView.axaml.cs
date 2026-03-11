@@ -779,6 +779,9 @@ public partial class MainView : UserControl
             _ctx.EditType(type);
             _ctx.BuildTreeData();
         }
+
+        if (sender is Button)
+            CategoryButton.Flyout?.Hide();
     }
 
     private void OnClearFiles(object? sender, RoutedEventArgs e)
@@ -1064,6 +1067,9 @@ public partial class MainView : UserControl
         };
         if (name != null)
             _ctx.Collections.AddFileToCollection(name);
+
+        if (sender is Button)
+            CollectionButton.Flyout?.Hide();
     }
 
     #endregion

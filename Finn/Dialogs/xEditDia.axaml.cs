@@ -73,9 +73,9 @@ public partial class xEditDia : Window
     private void CloseKey(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
-        {
             this.Close();
-        }
+        else if (e.Key == Key.Enter)
+            OnEditProject(sender, e);
     }
 
 }

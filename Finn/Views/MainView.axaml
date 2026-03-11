@@ -308,7 +308,7 @@
 					</Button.Flyout>
 				</Button>
 
-				<Button ToolTip.Tip="Category" Height="28" Width="28" Padding="0">
+				<Button Name="CategoryButton" ToolTip.Tip="Category" Height="28" Width="28" Padding="0">
 					<ic:SymbolIcon Symbol="Folder" IconVariant="Regular" FontSize="15"/>
 					<Button.Flyout>
 						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
@@ -325,7 +325,7 @@
 					</Button.Flyout>
 				</Button>
 
-				<Button ToolTip.Tip="Collection" Height="28" Width="28" Padding="0">
+				<Button Name="CollectionButton" ToolTip.Tip="Collection" Height="28" Width="28" Padding="0">
 					<ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/>
 					<Button.Flyout>
 						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
