@@ -488,6 +488,17 @@ namespace Finn.ViewModels
                 }
             }
 
+            public void ReplaceFilePath(string newPath, bool fileExists)
+            {
+                if (CurrentFile == null || string.IsNullOrWhiteSpace(newPath))
+                    return;
+
+                CurrentFile.Sökväg = newPath;
+                CurrentFile.Namn = System.IO.Path.GetFileNameWithoutExtension(newPath);
+                CurrentFile.IsFileMissing = !fileExists;
+                MarkDirty();
+            }
+
 
             public void MoveSelectedFiles(ProjectData project)
             {

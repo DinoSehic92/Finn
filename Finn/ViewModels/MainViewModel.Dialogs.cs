@@ -134,6 +134,21 @@ namespace Finn.ViewModels
                 window.NewNameInput.Focus();
             }
 
+            public async Task OpenReplaceDia(Window mainWindow)
+            {
+                if (CurrentFile == null) return;
+
+                var window = new xReplaceDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetCurrentPath(CurrentFile.Sökväg);
+                await window.ShowDialog(mainWindow);
+
+                if (window.Accepted && !string.IsNullOrWhiteSpace(window.NewPath))
+                {
+                    ReplaceFilePath(window.NewPath, window.FileExists);
+                }
+            }
+
             public async Task OpenMessageDia(Window mainWindow)
             {
                 var window = new xMessageDia();
