@@ -51,6 +51,8 @@ public partial class xColorDia : Window
         {
             // ignore save errors
         }
+
+        this.Close();
     }
 
     public void ResetDark(object sender, RoutedEventArgs e)

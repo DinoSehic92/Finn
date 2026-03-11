@@ -113,6 +113,7 @@ public partial class MainView : UserControl
     {
         _ctx = (MainViewModel)DataContext!;
         _pwr = _ctx.PreviewVM;
+        _pwr.DarkMode = _ctx.UI.PreviewDarkMode;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
 
@@ -748,7 +749,13 @@ public partial class MainView : UserControl
 
     private void EditColor(object? sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem { Tag: string color })
+        string? color = sender switch
+        {
+            MenuItem { Tag: string c } => c,
+            Button { Tag: string c } => c,
+            _ => null
+        };
+        if (color != null)
             _ctx.AddColor(color);
 
         FileGrid.SelectedItem = null;
@@ -757,9 +764,15 @@ public partial class MainView : UserControl
 
     private void EditType(object? sender, RoutedEventArgs e)
     {
-        if (sender is MenuItem menuItem && menuItem.SelectedItem != null)
+        string? type = sender switch
         {
-            _ctx.EditType(menuItem.SelectedItem.ToString()!);
+            MenuItem menuItem when menuItem.SelectedItem != null => menuItem.SelectedItem.ToString(),
+            Button { Content: string c } => c,
+            _ => null
+        };
+        if (type != null)
+        {
+            _ctx.EditType(type);
             _ctx.BuildTreeData();
         }
     }
@@ -1039,8 +1052,14 @@ public partial class MainView : UserControl
 
     private void OnAddToCollection(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is MenuItem { Header: string header } && header != "Collection")
-            _ctx.Collections.AddFileToCollection(header);
+        string? name = sender switch
+        {
+            MenuItem { Header: string h } when h != "Collection" => h,
+            Button { Content: string c } => c,
+            _ => null
+        };
+        if (name != null)
+            _ctx.Collections.AddFileToCollection(name);
     }
 
     #endregion

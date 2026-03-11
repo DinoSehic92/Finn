@@ -58,6 +58,8 @@ namespace Finn.ViewModels
             TreeViewWidth = Defaults.DefaultTreeViewWidth;
 
             // View visibility flags persisted in UI settings
+            ShowActionBar = false;
+            PreviewDarkMode = false;
             TreeViewOpen = true;
             CalendarOpen = false;
             TimeSheetOpen = false;
@@ -82,8 +84,14 @@ namespace Finn.ViewModels
         private bool showFolders;
         public bool ShowFolders { get => showFolders; set { showFolders = value; RaisePropertyChanged(nameof(ShowFolders)); } }
 
+        private bool showActionBar;
+        public bool ShowActionBar { get => showActionBar; set { showActionBar = value; RaisePropertyChanged(nameof(ShowActionBar)); } }
+
         private bool showThumbnails;
         public bool ShowThumbnails { get => showThumbnails; set { showThumbnails = value; RaisePropertyChanged(nameof(ShowThumbnails)); } }
+
+        private bool previewDarkMode;
+        public bool PreviewDarkMode { get => previewDarkMode; set { previewDarkMode = value; RaisePropertyChanged(nameof(PreviewDarkMode)); } }
 
         private Color color1;
         public Color Color1 { get => color1; set { color1 = value; RaisePropertyChanged(nameof(Color1)); } }
@@ -221,6 +229,8 @@ namespace Finn.ViewModels
                 ShowFolders = this.ShowFolders,
                 ShowThumbnails = this.ShowThumbnails,
                 TrayViewOpen = this.TrayViewOpen,
+                ShowActionBar = this.ShowActionBar,
+                PreviewDarkMode = this.PreviewDarkMode,
                 TreeViewWidth = this.TreeViewWidth
             };
         }
@@ -261,6 +271,8 @@ namespace Finn.ViewModels
                 this.ShowFolders = ui.ShowFolders;
                 this.ShowThumbnails = ui.ShowThumbnails;
                 this.TrayViewOpen = ui.TrayViewOpen;
+                this.ShowActionBar = ui.ShowActionBar;
+                this.PreviewDarkMode = ui.PreviewDarkMode;
                 if (ui.TreeViewWidth >= 250 && ui.TreeViewWidth <= 350)
                     this.TreeViewWidth = ui.TreeViewWidth;
             }

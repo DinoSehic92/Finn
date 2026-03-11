@@ -31,6 +31,7 @@ public partial class App : Application
             {
                 DataContext = vm
             };
+            desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {

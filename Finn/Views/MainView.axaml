@@ -241,20 +241,96 @@
 				</StackPanel>
 		</StackPanel>
 
-		<!-- Center search bar -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0">
-				<Grid ColumnDefinitions="*,30,30">
-					<Border Classes="shadow">
-						<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
-							<TextBox.InnerRightContent>
-								<Button Click="OnClearSearch" Height="20" Width="20" Padding="0" Margin="0,0,4,0"
-										ToolTip.Tip="Clear Search" IsVisible="{Binding IsSearchResult}"
-										Background="Transparent" BorderThickness="0">
-									<ic:SymbolIcon Symbol="Dismiss" IconVariant="Regular" FontSize="12"/>
+		<!-- Center search bar with optional action bar -->
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0" Spacing="2">
+
+			<!-- Action bar (toggled via UI.ShowActionBar) -->
+			<StackPanel Orientation="Horizontal" Spacing="1" IsVisible="{Binding UI.ShowActionBar}" VerticalAlignment="Center">
+				<Button ToolTip.Tip="Open PDF"        Height="28" Width="28" Padding="0" Command="{Binding OpenFile}">
+					<ic:SymbolIcon Symbol="DocumentPdf" IconVariant="Regular" FontSize="15"/>
+				</Button>
+				<Button ToolTip.Tip="Open Folder"     Height="28" Width="28" Padding="0" Command="{Binding OpenPath}">
+					<ic:SymbolIcon Symbol="FolderOpen" IconVariant="Regular" FontSize="15"/>
+				</Button>
+
+				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
+
+				<Button ToolTip.Tip="Copy Name"       Height="28" Width="28" Padding="0" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}">
+					<ic:SymbolIcon Symbol="ClipboardText" IconVariant="Regular" FontSize="15"/>
+				</Button>
+
+				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
+
+				<Button ToolTip.Tip="Color Tag" Height="28" Width="28" Padding="0">
+					<ic:SymbolIcon Symbol="Color" IconVariant="Regular" FontSize="15"/>
+					<Button.Flyout>
+						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
+							<StackPanel Orientation="Horizontal" Spacing="2" Margin="2">
+								<Button Width="24" Height="24" Background="#E5A820" Opacity="0.7" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Background="#E06830" Opacity="0.7" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Background="#9C6B3C" Opacity="0.7" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Background="#3DA35F" Opacity="0.7" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Background="#3B82D9" Opacity="0.7" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Background="#D64045" Opacity="0.7" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Background="#9B5FC0" Opacity="0.7" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0"/>
+								<Button Width="24" Height="24" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0">
+									<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
 								</Button>
-							</TextBox.InnerRightContent>
-						</TextBox>
-					</Border>
+							</StackPanel>
+						</Flyout>
+					</Button.Flyout>
+				</Button>
+
+				<Button ToolTip.Tip="Category" Height="28" Width="28" Padding="0">
+					<ic:SymbolIcon Symbol="Folder" IconVariant="Regular" FontSize="15"/>
+					<Button.Flyout>
+						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
+							<ItemsControl ItemsSource="{Binding CurrentProject.AllowedTypes}" Margin="4">
+								<ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Button Content="{Binding}" Click="EditType" HorizontalAlignment="Stretch"
+												Height="26" MinHeight="0" FontSize="13" Padding="8,2"
+												HorizontalContentAlignment="Left"/>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</Flyout>
+					</Button.Flyout>
+				</Button>
+
+				<Button ToolTip.Tip="Collection" Height="28" Width="28" Padding="0">
+					<ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/>
+					<Button.Flyout>
+						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
+							<ItemsControl ItemsSource="{Binding Storage.Collections}" Margin="4">
+								<ItemsControl.ItemTemplate>
+									<DataTemplate>
+										<Button Content="{Binding}" Click="OnAddToCollection" HorizontalAlignment="Stretch"
+												Height="26" MinHeight="0" FontSize="13" Padding="8,2"
+												HorizontalContentAlignment="Left"/>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</Flyout>
+					</Button.Flyout>
+				</Button>
+
+				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
+			</StackPanel>
+
+			<!-- Search bar -->
+			<Grid ColumnDefinitions="*,30,30">
+				<Border Classes="shadow">
+					<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
+						<TextBox.InnerRightContent>
+							<Button Click="OnClearSearch" Height="20" Width="20" Padding="0" Margin="0,0,4,0"
+									ToolTip.Tip="Clear Search" IsVisible="{Binding IsSearchResult}"
+									Background="Transparent" BorderThickness="0">
+								<ic:SymbolIcon Symbol="Dismiss" IconVariant="Regular" FontSize="12"/>
+							</Button>
+						</TextBox.InnerRightContent>
+					</TextBox>
+				</Border>
 				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
@@ -277,16 +353,19 @@
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
 			<!-- View group -->
-			<ToggleButton ToolTip.Tip="Thumbnails (Ctrl+T)"      HotKey="Ctrl+T" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowThumbnails}">     <ic:SymbolIcon Symbol="Image"                             FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Preview Window (Ctrl+W)"  HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Embedded Preview (Ctrl+P)" HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Icons (Ctrl+I)"           HotKey="Ctrl+I" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowIcons}"><ic:SymbolIcon Symbol="Icons"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-            <!-- Settings & tools group -->
-			<ToggleButton ToolTip.Tip="Dark / Light Mode (Ctrl+M)" HotKey="Ctrl+M" Height="30" Width="35" Padding="0"                           IsChecked="{Binding !UI.DarkMode}"><ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<Button       ToolTip.Tip="UI Color"                                 Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Color" FontSize="18"/></Button>
+			<!-- Settings & tools group -->
+			<Button       ToolTip.Tip="UI Settings"                              Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Settings" FontSize="18"/></Button>
+
+			<!-- Hidden hotkey-only toggles (moved to UI Settings dialog) -->
+			<ToggleButton HotKey="Ctrl+B" IsChecked="{Binding UI.ShowActionBar}" IsVisible="False" Width="0" Height="0"/>
+			<ToggleButton HotKey="Ctrl+I" IsChecked="{Binding UI.ShowIcons}"     IsVisible="False" Width="0" Height="0"/>
+			<ToggleButton HotKey="Ctrl+M" IsChecked="{Binding !UI.DarkMode}"     IsVisible="False" Width="0" Height="0"/>
+			<ToggleButton HotKey="Ctrl+T" IsChecked="{Binding UI.ShowThumbnails}" IsVisible="False" Width="0" Height="0"/>
 
 			<!-- Toolbox: grouped tools (compact icon-only flyout) -->
 			<Button ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0">
@@ -321,6 +400,7 @@
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+W" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Preview Window" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+P" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Embedded Preview" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+I" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Icons" FontSize="13"/></Grid>
+											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+B" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Action Bar" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+M" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Dark / Light Mode" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+K" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Calendar" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Enter" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Search (in search box)" FontSize="13"/></Grid>
@@ -335,6 +415,8 @@
 					</Flyout>
 				</Button.Flyout>
 			</Button>
+
+			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
 			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 		</StackPanel>
