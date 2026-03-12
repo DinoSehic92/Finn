@@ -268,16 +268,16 @@ namespace Finn.ViewModels
 
                 if (matchesPerFolder.Count == 0) { folder.SyncedFileCount = 0; return; }
 
-                // Build delivery entries — one row per subfolder, auto-label from date or letter
+                // Build delivery entries — one row per subfolder, auto-label from date or letter.
+                // Multiple subfolders under the same date folder share the same label,
+                // which is fine — AddVersion allows duplicate labels on the same file.
                 var deliveries = new List<DeliveryFolderEntry>();
                 int letterIndex = 0;
 
                 foreach (var (dir, matches) in matchesPerFolder.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
                 {
-                    string folderName = new DirectoryInfo(dir).Name;
-                    string label = TryExtractDate(folderName, out string date)
-                        ? date
-                        : GetSequentialLabel(letterIndex++);
+                    string label = TryExtractDateFromPath(dir, folder.Path)
+                        ?? GetSequentialLabel(letterIndex++);
 
                     deliveries.Add(new DeliveryFolderEntry
                     {
@@ -295,7 +295,7 @@ namespace Finn.ViewModels
                     bool confirmed = await ShowDeliveryImportDialogAsync(mainWindow, deliveries);
                     if (confirmed)
                     {
-                        foreach (var delivery in deliveries)
+                        foreach (var delivery in deliveries.Where(d => d.IsIncluded))
                         {
                             foreach (var (file, pdfPath) in delivery.MatchedFiles)
                             {
@@ -349,6 +349,32 @@ namespace Finn.ViewModels
 
                 date = string.Empty;
                 return false;
+            }
+
+            /// <summary>
+            /// Walks from <paramref name="dir"/> up the directory tree (stopping at
+            /// <paramref name="root"/>) looking for a folder name that contains a date.
+            /// Returns the date string or null when none is found.
+            /// </summary>
+            private static string? TryExtractDateFromPath(string dir, string? root)
+            {
+                for (int i = 0; i < 8 && !string.IsNullOrEmpty(dir); i++)
+                {
+                    string? folderName = Path.GetFileName(dir);
+                    if (string.IsNullOrEmpty(folderName)) break;
+
+                    if (TryExtractDate(folderName, out string date))
+                        return date;
+
+                    // Don't walk above the configured root folder
+                    if (root != null && string.Equals(dir, root, StringComparison.OrdinalIgnoreCase))
+                        break;
+
+                    string? parent = Path.GetDirectoryName(dir);
+                    if (parent == dir) break;
+                    dir = parent;
+                }
+                return null;
             }
 
             [GeneratedRegex(@"\d{4}-\d{2}-\d{2}")]

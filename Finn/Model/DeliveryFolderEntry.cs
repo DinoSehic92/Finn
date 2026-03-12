@@ -12,6 +12,7 @@ namespace Finn.Model
     public class DeliveryFolderEntry : INotifyPropertyChanged
     {
         private string _selectedLabel = "NEW";
+        private bool _isIncluded = true;
         private List<string>? _availableLabels;
 
         /// <summary>The full path of the delivery subfolder.</summary>
@@ -31,6 +32,18 @@ namespace Finn.Model
 
         /// <summary>Display string: "42 of 120".</summary>
         public string MatchSummary => $"{MatchedCount} of {TotalProjectFiles}";
+
+        /// <summary>Whether this folder is included in the import.</summary>
+        public bool IsIncluded
+        {
+            get => _isIncluded;
+            set
+            {
+                if (_isIncluded == value) return;
+                _isIncluded = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsIncluded)));
+            }
+        }
 
         /// <summary>
         /// Available labels for the ComboBox: the auto-detected label (date or letter)

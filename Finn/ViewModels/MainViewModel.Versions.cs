@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Input;
 using Finn.Model;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows.Input;
@@ -114,18 +115,28 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Attempts to extract a date from the parent folder name of the selected
-        /// version and applies it as the label. Useful when the user has renamed a
-        /// label and wants to restore the original date-based label from import.
+        /// Attempts to extract a date from the folder hierarchy of the selected
+        /// version and applies it as the label. Walks up the directory tree
+        /// checking each folder name for an embedded date, stopping at the
+        /// configured version folder root so it never picks up dates from
+        /// unrelated parent directories.
         /// </summary>
         public void LabelVersionFromFolderDate()
         {
             if (CurrentFile == null || SelectedVersion == null) return;
+            if (string.IsNullOrEmpty(SelectedVersion.Sökväg)) return;
 
-            string dirName = Path.GetFileName(SelectedVersion.DirectoryPath);
-            if (string.IsNullOrEmpty(dirName)) return;
+            string? dir = Path.GetDirectoryName(SelectedVersion.Sökväg);
+            if (string.IsNullOrEmpty(dir)) return;
 
-            if (TryExtractDate(dirName, out string date))
+            // Find the version folder root that contains this file
+            string? root = CurrentProject?.Folders
+                .Where(f => f.Types == VERSIONS_TYPE && !string.IsNullOrEmpty(f.Path))
+                .FirstOrDefault(f => SelectedVersion.Sökväg.StartsWith(f.Path, StringComparison.OrdinalIgnoreCase))
+                ?.Path;
+
+            string? date = TryExtractDateFromPath(dir, root);
+            if (date != null)
             {
                 CurrentFile.SetVersionLabel(SelectedVersion, date);
                 MarkDirty();

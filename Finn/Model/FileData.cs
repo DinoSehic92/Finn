@@ -574,44 +574,17 @@ namespace Finn.Model
             _versions.Add(new FileVersionData
             {
                 Sökväg = filepath,
-                Label = ResolveUniqueLabel(label),
+                Label = label,
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
             SortVersions();
         }
 
-        /// <summary>
-        /// Assigns <paramref name="label"/> to <paramref name="version"/>, resolving any
-        /// conflict with sibling versions so no two versions share the same label.
-        /// </summary>
         public void SetVersionLabel(FileVersionData version, string label)
         {
             if (!_versions.Contains(version))
                 return;
-            version.Label = ResolveUniqueLabel(label, exclude: version);
-        }
-
-        /// <summary>
-        /// Returns <paramref name="label"/> if unused (ignoring <paramref name="exclude"/>),
-        /// otherwise finds the next unused label from <see cref="FileVersionData.VersionLabels"/>,
-        /// or appends a numeric suffix as a last resort (e.g. "NEW 2", "NEW 3").
-        /// </summary>
-        private string ResolveUniqueLabel(string label, FileVersionData? exclude = null)
-        {
-            if (!_versions.Any(v => v != exclude && v.Label == label))
-                return label;
-
-            foreach (string candidate in FileVersionData.VersionLabels)
-            {
-                if (!_versions.Any(v => v != exclude && v.Label == candidate))
-                    return candidate;
-            }
-
-            int n = 2;
-            string unique;
-            do { unique = $"{label} {n++}"; }
-            while (_versions.Any(v => v != exclude && v.Label == unique));
-            return unique;
+            version.Label = label;
         }
 
         private bool _sortingVersions;

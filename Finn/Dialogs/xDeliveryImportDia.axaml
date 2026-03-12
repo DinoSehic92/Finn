@@ -62,9 +62,17 @@
 				</Style>
 			</DataGrid.Styles>
 			<DataGrid.Columns>
-				<DataGridTextColumn Header="Delivery Folder" Binding="{ReflectionBinding FolderName}" Width="3*" IsReadOnly="True"/>
-				<DataGridTextColumn Header="Matched" Binding="{ReflectionBinding MatchSummary}" Width="Auto" IsReadOnly="True"/>
-				<DataGridTemplateColumn Header="Label" Width="2*" MinWidth="160">
+					<DataGridTemplateColumn Header="" Width="40" MinWidth="40">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate x:DataType="model:DeliveryFolderEntry">
+								<CheckBox IsChecked="{Binding IsIncluded, Mode=TwoWay}"
+										  HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"/>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+					<DataGridTextColumn Header="Delivery Folder" Binding="{ReflectionBinding FolderName}" Width="3*" IsReadOnly="True"/>
+					<DataGridTextColumn Header="Matched" Binding="{ReflectionBinding MatchSummary}" Width="Auto" IsReadOnly="True"/>
+					<DataGridTemplateColumn Header="Label" Width="2*" MinWidth="160">
 					<DataGridTemplateColumn.CellTemplate>
 						<DataTemplate x:DataType="model:DeliveryFolderEntry">
 							<ComboBox ItemsSource="{Binding AvailableLabels}"
