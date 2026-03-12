@@ -190,10 +190,11 @@ namespace Finn.ViewModels
             var children = new List<TreeNodeData>();
             Color? foreground = project.Foreground != DefaultForeground ? project.Foreground : null;
             bool isCurrent = project == CurrentProject;
+            var topLevel = project.StoredFiles.Where(f => !f.IsAppendedFile);
 
-            foreach (string filetype in project.StoredFiles.Select(x => x.Filtyp).Distinct())
+            foreach (string filetype in topLevel.Select(x => x.Filtyp).Distinct())
             {
-                int count = project.StoredFiles.Count(x => x.Filtyp == filetype);
+                int count = topLevel.Count(x => x.Filtyp == filetype);
 
                 var child = new TreeNodeData
                 {

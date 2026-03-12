@@ -45,14 +45,17 @@ namespace Finn.ViewModels
                             if (folder.Types == PDF_TYPE)
                             {
                                 string folderPath = folder.Path;
-                                var removed = file.AppendedFiles.Where(x => x.SyncFolder == folderPath).ToList();
+                                var removed = CurrentProject.StoredFiles
+                                    .Where(x => x.ParentNamn == file.Namn && x.SyncFolder == folderPath)
+                                    .ToList();
                                 foreach (var r in removed)
                                 {
                                     r.PartOfCollections.Clear();
+                                    r.ParentNamn = string.Empty;
                                     r.ParentFile = null;
+                                    CurrentProject.StoredFiles.Remove(r);
                                 }
-                                file.AppendedFiles.ReplaceAll(
-                                    file.AppendedFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Namn));
+                                CurrentProject.RefreshHasChildren();
                             }
 
                             if (folder.Types == OTHER_FILES_TYPE)
@@ -111,16 +114,24 @@ namespace Finn.ViewModels
 
                         if (folder.Types == PDF_TYPE)
                         {
-                            var remaining = file.AppendedFiles.Where(x => x.SyncFolder != folder.Path);
+                            // Remove old synced appended files for this folder
+                            var oldSynced = CurrentProject.StoredFiles
+                                .Where(x => x.ParentNamn == file.Namn && x.SyncFolder == folder.Path)
+                                .ToList();
+                            foreach (var old in oldSynced)
+                                CurrentProject.StoredFiles.Remove(old);
+
                             var newFiles = GetFilesFromFolder(folder);
                             foreach (var f in newFiles)
                             {
+                                f.ParentNamn = file.Namn;
                                 f.ParentFile = file;
                                 f.Uppdrag = file.Uppdrag;
                                 f.Filtyp = file.Filtyp;
                             }
                             count = newFiles.Count;
-                            file.AppendedFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Namn));
+                            CurrentProject.StoredFiles.AddRange(newFiles);
+                            CurrentProject.RefreshHasChildren();
                         }
 
                         if (folder.Types == OTHER_FILES_TYPE)
@@ -158,7 +169,7 @@ namespace Finn.ViewModels
                         if (CurrentProject.StoredFiles.Any(x => x.Sökväg == file.Sökväg))
                             continue;
 
-                        var existing = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == file.Namn);
+                        var existing = CurrentProject.StoredFiles.FirstOrDefault(x => !x.IsAppendedFile && x.Namn == file.Namn);
                         if (existing != null)
                         {
                             versionCandidates.Add(new VersionImportEntry
@@ -227,7 +238,7 @@ namespace Finn.ViewModels
 
                 // Build a lookup of existing files by name for O(1) matching
                 var filesByName = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
-                foreach (var file in CurrentProject.StoredFiles)
+                foreach (var file in CurrentProject.StoredFiles.Where(f => !f.IsAppendedFile))
                     filesByName.TryAdd(file.Namn, file);
 
                 int totalProjectFiles = CurrentProject.StoredFiles.Count;

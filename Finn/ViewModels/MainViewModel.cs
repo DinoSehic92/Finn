@@ -188,7 +188,7 @@ namespace Finn.ViewModels
                 set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }
             }
 
-            public int NrFilteredFiles => FilteredFiles?.Count ?? 0;
+            public int NrFilteredFiles => FilteredFiles?.Count(f => !f.IsAppendedFile) ?? 0;
             public int NrSelectedFiles => CurrentFiles?.Count ?? 0;
 
             private IList<FileData> currentFiles = null;
@@ -205,13 +205,22 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(NrSelectedFiles));
                     OnPropertyChanged(nameof(FileSelected));
                     OnPropertyChanged(nameof(AllSelectedFilesHaveVersions));
+                    OnPropertyChanged(nameof(SelectedFileIsTopLevel));
                 }
             }
 
             public FileData CurrentFile => CurrentFiles?.LastOrDefault();
             public bool FileSelected => CurrentFile != null;
+
             public bool AllSelectedFilesHaveVersions =>
                 CurrentFiles != null && CurrentFiles.Count > 0 && CurrentFiles.All(f => f.HasVersions);
+
+            /// <summary>
+            /// True when the current selection is a top-level file (not an appended child).
+            /// Used to hide context menu items that don't apply to appended files.
+            /// </summary>
+            public bool SelectedFileIsTopLevel =>
+                CurrentFile != null && !CurrentFile.IsAppendedFile;
 
             private FileVersionData? selectedVersion;
             /// <summary>
@@ -389,7 +398,7 @@ namespace Finn.ViewModels
                 ("Ctrl+S", "Save"),
                 ("Ctrl+Q", "Toggle Treeview"),
                 ("Ctrl+E", "Toggle Tray"),
-                ("Ctrl+A", "Toggle Attached Files"),
+                ("Ctrl+A", "Toggle Other Files"),
                 ("Ctrl+L", "Toggle Folders"),
                 ("Ctrl+T", "Toggle Thumbnails"),
                 ("Ctrl+W", "Toggle Preview Window"),

@@ -81,6 +81,9 @@ namespace Finn.ViewModels
                 // and wire ParentFile back-references for appended files.
                 foreach (var project in Storage.StoredProjects)
                 {
+                    // Migrate legacy nested AppendedFiles into the flat StoredFiles list.
+                    project.FlattenAppendedFiles();
+
                     foreach (var file in project.StoredFiles)
                     {
                         if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
@@ -100,15 +103,19 @@ namespace Finn.ViewModels
                             }
                         }
 
-                        foreach (var appended in file.AppendedFiles)
+                        // Inherit parent metadata for appended files that are missing it
+                        if (file.IsAppendedFile && file.ParentFile is { } parent)
                         {
-                            appended.ParentFile = file;
-                            if (string.IsNullOrEmpty(appended.Uppdrag))
-                                appended.Uppdrag = file.Uppdrag;
-                            if (string.IsNullOrEmpty(appended.Filtyp))
-                                appended.Filtyp = file.Filtyp;
+                            if (string.IsNullOrEmpty(file.Uppdrag))
+                                file.Uppdrag = parent.Uppdrag;
+                            if (string.IsNullOrEmpty(file.Filtyp))
+                                file.Filtyp = parent.Filtyp;
                         }
                     }
+
+                    // Resolve ParentFile back-references from the serialized ParentNamn field.
+                    project.WireParentReferences();
+                    project.RefreshHasChildren();
                 }
 
                 SetProjectlist();

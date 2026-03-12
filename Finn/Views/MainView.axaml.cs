@@ -47,10 +47,6 @@ public partial class MainView : UserControl
         CollectionContent.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
         CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectFavorite);
 
-        AppendixGrid.AddHandler(DragDrop.DropEvent, OnDropAppendedFiles);
-        AppendixGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenAppendedFile);
-        AppendixGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestAppendedFiles);
-
         OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
         OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
 
@@ -168,7 +164,7 @@ public partial class MainView : UserControl
                 UpdateEmptyState();
                 break;
             case nameof(MainViewModel.CurrentFile):
-                UpdateAttachedEmptyState();
+                UpdateOtherFilesEmptyState();
                 break;
         }
     }
@@ -254,19 +250,11 @@ public partial class MainView : UserControl
         UpdateEmptyState();
     }
 
-    private async void OnDropAppendedFiles(object? sender, DragEventArgs e)
-    {
-        var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
-        await _ctx.AddDroppedAppendedFilesAsync(files, folders);
-        UpdateAttachedEmptyState();
-        UpdateFolderEmptyState();
-    }
-
     private async void OnDropOtherFiles(object? sender, DragEventArgs e)
     {
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
         await _ctx.AddDroppedOtherFilesAsync(files, folders);
-        UpdateAttachedEmptyState();
+        UpdateOtherFilesEmptyState();
         UpdateFolderEmptyState();
     }
 
@@ -327,8 +315,6 @@ public partial class MainView : UserControl
 
         // FileGrid accepts PDFs and folders (folders are synced to project)
         SetDropHintActive(DropOverlay, hasPdf || hasFolder);
-        // AppendixGrid accepts PDFs and folders
-        SetDropHintActive(AppendixDropOverlay, hasPdf || hasFolder);
         // OtherFilesGrid accepts any file type and folders
         SetDropHintActive(OtherFilesDropOverlay, hasPdf || hasNonPdfFile || hasFolder);
     }
@@ -346,7 +332,6 @@ public partial class MainView : UserControl
     private void HideAllDropOverlays()
     {
         SetDropHintActive(DropOverlay, false);
-        SetDropHintActive(AppendixDropOverlay, false);
         SetDropHintActive(OtherFilesDropOverlay, false);
     }
 
@@ -367,17 +352,13 @@ public partial class MainView : UserControl
         bool empty = _ctx.FilteredFiles == null || _ctx.FilteredFiles.Count == 0;
         EmptyStateHint.IsVisible = empty;
 
-        UpdateAttachedEmptyState();
+        UpdateOtherFilesEmptyState();
         UpdateFolderEmptyState();
     }
 
-    private void UpdateAttachedEmptyState()
+    private void UpdateOtherFilesEmptyState()
     {
         var file = _ctx.CurrentFile;
-
-        bool appendixEmpty = file?.AppendedFiles == null || file.AppendedFiles.Count == 0;
-        AppendixEmptyHint.IsVisible = appendixEmpty;
-
         bool otherEmpty = file?.OtherFiles == null || file.OtherFiles.Count == 0;
         OtherFilesEmptyHint.IsVisible = otherEmpty;
     }
@@ -427,23 +408,6 @@ public partial class MainView : UserControl
         _pwr.AddRecentFile(file);
     }
 
-    private bool _suppressAppendixRecent;
-
-    private void SetPreviewRequestAppendedFiles(object? sender, RoutedEventArgs r)
-    {
-        // Clear the flag first — even for deferred events that arrive
-        // after _isUpdatingSelection has been reset to false.
-        bool suppress = _suppressAppendixRecent;
-        _suppressAppendixRecent = false;
-
-        if (_isUpdatingSelection) return;
-        ClearOtherGridSelections(AppendixGrid);
-        var file = AppendixGrid.SelectedItem as FileData;
-        RequestPreview(file);
-        if (!suppress)
-            _pwr.AddRecentFile(file);
-    }
-
     private async void RequestPreview(FileData? file)
     {
         if (_pwr.DualFileMode) return;
@@ -471,7 +435,6 @@ public partial class MainView : UserControl
         {
             if (active != FileGrid)        FileGrid.SelectedItem = null;
             if (active != CollectionContent) CollectionContent.SelectedItem = null;
-            if (active != AppendixGrid)    AppendixGrid.SelectedItem = null;
             if (active != RecentGrid)      RecentGrid.SelectedItem = null;
         }
         finally
@@ -538,22 +501,10 @@ public partial class MainView : UserControl
         _ctx.OpenFile();
     }
 
-    private void OnOpenAppendedFile(object? sender, RoutedEventArgs e)
-    {
-        if (AppendixGrid.SelectedItem is FileData file)
-            _ctx.OpenFileDirect(file.Sökväg);
-    }
-
     private void OnOpenOtherFile(object? sender, RoutedEventArgs e)
     {
         if (OtherFilesGrid.SelectedItem is OtherData file)
             _ctx.OpenFileDirect(file.Filepath);
-    }
-
-    private void OnOpenAppendedFolder(object? sender, RoutedEventArgs e)
-    {
-        if (AppendixGrid.SelectedItem is FileData file)
-            _ctx.OpenPathDirect(file.Sökväg);
     }
 
     private void OnOpenOtherFolder(object? sender, RoutedEventArgs e)
@@ -585,24 +536,23 @@ public partial class MainView : UserControl
 
         if (_ctx.Confirmed)
         {
+            // Capture the parent before removal so we can re-select it
+            var parentToSelect = _ctx.CurrentFile?.IsAppendedFile == true
+                ? _ctx.CurrentFile.ParentFile
+                : null;
+
             _ctx.RemoveSelectedFiles();
             _ctx.UpdateFilter();
             _ctx.BuildTreeData();
-        }
-    }
 
-    private async void OnRemoveAttachedFile(object? sender, RoutedEventArgs e)
-    {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        await _ctx.ConfirmDeleteDia(window);
-
-        if (_ctx.Confirmed)
+            // Keep the parent selected so the expansion doesn't collapse
+            if (parentToSelect != null && _ctx.FilteredFiles.Contains(parentToSelect))
             {
-                var files = AppendixGrid.SelectedItems.Cast<FileData>().ToList();
-                _ctx.RemoveAttachedFile(files);
-                UpdateAttachedEmptyState();
+                FileGrid.SelectedItem = parentToSelect;
+                FileGrid.ScrollIntoView(parentToSelect, null);
             }
         }
+    }
 
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)
     {
@@ -612,7 +562,7 @@ public partial class MainView : UserControl
         if (_ctx.Confirmed && OtherFilesGrid.SelectedItem is OtherData file)
         {
             _ctx.RemoveOtherFile(file);
-            UpdateAttachedEmptyState();
+            UpdateOtherFilesEmptyState();
         }
     }
 
@@ -629,6 +579,47 @@ public partial class MainView : UserControl
             _ctx.MarkDirty();
             _ctx.BuildTreeData();
         }
+    }
+
+    private async void OnAttachFiles(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsAppendedFile) return;
+
+        var parentName = _ctx.CurrentFile.Namn;
+        var existing = _ctx.CurrentProject.StoredFiles
+            .Where(f => f.ParentNamn == parentName)
+            .OrderBy(f => f.Namn);
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var dialog = new Finn.Dialogs.xAttachDia
+        {
+            DataContext = _ctx,
+            FontFamily = window.FontFamily,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        dialog.RequestedThemeVariant = window.ActualThemeVariant;
+        dialog.SetParentFile(parentName, existing);
+        await dialog.ShowDialog(window);
+
+        if (!dialog.Confirmed) return;
+
+        foreach (string path in dialog.AcceptedFiles)
+            _ctx.AddAppendedFile(path);
+
+        foreach (string folderPath in dialog.AcceptedFolders)
+        {
+            _ctx.NewFileFolder();
+            var folder = _ctx.CurrentProject.Folders.LastOrDefault();
+            if (folder != null)
+            {
+                folder.Path = folderPath;
+                folder.Name = System.IO.Path.GetFileName(folderPath) ?? "Attached";
+                await _ctx.SyncFolderAsync(folder);
+            }
+        }
+
+        _ctx.UpdateFilter();
+        UpdateFolderEmptyState();
     }
 
     private void OnOpenFolderPath(object? sender, RoutedEventArgs e)
@@ -721,17 +712,20 @@ public partial class MainView : UserControl
             var target = files.FirstOrDefault();
             if (target == null) return;
 
-            if (target.ParentFile is { } parent)
+            if (target.IsAppendedFile && target.ParentFile is { } parent)
             {
-                // Navigate to the parent's project so it appears in the main grid
                 _ctx.SelectAndNavigateFiles([parent]);
                 SelectInFileGrid(parent, addRecent: false);
 
-                // Preview the appended file and select it in the AppendixGrid
+                // Expand the parent so the appended file is visible, then select it
+                if (!parent.IsExpanded)
+                {
+                    parent.IsExpanded = true;
+                    _ctx.UpdateFilter();
+                }
                 RequestPreview(target);
                 _pwr.AddRecentFile(target);
-                _suppressAppendixRecent = true;
-                AppendixGrid.SelectedItem = target;
+                FileGrid.SelectedItem = target;
             }
             else
             {
@@ -756,14 +750,18 @@ public partial class MainView : UserControl
             var target = files.FirstOrDefault();
             if (target == null) return;
 
-            if (target.ParentFile is { } parent)
+            if (target.IsAppendedFile && target.ParentFile is { } parent)
             {
                 _ctx.SelectAndNavigateFiles([parent]);
                 SelectInFileGrid(parent, addRecent: false);
 
+                if (!parent.IsExpanded)
+                {
+                    parent.IsExpanded = true;
+                    _ctx.UpdateFilter();
+                }
                 RequestPreview(target);
-                _suppressAppendixRecent = true;
-                AppendixGrid.SelectedItem = target;
+                FileGrid.SelectedItem = target;
             }
             else
             {
@@ -853,14 +851,14 @@ public partial class MainView : UserControl
 
     private async void OnViewLeft(object? sender, RoutedEventArgs e)
     {
-        var file = (FileGrid.SelectedItem ?? AppendixGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
+        var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
         if (file != null)
             await _ctx.RequestPreviewLeftAsync(file);
     }
 
     private async void OnViewRight(object? sender, RoutedEventArgs e)
     {
-        var file = (FileGrid.SelectedItem ?? AppendixGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
+        var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
         if (file != null)
             await _ctx.RequestPreview2Async(file);
     }
@@ -1165,19 +1163,6 @@ public partial class MainView : UserControl
             CollectionButton.Flyout?.Hide();
     }
 
-    private void OnAddAppendedToCollection(object? sender, RoutedEventArgs e)
-    {
-        string? name = sender switch
-        {
-            MenuItem { SelectedItem: string s } => s,
-            _ => null
-        };
-        if (name == null) return;
-        var files = AppendixGrid.SelectedItems.Cast<FileData>().ToList();
-        if (files.Count > 0)
-            _ctx.Collections.AddFilesToCollection(files, name);
-    }
-
     #endregion
 
 
@@ -1250,6 +1235,9 @@ public partial class MainView : UserControl
 
         if (isPlaceholder)
             row.Classes.Add("Placeholder");
+
+        if (data.IsAppendedFile)
+            row.Classes.Add("AppendedRow");
 
         if (!dotMode && !string.IsNullOrEmpty(data.Färg))
             row.Classes.Add(data.Färg);

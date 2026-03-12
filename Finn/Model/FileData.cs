@@ -24,9 +24,7 @@ namespace Finn.Model
         #region Construction
         public FileData()
         {
-            // Ensure we react to collection changes so icon/name caches update when items are added/removed.
             _favPages.CollectionChanged += FavPages_CollectionChanged;
-            _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
             _otherFiles.CollectionChanged += OtherFiles_CollectionChanged;
             _partOfCollections.CollectionChanged += PartOfCollections_CollectionChanged;
             _versions.CollectionChanged += Versions_CollectionChanged;
@@ -35,11 +33,6 @@ namespace Finn.Model
         private void FavPages_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             OnPropertyChanged(nameof(HasBookmarks));
-        }
-
-        private void AppendedFiles_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        {
-            OnPropertyChanged(nameof(HasAppendedFiles));
         }
 
         private void OtherFiles_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -128,10 +121,21 @@ namespace Finn.Model
         private ObservableCollection<FileVersionData> _versions = new();
         private string _currentVersion = string.Empty;
         private string _originalPath = string.Empty;
+        private string _parentNamn = string.Empty;
 
         /// <summary>
-        /// Back-reference to the parent file when this is an appended file.
-        /// Not serialized — wired up at load time and when appended files are added.
+        /// Name of the parent file this is attached to (serialized).
+        /// Empty for top-level project files.
+        /// </summary>
+        public string ParentNamn
+        {
+            get => _parentNamn;
+            set => SetProperty(ref _parentNamn, value);
+        }
+
+        /// <summary>
+        /// Back-reference to the parent <see cref="FileData"/> instance.
+        /// Not serialized — resolved at load time from <see cref="ParentNamn"/>.
         /// </summary>
         [JsonIgnore]
         public FileData? ParentFile { get; set; }
@@ -140,7 +144,7 @@ namespace Finn.Model
         /// True when this file is an appended child of another file.
         /// </summary>
         [JsonIgnore]
-        public bool IsAppendedFile => ParentFile != null;
+        public bool IsAppendedFile => !string.IsNullOrEmpty(_parentNamn);
 
         #endregion
 
@@ -295,23 +299,14 @@ namespace Finn.Model
 
         public bool HasBookmarks => _favPages.Count > 0;
 
+        /// <summary>
+        /// Legacy property retained for deserialization of old save files.
+        /// After <see cref="ProjectData.FlattenAppendedFiles"/> runs, this is always empty.
+        /// </summary>
         public BulkObservableCollection<FileData> AppendedFiles
         {
             get => _appendedFiles;
-            set
-            {
-                if (EqualityComparer<BulkObservableCollection<FileData>>.Default.Equals(_appendedFiles, value))
-                    return;
-
-                if (_appendedFiles != null)
-                    _appendedFiles.CollectionChanged -= AppendedFiles_CollectionChanged;
-
-                _appendedFiles = value ?? new BulkObservableCollection<FileData>();
-                _appendedFiles.CollectionChanged += AppendedFiles_CollectionChanged;
-
-                OnPropertyChanged(nameof(AppendedFiles));
-                OnPropertyChanged(nameof(HasAppendedFiles));
-            }
+            set => _appendedFiles = value ?? new BulkObservableCollection<FileData>();
         }
 
         public BulkObservableCollection<OtherData> OtherFiles
@@ -333,7 +328,41 @@ namespace Finn.Model
             }
         }
 
-        public bool HasAppendedFiles => _appendedFiles.Count > 0 || _otherFiles.Count > 0;
+        public bool HasAppendedFiles => _hasChildren || _otherFiles.Count > 0;
+
+        private bool _hasChildren;
+        /// <summary>
+        /// True when this file has appended children in the flat StoredFiles list.
+        /// Set by the ViewModel after load/add/remove operations.
+        /// </summary>
+        [JsonIgnore]
+        public bool HasChildren
+        {
+            get => _hasChildren;
+            set
+            {
+                if (_hasChildren == value) return;
+                _hasChildren = value;
+                OnPropertyChanged(nameof(HasChildren));
+                OnPropertyChanged(nameof(HasAppendedFiles));
+            }
+        }
+
+        private bool _isExpanded;
+        /// <summary>
+        /// True when this file's appended children are shown inline in the main grid.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set
+            {
+                if (_isExpanded == value) return;
+                _isExpanded = value;
+                OnPropertyChanged(nameof(IsExpanded));
+            }
+        }
 
         public string Note
         {

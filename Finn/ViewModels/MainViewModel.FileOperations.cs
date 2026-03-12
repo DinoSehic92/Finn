@@ -384,19 +384,28 @@ namespace Finn.ViewModels
 
             public void AddAppendedFile(string filepath, bool fromFolder = false)
             {
-                if (CurrentFile != null && !CurrentFile.AppendedFiles.Any(x => x.Sökväg == filepath))
+                if (CurrentFile != null && !CurrentProject.StoredFiles.Any(x =>
+                    x.ParentNamn == CurrentFile.Namn &&
+                    string.Equals(x.Sökväg, filepath, StringComparison.OrdinalIgnoreCase)))
                 {
-                    CurrentFile.AppendedFiles.Add(new FileData()
+                    var appended = new FileData()
                     {
                         Namn = System.IO.Path.GetFileNameWithoutExtension(filepath),
                         Sökväg = filepath,
                         IsFromFolder = fromFolder,
                         Uppdrag = CurrentFile.Uppdrag,
                         Filtyp = CurrentFile.Filtyp,
+                        ParentNamn = CurrentFile.Namn,
                         ParentFile = CurrentFile
-                    });
+                    };
 
-                    SortAttachedFiles();
+                    CurrentProject.StoredFiles.Add(appended);
+                    CurrentFile.HasChildren = true;
+                    if (!CurrentFile.IsExpanded)
+                    {
+                        CurrentFile.IsExpanded = true;
+                        UpdateFilter();
+                    }
                     MarkDirty();
                 }
             }
@@ -420,12 +429,14 @@ namespace Finn.ViewModels
                 foreach (FileData file in files)
                 {
                     file.PartOfCollections.Clear();
+                    file.ParentNamn = string.Empty;
                     file.ParentFile = null;
-                    CurrentFile.AppendedFiles.Remove(file);
+                    CurrentProject.StoredFiles.Remove(file);
                 }
 
+                CurrentProject.RefreshHasChildren();
+                UpdateFilter();
                 Collections.SetCollectionContent();
-                SortAttachedFiles();
                 MarkDirty();
             }
 
@@ -437,19 +448,6 @@ namespace Finn.ViewModels
                     SortOtherFiles();
                     MarkDirty();
                 }
-            }
-
-            private void SortAttachedFiles()
-            {
-                if (CurrentFile != null)
-                {
-                    SortAttachedFilesDirect(CurrentFile);
-                }
-            }
-
-            private void SortAttachedFilesDirect(FileData file)
-            {
-                file.AppendedFiles.ReplaceAll(file.AppendedFiles.OrderBy(x => x.Namn));
             }
 
             private void SortOtherFiles()
@@ -506,18 +504,30 @@ namespace Finn.ViewModels
                 {
                     foreach (FileData file in CurrentFiles.ToList())
                     {
+                        // Skip appended files — they move with their parent
+                        if (file.IsAppendedFile) continue;
 
                         if (!project.StoredFiles.Contains(file))
                         {
+                            // Move children along with the parent
+                            var children = CurrentProject.StoredFiles
+                                .Where(x => x.ParentNamn == file.Namn).ToList();
+                            foreach (var child in children)
+                            {
+                                CurrentProject.StoredFiles.Remove(child);
+                                child.Uppdrag = project.Namn;
+                                project.StoredFiles.Add(child);
+                            }
+
                             CurrentProject.StoredFiles.Remove(file);
                             file.Filtyp = "New";
                             file.Uppdrag = project.Namn;
-                            foreach (var appended in file.AppendedFiles)
-                                appended.Uppdrag = project.Namn;
                             project.StoredFiles.Add(file);
                         }
                     }
 
+                    CurrentProject.RefreshHasChildren();
+                    project.RefreshHasChildren();
                     UpdateFilter();
                     MarkDirty();
                 }

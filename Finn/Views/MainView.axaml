@@ -374,7 +374,7 @@
 			<!-- Layout group -->
 			<ToggleButton ToolTip.Tip="Tree View (Ctrl+Q)"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Tray (Ctrl+E)"            HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Attached Files (Ctrl+A)"  HotKey="Ctrl+A" Height="30" Width="35" Padding="0" IsEnabled="{Binding FileSelected}" IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Other Files (Ctrl+A)"     HotKey="Ctrl+A" Height="30" Width="35" Padding="0" IsEnabled="{Binding FileSelected}" IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Folders (Ctrl+L)"         HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
@@ -498,8 +498,26 @@
 
 					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
 
-					<!-- Name-only column when icons are disabled -->
-					<DataGridTextColumn Binding="{Binding Namn}"			  Header="Namn"			 Width="Auto" MinWidth="120"												 FontSize="{Binding UI.FontSize}"/>
+						<!-- Name column with expand/collapse chevron for parent files and indent for appended -->
+						<DataGridTemplateColumn Header="Namn" Width="Auto" MinWidth="120" CanUserSort="True" SortMemberPath="Namn">
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate x:DataType="model:FileData">
+									<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+										<!-- Indent for appended files -->
+										<Panel Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"/>
+										<!-- Expand/collapse chevron for parent files with children -->
+										<Panel Width="18" Margin="0,0,2,0">
+											<ic:SymbolIcon Symbol="ChevronRight" FontSize="11" Opacity="0.5"
+														   IsVisible="{Binding HasChildren}"
+														   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
+										</Panel>
+										<TextBlock Text="{Binding Namn}" VerticalAlignment="Center"
+												   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+												   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+									</StackPanel>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
 					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding CurrentVersion}"     Header="Active version"  Width="Auto" MinWidth="80"  IsVisible="{Binding CurrentProject.Meta_17}"    FontSize="{Binding UI.FontSize}"/>
@@ -574,7 +592,7 @@
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Star"/></MenuItem.Icon>
 						</MenuItem>
 
-						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType">
+						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" IsVisible="{Binding SelectedFileIsTopLevel}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Folder"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
@@ -727,14 +745,18 @@
 							<MenuItem Header="Replace" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
 							</MenuItem>
-									<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}">
+									<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsTopLevel}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
 									</MenuItem>
 								</MenuItem>
 
+						<MenuItem Header="Attach…" Click="OnAttachFiles" IsVisible="{Binding SelectedFileIsTopLevel}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Attach"/></MenuItem.Icon>
+						</MenuItem>
+
 						<Separator/>
 
-						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}">
+						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" IsVisible="{Binding SelectedFileIsTopLevel}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding Namn, StringFormat=' - {0}'}"/></DataTemplate>
@@ -766,67 +788,8 @@
 				</Border>
 			</Panel>
 
-			<!-- Attached files panels -->
-			<Grid Grid.Row="1" ColumnDefinitions="*,*" IsVisible="{Binding AttachedView}" MinHeight="200" MaxHeight="400" IsEnabled="{Binding FileSelected}">
-
-				<Panel Grid.Column="0">
-				<DataGrid Name="AppendixGrid" Padding="0"
-						  ItemsSource="{Binding CurrentFile.AppendedFiles, Mode=OneWay}" SelectionMode="Extended"
-						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-						  LoadingRow="DataGrid_OnLoadingRow">
-					<DataGrid.Columns>
-						<DataGridTextColumn Binding="{Binding Namn}"			   Header="Attached PDFs" Width="3*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding FromFolder}"         Header="Folder"        Width="*"  MinWidth="120" FontSize="{Binding UI.FontSize}" IsVisible="False"/>
-					</DataGrid.Columns>
-					<DataGrid.ContextMenu>
-						<ContextMenu>
-							<MenuItem Header="Open">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
-								<MenuItem Header="Open PDF"    Click="OnOpenAppendedFile">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Open Folder" Click="OnOpenAppendedFolder">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
-									</MenuItem>
-								</MenuItem>
-								<MenuItem Header="View" IsVisible="{Binding PreviewVM.DualFileMode}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Eye"/></MenuItem.Icon>
-									<MenuItem Header="Left" Click="OnViewLeft">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="PanelLeft"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Header="Right" Click="OnViewRight">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="PanelRight"/></MenuItem.Icon>
-									</MenuItem>
-								</MenuItem>
-								<MenuItem Header="Collection" ItemsSource="{Binding Storage.Collections}" Click="OnAddAppendedToCollection">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Collections"/></MenuItem.Icon>
-									<MenuItem.ItemTemplate>
-										<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
-									</MenuItem.ItemTemplate>
-								</MenuItem>
-								<MenuItem Header="Remove" Click="OnRemoveAttachedFile">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-							</MenuItem>
-						</ContextMenu>
-					</DataGrid.ContextMenu>
-				</DataGrid>
-					<StackPanel Name="AppendixEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-								IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-						<ic:SymbolIcon Symbol="Attach" FontSize="30" HorizontalAlignment="Center"/>
-						<TextBlock Text="No attached PDFs" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
-						<TextBlock Text="Drop PDFs or folders here to link them to the selected file" FontSize="12" HorizontalAlignment="Center"/>
-					</StackPanel>
-					<Border Name="AppendixDropOverlay" Classes="DropHint"
-							Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-							BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}" Margin="4">
-						<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
-							<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
-							<TextBlock Text="Drop PDFs or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
-						</StackPanel>
-					</Border>
-					</Panel>
-
-					<Panel Grid.Column="1">
+			<!-- Other attached files panel -->
+			<Panel Grid.Row="1" MinHeight="200" MaxHeight="400" IsVisible="{Binding AttachedView}" IsEnabled="{Binding FileSelected}">
 					<DataGrid Name="OtherFilesGrid"
 						  ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
@@ -874,8 +837,7 @@
 						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 					</StackPanel>
 				</Border>
-				</Panel>
-			</Grid>
+			</Panel>
 
 			<!-- Folder sync grid -->
 			<Panel Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}">

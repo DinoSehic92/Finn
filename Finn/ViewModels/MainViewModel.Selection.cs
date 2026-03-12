@@ -15,13 +15,14 @@ namespace Finn.ViewModels
         {
             CurrentFiles = files;
             SetAttachedView();
+            SyncExpansionToSelection();
         }
 
         private void SetAttachedView()
         {
             if (CurrentFile != null)
             {
-                AttachedView = CurrentFile.HasAppendedFiles;
+                AttachedView = CurrentFile.OtherFiles.Count > 0;
             }
             else
             {
@@ -58,15 +59,35 @@ namespace Finn.ViewModels
 
         public void RemoveSelectedFiles()
         {
-            foreach (FileData file in CurrentFiles)
+            // Track parents of removed appended files so we can re-select them
+            FileData? selectAfter = null;
+
+            foreach (FileData file in CurrentFiles.ToList())
             {
-                // Clean up appended files before removing the parent:
-                // clear collection membership and remove from recent files.
-                foreach (var appended in file.AppendedFiles)
+                if (file.IsAppendedFile)
                 {
-                    appended.PartOfCollections.Clear();
-                    appended.ParentFile = null;
-                    PreviewVM.RecentFiles.Remove(appended);
+                    // Remember the parent for post-removal selection
+                    selectAfter ??= file.ParentFile;
+
+                    // Detach appended file
+                    file.PartOfCollections.Clear();
+                    file.ParentNamn = string.Empty;
+                    file.ParentFile = null;
+                    PreviewVM.RecentFiles.Remove(file);
+                    CurrentProject.StoredFiles.Remove(file);
+                    continue;
+                }
+
+                // Remove appended children from StoredFiles
+                var children = CurrentProject.StoredFiles
+                    .Where(x => x.ParentNamn == file.Namn).ToList();
+                foreach (var child in children)
+                {
+                    child.PartOfCollections.Clear();
+                    child.ParentNamn = string.Empty;
+                    child.ParentFile = null;
+                    PreviewVM.RecentFiles.Remove(child);
+                    CurrentProject.StoredFiles.Remove(child);
                 }
 
                 CurrentProject.RemoveFile(file);
@@ -74,8 +95,16 @@ namespace Finn.ViewModels
                 Collections.SetCollectionContent();
             }
 
+            CurrentProject.RefreshHasChildren();
             CurrentProject.SetFiletypeList();
             MarkDirty();
+
+            // Re-select the parent of removed appended files to keep expansion stable
+            if (selectAfter != null && CurrentProject.StoredFiles.Contains(selectAfter))
+            {
+                CurrentFiles = [selectAfter];
+                return;
+            }
 
             if (FilteredFiles == null)
             {
@@ -90,7 +119,7 @@ namespace Finn.ViewModels
 
         public void SetTypeSelected(string type)
         {
-            foreach (FileData file in CurrentFiles)
+            foreach (FileData file in CurrentFiles.Where(f => !f.IsAppendedFile))
             {
                 file.Filtyp = type;
             }
@@ -101,13 +130,26 @@ namespace Finn.ViewModels
 
         public void UpdateFilter()
         {
-            var items = Type != ALL_TYPES
-                ? CurrentProject.StoredFiles.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn)
-                : CurrentProject.StoredFiles.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp);
+            var topLevel = CurrentProject.StoredFiles.Where(x => !x.IsAppendedFile);
+            var sorted = Type != ALL_TYPES
+                ? topLevel.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn)
+                : topLevel.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp);
 
-            // ReplaceAll writes directly to the internal Items list and fires a
-            // single CollectionChanged.Reset, instead of N individual Add events.
-            filteredFiles.ReplaceAll(items);
+            // Build the list with expanded children inserted inline
+            var result = new List<FileData>();
+            foreach (var file in sorted)
+            {
+                result.Add(file);
+                if (file.IsExpanded)
+                {
+                    var children = CurrentProject.StoredFiles
+                        .Where(x => x.ParentNamn == file.Namn)
+                        .OrderBy(x => x.Namn);
+                    result.AddRange(children);
+                }
+            }
+
+            filteredFiles.ReplaceAll(result);
             OnPropertyChanged(nameof(NrFilteredFiles));
 
             if (CurrentProject.Category != SEARCH_CATEGORY)
@@ -116,6 +158,48 @@ namespace Finn.ViewModels
                 PreviewVM.SearchMode = false;
                 SearchText = String.Empty;
             }
+        }
+
+        /// <summary>
+        /// Toggles inline expansion of a parent file's appended children.
+        /// </summary>
+        public void ToggleExpansion(FileData file)
+        {
+            if (file.IsAppendedFile) return;
+            file.IsExpanded = !file.IsExpanded;
+            UpdateFilter();
+        }
+
+        /// <summary>
+        /// Collapses any currently expanded file and expands the given file
+        /// if it has children. Called on selection change so only the selected
+        /// parent ever shows its children inline.
+        /// </summary>
+        private void SyncExpansionToSelection()
+        {
+            var selected = CurrentFile;
+            if (selected == null) return;
+
+            // If the selected file is an appended child, keep its parent expanded
+            var activeParent = selected.IsAppendedFile ? selected.ParentFile : selected;
+
+            bool changed = false;
+            foreach (var file in CurrentProject.StoredFiles)
+            {
+                if (!file.IsExpanded) continue;
+                if (file == activeParent) continue;
+                file.IsExpanded = false;
+                changed = true;
+            }
+
+            if (activeParent is { HasChildren: true, IsExpanded: false })
+            {
+                activeParent.IsExpanded = true;
+                changed = true;
+            }
+
+            if (changed)
+                UpdateFilter();
         }
 
         public void UpdateTreeview()

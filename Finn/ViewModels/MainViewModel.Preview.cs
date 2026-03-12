@@ -97,25 +97,6 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Processes dropped paths for the appendix grid (attached PDFs and folders).
-        /// Ignored when viewing search results to avoid modifying a transient project.
-        /// </summary>
-        public async Task AddDroppedAppendedFilesAsync(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
-        {
-            if (CurrentFile == null || IsSearchResult) return;
-
-            foreach (string path in filePaths)
-                AddAppendedFile(path);
-
-            foreach (string path in folderPaths)
-            {
-                var folder = CreateAttachedFolder(path, "PDF");
-                CurrentProject.Folders.Add(folder);
-                await SyncFolderAsync(folder);
-            }
-        }
-
-        /// <summary>
         /// Processes dropped paths for the other-files grid.
         /// Ignored when viewing search results to avoid modifying a transient project.
         /// </summary>

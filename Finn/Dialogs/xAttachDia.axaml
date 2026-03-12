@@ -1,0 +1,117 @@
+<Window xmlns="https://github.com/avaloniaui"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		mc:Ignorable="d"
+		Width="560" Height="480"
+		MinWidth="400" MinHeight="360"
+		xmlns:ic="using:FluentIcons.Avalonia"
+		x:Class="Finn.Dialogs.xAttachDia"
+		Title="Attach Files"
+		xmlns:vm="clr-namespace:Finn.ViewModels"
+		CanResize="True"
+		WindowStartupLocation="CenterScreen"
+		ExtendClientAreaToDecorationsHint="True"
+		DragDrop.AllowDrop="True"
+		x:DataType="vm:MainViewModel">
+
+	<Window.Styles>
+		<Style Selector="Button.accent">
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+			<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontSize" Value="15"/>
+		</Style>
+		<Style Selector="Button.normal">
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontSize" Value="15"/>
+		</Style>
+
+		<!-- Existing rows shown with lower opacity -->
+		<Style Selector="DataGridRow.Existing">
+			<Setter Property="Opacity" Value="0.45"/>
+		</Style>
+
+		<!-- Drop zone styling -->
+		<Style Selector="Border.DropZone">
+			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="Border.DropZone.DragOver">
+			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+			<Setter Property="BorderThickness" Value="2"/>
+			<Setter Property="Background" Value="#20007ACC"/>
+		</Style>
+		<Style Selector="Border.DropZone.Collapsed">
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+		</Style>
+	</Window.Styles>
+
+	<Grid RowDefinitions="30,Auto,*,Auto,Auto" Margin="0">
+		<Panel Grid.Row="0" IsHitTestVisible="False"/>
+
+		<!-- Header -->
+		<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
+			<Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+				<ic:SymbolIcon Symbol="Attach" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+			</Border>
+			<TextBlock Name="HeaderText" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+			<TextBlock Name="SubHeaderText" FontSize="12" Opacity="0.7" HorizontalAlignment="Center"/>
+		</StackPanel>
+
+		<!-- File grid + drop overlay -->
+		<Panel Grid.Row="2" Margin="12,0,12,0">
+			<DataGrid Name="FileListGrid"
+					  AutoGenerateColumns="False" IsReadOnly="True"
+					  GridLinesVisibility="None" SelectionMode="Extended"
+					  CanUserReorderColumns="False"
+					  LoadingRow="OnLoadingRow">
+				<DataGrid.Columns>
+					<DataGridTextColumn Header="Name" Binding="{ReflectionBinding Name}" Width="3*" MinWidth="160"/>
+					<DataGridTextColumn Header="Source" Binding="{ReflectionBinding Source}" Width="2*" MinWidth="100"/>
+				</DataGrid.Columns>
+				<DataGrid.ContextMenu>
+					<ContextMenu>
+						<MenuItem Header="Remove Selected" Click="OnRemoveSelected">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+						</MenuItem>
+					</ContextMenu>
+				</DataGrid.ContextMenu>
+			</DataGrid>
+
+			<!-- Drop overlay -->
+			<Border Name="DropZone" Classes="DropZone" DragDrop.AllowDrop="True">
+				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+							IsHitTestVisible="False" Opacity="0.5">
+					<ic:SymbolIcon Symbol="ArrowDownload" FontSize="24" HorizontalAlignment="Center"/>
+					<TextBlock Text="Drop PDFs or folders here" FontSize="13" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+				</StackPanel>
+			</Border>
+		</Panel>
+
+		<!-- Status line -->
+		<TextBlock Name="StatusText" Grid.Row="3" FontSize="12" Opacity="0.6"
+				   HorizontalAlignment="Center" Margin="0,6,0,0"/>
+
+		<!-- Buttons -->
+		<StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,10,0,16">
+			<Button Name="AcceptButton" HotKey="Enter" Width="70" Classes="accent" Content="Accept" Click="OnAccept" IsEnabled="False"/>
+			<Button Name="CancelButton" HotKey="Escape" Width="70" Classes="normal" Content="Cancel" Click="OnCancel"/>
+		</StackPanel>
+	</Grid>
+
+</Window>

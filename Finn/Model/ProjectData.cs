@@ -1,5 +1,6 @@
 ﻿using Avalonia.Media;
 using Finn.Utils;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -14,14 +15,63 @@ namespace Finn.Model
     {
         /// <summary>
         /// Gets or sets the collection of stored files for the project.
+        /// In the flat model this includes both top-level files and appended files.
         /// </summary>
         public BulkObservableCollection<FileData> StoredFiles { get; set; } = new BulkObservableCollection<FileData>();
 
         /// <summary>
-        /// Returns all files in the project, including appended files nested under each stored file.
+        /// Returns all files in the project.
+        /// Equivalent to <see cref="StoredFiles"/> after migration.
         /// </summary>
-        public IEnumerable<FileData> AllFiles =>
-            StoredFiles.Concat(StoredFiles.SelectMany(f => f.AppendedFiles));
+        [JsonIgnore]
+        public IEnumerable<FileData> AllFiles => StoredFiles;
+
+        /// <summary>
+        /// Migrates legacy nested <see cref="FileData.AppendedFiles"/> into
+        /// the flat <see cref="StoredFiles"/> list with <see cref="FileData.ParentNamn"/>
+        /// set. Call once after deserialization. Safe to call multiple times.
+        /// </summary>
+        public void FlattenAppendedFiles()
+        {
+            var toAdd = new List<FileData>();
+
+            foreach (var parent in StoredFiles.ToList())
+            {
+                if (parent.AppendedFiles.Count == 0) continue;
+
+                foreach (var child in parent.AppendedFiles)
+                {
+                    child.ParentNamn = parent.Namn;
+                    child.ParentFile = parent;
+                    toAdd.Add(child);
+                }
+
+                parent.AppendedFiles.Clear();
+            }
+
+            if (toAdd.Count > 0)
+                StoredFiles.AddRange(toAdd);
+        }
+
+        /// <summary>
+        /// Resolves <see cref="FileData.ParentFile"/> back-references from
+        /// <see cref="FileData.ParentNamn"/> after loading from JSON.
+        /// </summary>
+        public void WireParentReferences()
+        {
+            var byName = new Dictionary<string, FileData>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var file in StoredFiles)
+                byName.TryAdd(file.Namn, file);
+
+            foreach (var file in StoredFiles)
+            {
+                if (!string.IsNullOrEmpty(file.ParentNamn)
+                    && byName.TryGetValue(file.ParentNamn, out var parent))
+                {
+                    file.ParentFile = parent;
+                }
+            }
+        }
 
         private string namn = string.Empty;
         /// <summary>
@@ -180,7 +230,7 @@ namespace Finn.Model
                 return;
 
             string fileName = System.IO.Path.GetFileNameWithoutExtension(filepath);
-            var existing = StoredFiles.FirstOrDefault(x => x.Namn == fileName);
+            var existing = StoredFiles.FirstOrDefault(x => !x.IsAppendedFile && x.Namn == fileName);
             if (existing != null)
             {
                 existing.AddVersion(filepath, "NEW");
@@ -220,7 +270,8 @@ namespace Finn.Model
             Filetypes.Clear();
             FiletypesTree.Clear();
 
-            List<string> filetypes = StoredFiles.Select(x=>x.Filtyp).Distinct().ToList();
+            var topLevel = StoredFiles.Where(x => !x.IsAppendedFile);
+            List<string> filetypes = topLevel.Select(x=>x.Filtyp).Distinct().ToList();
 
             filetypes.Sort();
 
@@ -228,11 +279,28 @@ namespace Finn.Model
             {
                 Filetypes.Add(filetype);
 
-                int nrFiles = StoredFiles.Where(x => x.Filtyp == filetype).Count();
+                int nrFiles = topLevel.Where(x => x.Filtyp == filetype).Count();
                 FiletypesTree.Add(filetype + "\t" + "(" + nrFiles + ")" + "\t\t\t\t\t\t\t\t\t" + Namn);
             }
         }
 
+
+        /// <summary>
+        /// Refreshes <see cref="FileData.HasChildren"/> on every top-level file
+        /// by checking whether any child file references it via <see cref="FileData.ParentNamn"/>.
+        /// </summary>
+        public void RefreshHasChildren()
+        {
+            var parentNames = new HashSet<string>(
+                StoredFiles.Where(f => f.IsAppendedFile).Select(f => f.ParentNamn),
+                System.StringComparer.OrdinalIgnoreCase);
+
+            foreach (var file in StoredFiles)
+            {
+                if (!file.IsAppendedFile)
+                    file.HasChildren = parentNames.Contains(file.Namn);
+            }
+        }
 
         private void RaisePropertyChanged(string propName)
         {

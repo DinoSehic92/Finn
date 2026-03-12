@@ -60,7 +60,7 @@ namespace Finn.ViewModels
                 var matches = new List<FileData>();
                 foreach (ProjectData project in Storage.StoredProjects)
                 {
-                    foreach (FileData file in project.StoredFiles)
+                    foreach (FileData file in project.StoredFiles.Where(f => !f.IsAppendedFile))
                     {
                         var paths = file.AllPdfPaths(checkExists: false);
                         if (paths.Any(p => filepaths.Contains(p)))
@@ -85,7 +85,7 @@ namespace Finn.ViewModels
                 var matches = new List<FileData>();
                 foreach (ProjectData project in Storage.StoredProjects)
                 {
-                    foreach (FileData file in project.StoredFiles)
+                    foreach (FileData file in project.StoredFiles.Where(f => !f.IsAppendedFile))
                     {
                         string?[] fields = [file.Namn, file.Beskrivning1, file.Beskrivning2, file.Beskrivning3, file.Tagg];
 
