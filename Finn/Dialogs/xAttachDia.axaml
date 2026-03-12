@@ -37,13 +37,12 @@
 			<Setter Property="Opacity" Value="0.45"/>
 		</Style>
 
-		<!-- Drop zone styling -->
+		<!-- Drop zone styling: invisible by default, visible only during drag -->
 		<Style Selector="Border.DropZone">
-			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-			<Setter Property="BorderThickness" Value="1"/>
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="Opacity" Value="0"/>
+			<Setter Property="IsHitTestVisible" Value="False"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
@@ -51,13 +50,11 @@
 			</Setter>
 		</Style>
 		<Style Selector="Border.DropZone.DragOver">
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="IsHitTestVisible" Value="True"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
 			<Setter Property="BorderThickness" Value="2"/>
 			<Setter Property="Background" Value="#20007ACC"/>
-		</Style>
-		<Style Selector="Border.DropZone.Collapsed">
-			<Setter Property="Opacity" Value="0"/>
-			<Setter Property="IsHitTestVisible" Value="False"/>
 		</Style>
 	</Window.Styles>
 
@@ -74,7 +71,7 @@
 		</StackPanel>
 
 		<!-- File grid + drop overlay -->
-		<Panel Grid.Row="2" Margin="12,0,12,0">
+		<Panel Grid.Row="2" Margin="5">
 			<DataGrid Name="FileListGrid"
 					  AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" SelectionMode="Extended"
@@ -94,7 +91,7 @@
 			</DataGrid>
 
 			<!-- Drop overlay -->
-			<Border Name="DropZone" Classes="DropZone" DragDrop.AllowDrop="True">
+			<Border Name="DropZone" Classes="DropZone" DragDrop.AllowDrop="True" Margin="5">
 				<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
 							IsHitTestVisible="False" Opacity="0.5">
 					<ic:SymbolIcon Symbol="ArrowDownload" FontSize="24" HorizontalAlignment="Center"/>

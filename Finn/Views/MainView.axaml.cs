@@ -255,7 +255,6 @@ public partial class MainView : UserControl
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
         await _ctx.AddDroppedOtherFilesAsync(files, folders);
         UpdateOtherFilesEmptyState();
-        UpdateFolderEmptyState();
     }
 
     /// <summary>
@@ -315,8 +314,6 @@ public partial class MainView : UserControl
 
         // FileGrid accepts PDFs and folders (folders are synced to project)
         SetDropHintActive(DropOverlay, hasPdf || hasFolder);
-        // OtherFilesGrid accepts any file type and folders
-        SetDropHintActive(OtherFilesDropOverlay, hasPdf || hasNonPdfFile || hasFolder);
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
@@ -332,11 +329,11 @@ public partial class MainView : UserControl
     private void HideAllDropOverlays()
     {
         SetDropHintActive(DropOverlay, false);
-        SetDropHintActive(OtherFilesDropOverlay, false);
     }
 
     private static void SetDropHintActive(Avalonia.Controls.Border overlay, bool active)
     {
+        overlay.IsVisible = active;
         if (active)
             overlay.Classes.Add("Active");
         else
@@ -358,7 +355,7 @@ public partial class MainView : UserControl
 
     private void UpdateOtherFilesEmptyState()
     {
-        var file = _ctx.CurrentFile;
+        var file = _ctx.OtherFilesOwner;
         bool otherEmpty = file?.OtherFiles == null || file.OtherFiles.Count == 0;
         OtherFilesEmptyHint.IsVisible = otherEmpty;
     }
@@ -536,20 +533,35 @@ public partial class MainView : UserControl
 
         if (_ctx.Confirmed)
         {
-            // Capture the parent before removal so we can re-select it
+            // Capture the parent before removal clears references
             var parentToSelect = _ctx.CurrentFile?.IsAppendedFile == true
                 ? _ctx.CurrentFile.ParentFile
                 : null;
 
-            _ctx.RemoveSelectedFiles();
-            _ctx.UpdateFilter();
-            _ctx.BuildTreeData();
+            // Suppress the grid's SelectionChanged handler so UpdateFilter's
+            // collection reset doesn't wipe CurrentFiles before we re-select.
+            // Also suppress tree selection so BuildTreeData doesn't navigate
+            // to the parent's category and change the current type filter.
+            _isUpdatingSelection = true;
+            _suppressTreeSelection = true;
+            try
+            {
+                _ctx.RemoveSelectedFiles();
+                _ctx.UpdateFilter();
+                _ctx.BuildTreeData();
+            }
+            finally
+            {
+                _isUpdatingSelection = false;
+                _suppressTreeSelection = false;
+            }
 
-            // Keep the parent selected so the expansion doesn't collapse
+            // Re-select the parent in the grid
             if (parentToSelect != null && _ctx.FilteredFiles.Contains(parentToSelect))
             {
                 FileGrid.SelectedItem = parentToSelect;
                 FileGrid.ScrollIntoView(parentToSelect, null);
+                _ctx.SelectFiles([parentToSelect]);
             }
         }
     }
@@ -613,10 +625,15 @@ public partial class MainView : UserControl
             if (folder != null)
             {
                 folder.Path = folderPath;
-                folder.Name = System.IO.Path.GetFileName(folderPath) ?? "Attached";
+                folder.Name = new System.IO.DirectoryInfo(folderPath).Name;
+                folder.Types = "PDF";
                 await _ctx.SyncFolderAsync(folder);
             }
         }
+
+        // Ensure the parent is expanded so newly attached children are visible
+        if (_ctx.CurrentFile is { HasChildren: true, IsExpanded: false })
+            _ctx.CurrentFile.IsExpanded = true;
 
         _ctx.UpdateFilter();
         UpdateFolderEmptyState();

@@ -259,6 +259,7 @@
 										<CheckBox Content="Collections"  Height="28" IsChecked="{Binding UI.TrayCollections, Mode=TwoWay}"/>
 										<CheckBox Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}"/>
 										<CheckBox Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}"/>
+										<CheckBox Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}"/>
 										<CheckBox Content="PDF Compare"  Height="28" IsChecked="{Binding UI.TrayDiff, Mode=TwoWay}"/>
 										<CheckBox Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}"/>
 									</StackPanel>
@@ -374,7 +375,6 @@
 			<!-- Layout group -->
 			<ToggleButton ToolTip.Tip="Tree View (Ctrl+Q)"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Tray (Ctrl+E)"            HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Other Files (Ctrl+A)"     HotKey="Ctrl+A" Height="30" Width="35" Padding="0" IsEnabled="{Binding FileSelected}" IsChecked="{Binding AttachedView}">       <ic:SymbolIcon Symbol="Attach"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Folders (Ctrl+L)"         HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
@@ -780,58 +780,8 @@
 				<!-- Drag-and-drop hint overlay -->
 				<Border Name="DropOverlay" Classes="DropHint"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}" Margin="4">
-					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
-						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
-						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
-					</StackPanel>
-				</Border>
-			</Panel>
-
-			<!-- Other attached files panel -->
-			<Panel Grid.Row="1" MinHeight="200" MaxHeight="400" IsVisible="{Binding AttachedView}" IsEnabled="{Binding FileSelected}">
-					<DataGrid Name="OtherFilesGrid"
-						  ItemsSource="{Binding CurrentFile.OtherFiles, Mode=OneWay}" SelectionMode="Single"
-						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-						  LoadingRow="DataGrid_OnLoadingRow">
-					<DataGrid.Columns>
-						<DataGridTemplateColumn>
-							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate>
-									<Image Height="20" Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
-								</DataTemplate>
-							</DataGridTemplateColumn.CellTemplate>
-						</DataGridTemplateColumn>
-						<DataGridTextColumn Binding="{Binding Name}"       Header="Attached Files" Width="3*"  MinWidth="120" FontSize="{Binding UI.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding Type}"       Header="Type"           Width="80"  MinWidth="80"  FontSize="{Binding UI.FontSize}"/>
-						<DataGridTextColumn Binding="{Binding FromFolder}" Header="Folder"         Width="1.2*" MinWidth="120" FontSize="{Binding UI.FontSize}" IsVisible="False"/>
-					</DataGrid.Columns>
-					<DataGrid.ContextMenu>
-						<ContextMenu>
-							<MenuItem Header="Open">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
-								<MenuItem Header="Open File"   Click="OnOpenOtherFile">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Document"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Open Folder" Click="OnOpenOtherFolder">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
-							<MenuItem Header="Remove" Click="OnRemoveOtherFile">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-							</MenuItem>
-						</ContextMenu>
-					</DataGrid.ContextMenu>
-				</DataGrid>
-				<StackPanel Name="OtherFilesEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-					<ic:SymbolIcon Symbol="Document" FontSize="30" HorizontalAlignment="Center"/>
-					<TextBlock Text="No attached files" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
-					<TextBlock Text="Drop files or folders here to attach documents, images, etc." FontSize="12" HorizontalAlignment="Center"/>
-				</StackPanel>
-				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
-						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
-						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}" Margin="4">
+						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}"
+						IsVisible="False">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
 						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
@@ -1028,18 +978,19 @@
 			</DataGrid>
 		</Grid>
 
-		<!-- Tray panel (notes, collections, bookmarks, recent) -->
-		<Grid Grid.Column="1" IsVisible="{Binding UI.TrayViewOpen}" Width="300" Classes="AnimatedPanel">
+		<!-- Tray panel (notes, collections, bookmarks, recent, other files, versions) -->
+		<Grid Grid.Column="1" IsVisible="{Binding UI.TrayViewOpen}" Width="{Binding UI.TrayWidth}" Classes="AnimatedPanel">
 			<Grid.RowDefinitions>
-				<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}, ConverterParameter=0.3}"/>
 				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
-				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource RowDefConverter}}"/>
-				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
+				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
+				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource RowDefConverter}, ConverterParameter=0.5}"/>
+				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
+				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}, ConverterParameter=0.7}"/>
+				<RowDefinition Height="{Binding UI.TrayOtherFiles,  Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}}"/>
+				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
 			</Grid.RowDefinitions>
 
             <!-- File notepad (wrapped in shadow-only border) -->
@@ -1145,40 +1096,79 @@
 				</DataGrid.Columns>
 			</DataGrid>
 
+			<!-- Other attached files -->
+			<Panel Grid.Row="7" IsVisible="{Binding UI.TrayOtherFiles}">
+				<DataGrid Name="OtherFilesGrid"
+						  ItemsSource="{Binding OtherFilesOwner.OtherFiles, Mode=OneWay}" SelectionMode="Single"
+						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+						  DragDrop.AllowDrop="True">
+					<DataGrid.Columns>
+						<DataGridTemplateColumn Width="28" MinWidth="28">
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate>
+									<Image Height="16" Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
+						<DataGridTextColumn Binding="{Binding Name}" Header="Other Files" Width="*" MinWidth="80"/>
+						<DataGridTextColumn Binding="{Binding Type}" Header="Type" Width="55" MinWidth="40" IsVisible="false"/>
+					</DataGrid.Columns>
+					<DataGrid.ContextMenu>
+						<ContextMenu>
+							<MenuItem Header="Open File" Click="OnOpenOtherFile">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Document"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Open Folder" Click="OnOpenOtherFolder">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+							</MenuItem>
+							<Separator/>
+							<MenuItem Header="Remove" Click="OnRemoveOtherFile">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+							</MenuItem>
+						</ContextMenu>
+					</DataGrid.ContextMenu>
+				</DataGrid>
+				<StackPanel Name="OtherFilesEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+					<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
+					<TextBlock Text="No other files" FontSize="12" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+				</StackPanel>
+			</Panel>
+
 			<!-- PDF Compare panel -->
-			<Border Grid.Row="7" Classes="shadow" IsVisible="{Binding UI.TrayDiff}" Background="{DynamicResource TextControlBackground}" Padding="6,4">
-				<Grid RowDefinitions="24,32,32,34" ColumnDefinitions="22,*,28">
+			<Border Grid.Row="8" Classes="shadow" IsVisible="{Binding UI.TrayDiff}" Background="{DynamicResource TextControlBackground}" Padding="6,2">
+				<Grid RowDefinitions="20,26,26,28" ColumnDefinitions="22,*,28">
 					<TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="PDF Compare"
-							   FontSize="13" FontStyle="Italic" Opacity="0.6" VerticalAlignment="Center"/>
-					<TextBlock Grid.Row="1" Grid.Column="0" Text="A:" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+							   FontSize="12" FontStyle="Italic" Opacity="0.6" VerticalAlignment="Center"/>
+					<TextBlock Grid.Row="1" Grid.Column="0" Text="A:" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
 					<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DiffFileAName}"
-							   VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis"/>
-					<Button Grid.Row="1" Grid.Column="2" Width="24" Height="24" Padding="0"
+							   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
+					<Button Grid.Row="1" Grid.Column="2" Width="22" Height="22" Padding="0"
 							Command="{Binding ClearDiffFileA}" ToolTip.Tip="Clear A"
 							IsVisible="{Binding DiffFileA, Converter={x:Static ObjectConverters.IsNotNull}}">
-						<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
+						<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
 					</Button>
-					<TextBlock Grid.Row="2" Grid.Column="0" Text="B:" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold"/>
+					<TextBlock Grid.Row="2" Grid.Column="0" Text="B:" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
 					<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DiffFileBName}"
-							   VerticalAlignment="Center" FontSize="13" TextTrimming="CharacterEllipsis"/>
-					<Button Grid.Row="2" Grid.Column="2" Width="24" Height="24" Padding="0"
+							   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
+					<Button Grid.Row="2" Grid.Column="2" Width="22" Height="22" Padding="0"
 							Command="{Binding ClearDiffFileB}" ToolTip.Tip="Clear B"
 							IsVisible="{Binding DiffFileB, Converter={x:Static ObjectConverters.IsNotNull}}">
-						<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
+						<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
 					</Button>
-							<Button Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Height="28"
+							<Button Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Height="24"
 										Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}"
 										IsEnabled="{Binding DiffReady}">
 									<StackPanel Orientation="Horizontal" Spacing="6">
-										<ic:SymbolIcon Symbol="DocumentSearch" FontSize="14"/>
-										<TextBlock Text="Compare" VerticalAlignment="Center" FontSize="13"/>
+										<ic:SymbolIcon Symbol="DocumentSearch" FontSize="13"/>
+										<TextBlock Text="Compare" VerticalAlignment="Center" FontSize="12"/>
 									</StackPanel>
 								</Button>
 							</Grid>
 						</Border>
 
 						<!-- File versions panel -->
-						<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
+						<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
 							<!-- Toolbar -->
 							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 								<Border Classes="shadow">

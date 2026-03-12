@@ -16,10 +16,11 @@ public partial class xAttachDia : Window
     public bool Confirmed { get; private set; }
 
     /// <summary>
-    /// Only the newly added file paths (not existing ones).
+    /// Only the newly added file paths that were dropped individually (not from folders).
+    /// Files from folders are handled by the sync folder created from AcceptedFolders.
     /// </summary>
     public IReadOnlyList<string> AcceptedFiles =>
-        _entries.Where(e => e.IsNew).Select(e => e.Path).ToList();
+        _entries.Where(e => e.IsNew && !e.IsFromFolder).Select(e => e.Path).ToList();
 
     /// <summary>
     /// The newly added folder paths (for synced folder creation).
@@ -66,14 +67,11 @@ public partial class xAttachDia : Window
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
         DropZone.Classes.Add("DragOver");
-        DropZone.Classes.Remove("Collapsed");
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
     {
         DropZone.Classes.Remove("DragOver");
-        if (_entries.Count > 0)
-            DropZone.Classes.Add("Collapsed");
     }
 
     private void OnDrop(object? sender, DragEventArgs e)
@@ -95,10 +93,10 @@ public partial class xAttachDia : Window
                 _newFolders.Add(path);
                 try
                 {
-                    string folderName = Path.GetFileName(path) ?? path;
+                    string folderName = new DirectoryInfo(path).Name;
                     var pdfs = Directory.EnumerateFiles(path, "*.pdf", SearchOption.TopDirectoryOnly);
                     foreach (var pdf in pdfs)
-                        AddNewEntry(pdf, folderName);
+                        AddNewEntry(pdf, folderName, isFromFolder: true);
                 }
                 catch { /* inaccessible folder */ }
             }
@@ -112,7 +110,7 @@ public partial class xAttachDia : Window
         UpdateState();
     }
 
-    private void AddNewEntry(string path, string source)
+    private void AddNewEntry(string path, string source, bool isFromFolder = false)
     {
         if (_entries.Any(e => e.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
             return;
@@ -122,7 +120,8 @@ public partial class xAttachDia : Window
             Name = Path.GetFileNameWithoutExtension(path),
             Source = source,
             Path = path,
-            IsNew = true
+            IsNew = true,
+            IsFromFolder = isFromFolder
         });
     }
 
@@ -130,12 +129,6 @@ public partial class xAttachDia : Window
     {
         int newCount = _entries.Count(e => e.IsNew);
         bool hasNew = newCount > 0;
-
-        // Drop zone: show prominently when empty, fade when grid has content
-        if (_entries.Count > 0)
-            DropZone.Classes.Add("Collapsed");
-        else
-            DropZone.Classes.Remove("Collapsed");
 
         AcceptButton.IsEnabled = hasNew;
 
@@ -196,5 +189,6 @@ public partial class xAttachDia : Window
         public string Source { get; init; } = "";
         public string Path { get; init; } = "";
         public bool IsNew { get; init; } = true;
+        public bool IsFromFolder { get; init; }
     }
 }

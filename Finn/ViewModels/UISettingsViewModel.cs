@@ -25,6 +25,7 @@ namespace Finn.ViewModels
             public const bool DefaultShowBorders = false;
             public const bool DefaultDarkMode = true;
             public const int DefaultTreeViewWidth = 300;
+            public const int DefaultTrayWidth = 300;
         }
 
         public UISettingsViewModel()
@@ -53,9 +54,11 @@ namespace Finn.ViewModels
             TrayBookmarks = true;
             TrayRecent = true;
             TrayVersions = false;
+            TrayOtherFiles = true;
             ColorTagDot = false;
 
             TreeViewWidth = Defaults.DefaultTreeViewWidth;
+            TrayWidth = Defaults.DefaultTrayWidth;
 
             // View visibility flags persisted in UI settings
             ShowActionBar = false;
@@ -74,6 +77,9 @@ namespace Finn.ViewModels
 
         private int treeViewWidth;
         public int TreeViewWidth { get => treeViewWidth; set { treeViewWidth = value; RaisePropertyChanged(nameof(TreeViewWidth)); } }
+
+        private int trayWidth;
+        public int TrayWidth { get => trayWidth; set { trayWidth = value; RaisePropertyChanged(nameof(TrayWidth)); } }
 
         private bool calendarOpen;
         public bool CalendarOpen { get => calendarOpen; set { calendarOpen = value; RaisePropertyChanged(nameof(CalendarOpen)); } }
@@ -159,6 +165,9 @@ namespace Finn.ViewModels
         private bool trayVersions;
         public bool TrayVersions { get => trayVersions; set { trayVersions = value; RaisePropertyChanged(nameof(TrayVersions)); } }
 
+        private bool trayOtherFiles;
+        public bool TrayOtherFiles { get => trayOtherFiles; set { trayOtherFiles = value; RaisePropertyChanged(nameof(TrayOtherFiles)); } }
+
         private bool trayViewOpen;
         public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; RaisePropertyChanged(nameof(TrayViewOpen)); } }
 
@@ -221,6 +230,7 @@ namespace Finn.ViewModels
                 TrayRecent = this.TrayRecent,
                 TrayDiff = this.TrayDiff,
                 TrayVersions = this.TrayVersions,
+                TrayOtherFiles = this.TrayOtherFiles,
                 ShowIcons = this.ShowIcons,
                 ColorTagDot = this.ColorTagDot,
                 TreeViewOpen = this.TreeViewOpen,
@@ -231,7 +241,8 @@ namespace Finn.ViewModels
                 TrayViewOpen = this.TrayViewOpen,
                 ShowActionBar = this.ShowActionBar,
                 PreviewDarkMode = this.PreviewDarkMode,
-                TreeViewWidth = this.TreeViewWidth
+                TreeViewWidth = this.TreeViewWidth,
+                TrayWidth = this.TrayWidth
             };
         }
 
@@ -262,6 +273,7 @@ namespace Finn.ViewModels
                 this.TrayRecent = ui.TrayRecent;
                 this.TrayDiff = ui.TrayDiff;
                 this.TrayVersions = ui.TrayVersions;
+                this.TrayOtherFiles = ui.TrayOtherFiles;
                 this.ShowIcons = ui.ShowIcons;
                 this.ColorTagDot = ui.ColorTagDot;
 
@@ -275,6 +287,8 @@ namespace Finn.ViewModels
                 this.PreviewDarkMode = ui.PreviewDarkMode;
                 if (ui.TreeViewWidth >= 250 && ui.TreeViewWidth <= 350)
                     this.TreeViewWidth = ui.TreeViewWidth;
+                if (ui.TrayWidth >= 250 && ui.TrayWidth <= 400)
+                    this.TrayWidth = ui.TrayWidth;
             }
             catch
             {

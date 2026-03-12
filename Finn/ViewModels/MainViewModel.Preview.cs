@@ -102,7 +102,7 @@ namespace Finn.ViewModels
         /// </summary>
         public async Task AddDroppedOtherFilesAsync(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
         {
-            if (CurrentFile == null || IsSearchResult) return;
+            if (OtherFilesOwner == null || IsSearchResult) return;
 
             foreach (string path in filePaths)
                 AddOtherFile(path);
@@ -127,7 +127,7 @@ namespace Finn.ViewModels
             {
                 var folder = new FolderData
                 {
-                    Name = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path)) ?? string.Empty,
+                    Name = new System.IO.DirectoryInfo(path).Name,
                     AttachToFile = "PROJECT",
                     Types = "PDF",
                     Path = path
@@ -139,7 +139,7 @@ namespace Finn.ViewModels
 
         private FolderData CreateAttachedFolder(string path, string types) => new()
         {
-            Name = System.IO.Path.GetFileName(System.IO.Path.GetDirectoryName(path)) ?? string.Empty,
+            Name = new System.IO.DirectoryInfo(path).Name,
             AttachToFile = CurrentFile!.Namn,
             AttachToFilePath = CurrentFile.Sökväg,
             Types = types,

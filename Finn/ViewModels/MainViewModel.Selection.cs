@@ -14,20 +14,7 @@ namespace Finn.ViewModels
         public void SelectFiles(IList<FileData> files)
         {
             CurrentFiles = files;
-            SetAttachedView();
             SyncExpansionToSelection();
-        }
-
-        private void SetAttachedView()
-        {
-            if (CurrentFile != null)
-            {
-                AttachedView = CurrentFile.OtherFiles.Count > 0;
-            }
-            else
-            {
-                AttachedView = false;
-            }
         }
 
         public void SelectType(string name)
@@ -59,16 +46,10 @@ namespace Finn.ViewModels
 
         public void RemoveSelectedFiles()
         {
-            // Track parents of removed appended files so we can re-select them
-            FileData? selectAfter = null;
-
             foreach (FileData file in CurrentFiles.ToList())
             {
                 if (file.IsAppendedFile)
                 {
-                    // Remember the parent for post-removal selection
-                    selectAfter ??= file.ParentFile;
-
                     // Detach appended file
                     file.PartOfCollections.Clear();
                     file.ParentNamn = string.Empty;
@@ -98,18 +79,6 @@ namespace Finn.ViewModels
             CurrentProject.RefreshHasChildren();
             CurrentProject.SetFiletypeList();
             MarkDirty();
-
-            // Re-select the parent of removed appended files to keep expansion stable
-            if (selectAfter != null && CurrentProject.StoredFiles.Contains(selectAfter))
-            {
-                CurrentFiles = [selectAfter];
-                return;
-            }
-
-            if (FilteredFiles == null)
-            {
-                SetDefaultSelection();
-            }
         }
 
         public void SetDefaultType()

@@ -115,13 +115,6 @@ namespace Finn.ViewModels
             public string ProjectMessage { get; set; } = "";
             public bool Confirmed { get; set; }
 
-            private bool attachedView = false;
-            public bool AttachedView
-            {
-                get { return attachedView; }
-                set { attachedView = value; OnPropertyChanged(nameof(AttachedView)); }
-            }
-
             private ProjectStorage storage = new();
             public ProjectStorage Storage
             {
@@ -202,6 +195,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged("FiletypesTree");
                     OnPropertyChanged(nameof(CurrentFiles));
                     OnPropertyChanged(nameof(CurrentFile));
+                    OnPropertyChanged(nameof(OtherFilesOwner));
                     OnPropertyChanged(nameof(NrSelectedFiles));
                     OnPropertyChanged(nameof(FileSelected));
                     OnPropertyChanged(nameof(AllSelectedFilesHaveVersions));
@@ -211,6 +205,14 @@ namespace Finn.ViewModels
 
             public FileData CurrentFile => CurrentFiles?.LastOrDefault();
             public bool FileSelected => CurrentFile != null;
+
+            /// <summary>
+            /// The file whose OtherFiles should be displayed in the tray.
+            /// When an appended child is selected, this returns its parent so
+            /// the parent's other-file attachments remain visible.
+            /// </summary>
+            public FileData? OtherFilesOwner =>
+                CurrentFile is { IsAppendedFile: true, ParentFile: { } parent } ? parent : CurrentFile;
 
             public bool AllSelectedFilesHaveVersions =>
                 CurrentFiles != null && CurrentFiles.Count > 0 && CurrentFiles.All(f => f.HasVersions);
@@ -398,7 +400,6 @@ namespace Finn.ViewModels
                 ("Ctrl+S", "Save"),
                 ("Ctrl+Q", "Toggle Treeview"),
                 ("Ctrl+E", "Toggle Tray"),
-                ("Ctrl+A", "Toggle Other Files"),
                 ("Ctrl+L", "Toggle Folders"),
                 ("Ctrl+T", "Toggle Thumbnails"),
                 ("Ctrl+W", "Toggle Preview Window"),

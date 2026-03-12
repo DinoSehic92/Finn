@@ -42,7 +42,7 @@ namespace Finn.ViewModels
 
                         if (file != null)
                         {
-                            if (folder.Types == PDF_TYPE)
+                            if (folder.Types is PDF_TYPE or "" or null)
                             {
                                 string folderPath = folder.Path;
                                 var removed = CurrentProject.StoredFiles
@@ -56,6 +56,7 @@ namespace Finn.ViewModels
                                     CurrentProject.StoredFiles.Remove(r);
                                 }
                                 CurrentProject.RefreshHasChildren();
+                                UpdateFilter();
                             }
 
                             if (folder.Types == OTHER_FILES_TYPE)
@@ -166,7 +167,7 @@ namespace Finn.ViewModels
 
                     foreach (FileData file in filesToAdd)
                     {
-                        if (CurrentProject.StoredFiles.Any(x => x.Sökväg == file.Sökväg))
+                        if (CurrentProject.StoredFiles.Any(x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase)))
                             continue;
 
                         var existing = CurrentProject.StoredFiles.FirstOrDefault(x => !x.IsAppendedFile && x.Namn == file.Namn);
@@ -318,7 +319,21 @@ namespace Finn.ViewModels
                     }
                 }
 
-                folder.SyncedFileCount = importedCount;
+                // Count all versions across all project files whose path falls
+                // under this version folder, not just the ones imported this sync.
+                string root = folder.Path.EndsWith(System.IO.Path.DirectorySeparatorChar)
+                    ? folder.Path
+                    : folder.Path + System.IO.Path.DirectorySeparatorChar;
+                int totalVersions = 0;
+                foreach (var f in CurrentProject.StoredFiles)
+                {
+                    foreach (var v in f.Versions)
+                    {
+                        if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                            totalVersions++;
+                    }
+                }
+                folder.SyncedFileCount = totalVersions;
             }
 
             /// <summary>

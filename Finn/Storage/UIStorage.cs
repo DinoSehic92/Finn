@@ -28,6 +28,7 @@ namespace Finn.Storage
         public bool TrayRecent { get; set; }
         public bool TrayDiff { get; set; }
         public bool TrayVersions { get; set; }
+        public bool TrayOtherFiles { get; set; }
         public bool ShowIcons { get; set; }
         public bool ColorTagDot { get; set; }
 
@@ -41,6 +42,7 @@ namespace Finn.Storage
         public bool ShowActionBar { get; set; }
         public bool PreviewDarkMode { get; set; }
         public int TreeViewWidth { get; set; }
+        public int TrayWidth { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

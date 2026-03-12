@@ -412,12 +412,13 @@ namespace Finn.ViewModels
 
             public void AddOtherFile(string filepath)
             {
-                if (CurrentFile != null && !CurrentFile.OtherFiles.Any(x => x.Filepath == filepath))
+                var owner = OtherFilesOwner;
+                if (owner != null && !owner.OtherFiles.Any(x => x.Filepath == filepath))
                 {
                     OtherData newFile = new() { Filepath = filepath };
                     newFile.SetFile();
 
-                    CurrentFile.OtherFiles.Add(newFile);
+                    owner.OtherFiles.Add(newFile);
                     SortOtherFiles();
                     MarkDirty();
                 }
@@ -444,7 +445,7 @@ namespace Finn.ViewModels
             {
                 if (file != null)
                 {
-                    CurrentFile.OtherFiles.Remove(file);
+                    OtherFilesOwner?.OtherFiles.Remove(file);
                     SortOtherFiles();
                     MarkDirty();
                 }
@@ -452,9 +453,10 @@ namespace Finn.ViewModels
 
             private void SortOtherFiles()
             {
-                if (CurrentFile != null)
+                var owner = OtherFilesOwner;
+                if (owner != null)
                 {
-                    SortOtherFilesDirect(CurrentFile);
+                    SortOtherFilesDirect(owner);
                 }
             }
 

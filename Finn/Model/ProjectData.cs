@@ -298,7 +298,11 @@ namespace Finn.Model
             foreach (var file in StoredFiles)
             {
                 if (!file.IsAppendedFile)
+                {
                     file.HasChildren = parentNames.Contains(file.Namn);
+                    if (!file.HasChildren)
+                        file.IsExpanded = false;
+                }
             }
         }
 
