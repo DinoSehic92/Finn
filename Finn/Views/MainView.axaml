@@ -795,11 +795,11 @@
 					  ItemsSource="{Binding CurrentProject.Folders}"
 					  SelectionMode="Extended" IsReadOnly="True">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding Name}" Header="Folder"             Width="2*"   FontSize="14"/>
 					<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"            Width="Auto"  FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic"/>
+					<DataGridTextColumn Binding="{Binding Name}"			Header="Folder"             Width="2*"   FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic" IsVisible="false"/>
 					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to:" Width="2*"   FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Types}"              Header="Types"            Width="1.5*" FontSize="14"/>
+					<DataGridTextColumn Binding="{Binding Types}"              Header="Types"            Width="Auto" FontSize="14"/>
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>

@@ -39,9 +39,9 @@
 		</StackPanel>
 
         <!-- Content area -->
-        <Grid Grid.Row="2" Margin="8,0,8,0" PointerWheelChanged="OnPointerWheel" ColumnDefinitions="*,Auto">
+        <Grid Grid.Row="2" Margin="8,0,8,0" ColumnDefinitions="*,Auto">
 
-            <!-- Main view area -->
+            <!-- Main view area with zoom/pan viewport -->
             <Grid Grid.Column="0">
                 <!-- Busy / loading state -->
                 <StackPanel IsVisible="{Binding IsBusy}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
@@ -52,27 +52,34 @@
                     <TextBlock Text="{Binding Summary}" HorizontalAlignment="Center" FontSize="13" FontStyle="Italic" Opacity="0.6"/>
                 </StackPanel>
 
-                <!-- Side by side view -->
-                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding IsSideBySide}">
-                    <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="{Binding FileNameA}" FontSize="12" FontStyle="Italic" Opacity="0.5" HorizontalAlignment="Center"/>
-                        <Image Grid.Row="1" Source="{Binding CurrentOriginal}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
-                    </Grid>
-                    <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
-                    <Grid Grid.Column="2" RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="{Binding FileNameB}" FontSize="12" FontStyle="Italic" Opacity="0.5" HorizontalAlignment="Center"/>
-                        <Image Grid.Row="1" Source="{Binding CurrentRevised}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
-                    </Grid>
-                </Grid>
+                <!-- Zoom/pan viewport -->
+                <Panel Name="ZoomViewport" ClipToBounds="True" Background="Transparent">
+                    <Panel Name="ContentArea" HorizontalAlignment="Left" VerticalAlignment="Top">
 
-                <!-- Overlay view -->
-                <Panel IsVisible="{Binding IsOverlay}">
-                    <Image Source="{Binding CurrentOriginal}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
-                    <Image Source="{Binding CurrentRevised}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" Opacity="{Binding OverlayOpacity}"/>
+                        <!-- Side by side view -->
+                        <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding IsSideBySide}">
+                            <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                                <TextBlock Grid.Row="0" Text="{Binding FileNameA}" FontSize="12" FontStyle="Italic" Opacity="0.5" HorizontalAlignment="Center"/>
+                                <Image Grid.Row="1" Source="{Binding CurrentOriginal}" Stretch="Uniform"/>
+                            </Grid>
+                            <GridSplitter Grid.Column="1" Background="Transparent" ResizeDirection="Columns"/>
+                            <Grid Grid.Column="2" RowDefinitions="Auto,*">
+                                <TextBlock Grid.Row="0" Text="{Binding FileNameB}" FontSize="12" FontStyle="Italic" Opacity="0.5" HorizontalAlignment="Center"/>
+                                <Image Grid.Row="1" Source="{Binding CurrentRevised}" Stretch="Uniform"/>
+                            </Grid>
+                        </Grid>
+
+                        <!-- Overlay view -->
+                        <Panel IsVisible="{Binding IsOverlay}">
+                            <Image Source="{Binding CurrentOriginal}" Stretch="Uniform"/>
+                            <Image Source="{Binding CurrentRevised}" Stretch="Uniform" Opacity="{Binding OverlayOpacity}"/>
+                        </Panel>
+
+                        <!-- Diff only view -->
+                        <Image IsVisible="{Binding IsDiffOnly}" Source="{Binding CurrentDiff}" Stretch="Uniform"/>
+
+                    </Panel>
                 </Panel>
-
-                <!-- Diff only view -->
-                <Image IsVisible="{Binding IsDiffOnly}" Source="{Binding CurrentDiff}" Stretch="Uniform" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"/>
             </Grid>
 
             <!-- Changed pages side panel -->
@@ -164,6 +171,18 @@
                     </ToggleButton>
                     <Slider Name="OpacitySlider" Height="35" Width="100" Minimum="0" Maximum="1" Margin="5,-10,0,0" Value="{Binding OverlayOpacity}"
                             IsVisible="{Binding IsOverlay}" VerticalAlignment="Top" ToolTip.Tip="Overlay Opacity" />
+
+                    <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,4" Opacity="0.5"/>
+                    <Button ToolTip.Tip="Zoom Out" BorderThickness="0" Click="OnZoomOut" Height="30" Width="35" Padding="0">
+                        <ic:SymbolIcon Symbol="SubtractCircle" FontSize="16"/>
+                    </Button>
+                    <Button ToolTip.Tip="Fit to Window" BorderThickness="0" Click="OnResetZoom" Height="30" Width="35" Padding="0">
+                        <ic:SymbolIcon Symbol="ArrowMinimize" FontSize="16"/>
+                    </Button>
+                    <Button ToolTip.Tip="Zoom In" BorderThickness="0" Click="OnZoomIn" Height="30" Width="35" Padding="0">
+                        <ic:SymbolIcon Symbol="AddCircle" FontSize="16"/>
+                    </Button>
+                    <TextBlock Name="ZoomLabel" Text="100%" FontSize="11" VerticalAlignment="Center" Opacity="0.6" Margin="4,0,0,0"/>
 
                 </StackPanel>
             </Border>
