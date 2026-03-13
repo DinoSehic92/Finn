@@ -838,7 +838,6 @@ public partial class MainView : UserControl
         if (sender is Button)
             ColorTagButton.Flyout?.Hide();
 
-        FileGrid.SelectedItem = null;
         UpdateRowColor();
     }
 

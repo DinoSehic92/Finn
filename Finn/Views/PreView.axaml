@@ -119,7 +119,7 @@
 					<Button ToolTip.Tip="Clear Page" Width="26" Height="26" Padding="0" Click="OnAnnotateClear" BorderThickness="0">
 						<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14"/>
 					</Button>
-					<Button ToolTip.Tip="Save to Image" Width="26" Height="26" Padding="0" Click="OnAnnotateSave" BorderThickness="0">
+					<Button ToolTip.Tip="Save to Image (Ctrl+S)" Width="26" Height="26" Padding="0" Click="OnAnnotateSave" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Save" IconVariant="Regular" FontSize="14"/>
 						</Button>
 						<Button ToolTip.Tip="Copy to Clipboard (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
@@ -238,7 +238,7 @@
 							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton Name="AnnotateToggle" ToolTip.Tip="Annotate" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Click="OnToggleAnnotate">
+						<ToggleButton Name="AnnotateToggle" ToolTip.Tip="Annotate (Esc to exit)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Click="OnToggleAnnotate">
 							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 

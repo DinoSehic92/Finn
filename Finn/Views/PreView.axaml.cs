@@ -268,6 +268,7 @@ public partial class PreView : UserControl
     private bool _middlePanning;
     private Point _panStart;
     private Rect _panStartDisplayArea;
+    private Button? _activeToolButton;
 
     private void OnToggleAnnotate(object sender, RoutedEventArgs e)
     {
@@ -315,6 +316,7 @@ public partial class PreView : UserControl
         MuPDFRenderer.RemoveHandler(PointerMovedEvent, OnInkPointerMoved);
         MuPDFRenderer.RemoveHandler(PointerReleasedEvent, OnInkPointerReleased);
         this.RemoveHandler(KeyDownEvent, OnAnnotateKeyDown);
+        SetActiveToolButton(null);
     }
 
     private void OnAnnotateKeyDown(object? sender, KeyEventArgs e)
@@ -327,6 +329,16 @@ public partial class PreView : UserControl
         else if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             OnAnnotateCopy(this, e);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            OnAnnotateSave(this, e);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            DeactivateAnnotateMode();
             e.Handled = true;
         }
     }
@@ -420,6 +432,8 @@ public partial class PreView : UserControl
 
             if (MuPDFRenderer.ActiveLayer != null)
                 MuPDFRenderer.ActiveLayer.Color = color;
+
+            SetActiveToolButton(btn);
         }
     }
 
@@ -438,6 +452,8 @@ public partial class PreView : UserControl
             MuPDFRenderer.StrokeWidth = 12;
             MuPDFRenderer.StrokeOpacity = 0.35;
             MuPDFRenderer.IsHighlighterMode = true;
+
+            SetActiveToolButton(btn);
         }
     }
 
@@ -449,6 +465,27 @@ public partial class PreView : UserControl
             // Switching width implies pen mode
             MuPDFRenderer.StrokeOpacity = 1.0;
             MuPDFRenderer.IsHighlighterMode = false;
+
+            SetActiveToolButton(btn);
+        }
+    }
+
+    /// <summary>
+    /// Highlights the currently selected tool button in the annotation toolbar
+    /// with a subtle border, clearing the previous selection.
+    /// </summary>
+    private void SetActiveToolButton(Button? btn)
+    {
+        if (_activeToolButton != null)
+        {
+            _activeToolButton.BorderThickness = new Thickness(0);
+            _activeToolButton.BorderBrush = null;
+        }
+        _activeToolButton = btn;
+        if (btn != null)
+        {
+            btn.BorderThickness = new Thickness(2);
+            btn.BorderBrush = Brushes.White;
         }
     }
 
