@@ -262,6 +262,7 @@
 										<CheckBox Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}"/>
 										<CheckBox Content="PDF Compare"  Height="28" IsChecked="{Binding UI.TrayDiff, Mode=TwoWay}"/>
 										<CheckBox Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}"/>
+											<CheckBox Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}"/>
 									</StackPanel>
 								</Flyout>
 							</Button.Flyout>
@@ -395,7 +396,7 @@
 			<ToggleButton HotKey="Ctrl+T" IsChecked="{Binding UI.ShowThumbnails}" IsVisible="False" Width="0" Height="0"/>
 
 			<!-- Toolbox: grouped tools (compact icon-only flyout) -->
-			<Button ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0">
+			<Button Name="ToolboxButton" ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0">
 				<ic:SymbolIcon Symbol="Toolbox" FontSize="18"/>
 				<Button.Flyout>
 					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
@@ -404,7 +405,7 @@
 						   <Button ToolTip.Tip="Analog Clock" Width="35" Height="30" Classes="rounded-default" Click="OnOpenAnalogClock" Padding="0">
 							   <ic:SymbolIcon Symbol="Clock" FontSize="18"/>
 						   </Button>
-							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenWhiteboard}" CommandParameter="{Binding $parent[Window]}" Padding="0">
+							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Click="OnOpenWhiteboard" Padding="0">
 								<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
 							</Button>
 							<Button ToolTip.Tip="Reinforcement" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenReinforcementCalculator}" CommandParameter="{Binding $parent[Window]}" Padding="0">
@@ -992,6 +993,7 @@
 				<RowDefinition Height="{Binding UI.TrayOtherFiles,  Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
+					<RowDefinition Height="{Binding UI.TrayAnnotations, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
 			</Grid.RowDefinitions>
 
             <!-- File notepad (wrapped in shadow-only border) -->
@@ -1251,9 +1253,56 @@
 									</ContextMenu>
 								</DataGrid.ContextMenu>
 							</DataGrid>
-						</Grid>
-					</Grid>
-					</Grid>
+								</Grid>
+
+								<!-- Annotation Layers panel -->
+								<Grid Grid.Row="10" IsVisible="{Binding UI.TrayAnnotations}" RowDefinitions="Auto,*">
+									<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
+										<Button Width="30" ToolTip.Tip="Add Layer" Click="OnAnnotateNewLayer"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
+										<Button Width="30" ToolTip.Tip="Clear Layer" Click="OnClearSelectedLayer"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+										<Button Width="30" ToolTip.Tip="Remove Layer" Click="OnRemoveSelectedLayer"><ic:SymbolIcon Symbol="Dismiss" FontSize="16"/></Button>
+									</StackPanel>
+									<DataGrid Grid.Row="1" Name="LayerList"
+											  SelectionMode="Single" SelectionChanged="OnLayerSelected"
+											  AutoGenerateColumns="False" IsReadOnly="True"
+											  GridLinesVisibility="None" RowHeight="22" HeadersVisibility="None">
+										<DataGrid.Columns>
+											<DataGridTemplateColumn Width="28" CanUserResize="False">
+												<DataGridTemplateColumn.CellTemplate>
+													<DataTemplate x:DataType="model:AnnotationLayer">
+														<CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
+																  Width="18" Height="18" Padding="0" Margin="4,0,0,0"
+																  Click="OnLayerVisibilityToggled"/>
+													</DataTemplate>
+												</DataGridTemplateColumn.CellTemplate>
+											</DataGridTemplateColumn>
+											<DataGridTemplateColumn Header="Layer" Width="*">
+												<DataGridTemplateColumn.CellTemplate>
+													<DataTemplate x:DataType="model:AnnotationLayer">
+														<StackPanel Orientation="Horizontal" Spacing="5" Margin="4,0">
+															<Ellipse Width="8" Height="8" VerticalAlignment="Center">
+																<Ellipse.Fill>
+																	<SolidColorBrush Color="{Binding Color}"/>
+																</Ellipse.Fill>
+															</Ellipse>
+															<TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+														</StackPanel>
+													</DataTemplate>
+												</DataGridTemplateColumn.CellTemplate>
+											</DataGridTemplateColumn>
+											<DataGridTemplateColumn Width="30" CanUserResize="False">
+												<DataGridTemplateColumn.CellTemplate>
+													<DataTemplate x:DataType="model:AnnotationLayer">
+														<TextBlock Text="{Binding StrokeCount}" FontSize="11"
+																   Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
+													</DataTemplate>
+												</DataGridTemplateColumn.CellTemplate>
+											</DataGridTemplateColumn>
+										</DataGrid.Columns>
+									</DataGrid>
+								</Grid>
+							</Grid>
+							</Grid>
 
 		<!-- Embedded preview -->
 		<Grid Name="PreviewArea" Grid.Column="3" Grid.Row="2" ClipToBounds="True"

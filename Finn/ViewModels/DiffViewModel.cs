@@ -3,6 +3,7 @@ using Finn.Model;
 using Finn.Services;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -41,6 +42,12 @@ namespace Finn.ViewModels
         private List<DiffResultData> diffPages = [];
         private DiffResultData? selectedDiffPage;
         private bool changePanelOpen = true;
+
+        // Annotation state
+        private AnnotationTool activeTool = AnnotationTool.None;
+        private string annotationColor = "#D64045";
+        private double annotationStrokeWidth = 3;
+        private readonly Dictionary<int, List<DiffAnnotation>> _pageAnnotations = [];
 
         public string FileNameA
         {
@@ -339,6 +346,84 @@ namespace Finn.ViewModels
             return new Bitmap(new MemoryStream(File.ReadAllBytes(path)));
         }
 
+        #region Annotations
+
+        public AnnotationTool ActiveTool
+        {
+            get => activeTool;
+            set
+            {
+                if (SetProperty(ref activeTool, value))
+                {
+                    OnPropertyChanged(nameof(IsAnnotating));
+                    OnPropertyChanged(nameof(IsDrawTool));
+                    OnPropertyChanged(nameof(IsHighlightTool));
+                }
+            }
+        }
+
+        public bool IsAnnotating => activeTool != AnnotationTool.None;
+        public bool IsDrawTool => activeTool == AnnotationTool.Draw;
+        public bool IsHighlightTool => activeTool == AnnotationTool.Highlight;
+
+        public string AnnotationColor
+        {
+            get => annotationColor;
+            set => SetProperty(ref annotationColor, value);
+        }
+
+        public double AnnotationStrokeWidth
+        {
+            get => annotationStrokeWidth;
+            set => SetProperty(ref annotationStrokeWidth, value);
+        }
+
+        /// <summary>
+        /// Returns annotations for the current page.
+        /// </summary>
+        public List<DiffAnnotation> CurrentAnnotations =>
+            _pageAnnotations.TryGetValue(currentPageIndex, out var list) ? list : [];
+
+        /// <summary>
+        /// Adds a completed annotation to the current page.
+        /// </summary>
+        public void AddAnnotation(DiffAnnotation annotation)
+        {
+            if (!_pageAnnotations.TryGetValue(currentPageIndex, out var list))
+            {
+                list = [];
+                _pageAnnotations[currentPageIndex] = list;
+            }
+            list.Add(annotation);
+            OnPropertyChanged(nameof(CurrentAnnotations));
+        }
+
+        /// <summary>
+        /// Removes the last annotation on the current page (undo).
+        /// </summary>
+        public void UndoAnnotation()
+        {
+            if (_pageAnnotations.TryGetValue(currentPageIndex, out var list) && list.Count > 0)
+            {
+                list.RemoveAt(list.Count - 1);
+                OnPropertyChanged(nameof(CurrentAnnotations));
+            }
+        }
+
+        /// <summary>
+        /// Clears all annotations on the current page.
+        /// </summary>
+        public void ClearAnnotations()
+        {
+            if (_pageAnnotations.TryGetValue(currentPageIndex, out var list))
+            {
+                list.Clear();
+                OnPropertyChanged(nameof(CurrentAnnotations));
+            }
+        }
+
+        #endregion
+
         public void Cleanup()
         {
             cts?.Cancel();
@@ -357,6 +442,7 @@ namespace Finn.ViewModels
 
             tempDir = null;
             pageInfos.Clear();
+            _pageAnnotations.Clear();
         }
     }
 }

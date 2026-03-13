@@ -1,11 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Finn.Model;
 using Finn.ViewModels;
 using System;
+using System.Collections.Generic;
 
 namespace Finn.Dialogs
 {
@@ -33,6 +36,7 @@ namespace Finn.Dialogs
             ContentArea.RenderTransformOrigin = new RelativePoint(0, 0, RelativeUnit.Absolute);
 
             SetupZoomPan();
+            SetupAnnotationInput();
         }
 
         private DiffViewModel VM => (DiffViewModel)DataContext!;
@@ -41,11 +45,20 @@ namespace Finn.Dialogs
         {
             await VM.RunDiffAsync();
             FitToViewport();
+            RedrawAnnotations();
+            VM.PropertyChanged += OnVMPropertyChanged;
         }
 
         private void OnClosed(object? sender, EventArgs e)
         {
+            VM.PropertyChanged -= OnVMPropertyChanged;
             VM.Cleanup();
+        }
+
+        private void OnVMPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(DiffViewModel.CurrentPageIndex))
+                RedrawAnnotations();
         }
 
         private async void OnApplyTolerance(object? sender, RoutedEventArgs e)
@@ -224,6 +237,149 @@ namespace Finn.Dialogs
         private void OnZoomIn(object? sender, RoutedEventArgs e) => ZoomAroundViewportCenter(ZoomBase);
         private void OnZoomOut(object? sender, RoutedEventArgs e) => ZoomAroundViewportCenter(1.0 / ZoomBase);
         private void OnResetZoom(object? sender, RoutedEventArgs e) => FitToViewport();
+
+        #endregion
+
+        #region Annotations
+
+        private bool _isDrawing;
+        private Polyline? _activePolyline;
+        private DiffAnnotation? _activeAnnotation;
+
+        private void OnToggleDraw(object? sender, RoutedEventArgs e)
+        {
+            if (VM.ActiveTool == AnnotationTool.Draw)
+                VM.ActiveTool = AnnotationTool.None;
+            else
+                VM.ActiveTool = AnnotationTool.Draw;
+            SyncAnnotationToggles();
+        }
+
+        private void OnToggleHighlight(object? sender, RoutedEventArgs e)
+        {
+            if (VM.ActiveTool == AnnotationTool.Highlight)
+                VM.ActiveTool = AnnotationTool.None;
+            else
+                VM.ActiveTool = AnnotationTool.Highlight;
+            SyncAnnotationToggles();
+        }
+
+        private void SyncAnnotationToggles()
+        {
+            DrawBtn.IsChecked = VM.IsDrawTool;
+            HighlightBtn.IsChecked = VM.IsHighlightTool;
+            AnnotationCanvas.IsHitTestVisible = VM.IsAnnotating;
+        }
+
+        private void SetupAnnotationInput()
+        {
+            AnnotationCanvas.AddHandler(PointerPressedEvent, OnAnnotationPointerPressed, RoutingStrategies.Tunnel);
+            AnnotationCanvas.AddHandler(PointerMovedEvent, OnAnnotationPointerMoved, RoutingStrategies.Tunnel);
+            AnnotationCanvas.AddHandler(PointerReleasedEvent, OnAnnotationPointerReleased, RoutingStrategies.Tunnel);
+        }
+
+        private void OnAnnotationPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (!VM.IsAnnotating) return;
+            var props = e.GetCurrentPoint(AnnotationCanvas).Properties;
+            if (!props.IsLeftButtonPressed) return;
+
+            _isDrawing = true;
+            e.Pointer.Capture(AnnotationCanvas);
+            e.Handled = true;
+
+            bool isHighlight = VM.ActiveTool == AnnotationTool.Highlight;
+
+            _activeAnnotation = new DiffAnnotation
+            {
+                Tool = VM.ActiveTool,
+                Color = isHighlight ? "#FFFF00" : VM.AnnotationColor,
+                StrokeWidth = isHighlight ? 20 : VM.AnnotationStrokeWidth,
+                PageIndex = VM.CurrentPageIndex
+            };
+
+            _activePolyline = new Polyline
+            {
+                Stroke = new SolidColorBrush(Color.Parse(_activeAnnotation.Color)),
+                StrokeThickness = _activeAnnotation.StrokeWidth,
+                StrokeLineCap = PenLineCap.Round,
+                StrokeJoin = PenLineJoin.Round,
+                Opacity = isHighlight ? 0.35 : 1.0,
+                Points = []
+            };
+            AnnotationCanvas.Children.Add(_activePolyline);
+
+            var pos = e.GetPosition(AnnotationCanvas);
+            _activeAnnotation.Points.Add((pos.X, pos.Y));
+            _activePolyline.Points = [pos];
+        }
+
+        private void OnAnnotationPointerMoved(object? sender, PointerEventArgs e)
+        {
+            if (!_isDrawing || _activePolyline == null || _activeAnnotation == null) return;
+            e.Handled = true;
+
+            var pos = e.GetPosition(AnnotationCanvas);
+            _activeAnnotation.Points.Add((pos.X, pos.Y));
+
+            // Rebuild the points list so Avalonia picks up the change
+            var pts = new List<Point>(_activePolyline.Points) { pos };
+            _activePolyline.Points = pts;
+        }
+
+        private void OnAnnotationPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            if (!_isDrawing) return;
+            _isDrawing = false;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+
+            if (_activeAnnotation != null && _activeAnnotation.Points.Count > 1)
+                VM.AddAnnotation(_activeAnnotation);
+
+            _activePolyline = null;
+            _activeAnnotation = null;
+        }
+
+        private void OnAnnotationUndo(object? sender, RoutedEventArgs e)
+        {
+            VM.UndoAnnotation();
+            RedrawAnnotations();
+        }
+
+        private void OnAnnotationClear(object? sender, RoutedEventArgs e)
+        {
+            VM.ClearAnnotations();
+            RedrawAnnotations();
+        }
+
+        /// <summary>
+        /// Redraws all persisted annotations for the current page onto the canvas.
+        /// Called after undo/clear or page change.
+        /// </summary>
+        private void RedrawAnnotations()
+        {
+            AnnotationCanvas.Children.Clear();
+
+            foreach (var ann in VM.CurrentAnnotations)
+            {
+                bool isHighlight = ann.Tool == AnnotationTool.Highlight;
+                var pts = new List<Point>(ann.Points.Count);
+                foreach (var (x, y) in ann.Points)
+                    pts.Add(new Point(x, y));
+
+                var polyline = new Polyline
+                {
+                    Stroke = new SolidColorBrush(Color.Parse(ann.Color)),
+                    StrokeThickness = ann.StrokeWidth,
+                    StrokeLineCap = PenLineCap.Round,
+                    StrokeJoin = PenLineJoin.Round,
+                    Opacity = isHighlight ? 0.35 : 1.0,
+                    Points = pts
+                };
+                AnnotationCanvas.Children.Add(polyline);
+            }
+        }
 
         #endregion
     }

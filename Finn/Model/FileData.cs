@@ -260,6 +260,14 @@ namespace Finn.Model
             set => SetProperty(ref _defaultPage, value);
         }
 
+        /// <summary>
+        /// Annotation layers for this file. Stored per-file so strokes survive
+        /// file switches and never bleed between documents. Not serialized.
+        /// When previewing a version, this is pointed at the version's own collection.
+        /// </summary>
+        [JsonIgnore]
+        public ObservableCollection<AnnotationLayer> AnnotationLayers { get; set; } = [];
+
         public ObservableCollection<PageData> FavPages
         {
             get => _favPages;

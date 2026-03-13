@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using System.Threading;
+using System.Collections.ObjectModel;
 using Finn.Model;
 using System;
 using Microsoft.Extensions.Logging;
@@ -198,7 +199,12 @@ namespace Finn.ViewModels
         public bool TwopageMode
         {
             get => twopageMode;
-            set => SetProperty(ref twopageMode, value, () => _ = ToggleDualViewAsync());
+            set
+            {
+                // Block activation while annotating; always allow deactivation.
+                if (value && AnnotationActive) return;
+                SetProperty(ref twopageMode, value, () => _ = ToggleDualViewAsync());
+            }
         }
 
         private bool dualFileMode = false;
@@ -207,6 +213,8 @@ namespace Finn.ViewModels
             get => dualFileMode;
             set
             {
+                // Block activation while annotating; always allow deactivation.
+                if (value && AnnotationActive) return;
                 if (SetProperty(ref dualFileMode, value))
                 {
                     OnPropertyChanged(nameof(SecondaryPagecount));
@@ -394,6 +402,31 @@ namespace Finn.ViewModels
             get => progress;
             set => SetProperty(ref progress, value);
         }
+
+        private bool whiteboardMode;
+        public bool WhiteboardMode
+        {
+            get => whiteboardMode;
+            set => SetProperty(ref whiteboardMode, value);
+        }
+
+        /// <summary>
+        /// True while the user is actively annotating. Set by the view
+        /// so the ViewModel can block dual-page/dual-file activation.
+        /// </summary>
+        private bool annotationActive;
+        public bool AnnotationActive
+        {
+            get => annotationActive;
+            set => SetProperty(ref annotationActive, value);
+        }
+
+        /// <summary>
+        /// Standalone annotation layers for whiteboard mode.
+        /// Separate from any FileData so whiteboard strokes never
+        /// interfere with file annotations.
+        /// </summary>
+        public ObservableCollection<AnnotationLayer> WhiteboardLayers { get; } = [];
         #endregion
 
         #region Cancellation Tokens
@@ -449,6 +482,65 @@ namespace Finn.ViewModels
         {
             RequestPage1 = Math.Max(0, page);
         }
+
+        // Minimal blank A4 PDF (595 × 842 pt) used as the whiteboard canvas.
+        private static readonly byte[] BlankA4Pdf = System.Text.Encoding.ASCII.GetBytes(
+            "%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+            "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+            "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 842 595]>>endobj\n" +
+            "xref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n" +
+            "0000000058 00000 n \n0000000115 00000 n \n" +
+            "trailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF");
+
+        /// <summary>
+        /// Opens a blank A4 page in the previewer to use as a whiteboard.
+        /// The caller is responsible for activating annotation mode after this returns.
+        /// </summary>
+        public async Task OpenWhiteboardAsync()
+        {
+            if (disposed) return;
+
+            // Whiteboard is single-page only — collapse dual modes first.
+            if (DualFileMode)
+                DualFileMode = false;
+            if (TwopageMode)
+                TwopageMode = false;
+
+            await DisposeCurrentDocumentAsync(CancellationToken.None).ConfigureAwait(false);
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var wbContext = new MuPDFContext();
+                var wbDoc = new MuPDFDocument(wbContext, BlankA4Pdf, InputFileTypes.PDF);
+
+                var prevDoc = MainPreviewFile;
+                var prevCtx = context;
+
+                MainPreviewFile = wbDoc;
+                context = wbContext;
+                Pagecount = 1;
+                RequestFile = null;
+                CurrentFile = null;
+                WhiteboardMode = true;
+                fileAvailable = true;
+
+                prevDoc?.Dispose();
+                prevCtx?.Dispose();
+
+                StatusMessage = "Whiteboard";
+
+                if (mainRenderer != null)
+                {
+                    mainRenderer.ReleaseResources();
+                    mainRenderer.Initialize(MainPreviewFile, 1, 0, ZOOM_LEVEL);
+                    mainRenderer.IsVisible = true;
+                    CurrentPage1 = 0;
+                    RequestPage1 = 0;
+                }
+
+                FileWorkerBusy = false;
+            }).GetTask().ConfigureAwait(false);
+        }
         #endregion
 
         #region File Operations
@@ -456,6 +548,8 @@ namespace Finn.ViewModels
         {
             if (disposed || RequestFile?.Sökväg == null)
                 return;
+
+            WhiteboardMode = false;
 
             int myGeneration = Interlocked.Increment(ref fileGeneration);
 
@@ -653,7 +747,13 @@ namespace Finn.ViewModels
                     LinkedPageMode = true;
                 requestPage1 = desired;
                 OnPropertyChanged(nameof(RequestPage1));
-                CurrentPage1 = desired;
+                // Reset the backing field to a sentinel so that
+                // RenderCurrentPageAsync's "CurrentPage1 = requestPage1"
+                // fires PropertyChanged AFTER Initialize completes.
+                // Setting CurrentPage1 here (before Initialize) would trigger
+                // OnBindingPwr → SetStrokePage → InvalidateVisual on a
+                // released renderer, causing a blank preview.
+                currentPage1 = -1;
                 Rotation = 0;
                 if (!string.IsNullOrEmpty(search))
                     SearchMode = true;
@@ -927,6 +1027,7 @@ namespace Finn.ViewModels
 
                         mainRenderer.IsVisible = false;
                         mainRenderer.HighlightedRegions = null;
+                        mainRenderer.ReleaseResources();
                         mainRenderer.Initialize(MainPreviewFile, 1, requestPage1, ZOOM_LEVEL);
                         mainRenderer.IsVisible = true;
                         SetSearchResults();
@@ -951,6 +1052,7 @@ namespace Finn.ViewModels
                             OnPropertyChanged(nameof(RequestPage2));
                             secondaryRenderer.IsVisible = false;
                             secondaryRenderer.HighlightedRegions = null;
+                            secondaryRenderer.ReleaseResources();
                             secondaryRenderer.Initialize(MainPreviewFile, 1, requestPage2, ZOOM_LEVEL);
                             secondaryRenderer.IsVisible = true;
                             SetSecondarySearchResults();

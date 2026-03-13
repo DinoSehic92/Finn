@@ -78,6 +78,14 @@ public partial class MainView : UserControl
         }
     }
 
+    private void OnOpenWhiteboard(object? sender, RoutedEventArgs e)
+    {
+        // Close the toolbox flyout so the first click after this goes to the canvas
+        ToolboxButton.Flyout?.Hide();
+
+        _ctx.OpenWhiteboard(TopLevel.GetTopLevel(this) as Window ?? new Window());
+    }
+
     private async void OpenTimesheetWindow(object? sender, RoutedEventArgs e)
     {
         var window = new Finn.Views.TimesheetWindow();
@@ -112,6 +120,7 @@ public partial class MainView : UserControl
         _pwr.DarkMode = _ctx.UI.PreviewDarkMode;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
+        _ctx.PreviewVM.PropertyChanged += OnPreviewPropertyChanged;
 
         UpdateFont();
         UpdateMainGrid();
@@ -226,6 +235,7 @@ public partial class MainView : UserControl
             MainGrid.ColumnDefinitions[3] = new ColumnDefinition(2.5, GridUnitType.Star) { MinWidth = 400 };
             MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star) { MinWidth = 300 };
             EmbeddedPreview.SetRenderer();
+            SyncLayerList();
         }
         else
         {
@@ -1141,6 +1151,90 @@ public partial class MainView : UserControl
     {
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.CompareLastTwoVersions(window);
+    }
+
+    #endregion
+
+    #region Annotation Layers
+
+    private void OnPreviewPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // Re-sync the layer list whenever the active layers change.
+        // PropertyChanged may fire from a background thread (e.g. CurrentFile
+        // is set after ConfigureAwait(false) in SetFileAsync), so dispatch
+        // to the UI thread to avoid cross-thread access on LayerList.
+        if (e.PropertyName is "CurrentFile" or "WhiteboardMode")
+            Dispatcher.UIThread.Post(() => SyncLayerList());
+    }
+
+    private static readonly Avalonia.Media.Color[] LayerColors =
+    [
+        Avalonia.Media.Color.FromRgb(214, 64, 69),
+        Avalonia.Media.Color.FromRgb(59, 130, 217),
+        Avalonia.Media.Color.FromRgb(61, 163, 95),
+        Avalonia.Media.Color.FromRgb(229, 168, 32),
+        Avalonia.Media.Color.FromRgb(155, 95, 192),
+    ];
+
+    private Controls.AnnotatedPDFRenderer? AnnotationRenderer
+        => (EmbeddedPreview as Views.PreView)?.MuPDFRenderer;
+
+    private void SyncLayerList()
+    {
+        var renderer = AnnotationRenderer;
+        if (renderer == null) return;
+        if (LayerList.ItemsSource != renderer.Layers)
+            LayerList.ItemsSource = renderer.Layers;
+        if (renderer.ActiveLayer != null)
+            LayerList.SelectedItem = renderer.ActiveLayer;
+    }
+
+    private void OnAnnotateNewLayer(object? sender, RoutedEventArgs e)
+    {
+        SyncLayerList();
+        var renderer = AnnotationRenderer;
+        if (renderer == null) return;
+        renderer.EnsureDefaultLayer();
+        int index = renderer.Layers.Count;
+        var color = LayerColors[index % LayerColors.Length];
+        var layer = renderer.AddLayer($"Layer {index + 1}", color);
+        renderer.StrokeColor = color;
+        LayerList.SelectedItem = layer;
+    }
+
+    private void OnLayerSelected(object? sender, SelectionChangedEventArgs e)
+    {
+        var renderer = AnnotationRenderer;
+        if (renderer == null) return;
+        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
+        {
+            renderer.ActiveLayer = layer;
+            // Only update stroke color if not in highlighter mode
+            if (!renderer.IsHighlighterMode)
+                renderer.StrokeColor = layer.Color;
+        }
+        renderer.InvalidateVisual();
+    }
+
+    private void OnLayerVisibilityToggled(object? sender, RoutedEventArgs e)
+    {
+        AnnotationRenderer?.InvalidateVisual();
+    }
+
+    private void OnClearSelectedLayer(object? sender, RoutedEventArgs e)
+    {
+        var renderer = AnnotationRenderer;
+        if (renderer == null) return;
+        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
+            renderer.ClearLayer(layer);
+    }
+
+    private void OnRemoveSelectedLayer(object? sender, RoutedEventArgs e)
+    {
+        var renderer = AnnotationRenderer;
+        if (renderer == null || renderer.Layers.Count <= 1) return;
+        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
+            renderer.RemoveLayer(layer);
     }
 
     #endregion

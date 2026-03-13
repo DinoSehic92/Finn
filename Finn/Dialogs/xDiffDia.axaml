@@ -78,6 +78,8 @@
                         <!-- Diff only view -->
                         <Image IsVisible="{Binding IsDiffOnly}" Source="{Binding CurrentDiff}" Stretch="Uniform"/>
 
+                        <!-- Annotation layer (same transform as ContentArea, drawn on top) -->
+                        <Canvas Name="AnnotationCanvas" Background="Transparent" IsHitTestVisible="False"/>
                     </Panel>
                 </Panel>
             </Grid>
@@ -183,6 +185,22 @@
                         <ic:SymbolIcon Symbol="AddCircle" FontSize="16"/>
                     </Button>
                     <TextBlock Name="ZoomLabel" Text="100%" FontSize="11" VerticalAlignment="Center" Opacity="0.6" Margin="4,0,0,0"/>
+
+                    <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,4" Opacity="0.5"/>
+
+                    <!-- Annotation tools -->
+                    <ToggleButton Name="DrawBtn" ToolTip.Tip="Draw (freehand)" Height="30" Width="35" Padding="0" Click="OnToggleDraw">
+                        <ic:SymbolIcon Symbol="Pen" FontSize="16"/>
+                    </ToggleButton>
+                    <ToggleButton Name="HighlightBtn" ToolTip.Tip="Highlight" Height="30" Width="35" Padding="0" Click="OnToggleHighlight">
+                        <ic:SymbolIcon Symbol="Highlight" FontSize="16"/>
+                    </ToggleButton>
+                    <Button ToolTip.Tip="Undo" BorderThickness="0" Click="OnAnnotationUndo" Height="30" Width="35" Padding="0">
+                        <ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/>
+                    </Button>
+                    <Button ToolTip.Tip="Clear annotations" BorderThickness="0" Click="OnAnnotationClear" Height="30" Width="35" Padding="0">
+                        <ic:SymbolIcon Symbol="Eraser" FontSize="16"/>
+                    </Button>
 
                 </StackPanel>
             </Border>

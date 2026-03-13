@@ -168,6 +168,9 @@ namespace Finn.ViewModels
         private bool trayOtherFiles;
         public bool TrayOtherFiles { get => trayOtherFiles; set { trayOtherFiles = value; RaisePropertyChanged(nameof(TrayOtherFiles)); } }
 
+        private bool trayAnnotations;
+        public bool TrayAnnotations { get => trayAnnotations; set { trayAnnotations = value; RaisePropertyChanged(nameof(TrayAnnotations)); } }
+
         private bool trayViewOpen;
         public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; RaisePropertyChanged(nameof(TrayViewOpen)); } }
 
@@ -231,6 +234,7 @@ namespace Finn.ViewModels
                 TrayDiff = this.TrayDiff,
                 TrayVersions = this.TrayVersions,
                 TrayOtherFiles = this.TrayOtherFiles,
+                TrayAnnotations = this.TrayAnnotations,
                 ShowIcons = this.ShowIcons,
                 ColorTagDot = this.ColorTagDot,
                 TreeViewOpen = this.TreeViewOpen,
@@ -274,6 +278,7 @@ namespace Finn.ViewModels
                 this.TrayDiff = ui.TrayDiff;
                 this.TrayVersions = ui.TrayVersions;
                 this.TrayOtherFiles = ui.TrayOtherFiles;
+                this.TrayAnnotations = ui.TrayAnnotations;
                 this.ShowIcons = ui.ShowIcons;
                 this.ColorTagDot = ui.ColorTagDot;
 

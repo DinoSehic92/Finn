@@ -24,11 +24,13 @@ namespace Finn.ViewModels
                 window.Focusable = true;
             }
 
-            public void OpenWhiteboard(Window mainWindow)
+            public async void OpenWhiteboard(Window mainWindow)
             {
-                var window = new xPaintDia();
-                ConfigureWindow(window, mainWindow);
-                window.Show();
+                // Ensure preview is visible
+                if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
+                    UI.PreviewEmbeddedOpen = true;
+
+                await PreviewVM.OpenWhiteboardAsync();
             }
 
             public void OpenReinforcementCalculator(Window mainWindow)

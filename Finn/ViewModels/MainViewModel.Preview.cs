@@ -67,6 +67,9 @@ namespace Finn.ViewModels
             if (version == null) return;
             SelectedVersion = version;
             var stub = new FileData { Sökväg = version.Sökväg, Namn = version.ShortName };
+            // Point the stub at the version's own annotation layers so strokes
+            // survive version switches instead of being lost with the stub.
+            stub.AnnotationLayers = version.AnnotationLayers;
             await RequestPreviewAsync(stub, searchText);
         }
 

@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -28,6 +29,13 @@ namespace Finn.Model
         private string _label = string.Empty;
         private string _addedDate = string.Empty;
         private bool _isActive;
+
+        /// <summary>
+        /// Annotation layers for this version. Each version keeps its own strokes
+        /// so annotations survive version switches. Not serialized.
+        /// </summary>
+        [JsonIgnore]
+        public ObservableCollection<AnnotationLayer> AnnotationLayers { get; } = [];
 
         [JsonIgnore]
         public bool IsActive
