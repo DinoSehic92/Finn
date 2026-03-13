@@ -458,11 +458,12 @@
 			<!-- Main file list with empty state and drop hint overlays -->
 			<Panel>
 				<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
-						  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
-						  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
-						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-						  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
-						  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
+					  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
+					  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
+					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
+					  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
+					  CanUserSortColumns="False"
+					  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 
                 <DataGrid.Columns>
                     <!-- Icons-only column: render Fluent SymbolIcons for each symbol name in IconSymbols -->
@@ -499,7 +500,7 @@
 					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
 
 						<!-- Name column with expand/collapse chevron for parent files and indent for appended -->
-						<DataGridTemplateColumn Header="Namn" Width="Auto" MinWidth="120" CanUserSort="True" SortMemberPath="Namn">
+						<DataGridTemplateColumn Header="Namn" Width="Auto" MinWidth="120">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate x:DataType="model:FileData">
 									<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -1133,6 +1134,15 @@
 					<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
 					<TextBlock Text="No other files" FontSize="12" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 				</StackPanel>
+				<!-- Drop hint for other files -->
+				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
+						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}">
+					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
+						<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
+						<TextBlock Text="Drop files here" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+					</StackPanel>
+				</Border>
 			</Panel>
 
 			<!-- PDF Compare panel -->

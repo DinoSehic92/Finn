@@ -73,9 +73,9 @@ namespace Finn.ViewModels
 
                 CurrentProject.RemoveFile(file);
                 PreviewVM.RecentFiles.Remove(file);
-                Collections.SetCollectionContent();
             }
 
+            Collections.SetCollectionContent();
             CurrentProject.RefreshHasChildren();
             CurrentProject.SetFiletypeList();
             MarkDirty();

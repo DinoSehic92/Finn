@@ -252,6 +252,7 @@ public partial class MainView : UserControl
 
     private async void OnDropOtherFiles(object? sender, DragEventArgs e)
     {
+        SetDropHintActive(OtherFilesDropOverlay, false);
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
         await _ctx.AddDroppedOtherFilesAsync(files, folders);
         UpdateOtherFilesEmptyState();
@@ -293,27 +294,25 @@ public partial class MainView : UserControl
         if (items == null) return;
 
         bool hasPdf = false;
-        bool hasNonPdfFile = false;
         bool hasFolder = false;
+        bool hasAnyFile = false;
 
         foreach (var item in items)
         {
             if (item is IStorageFolder)
-            {
                 hasFolder = true;
-            }
-            else if (Path.GetExtension(item.Path.LocalPath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
-            {
-                hasPdf = true;
-            }
             else
             {
-                hasNonPdfFile = true;
+                hasAnyFile = true;
+                if (Path.GetExtension(item.Path.LocalPath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                    hasPdf = true;
             }
         }
 
-        // FileGrid accepts PDFs and folders (folders are synced to project)
+        // FileGrid accepts PDFs and folders
         SetDropHintActive(DropOverlay, hasPdf || hasFolder);
+        // OtherFiles accepts any file
+        SetDropHintActive(OtherFilesDropOverlay, hasAnyFile || hasFolder);
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
@@ -329,6 +328,7 @@ public partial class MainView : UserControl
     private void HideAllDropOverlays()
     {
         SetDropHintActive(DropOverlay, false);
+        SetDropHintActive(OtherFilesDropOverlay, false);
     }
 
     private static void SetDropHintActive(Avalonia.Controls.Border overlay, bool active)
