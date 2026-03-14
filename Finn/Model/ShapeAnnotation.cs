@@ -19,6 +19,7 @@ public enum InlineAnnotationTool
     Text,
     ArrowText,
     MeasureDistance,
+    RevisionCloud,
     Eraser
 }
 
@@ -34,6 +35,8 @@ public class ShapeAnnotation
     public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
     public double StrokeWidth { get; set; } = 3;
     public double Opacity { get; set; } = 1.0;
+    /// <summary>When true, the shape is rendered with a translucent fill in addition to the stroke.</summary>
+    public bool IsFilled { get; set; }
 
     public void InvalidatePen()
     {

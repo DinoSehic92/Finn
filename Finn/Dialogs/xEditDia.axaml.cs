@@ -59,6 +59,8 @@ public partial class xEditDia : Window
 
             ctx.SetCategory(selectedCombo.Content.ToString());
 
+            ctx.CurrentProject.ReviewFolder = ReviewFolder.Text?.Trim() ?? string.Empty;
+
             ctx.UpdateTreeview();
         }
 

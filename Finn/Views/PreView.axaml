@@ -94,10 +94,13 @@
 					BoxShadow="0 1 4 0 #40000000">
 				<StackPanel Spacing="1">
 					<!-- Row 1: Tools & Actions -->
-					<StackPanel Orientation="Horizontal" Spacing="1">
-						<Button ToolTip.Tip="Draw (1)" Width="26" Height="26" Padding="0" Tag="Draw" Click="OnAnnotateToolSelect" BorderThickness="0">
-							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="14"/>
-						</Button>
+						<StackPanel Orientation="Horizontal" Spacing="1">
+							<Button ToolTip.Tip="Select / Move (V)" Width="26" Height="26" Padding="0" Tag="Select" Click="OnAnnotateToolSelect" BorderThickness="0">
+								<ic:SymbolIcon Symbol="Cursor" IconVariant="Regular" FontSize="14"/>
+							</Button>
+							<Button ToolTip.Tip="Draw (1)" Width="26" Height="26" Padding="0" Tag="Draw" Click="OnAnnotateToolSelect" BorderThickness="0">
+								<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="14"/>
+							</Button>
 						<Button ToolTip.Tip="Highlight (2)" Width="26" Height="26" Padding="0" Tag="Highlight" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Highlight" IconVariant="Regular" FontSize="14"/>
 						</Button>
@@ -122,11 +125,11 @@
 						<Button ToolTip.Tip="Measure Distance (9) — hold Shift for axis lock" Width="26" Height="26" Padding="0" Tag="MeasureDistance" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
 						</Button>
+						<Button ToolTip.Tip="Revision Cloud" Width="26" Height="26" Padding="0" Tag="RevisionCloud" Click="OnAnnotateToolSelect" BorderThickness="0">
+							<ic:SymbolIcon Symbol="Cloud" IconVariant="Regular" FontSize="14"/>
+						</Button>
 						<Button ToolTip.Tip="Eraser (0)" Width="26" Height="26" Padding="0" Tag="Eraser" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Eraser" IconVariant="Regular" FontSize="14"/>
-						</Button>
-						<Button ToolTip.Tip="Select / Move" Width="26" Height="26" Padding="0" Tag="Select" Click="OnAnnotateToolSelect" BorderThickness="0">
-							<ic:SymbolIcon Symbol="Cursor" IconVariant="Regular" FontSize="14"/>
 						</Button>
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,5" Opacity="0.4"/>
 						<Button ToolTip.Tip="Undo (Ctrl+Z)" Width="26" Height="26" Padding="0" Click="OnAnnotateUndo" BorderThickness="0">
@@ -143,10 +146,15 @@
 							<ic:SymbolIcon Symbol="Save" IconVariant="Regular" FontSize="14"/>
 						</Button>
 						<Button ToolTip.Tip="Copy to Clipboard (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
-							<ic:SymbolIcon Symbol="Clipboard" IconVariant="Regular" FontSize="14"/>
-						</Button>
+								<ic:SymbolIcon Symbol="Clipboard" IconVariant="Regular" FontSize="14"/>
+							</Button>
+							<Button ToolTip.Tip="Export Review" Width="26" Height="26" Padding="0" Click="OnAnnotateExportReview" BorderThickness="0">
+								<ic:SymbolIcon Symbol="ArrowExportUp" IconVariant="Regular" FontSize="14"/>
+							</Button>
 						<TextBlock Name="AnnotationCountBadge" Text="" FontSize="9" VerticalAlignment="Center" Margin="3,0"
 							Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.7"/>
+						<TextBlock Name="ActiveToolLabel" Text="Draw" FontSize="9" VerticalAlignment="Center" Margin="3,0"
+							Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.5" FontStyle="Italic"/>
 					</StackPanel>
 					<!-- Row 2: Colors, Stroke, Properties -->
 					<StackPanel Orientation="Horizontal" Spacing="1" HorizontalAlignment="Center">
@@ -156,17 +164,16 @@
 							Background="#3B82D9" Opacity="0.85" Tag="Blue" Click="OnAnnotateColor" CornerRadius="9"/>
 						<Button ToolTip.Tip="Green" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
 							Background="#3DA35F" Opacity="0.85" Tag="Green" Click="OnAnnotateColor" CornerRadius="9"/>
+						<Button ToolTip.Tip="Black" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
+							Background="#222222" Opacity="0.85" Tag="Black" Click="OnAnnotateColor" CornerRadius="9"/>
+						<Button ToolTip.Tip="Orange" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
+							Background="#E87D2F" Opacity="0.85" Tag="Orange" Click="OnAnnotateColor" CornerRadius="9"/>
+						<Button ToolTip.Tip="Purple" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
+							Background="#8B5CF6" Opacity="0.85" Tag="Purple" Click="OnAnnotateColor" CornerRadius="9"/>
 						<Button ToolTip.Tip="Custom Color" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
 							BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Click="OnAnnotateCustomColor" CornerRadius="9">
 							<ic:SymbolIcon Symbol="ColorLine" IconVariant="Regular" FontSize="10"/>
 						</Button>
-						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,3" Opacity="0.3"/>
-						<Button ToolTip.Tip="Highlight Yellow" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
-							Background="#E5A820" Opacity="0.55" Tag="Yellow" Click="OnAnnotateHighlight" CornerRadius="9"/>
-						<Button ToolTip.Tip="Highlight Pink" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
-							Background="#E06880" Opacity="0.55" Tag="Pink" Click="OnAnnotateHighlight" CornerRadius="9"/>
-						<Button ToolTip.Tip="Highlight Cyan" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
-							Background="#40B0D0" Opacity="0.55" Tag="Cyan" Click="OnAnnotateHighlight" CornerRadius="9"/>
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,3" Opacity="0.3"/>
 						<Button ToolTip.Tip="Thin 1px ([/] to adjust)" Width="22" Height="22" Padding="0" Tag="1" Click="OnAnnotateWidth" BorderThickness="0">
 							<Ellipse Width="4" Height="4" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
@@ -177,11 +184,16 @@
 						<Button ToolTip.Tip="Thick 6px" Width="22" Height="22" Padding="0" Tag="6" Click="OnAnnotateWidth" BorderThickness="0">
 							<Ellipse Width="11" Height="11" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 						</Button>
+						<Button Name="FillToggleBtn" ToolTip.Tip="Toggle Fill" Width="22" Height="22" Padding="0" Click="OnToggleFill" BorderThickness="0">
+							<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="12"/>
+						</Button>
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,3" Opacity="0.3"/>
-						<Slider Name="OpacitySlider" ToolTip.Tip="Opacity" Minimum="0.1" Maximum="1" Value="1" Width="52"
-							VerticalAlignment="Center" Padding="0" Height="14" Margin="0,-1,0,0"/>
-						<TextBlock Name="FontSizeLabel" Text="14pt" FontSize="9" VerticalAlignment="Center" Margin="4,0"
+						<Slider Name="OpacitySlider" ToolTip.Tip="Opacity" Minimum="0.1" Maximum="1" Value="1" Width="70"
+							VerticalAlignment="Top" Padding="0" Height="35" Margin="0,-10,0,0"/>
+						<Button ToolTip.Tip="Decrease font size (−)" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0" Click="OnFontSizeDecrease" BorderThickness="0" FontSize="12" Content="−"/>
+						<TextBlock Name="FontSizeLabel" Text="14pt" FontSize="12" VerticalAlignment="Center" Margin="2,0"
 							ToolTip.Tip="Text font size (−/+ to adjust)" Opacity="0.6"/>
+						<Button ToolTip.Tip="Increase font size (+)" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0" Click="OnFontSizeIncrease" BorderThickness="0" FontSize="12" Content="+"/>
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,3" Opacity="0.3"/>
 						<Button ToolTip.Tip="Calibrate: draw a known distance, then enter its real length" Width="22" Height="22" Padding="0" Click="OnMeasureCalibrate" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Options" IconVariant="Regular" FontSize="12"/>
@@ -222,19 +234,40 @@
 			</Canvas>
 
 			<!-- Color input overlay -->
-			<Canvas Name="ColorInputCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-				<Border Background="{DynamicResource TextControlBackground}" CornerRadius="4" Padding="8" BoxShadow="0 1 4 0 #40000000"
-						Canvas.Left="80" Canvas.Top="40">
-					<StackPanel Spacing="6">
-						<TextBlock Text="Enter hex color:" FontSize="12"/>
-						<TextBox Name="ColorInputBox" Width="120" Watermark="#FF6600" KeyDown="OnColorInputKeyDown"/>
-						<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-							<Button Content="Apply" Click="OnColorInputApply" Padding="8,2" FontSize="11"/>
-							<Button Content="Cancel" Click="OnColorInputCancel" Padding="8,2" FontSize="11"/>
+				<Canvas Name="ColorInputCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+					<Border Background="{DynamicResource TextControlBackground}" CornerRadius="4" Padding="8" BoxShadow="0 1 4 0 #40000000"
+							Canvas.Left="80" Canvas.Top="40">
+						<StackPanel Spacing="6">
+							<TextBlock Text="Enter hex color:" FontSize="12"/>
+							<TextBox Name="ColorInputBox" Width="120" Watermark="#FF6600" KeyDown="OnColorInputKeyDown"/>
+							<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+								<Button Content="Apply" Click="OnColorInputApply" Padding="8,2" FontSize="11"/>
+								<Button Content="Cancel" Click="OnColorInputCancel" Padding="8,2" FontSize="11"/>
+							</StackPanel>
 						</StackPanel>
-					</StackPanel>
-				</Border>
-			</Canvas>
+					</Border>
+				</Canvas>
+
+				<!-- Review export name overlay -->
+					<Canvas Name="ReviewExportCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+						<Border Background="{DynamicResource TextControlBackground}" CornerRadius="4" Padding="8" BoxShadow="0 1 4 0 #40000000"
+								Canvas.Left="80" Canvas.Top="40">
+							<StackPanel Spacing="6">
+								<TextBlock Text="Enter review name:" FontSize="12"/>
+								<TextBox Name="ReviewNameBox" Width="180" Watermark="e.g. Draft review" KeyDown="OnReviewNameKeyDown"/>
+								<TextBlock Text="Export mode:" FontSize="11" Margin="0,4,0,0"/>
+								<StackPanel Orientation="Horizontal" Spacing="6">
+									<RadioButton Name="ExportModeNative" Content="Native (editable)" FontSize="11" IsChecked="True" GroupName="ExportMode"/>
+									<RadioButton Name="ExportModeRendered" Content="Rendered (pixel-perfect)" FontSize="11" GroupName="ExportMode"/>
+								</StackPanel>
+								<TextBlock Name="ReviewExportStatus" Text="" FontSize="10" Opacity="0.6" TextWrapping="Wrap" MaxWidth="260"/>
+								<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+									<Button Content="Export" Click="OnReviewExportConfirm" Padding="8,2" FontSize="11"/>
+									<Button Content="Cancel" Click="OnReviewExportCancel" Padding="8,2" FontSize="11"/>
+								</StackPanel>
+							</StackPanel>
+						</Border>
+					</Canvas>
 				</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">

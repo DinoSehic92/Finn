@@ -113,6 +113,17 @@ namespace Finn.Model
             set { foreground = value; RaisePropertyChanged(nameof(Foreground)); }
         }
 
+        private string reviewFolder = string.Empty;
+        /// <summary>
+        /// Gets or sets the folder where review exports are stored.
+        /// When empty, a default path is used.
+        /// </summary>
+        public string ReviewFolder
+        {
+            get => reviewFolder;
+            set { reviewFolder = value ?? string.Empty; RaisePropertyChanged(nameof(ReviewFolder)); }
+        }
+
         private List<string> filetypes = new List<string>();
         /// <summary>
         /// Gets or sets the list of file types in the project.

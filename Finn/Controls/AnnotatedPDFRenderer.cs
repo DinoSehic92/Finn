@@ -114,6 +114,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public bool IsHighlighterMode { get; set; }
     public InlineAnnotationTool ActiveTool { get; set; } = InlineAnnotationTool.Draw;
     public double TextFontSize { get; set; } = 14;
+    /// <summary>Font family name for new text annotations.</summary>
+    public string TextFontFamily { get; set; } = "";
+    /// <summary>When true, new shapes are rendered with a translucent fill.</summary>
+    public bool IsFilledMode { get; set; }
+
+    // Selection highlight: the item currently being dragged with the Select tool
+    private object? _selectHighlightItem;
 
     /// <summary>
     /// Millimetres per PDF point used for measurement labels.
@@ -125,7 +132,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                   || _totalTextCount > 0 || _totalMeasurementCount > 0
                                   || _activeStroke != null || _activeShape != null
                                   || _activeMeasurement != null || _arrowTextPreviewOrigin != null
-                                  || _eraserHoverItem != null || _cursorPdfPos != null;
+                                  || _eraserHoverItem != null || _cursorPdfPos != null
+                                  || _selectHighlightItem != null;
 
     public bool CanRedo => _redoStack.Count > 0;
 
@@ -404,7 +412,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             End = pdfPoint,
             Color = StrokeColor,
             StrokeWidth = StrokeWidth,
-            Opacity = StrokeOpacity
+            Opacity = StrokeOpacity,
+            IsFilled = IsFilledMode
         };
         InvalidateVisual();
     }
@@ -414,7 +423,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (_activeShape == null) return;
         if (constrainAxis)
         {
-            pdfPoint = _activeShape.ShapeType is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse
+            pdfPoint = _activeShape.ShapeType is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud
                 ? ConstrainToSquare(_activeShape.Start, pdfPoint)
                 : ConstrainToAxis(_activeShape.Start, pdfPoint);
         }
@@ -499,7 +508,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Text = text,
             FontSize = TextFontSize,
             Color = StrokeColor,
-            Opacity = StrokeOpacity
+            Opacity = StrokeOpacity,
+            FontFamily = TextFontFamily
         };
 
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
@@ -530,6 +540,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             FontSize = TextFontSize,
             Color = StrokeColor,
             Opacity = StrokeOpacity,
+            FontFamily = TextFontFamily,
             ArrowOrigin = arrowOrigin
         };
 
@@ -761,6 +772,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    /// <summary>Set the item to draw selection handles around (Select tool).</summary>
+    public void SetSelectHighlight(object? item)
+    {
+        if (_selectHighlightItem != item)
+        {
+            _selectHighlightItem = item;
+            InvalidateVisual();
+        }
+    }
+
+    public void ClearSelectHighlight()
+    {
+        if (_selectHighlightItem != null)
+        {
+            _selectHighlightItem = null;
+            InvalidateVisual();
+        }
+    }
+
     /// <summary>Update the pen cursor preview position. Call on pointer-move in Draw/Highlight mode.</summary>
     public void UpdateCursorPreview(Point? pdfPos)
     {
@@ -841,6 +871,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 // Near boundary means dist ≈ 1.0
                 double normThreshold = threshold / Math.Min(rx, ry);
                 return Math.Abs(dist - 1.0) <= normThreshold;
+            }
+            case InlineAnnotationTool.RevisionCloud:
+            {
+                // Same hit-test as rectangle (cloud follows the bounding box edges)
+                var r = NormalizedRect(shape.Start, shape.End);
+                return DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
+                    || DistanceToSegment(pt, r.TopRight, r.BottomRight) <= threshold
+                    || DistanceToSegment(pt, r.BottomRight, r.BottomLeft) <= threshold
+                    || DistanceToSegment(pt, r.BottomLeft, r.TopLeft) <= threshold;
             }
         }
         return false;
@@ -1290,7 +1329,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var from = PdfToScreen(_arrowTextPreviewOrigin.Value, da, boundsSize);
             var to = PdfToScreen(_lastPointerPdfPos.Value, da, boundsSize);
             var previewPen = new Pen(new SolidColorBrush(StrokeColor).ToImmutable(),
-                1 * penScale, lineCap: PenLineCap.Round);
+                1.2, lineCap: PenLineCap.Round);
             context.DrawLine(previewPen, from, to);
             DrawArrowhead(context, previewPen, to, from, penScale);
         }
@@ -1311,6 +1350,79 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var previewColor = Color.FromArgb(160, StrokeColor.R, StrokeColor.G, StrokeColor.B);
             var previewBrush = new SolidColorBrush(previewColor).ToImmutable();
             context.DrawEllipse(previewBrush, null, cp, radius, radius);
+        }
+
+        // Selection handles: dashed bounding box around the item being dragged
+        if (_selectHighlightItem != null)
+            RenderSelectionHighlight(context, da, boundsSize, scaleX, scaleY, penScale);
+    }
+
+    private void RenderSelectionHighlight(DrawingContext context, Rect da, Size boundsSize,
+                                          double scaleX, double scaleY, double penScale)
+    {
+        var selectPen = new Pen(new SolidColorBrush(Color.FromArgb(180, 59, 130, 217)).ToImmutable(),
+            1.5 * penScale, dashStyle: new DashStyle([4, 3], 0),
+            lineCap: PenLineCap.Round);
+        double handleSize = 4 * penScale;
+
+        Rect? bounds = null;
+        switch (_selectHighlightItem)
+        {
+            case InkStroke stroke:
+            {
+                if (stroke.Points.Count == 0) break;
+                double minX = double.MaxValue, minY = double.MaxValue;
+                double maxX = double.MinValue, maxY = double.MinValue;
+                foreach (var p in stroke.Points)
+                {
+                    var sp = PdfToScreen(p, da, boundsSize);
+                    minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
+                    maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                }
+                bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
+                break;
+            }
+            case ShapeAnnotation shape:
+            {
+                var s = PdfToScreen(shape.Start, da, boundsSize);
+                var e = PdfToScreen(shape.End, da, boundsSize);
+                bounds = new Rect(
+                    Math.Min(s.X, e.X), Math.Min(s.Y, e.Y),
+                    Math.Abs(e.X - s.X), Math.Abs(e.Y - s.Y));
+                break;
+            }
+            case TextAnnotation t:
+            {
+                var sp = PdfToScreen(t.Position, da, boundsSize);
+                double w = t.FontSize * penScale * t.Text.Length * 0.55;
+                double h = t.FontSize * penScale * (1 + t.Text.Count(c => c == '\n')) * 1.3;
+                bounds = new Rect(sp.X, sp.Y, w, h);
+                break;
+            }
+            case MeasurementAnnotation m:
+            {
+                if (m.Points.Count >= 2)
+                {
+                    var s0 = PdfToScreen(m.Points[0], da, boundsSize);
+                    var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+                    bounds = new Rect(
+                        Math.Min(s0.X, s1.X), Math.Min(s0.Y, s1.Y),
+                        Math.Abs(s1.X - s0.X), Math.Abs(s1.Y - s0.Y));
+                }
+                break;
+            }
+        }
+
+        if (bounds is { } b)
+        {
+            var inflated = b.Inflate(4 * penScale);
+            context.DrawRectangle(null, selectPen, inflated);
+            // Corner handles
+            var handleBrush = new SolidColorBrush(Color.FromRgb(59, 130, 217)).ToImmutable();
+            context.DrawEllipse(handleBrush, null, inflated.TopLeft, handleSize, handleSize);
+            context.DrawEllipse(handleBrush, null, inflated.TopRight, handleSize, handleSize);
+            context.DrawEllipse(handleBrush, null, inflated.BottomLeft, handleSize, handleSize);
+            context.DrawEllipse(handleBrush, null, inflated.BottomRight, handleSize, handleSize);
         }
     }
 
@@ -1407,6 +1519,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var screenStart = PdfToScreen(shape.Start, da, boundsSize);
         var screenEnd = PdfToScreen(shape.End, da, boundsSize);
 
+        // Create optional fill brush for filled shapes
+        IBrush? fillBrush = null;
+        if (shape.IsFilled && overridePen == null)
+        {
+            var fillColor = Color.FromArgb(80, shape.Color.R, shape.Color.G, shape.Color.B);
+            fillBrush = new SolidColorBrush(fillColor).ToImmutable();
+        }
+
         switch (shape.ShapeType)
         {
             case InlineAnnotationTool.Line:
@@ -1424,7 +1544,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double y = Math.Min(screenStart.Y, screenEnd.Y);
                 double w = Math.Abs(screenEnd.X - screenStart.X);
                 double h = Math.Abs(screenEnd.Y - screenStart.Y);
-                context.DrawRectangle(null, pen, new Rect(x, y, w, h));
+                context.DrawRectangle(fillBrush, pen, new Rect(x, y, w, h));
                 break;
             }
             case InlineAnnotationTool.Ellipse:
@@ -1434,10 +1554,88 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double rx = Math.Abs(screenEnd.X - screenStart.X) / 2;
                 double ry = Math.Abs(screenEnd.Y - screenStart.Y) / 2;
                 var geometry = new EllipseGeometry(new Rect(cx - rx, cy - ry, rx * 2, ry * 2));
-                context.DrawGeometry(null, pen, geometry);
+                context.DrawGeometry(fillBrush, pen, geometry);
+                break;
+            }
+            case InlineAnnotationTool.RevisionCloud:
+            {
+                var cloudGeometry = CreateCloudPath(screenStart, screenEnd, penScale);
+                context.DrawGeometry(fillBrush, pen, cloudGeometry);
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Creates a revision cloud geometry: a closed path of small arc segments
+    /// running around the perimeter of the bounding rectangle.
+    /// </summary>
+    private static StreamGeometry CreateCloudPath(Point screenStart, Point screenEnd, double penScale)
+    {
+        double x1 = Math.Min(screenStart.X, screenEnd.X);
+        double y1 = Math.Min(screenStart.Y, screenEnd.Y);
+        double x2 = Math.Max(screenStart.X, screenEnd.X);
+        double y2 = Math.Max(screenStart.Y, screenEnd.Y);
+
+        double arcRadius = 8 * penScale;
+        if (arcRadius < 4) arcRadius = 4;
+
+        // Collect perimeter points (clockwise: top → right → bottom → left)
+        var perimeterPoints = new List<Point>();
+        void AddEdge(Point from, Point to)
+        {
+            double dx = to.X - from.X;
+            double dy = to.Y - from.Y;
+            double edgeLen = Math.Sqrt(dx * dx + dy * dy);
+            int segments = Math.Max(1, (int)(edgeLen / (arcRadius * 1.6)));
+            for (int i = 0; i < segments; i++)
+            {
+                double t = (double)i / segments;
+                perimeterPoints.Add(new Point(from.X + dx * t, from.Y + dy * t));
+            }
+        }
+        AddEdge(new Point(x1, y1), new Point(x2, y1)); // top
+        AddEdge(new Point(x2, y1), new Point(x2, y2)); // right
+        AddEdge(new Point(x2, y2), new Point(x1, y2)); // bottom
+        AddEdge(new Point(x1, y2), new Point(x1, y1)); // left
+
+        var geometry = new StreamGeometry();
+        using (var ctx = geometry.Open())
+        {
+            if (perimeterPoints.Count < 2)
+            {
+                ctx.BeginFigure(new Point(x1, y1), true);
+                ctx.LineTo(new Point(x2, y2));
+                ctx.EndFigure(true);
+            }
+            else
+            {
+                ctx.BeginFigure(perimeterPoints[0], true);
+                for (int i = 0; i < perimeterPoints.Count; i++)
+                {
+                    var next = perimeterPoints[(i + 1) % perimeterPoints.Count];
+                    var mid = new Point(
+                        (perimeterPoints[i].X + next.X) / 2,
+                        (perimeterPoints[i].Y + next.Y) / 2);
+
+                    // Compute outward bulge perpendicular to the edge
+                    double edx = next.X - perimeterPoints[i].X;
+                    double edy = next.Y - perimeterPoints[i].Y;
+                    double elen = Math.Sqrt(edx * edx + edy * edy);
+                    if (elen < 0.5) { ctx.LineTo(next); continue; }
+
+                    // Outward normal (for clockwise winding, outward is to the right)
+                    double nx = edy / elen;
+                    double ny = -edx / elen;
+                    double bulge = arcRadius * 0.6;
+
+                    var cp = new Point(mid.X + nx * bulge, mid.Y + ny * bulge);
+                    ctx.QuadraticBezierTo(cp, next);
+                }
+                ctx.EndFigure(true);
+            }
+        }
+        return geometry;
     }
 
     private static void DrawArrowhead(DrawingContext context, IPen pen,
@@ -1448,8 +1646,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
 
-        double headLen = Math.Min(12 * penScale, len * 0.4);
-        double headAngle = Math.PI / 6; // 30 degrees
+        double headLen = Math.Min(8 * penScale, len * 0.4);
+        double headAngle = Math.PI / 8; // 22.5 degrees
 
         double angle = Math.Atan2(dy, dx);
         var left = new Point(
@@ -1474,20 +1672,74 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     /// <summary>
     /// Renders the arrow line from a TextAnnotation's ArrowOrigin to its Position.
+    /// The arrow connects to the center of the closest side of the text bounding box.
+    /// Uses SkiaSharp font measurement so the box matches the frame drawn by TextOverlayDrawOp.
     /// </summary>
     private void RenderTextArrow(DrawingContext context, TextAnnotation t,
                                  Rect da, Size boundsSize, double penScale)
     {
         if (!t.ArrowOrigin.HasValue) return;
-        var from = PdfToScreen(t.ArrowOrigin.Value, da, boundsSize);
-        var to = PdfToScreen(t.Position, da, boundsSize);
+        var arrowTip = PdfToScreen(t.ArrowOrigin.Value, da, boundsSize);
+        var boxOrigin = PdfToScreen(t.Position, da, boundsSize);
+
+        // Measure exact text box using SkiaSharp (same logic as DrawTextAnnotationFrames)
+        float fontSize = (float)(t.FontSize * penScale);
+        float lineHeight = fontSize * 1.3f;
+        float x = (float)boxOrigin.X;
+        float y = (float)boxOrigin.Y + fontSize;
+
+        float minX = float.MaxValue, minY = float.MaxValue;
+        float maxX = float.MinValue, maxY = float.MinValue;
+        using var skFont = new SKFont(SKTypeface.Default, fontSize);
+        foreach (var line in t.Text.Split('\n'))
+        {
+            if (line.Length > 0)
+            {
+                skFont.MeasureText(line, out var tb);
+                minX = Math.Min(minX, x + tb.Left);
+                minY = Math.Min(minY, y + tb.Top);
+                maxX = Math.Max(maxX, x + tb.Left + tb.Width);
+                maxY = Math.Max(maxY, y + tb.Top + tb.Height);
+            }
+            y += lineHeight;
+        }
+
+        if (minX >= maxX) return; // no measurable text
+
+        float pad = 5;
+        var boxRect = new Rect(minX - pad, minY - pad,
+            (maxX - minX) + pad * 2, (maxY - minY) + pad * 2);
+
+        var connection = ClosestSideCenter(boxRect, arrowTip);
 
         byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
         var c = Color.FromArgb(alpha, t.Color.R, t.Color.G, t.Color.B);
         var pen = new Pen(new SolidColorBrush(c).ToImmutable(),
-            1 * penScale, lineCap: PenLineCap.Round);
-        context.DrawLine(pen, from, to);
-        DrawArrowhead(context, pen, to, from, penScale);
+            1.2, lineCap: PenLineCap.Round);
+        context.DrawLine(pen, arrowTip, connection);
+        DrawArrowhead(context, pen, connection, arrowTip, penScale);
+    }
+
+    /// <summary>Returns the center point of the rectangle side closest to the given point.</summary>
+    private static Point ClosestSideCenter(Rect rect, Point pt)
+    {
+        Point[] candidates =
+        [
+            new(rect.X + rect.Width / 2, rect.Y),                    // top
+            new(rect.X + rect.Width / 2, rect.Y + rect.Height),      // bottom
+            new(rect.X, rect.Y + rect.Height / 2),                   // left
+            new(rect.X + rect.Width, rect.Y + rect.Height / 2)       // right
+        ];
+        Point best = candidates[0];
+        double bestDist = double.MaxValue;
+        foreach (var c in candidates)
+        {
+            double dx = c.X - pt.X;
+            double dy = c.Y - pt.Y;
+            double d = dx * dx + dy * dy;
+            if (d < bestDist) { bestDist = d; best = c; }
+        }
+        return best;
     }
 
     private void RenderMeasurementGeometry(DrawingContext context, List<Point> pdfPoints,
@@ -1526,12 +1778,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     private void CollectTextAnnotation(TextAnnotation t, Rect da, Size boundsSize,
-                                       double penScale, List<TextOverlayDrawOp.TextItem> items)
+                                        double penScale, List<TextOverlayDrawOp.TextItem> items)
     {
         var screenPos = PdfToScreen(t.Position, da, boundsSize);
         float fontSize = (float)(t.FontSize * penScale);
         byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
         var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
+        string fontFamily = t.FontFamily ?? "";
 
         var lines = t.Text.Split('\n');
         float lineHeight = fontSize * 1.3f;
@@ -1544,7 +1797,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 items.Add(new TextOverlayDrawOp.TextItem(
                     (float)screenPos.X, y, line, fontSize, color,
-                    HasBackground: true, HasBorder: first, IsTextAnnotation: true));
+                    HasBackground: true, HasBorder: first, IsTextAnnotation: true,
+                    FontFamily: fontFamily));
                 first = false;
             }
             y += lineHeight;
@@ -1569,7 +1823,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private class TextOverlayDrawOp : ICustomDrawOperation
     {
         public record struct TextItem(float X, float Y, string Text, float FontSize, SKColor Color,
-                                      bool HasBackground, bool HasBorder, bool IsTextAnnotation);
+                                       bool HasBackground, bool HasBorder, bool IsTextAnnotation,
+                                       string FontFamily = "");
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -1593,42 +1848,61 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var canvas = lease.SkCanvas;
             if (canvas == null) return;
 
-            using var font = new SKFont(SKTypeface.Default);
+            using var defaultFont = new SKFont(SKTypeface.Default);
             using var paint = new SKPaint { IsAntialias = true };
             using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
             using var borderPaint = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeWidth = 1.2f };
 
             // First pass: draw grouped text-annotation frames
-            DrawTextAnnotationFrames(canvas, font, bgPaint, borderPaint);
+            DrawTextAnnotationFrames(canvas, defaultFont, bgPaint, borderPaint);
 
             // Second pass: draw measurement-label backgrounds + all text
-            foreach (var item in _items)
+            SKFont? customFont = null;
+            string lastFamily = "";
+            try
             {
-                font.Size = item.FontSize;
-                paint.Color = item.Color;
-
-                if (item.HasBackground && !item.IsTextAnnotation)
+                foreach (var item in _items)
                 {
-                    font.MeasureText(item.Text, out var textBounds);
-                    bgPaint.Color = new SKColor(255, 255, 255, 200);
-                    canvas.DrawRoundRect(
-                        item.X + textBounds.Left - 3,
-                        item.Y + textBounds.Top - 2,
-                        textBounds.Width + 6,
-                        textBounds.Height + 4,
-                        3, 3, bgPaint);
-                }
+                    var font = defaultFont;
+                    if (!string.IsNullOrEmpty(item.FontFamily))
+                    {
+                        if (item.FontFamily != lastFamily)
+                        {
+                            customFont?.Dispose();
+                            var typeface = SKTypeface.FromFamilyName(item.FontFamily) ?? SKTypeface.Default;
+                            customFont = new SKFont(typeface);
+                            lastFamily = item.FontFamily;
+                        }
+                        if (customFont != null) font = customFont;
+                    }
 
-                canvas.DrawText(item.Text, item.X, item.Y, font, paint);
+                    font.Size = item.FontSize;
+                    paint.Color = item.Color;
+
+                    if (item.HasBackground && !item.IsTextAnnotation)
+                    {
+                        font.MeasureText(item.Text, out var textBounds);
+                        bgPaint.Color = new SKColor(255, 255, 255, 200);
+                        canvas.DrawRoundRect(
+                            item.X + textBounds.Left - 3,
+                            item.Y + textBounds.Top - 2,
+                            textBounds.Width + 6,
+                            textBounds.Height + 4,
+                            3, 3, bgPaint);
+                    }
+
+                    canvas.DrawText(item.Text, item.X, item.Y, font, paint);
+                }
             }
+            finally { customFont?.Dispose(); }
         }
 
         /// <summary>
         /// Groups text-annotation lines (identified by HasBorder on the first line)
         /// and draws a single white background + colored border frame around each group.
         /// </summary>
-        private void DrawTextAnnotationFrames(SKCanvas canvas, SKFont font,
-                                              SKPaint bgPaint, SKPaint borderPaint)
+        private void DrawTextAnnotationFrames(SKCanvas canvas, SKFont defaultFont,
+                                               SKPaint bgPaint, SKPaint borderPaint)
         {
             int i = 0;
             while (i < _items.Count)
@@ -1645,8 +1919,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 while (j < _items.Count && _items[j].IsTextAnnotation)
                 {
                     var line = _items[j];
-                    font.Size = line.FontSize;
-                    font.MeasureText(line.Text, out var tb);
+                    defaultFont.Size = line.FontSize;
+                    defaultFont.MeasureText(line.Text, out var tb);
 
                     float left = line.X + tb.Left;
                     float top = line.Y + tb.Top;

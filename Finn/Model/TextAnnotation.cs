@@ -14,6 +14,8 @@ public class TextAnnotation
     public double FontSize { get; set; } = 14;
     public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
     public double Opacity { get; set; } = 1.0;
+    /// <summary>Font family name. Empty or null uses the system default.</summary>
+    public string FontFamily { get; set; } = "";
 
     /// <summary>
     /// When set, an arrow is drawn from this anchor point to <see cref="Position"/>.
