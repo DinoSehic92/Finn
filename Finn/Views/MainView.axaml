@@ -483,6 +483,7 @@
 									<ic:SymbolIcon Symbol="Folder"		IsVisible="{Binding IsFromFolder}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Collections"	IsVisible="{Binding IsPartOfCollection}"	IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="History"		IsVisible="{Binding HasVersions}"			IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="Pen"			IsVisible="{Binding HasAnnotations}"		IconVariant="Regular" FontSize="14"/>
 								</StackPanel>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>

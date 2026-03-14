@@ -116,6 +116,14 @@ namespace Finn.ViewModels
                     // Resolve ParentFile back-references from the serialized ParentNamn field.
                     project.WireParentReferences();
                     project.RefreshHasChildren();
+
+                    // Recompute annotation counts so HasAnnotations is accurate after deserialization.
+                    foreach (var f in project.StoredFiles)
+                    {
+                        foreach (var layer in f.AnnotationLayers)
+                            layer.RecalculateCounts();
+                        f.RefreshAnnotationStatus();
+                    }
                 }
 
                 SetProjectlist();

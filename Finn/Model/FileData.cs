@@ -262,11 +262,18 @@ namespace Finn.Model
 
         /// <summary>
         /// Annotation layers for this file. Stored per-file so strokes survive
-        /// file switches and never bleed between documents. Not serialized.
-        /// When previewing a version, this is pointed at the version's own collection.
+        /// file switches and never bleed between documents.
+        /// Serialized to Projects.json so annotations persist across sessions.
         /// </summary>
-        [JsonIgnore]
         public ObservableCollection<AnnotationLayer> AnnotationLayers { get; set; } = [];
+
+        [JsonIgnore]
+        public bool HasAnnotations => AnnotationLayers.Any(l => l.TotalCount > 0);
+
+        /// <summary>
+        /// Call after annotation counts change to update the HasAnnotations indicator.
+        /// </summary>
+        public void RefreshAnnotationStatus() => OnPropertyChanged(nameof(HasAnnotations));
 
         public ObservableCollection<PageData> FavPages
         {
