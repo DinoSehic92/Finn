@@ -16,8 +16,10 @@ public enum InlineAnnotationTool
     Ellipse,
     Line,
     Arrow,
+    Polyline,
     Text,
     ArrowText,
+    StickyNote,
     MeasureDistance,
     RevisionCloud,
     Eraser

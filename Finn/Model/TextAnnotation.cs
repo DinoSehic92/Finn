@@ -22,4 +22,11 @@ public class TextAnnotation
     /// Used by the ArrowText tool. Null for plain text annotations.
     /// </summary>
     public Point? ArrowOrigin { get; set; }
+
+    /// <summary>
+    /// When true, this annotation is rendered as a sticky-note icon (folded corner)
+    /// and exported as a native PDF comment annotation (/Subtype /Text).
+    /// The text content is shown in a hover popup rather than stamped on the page.
+    /// </summary>
+    public bool IsStickyNote { get; set; }
 }

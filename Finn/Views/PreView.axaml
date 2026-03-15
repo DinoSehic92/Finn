@@ -116,11 +116,17 @@
 						<Button ToolTip.Tip="Arrow (6)" Width="26" Height="26" Padding="0" Tag="Arrow" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="ArrowRight" IconVariant="Regular" FontSize="14"/>
 						</Button>
-						<Button ToolTip.Tip="Text Box (7)" Width="26" Height="26" Padding="0" Tag="Text" Click="OnAnnotateToolSelect" BorderThickness="0">
+						<Button ToolTip.Tip="Polyline (P) — click to add points, right-click to finish" Width="26" Height="26" Padding="0" Tag="Polyline" Click="OnAnnotateToolSelect" BorderThickness="0">
+							<ic:SymbolIcon Symbol="Timeline" IconVariant="Regular" FontSize="14"/>
+						</Button>
+						<Button ToolTip.Tip="Comment (7)" Width="26" Height="26" Padding="0" Tag="Text" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="TextFont" IconVariant="Regular" FontSize="14"/>
 						</Button>
-						<Button ToolTip.Tip="Arrow Text (8) — click anchor, drag to place" Width="26" Height="26" Padding="0" Tag="ArrowText" Click="OnAnnotateToolSelect" BorderThickness="0">
+						<Button ToolTip.Tip="Arrow Comment (8) — click anchor, drag to place" Width="26" Height="26" Padding="0" Tag="ArrowText" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="TextDescription" IconVariant="Regular" FontSize="14"/>
+						</Button>
+						<Button ToolTip.Tip="Sticky Note — click to place a comment icon" Width="26" Height="26" Padding="0" Tag="StickyNote" Click="OnAnnotateToolSelect" BorderThickness="0">
+							<ic:SymbolIcon Symbol="Note" IconVariant="Regular" FontSize="14"/>
 						</Button>
 						<Button ToolTip.Tip="Measure Distance (9) — hold Shift for axis lock" Width="26" Height="26" Padding="0" Tag="MeasureDistance" Click="OnAnnotateToolSelect" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>

@@ -32,10 +32,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private MeasurementAnnotation? _activeMeasurement;
     private Point? _measurementPreviewPoint;
     private Point? _lastPointerPdfPos;
+    private InkStroke? _activePolyline;
+    private Point? _polylinePreviewEnd;
     private int _currentPage;
 
     // Eraser hover highlight: the item the eraser is hovering over
     private object? _eraserHoverItem;
+    // Sticky-note hover: which note's popup to show
+    private TextAnnotation? _stickyNoteHoverItem;
     private int _totalStrokeCount;
     private int _totalShapeCount;
     private int _totalTextCount;
@@ -75,6 +79,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _activeShape = null;
         _activeMeasurement = null;
         _measurementPreviewPoint = null;
+        _activePolyline = null;
+        _polylinePreviewEnd = null;
         _layers = layers ?? [];
         foreach (var layer in _layers) layer.RecalculateCounts();
         _activeLayer = _layers.Count > 0 ? _layers[0] : null;
@@ -133,7 +139,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                   || _activeStroke != null || _activeShape != null
                                   || _activeMeasurement != null || _arrowTextPreviewOrigin != null
                                   || _eraserHoverItem != null || _cursorPdfPos != null
-                                  || _selectHighlightItem != null;
+                                  || _selectHighlightItem != null || _stickyNoteHoverItem != null;
 
     public bool CanRedo => _redoStack.Count > 0;
 
@@ -358,6 +364,68 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _activeStroke = null;
     }
 
+    // ── Polyline (multi-click straight-line segments) ─────────────────
+
+    public void BeginPolyline(Point pdfPoint)
+    {
+        EnsureDefaultLayer();
+        _activePolyline = new InkStroke
+        {
+            Color = StrokeColor,
+            Width = StrokeWidth,
+            Opacity = StrokeOpacity,
+            IsPolyline = true
+        };
+        _activePolyline.Points.Add(pdfPoint);
+        _polylinePreviewEnd = pdfPoint;
+        InvalidateVisual();
+    }
+
+    public void AddPolylinePoint(Point pdfPoint)
+    {
+        if (_activePolyline == null) return;
+        _activePolyline.Points.Add(pdfPoint);
+        _polylinePreviewEnd = pdfPoint;
+        InvalidateVisual();
+    }
+
+    public void UpdatePolylinePreview(Point pdfPoint)
+    {
+        _polylinePreviewEnd = pdfPoint;
+        InvalidateVisual();
+    }
+
+    public void EndPolyline()
+    {
+        if (_activePolyline != null && _activePolyline.Points.Count >= 2 && ActiveLayer != null)
+        {
+            if (!ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes))
+            {
+                strokes = [];
+                ActiveLayer.PageStrokes[_currentPage] = strokes;
+            }
+            strokes.Add(_activePolyline);
+            ActiveLayer.StrokeCount++;
+            _totalStrokeCount++;
+            _undoStack.Push((UndoType.Stroke, _currentPage, null));
+            _redoStack.Clear();
+            ActiveLayer.RefreshStatus();
+            NotifyAnnotationChanged();
+        }
+        _activePolyline = null;
+        _polylinePreviewEnd = null;
+        InvalidateVisual();
+    }
+
+    public void CancelPolyline()
+    {
+        _activePolyline = null;
+        _polylinePreviewEnd = null;
+        InvalidateVisual();
+    }
+
+    public bool HasActivePolyline => _activePolyline != null;
+
     /// <summary>
     /// Two-pass Chaikin corner-cutting subdivision to produce a smooth curve
     /// from raw freehand input. Each pass inserts midpoints at 25%/75%
@@ -395,6 +463,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _activeShape = null;
         _activeMeasurement = null;
         _measurementPreviewPoint = null;
+        _activePolyline = null;
+        _polylinePreviewEnd = null;
         InvalidateVisual();
     }
 
@@ -527,6 +597,38 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
+    public void PlaceStickyNote(Point pdfPoint, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        EnsureDefaultLayer();
+        if (ActiveLayer == null) return;
+
+        var annotation = new TextAnnotation
+        {
+            Position = pdfPoint,
+            Text = text,
+            FontSize = TextFontSize,
+            Color = StrokeColor,
+            Opacity = StrokeOpacity,
+            FontFamily = TextFontFamily,
+            IsStickyNote = true
+        };
+
+        if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
+        {
+            texts = [];
+            ActiveLayer.PageTexts[_currentPage] = texts;
+        }
+        texts.Add(annotation);
+        ActiveLayer.TextCount++;
+        _totalTextCount++;
+        _undoStack.Push((UndoType.Text, _currentPage, null));
+        _redoStack.Clear();
+        ActiveLayer.RefreshStatus();
+        NotifyAnnotationChanged();
+        InvalidateVisual();
+    }
+
     public void PlaceArrowText(Point arrowOrigin, Point textPosition, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
@@ -560,7 +662,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     /// <summary>
-    /// Find a text annotation at the given PDF-space point (for edit-on-click).
+    /// Find a non-sticky text annotation at the given PDF-space point (for edit-on-click).
     /// Searches the active layer on the current page, topmost first.
     /// </summary>
     public TextAnnotation? FindTextAt(Point pdfPoint)
@@ -569,10 +671,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts)) return null;
         for (int i = texts.Count - 1; i >= 0; i--)
         {
-            if (HitTestText(texts[i], pdfPoint))
+            if (!texts[i].IsStickyNote && HitTestText(texts[i], pdfPoint))
                 return texts[i];
         }
         return null;
+    }
+
+    /// <summary>
+    /// Find a sticky note annotation at the given PDF-space point.
+    /// Searches the active layer on the current page, topmost first.
+    /// </summary>
+    public TextAnnotation? FindStickyNoteAt(Point pdfPoint)
+    {
+        if (ActiveLayer == null) return null;
+        if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts)) return null;
+        for (int i = texts.Count - 1; i >= 0; i--)
+        {
+            if (texts[i].IsStickyNote && HitTestStickyNote(texts[i], pdfPoint))
+                return texts[i];
+        }
+        return null;
+    }
+
+    private static bool HitTestStickyNote(TextAnnotation t, Point pt)
+    {
+        // The icon occupies a 13×13 PDF-unit square at the placement position
+        const double iconSize = 13.0;
+        const double pad = 3.0;
+        return new Rect(t.Position.X - pad, t.Position.Y - pad,
+                        iconSize + pad * 2, iconSize + pad * 2).Contains(pt);
     }
 
     #endregion
@@ -683,7 +810,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             for (int i = texts.Count - 1; i >= 0; i--)
             {
-                if (HitTestText(texts[i], pdfPoint))
+                bool hit = texts[i].IsStickyNote
+                    ? HitTestStickyNote(texts[i], pdfPoint)
+                    : HitTestText(texts[i], pdfPoint);
+                if (hit)
                 {
                     texts.RemoveAt(i);
                     ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1);
@@ -791,6 +921,40 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    /// <summary>
+    /// Shows or hides the sticky-note hover popup. Call on pointer-move when a
+    /// sticky note icon is under the cursor.
+    /// </summary>
+    public void UpdateStickyNoteHover(Point pdfPoint)
+    {
+        TextAnnotation? hit = null;
+        foreach (var layer in Layers)
+        {
+            if (!layer.IsVisible) continue;
+            if (!layer.PageTexts.TryGetValue(_currentPage, out var texts)) continue;
+            for (int i = texts.Count - 1; i >= 0; i--)
+            {
+                if (texts[i].IsStickyNote && HitTestStickyNote(texts[i], pdfPoint))
+                { hit = texts[i]; break; }
+            }
+            if (hit != null) break;
+        }
+        if (hit != _stickyNoteHoverItem)
+        {
+            _stickyNoteHoverItem = hit;
+            InvalidateVisual();
+        }
+    }
+
+    public void ClearStickyNoteHover()
+    {
+        if (_stickyNoteHoverItem != null)
+        {
+            _stickyNoteHoverItem = null;
+            InvalidateVisual();
+        }
+    }
+
     /// <summary>Update the pen cursor preview position. Call on pointer-move in Draw/Highlight mode.</summary>
     public void UpdateCursorPreview(Point? pdfPos)
     {
@@ -809,7 +973,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
             for (int i = texts.Count - 1; i >= 0; i--)
-                if (HitTestText(texts[i], pdfPoint)) return texts[i];
+            {
+                bool hit = texts[i].IsStickyNote
+                    ? HitTestStickyNote(texts[i], pdfPoint)
+                    : HitTestText(texts[i], pdfPoint);
+                if (hit) return texts[i];
+            }
 
         if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
             for (int i = measurements.Count - 1; i >= 0; i--)
@@ -1286,9 +1455,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 foreach (var t in texts)
                 {
-                    CollectTextAnnotation(t, da, boundsSize, penScale, textItems);
-                    if (t.ArrowOrigin.HasValue)
-                        RenderTextArrow(context, t, da, boundsSize, penScale);
+                    if (t.IsStickyNote)
+                        CollectStickyNoteIcon(t, da, boundsSize, penScale, textItems, isExpanded: false);
+                    else
+                    {
+                        CollectTextAnnotation(t, da, boundsSize, penScale, textItems);
+                        if (t.ArrowOrigin.HasValue)
+                            RenderTextArrow(context, t, da, boundsSize, penScale);
+                    }
                 }
             }
         }
@@ -1296,6 +1470,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Draw the active stroke being drawn
         if (_activeStroke != null)
             RenderStroke(context, _activeStroke, da, boundsSize, scaleX, scaleY);
+
+        // Draw the active polyline being constructed (with preview segment)
+        if (_activePolyline != null)
+        {
+            RenderStroke(context, _activePolyline, da, boundsSize, scaleX, scaleY);
+            // Preview segment from last committed point to cursor
+            if (_polylinePreviewEnd.HasValue && _activePolyline.Points.Count > 0)
+            {
+                var lastPt = PdfToScreen(_activePolyline.Points[^1], da, boundsSize);
+                var previewPt = PdfToScreen(_polylinePreviewEnd.Value, da, boundsSize);
+                var previewPen = new Pen(
+                    new SolidColorBrush(Color.FromArgb(140, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(),
+                    StrokeWidth * penScale, dashStyle: new DashStyle([4, 3], 0),
+                    lineCap: PenLineCap.Round);
+                context.DrawLine(previewPen, lastPt, previewPt);
+            }
+        }
 
         // Draw the active shape being dragged (dashed preview)
         if (_activeShape != null)
@@ -1333,6 +1524,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             context.DrawLine(previewPen, from, to);
             DrawArrowhead(context, previewPen, to, from, penScale);
         }
+
+        // Hover popup for the sticky note under the cursor (drawn above all other items)
+        if (_stickyNoteHoverItem != null)
+            CollectStickyNoteIcon(_stickyNoteHoverItem, da, boundsSize, penScale, textItems, isExpanded: true);
 
         // Render all text via SkiaSharp overlay
         if (textItems.Count > 0)
@@ -1394,9 +1589,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case TextAnnotation t:
             {
                 var sp = PdfToScreen(t.Position, da, boundsSize);
-                double w = t.FontSize * penScale * t.Text.Length * 0.55;
-                double h = t.FontSize * penScale * (1 + t.Text.Count(c => c == '\n')) * 1.3;
-                bounds = new Rect(sp.X, sp.Y, w, h);
+                if (t.IsStickyNote)
+                {
+                    double sz = 13.0 * penScale;
+                    bounds = new Rect(sp.X, sp.Y, sz, sz);
+                }
+                else
+                {
+                    double w = t.FontSize * penScale * t.Text.Length * 0.55;
+                    double h = t.FontSize * penScale * (1 + t.Text.Count(c => c == '\n')) * 1.3;
+                    bounds = new Rect(sp.X, sp.Y, w, h);
+                }
                 break;
             }
             case MeasurementAnnotation m:
@@ -1444,9 +1647,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case TextAnnotation text:
             {
                 var screenPos = PdfToScreen(text.Position, da, boundsSize);
-                double w = text.FontSize * text.Text.Length * 0.55 * penScale;
-                double h = text.FontSize * (1 + text.Text.Count(c => c == '\n')) * 1.3 * penScale;
-                context.DrawRectangle(hoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, w, h), 4, 4);
+                if (text.IsStickyNote)
+                {
+                    double sz = 13.0 * penScale;
+                }
+                else
+                {
+                    double w = text.FontSize * text.Text.Length * 0.55 * penScale;
+                    double h = text.FontSize * (1 + text.Text.Count(c => c == '\n')) * 1.3 * penScale;
+                    context.DrawRectangle(hoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, w, h), 4, 4);
+                }
                 break;
             }
             case MeasurementAnnotation m:
@@ -1481,9 +1691,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             ctx.BeginFigure(sp[0], false);
 
-            if (n == 2)
+            if (n == 2 || stroke.IsPolyline)
             {
-                ctx.LineTo(sp[1]);
+                // Straight line segments (2-point strokes or polylines)
+                for (int i = 1; i < n; i++)
+                    ctx.LineTo(sp[i]);
             }
             else
             {
@@ -1707,8 +1919,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (minX >= maxX) return; // no measurable text
 
         float pad = 5;
-        var boxRect = new Rect(minX - pad, minY - pad,
-            (maxX - minX) + pad * 2, (maxY - minY) + pad * 2);
+        float accentW = 4;
+        var boxRect = new Rect(minX - pad - accentW, minY - pad,
+            (maxX - minX) + pad * 2 + accentW, (maxY - minY) + pad * 2);
 
         var connection = ClosestSideCenter(boxRect, arrowTip);
 
@@ -1777,6 +1990,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
             new Point(at.X + perpX * markLen, at.Y + perpY * markLen));
     }
 
+    private void CollectStickyNoteIcon(TextAnnotation t, Rect da, Size boundsSize,
+                                        double penScale, List<TextOverlayDrawOp.TextItem> items,
+                                        bool isExpanded)
+    {
+        var iconPos = PdfToScreen(t.Position, da, boundsSize);
+        float iconSize = (float)(13.0 * penScale);
+        byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
+        var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
+        items.Add(new TextOverlayDrawOp.TextItem(
+            (float)iconPos.X, (float)iconPos.Y, t.Text, iconSize, color,
+            HasBackground: false, HasBorder: false, IsTextAnnotation: false,
+            IsStickyNote: true, IsExpandedStickyNote: isExpanded,
+            PopupFontSize: (float)(t.FontSize * penScale)));
+    }
+
     private void CollectTextAnnotation(TextAnnotation t, Rect da, Size boundsSize,
                                         double penScale, List<TextOverlayDrawOp.TextItem> items)
     {
@@ -1824,7 +2052,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         public record struct TextItem(float X, float Y, string Text, float FontSize, SKColor Color,
                                        bool HasBackground, bool HasBorder, bool IsTextAnnotation,
-                                       string FontFamily = "");
+                                       string FontFamily = "",
+                                       bool IsStickyNote = false, bool IsExpandedStickyNote = false,
+                                       float PopupFontSize = 0f);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -1853,16 +2083,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
             using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
             using var borderPaint = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeWidth = 1.2f };
 
-            // First pass: draw grouped text-annotation frames
+            // First pass: draw sticky-note icons (and expanded popup if hovered)
+            DrawStickyNoteIcons(canvas, bgPaint, borderPaint);
+
+            // Second pass: draw grouped text-annotation frames
             DrawTextAnnotationFrames(canvas, defaultFont, bgPaint, borderPaint);
 
-            // Second pass: draw measurement-label backgrounds + all text
+            // Third pass: draw measurement-label backgrounds + all text
             SKFont? customFont = null;
             string lastFamily = "";
             try
             {
                 foreach (var item in _items)
                 {
+                    // Sticky notes are fully handled by DrawStickyNoteIcons; skip here
+                    if (item.IsStickyNote) continue;
+
                     var font = defaultFont;
                     if (!string.IsNullOrEmpty(item.FontFamily))
                     {
@@ -1898,6 +2134,136 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
 
         /// <summary>
+        /// Renders all sticky-note icon items. Items with IsExpandedStickyNote = true
+        /// also get a popup bubble showing the comment text.
+        /// </summary>
+        private void DrawStickyNoteIcons(SKCanvas canvas, SKPaint bgPaint, SKPaint borderPaint)
+        {
+            foreach (var item in _items)
+            {
+                if (!item.IsStickyNote) continue;
+                DrawStickyNoteIcon(canvas, item.X, item.Y, item.FontSize, item.Color, bgPaint, borderPaint);
+                if (item.IsExpandedStickyNote && !string.IsNullOrEmpty(item.Text))
+                    DrawStickyNotePopup(canvas, item.X, item.Y, item.FontSize, item.Text, item.Color, bgPaint, borderPaint, item.PopupFontSize);
+            }
+        }
+
+        private static void DrawStickyNoteIcon(SKCanvas canvas, float x, float y, float sz,
+                                               SKColor color, SKPaint bgPaint, SKPaint borderPaint)
+        {
+            float fold = sz * 0.28f;
+
+            // Main body: folded top-right corner
+            var bodyPath = new SKPath();
+            bodyPath.MoveTo(x, y);
+            bodyPath.LineTo(x + sz - fold, y);
+            bodyPath.LineTo(x + sz, y + fold);
+            bodyPath.LineTo(x + sz, y + sz);
+            bodyPath.LineTo(x, y + sz);
+            bodyPath.Close();
+
+            // Light fill: hint of the annotation color
+            bgPaint.Color = new SKColor(color.Red, color.Green, color.Blue, 45);
+            canvas.DrawPath(bodyPath, bgPaint);
+
+            // Border
+            borderPaint.Color = new SKColor(color.Red, color.Green, color.Blue, 200);
+            borderPaint.StrokeWidth = 1f;
+            canvas.DrawPath(bodyPath, borderPaint);
+
+            // Fold triangle (slightly darker)
+            var foldPath = new SKPath();
+            foldPath.MoveTo(x + sz - fold, y);
+            foldPath.LineTo(x + sz, y + fold);
+            foldPath.LineTo(x + sz - fold, y + fold);
+            foldPath.Close();
+            bgPaint.Color = new SKColor(color.Red, color.Green, color.Blue, 110);
+            canvas.DrawPath(foldPath, bgPaint);
+            borderPaint.Color = new SKColor(color.Red, color.Green, color.Blue, 180);
+            canvas.DrawPath(foldPath, borderPaint);
+
+            // Three lines suggesting text content
+            using var linesPaint = new SKPaint
+            {
+                Color = new SKColor(color.Red, color.Green, color.Blue, 140),
+                StrokeWidth = MathF.Max(1f, sz * 0.07f),
+                StrokeCap = SKStrokeCap.Round,
+                IsAntialias = true
+            };
+            float lx = x + sz * 0.14f;
+            float lw = sz * 0.52f;
+            float ly = y + sz * 0.38f;
+            float ls = sz * 0.18f;
+            canvas.DrawLine(lx, ly,           lx + lw,        ly,           linesPaint);
+            canvas.DrawLine(lx, ly + ls,      lx + lw,        ly + ls,      linesPaint);
+            canvas.DrawLine(lx, ly + ls * 2f, lx + lw * 0.65f, ly + ls * 2f, linesPaint);
+        }
+
+        private static void DrawStickyNotePopup(SKCanvas canvas, float iconX, float iconY,
+                                                float iconSize, string text, SKColor color,
+                                                SKPaint bgPaint, SKPaint borderPaint,
+                                                float annotFontSize)
+        {
+            // Use the annotation's own font size; fall back to a sensible default
+            float popupFontSize = annotFontSize > 0 ? annotFontSize : MathF.Max(11f, iconSize * 0.75f);
+            float lineHeight = popupFontSize * 1.35f;
+            string[] lines = text.Split('\n');
+
+            using var popupFont = new SKFont(SKTypeface.Default, popupFontSize);
+            float maxW = 0;
+            var lineBounds = new List<(string line, SKRect bounds)>();
+            foreach (var line in lines)
+            {
+                if (line.Length == 0) { lineBounds.Add((line, default)); continue; }
+                popupFont.MeasureText(line, out var tb);
+                lineBounds.Add((line, tb));
+                maxW = Math.Max(maxW, tb.Width);
+            }
+            maxW = Math.Max(maxW, popupFontSize * 3);
+            float contentH = lines.Length * lineHeight;
+
+            float pad = 7f;
+            float popupW = maxW + pad * 2;
+            float popupH = contentH + pad * 2;
+
+            // Position: default above-right; clamp so it stays on screen
+            float px = iconX + iconSize + 6;
+            float py = iconY - popupH;
+            if (py < 4) py = iconY + iconSize + 4;
+
+            // Drop shadow
+            bgPaint.Color = new SKColor(0, 0, 0, 25);
+            canvas.DrawRoundRect(px + 1, py + 2, popupW, popupH, 4, 4, bgPaint);
+
+            // White body
+            bgPaint.Color = new SKColor(255, 255, 255, 245);
+            canvas.DrawRoundRect(px, py, popupW, popupH, 4, 4, bgPaint);
+
+            // Subtle border
+            borderPaint.Color = new SKColor(0, 0, 0, 30);
+            borderPaint.StrokeWidth = 1f;
+            canvas.DrawRoundRect(px, py, popupW, popupH, 4, 4, borderPaint);
+
+            // Colored top accent bar
+            bgPaint.Color = new SKColor(color.Red, color.Green, color.Blue, 210);
+            canvas.DrawRoundRect(px, py, popupW, 4, 4, 4, bgPaint);
+
+            // Text content
+            using var textPaint = new SKPaint
+            {
+                Color = new SKColor(30, 30, 30, 230),
+                IsAntialias = true
+            };
+            float ty = py + pad + popupFontSize;
+            foreach (var (line, _) in lineBounds)
+            {
+                if (line.Length > 0)
+                    canvas.DrawText(line, px + pad, ty, popupFont, textPaint);
+                ty += lineHeight;
+            }
+        }
+
+        /// <summary>
         /// Groups text-annotation lines (identified by HasBorder on the first line)
         /// and draws a single white background + colored border frame around each group.
         /// </summary>
@@ -1910,7 +2276,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 var item = _items[i];
                 if (!item.IsTextAnnotation) { i++; continue; }
 
-                // Find extent of this text annotation (consecutive IsTextAnnotation items starting from HasBorder)
                 float minX = float.MaxValue, minY = float.MaxValue;
                 float maxX = float.MinValue, maxY = float.MinValue;
                 var groupColor = item.Color;
@@ -1933,19 +2298,40 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     maxY = Math.Max(maxY, bottom);
                     j++;
 
-                    // Stop if next item starts a new annotation (HasBorder=true)
                     if (j < _items.Count && _items[j].HasBorder) break;
                 }
 
+                // Stamp-style frame: accent bar + shadow + white body
                 float pad = 5;
-                var frameRect = new SKRoundRect(
-                    new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad), 4, 4);
+                float accentW = 4;
+                var textArea = new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
+                var fullArea = new SKRect(textArea.Left - accentW, textArea.Top,
+                                          textArea.Right, textArea.Bottom);
+                var frameRRect = new SKRoundRect(fullArea, 4, 4);
 
-                bgPaint.Color = new SKColor(255, 255, 255, 220);
-                canvas.DrawRoundRect(frameRect, bgPaint);
+                // Subtle drop shadow
+                bgPaint.Color = new SKColor(0, 0, 0, 25);
+                canvas.DrawRoundRect(new SKRoundRect(
+                    new SKRect(fullArea.Left + 1, fullArea.Top + 1,
+                               fullArea.Right + 1, fullArea.Bottom + 2), 4, 4), bgPaint);
 
-                borderPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 140);
-                canvas.DrawRoundRect(frameRect, borderPaint);
+                // White background (nearly opaque)
+                bgPaint.Color = new SKColor(255, 255, 255, 245);
+                canvas.DrawRoundRect(frameRRect, bgPaint);
+
+                // Subtle gray border
+                borderPaint.Color = new SKColor(0, 0, 0, 30);
+                canvas.DrawRoundRect(frameRRect, borderPaint);
+
+                // Colored left accent bar (rounded only on left corners)
+                var accentRRect = new SKRoundRect();
+                accentRRect.SetRectRadii(
+                    new SKRect(fullArea.Left, fullArea.Top,
+                               fullArea.Left + accentW, fullArea.Bottom),
+                    [new SKPoint(4, 4), new SKPoint(0, 0),
+                     new SKPoint(0, 0), new SKPoint(4, 4)]);
+                bgPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 210);
+                canvas.DrawRoundRect(accentRRect, bgPaint);
 
                 i = j;
             }
@@ -1962,6 +2348,8 @@ public class InkStroke
     public double Width { get; set; } = 3;
     public double Opacity { get; set; } = 1.0;
     public bool IsHighlighter { get; set; }
+    /// <summary>When true, points are connected with straight line segments instead of spline curves.</summary>
+    public bool IsPolyline { get; set; }
 
     // Cached pen to avoid per-frame allocation during rendering.
     private IPen? _cachedPen;
