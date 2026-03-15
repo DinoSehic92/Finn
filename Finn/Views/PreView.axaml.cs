@@ -42,6 +42,7 @@ public partial class PreView : UserControl
     public RotateTransform rotation = new RotateTransform(0);
     private bool _rendererPointerDown = false;
     private bool ZoomMode = false;
+    private PDFRenderer? _panRenderer;
 
     public void InitSetup(object sender, RoutedEventArgs e)
     {
@@ -87,6 +88,7 @@ public partial class PreView : UserControl
 
         if (e.PropertyName == "CurrentPage1")
         {
+            DeselectAnnotation();
             MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
             SyncLayers();
         }
@@ -140,16 +142,20 @@ public partial class PreView : UserControl
         MuPDFRendererSecondary.DrawLinks = false;
 
         MuPDFRenderer.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRenderer.RemoveHandler(PointerMovedEvent, OnRendererPointerMoved);
         MuPDFRenderer.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
         MuPDFRenderer.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
         MuPDFRendererSecondary.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRendererSecondary.RemoveHandler(PointerMovedEvent, OnRendererPointerMoved);
         MuPDFRendererSecondary.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
         MuPDFRendererSecondary.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
 
         MuPDFRenderer.AddHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRenderer.AddHandler(PointerMovedEvent, OnRendererPointerMoved);
         MuPDFRenderer.AddHandler(PointerReleasedEvent, OnRendererPointerReleased);
         MuPDFRenderer.AddHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
         MuPDFRendererSecondary.AddHandler(PointerPressedEvent, OnRendererPointerPressed);
+        MuPDFRendererSecondary.AddHandler(PointerMovedEvent, OnRendererPointerMoved);
         MuPDFRendererSecondary.AddHandler(PointerReleasedEvent, OnRendererPointerReleased);
         MuPDFRendererSecondary.AddHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
 
@@ -276,11 +282,55 @@ public partial class PreView : UserControl
     }
 
     private void OnRendererPointerPressed(object? sender, PointerPressedEventArgs e)
-        => _rendererPointerDown = true;
+    {
+        _rendererPointerDown = true;
+        if (_annotateMode) return;
+
+        var point = e.GetCurrentPoint((Visual)sender!);
+        if (point.Properties.IsMiddleButtonPressed && sender is PDFRenderer renderer)
+        {
+            _middlePanning = true;
+            _panRenderer = renderer;
+            _panStart = e.GetPosition(renderer);
+            _panStartDisplayArea = renderer.DisplayArea;
+            e.Pointer.Capture(renderer);
+            e.Handled = true;
+        }
+    }
+
+    private void OnRendererPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_middlePanning || _panRenderer == null) return;
+        e.Handled = true;
+        var current = e.GetPosition(_panRenderer);
+        var da = _panStartDisplayArea;
+        var bounds = _panRenderer.Bounds;
+        if (bounds.Width <= 0 || bounds.Height <= 0) return;
+
+        double dx = (_panStart.X - current.X) / bounds.Width  * da.Width;
+        double dy = (_panStart.Y - current.Y) / bounds.Height * da.Height;
+        _panRenderer.SetDisplayAreaNow(new Rect(da.X + dx, da.Y + dy, da.Width, da.Height));
+    }
 
     private void OnRendererPointerReleased(object? sender, PointerReleasedEventArgs e)
-        => _rendererPointerDown = false;
+    {
+        _rendererPointerDown = false;
+        if (_middlePanning && !_annotateMode)
+        {
+            _middlePanning = false;
+            _panRenderer = null;
+            e.Pointer.Capture(null);
+            e.Handled = true;
+        }
+    }
 
     private void OnRendererPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
-        => _rendererPointerDown = false;
+    {
+        _rendererPointerDown = false;
+        if (_middlePanning && !_annotateMode)
+        {
+            _middlePanning = false;
+            _panRenderer = null;
+        }
+    }
 }

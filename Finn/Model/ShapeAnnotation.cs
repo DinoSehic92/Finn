@@ -26,6 +26,17 @@ public enum InlineAnnotationTool
 }
 
 /// <summary>
+/// Dash pattern for annotation strokes.
+/// </summary>
+public enum LineDashPattern
+{
+    Solid,
+    Dashed,
+    Dotted,
+    DashDot
+}
+
+/// <summary>
 /// A geometric shape annotation (rectangle, ellipse, line, or arrow)
 /// stored in PDF-space coordinates so it scales correctly with zoom/pan.
 /// </summary>
@@ -39,6 +50,8 @@ public class ShapeAnnotation
     public double Opacity { get; set; } = 1.0;
     /// <summary>When true, the shape is rendered with a translucent fill in addition to the stroke.</summary>
     public bool IsFilled { get; set; }
+    /// <summary>Dash pattern applied to the shape stroke.</summary>
+    public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
 
     public void InvalidatePen()
     {
@@ -50,6 +63,14 @@ public class ShapeAnnotation
     private IPen? _cachedPen;
     private double _cachedPenScale;
 
+    internal static DashStyle? GetDashStyle(LineDashPattern pattern) => pattern switch
+    {
+        LineDashPattern.Dashed => new DashStyle([4, 3], 0),
+        LineDashPattern.Dotted => new DashStyle([1, 2], 0),
+        LineDashPattern.DashDot => new DashStyle([4, 2, 1, 2], 0),
+        _ => null
+    };
+
     internal IPen GetOrCreatePen(double penScale)
     {
         if (_cachedPen == null || Math.Abs(_cachedPenScale - penScale) > 0.001)
@@ -60,6 +81,7 @@ public class ShapeAnnotation
                 : Color;
             var brush = new SolidColorBrush(c).ToImmutable();
             _cachedPen = new Pen(brush, StrokeWidth * penScale,
+                dashStyle: GetDashStyle(DashPattern),
                 lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
         }
         return _cachedPen;

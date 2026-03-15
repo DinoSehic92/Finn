@@ -8,8 +8,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using iText.IO.Image;
 using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Annot;
-using iText.Kernel.Pdf.Canvas;
 using MuPDFCore;
 using MuPDFCore.MuPDFRenderer;
 using SkiaSharp;
@@ -151,9 +149,20 @@ public partial class PreView
                     break;
 
                 case InlineAnnotationTool.Arrow:
-                    canvas.DrawLine(sx, sy, ex, ey, paint);
+                {
+                    // Shorten line to arrowhead base to prevent round-cap protrusion
+                    float adx = ex - sx, ady = ey - sy;
+                    float alen = MathF.Sqrt(adx * adx + ady * ady);
+                    if (alen > 1)
+                    {
+                        float headLen = MathF.Min(8f * (float)renderZoom, alen * 0.4f);
+                        float shortenX = adx / alen * headLen;
+                        float shortenY = ady / alen * headLen;
+                        canvas.DrawLine(sx, sy, ex - shortenX, ey - shortenY, paint);
+                    }
                     RenderSkiaArrowhead(canvas, paint, sx, sy, ex, ey, renderZoom);
                     break;
+                }
 
                 case InlineAnnotationTool.Rectangle:
                     if (fillPaint != null)
@@ -288,7 +297,16 @@ public partial class PreView
                         StrokeCap = SKStrokeCap.Round,
                         IsAntialias = true
                     };
-                    canvas.DrawLine(arrowTipX, arrowTipY, conn.x, conn.y, arrowLinePaint);
+                    // Shorten line to arrowhead base to prevent round-cap protrusion
+                    float aadx = arrowTipX - conn.x, aady = arrowTipY - conn.y;
+                    float aalen = MathF.Sqrt(aadx * aadx + aady * aady);
+                    if (aalen > 1)
+                    {
+                        float headLen = MathF.Min(8f * (float)renderZoom, aalen * 0.4f);
+                        float shX = aadx / aalen * headLen;
+                        float shY = aady / aalen * headLen;
+                        canvas.DrawLine(conn.x, conn.y, arrowTipX - shX, arrowTipY - shY, arrowLinePaint);
+                    }
                     RenderSkiaArrowhead(canvas, arrowLinePaint, conn.x, conn.y, arrowTipX, arrowTipY, renderZoom);
                 }
 
@@ -306,7 +324,6 @@ public partial class PreView
                 Color = new SKColor(m.Color.R, m.Color.G, m.Color.B, 220),
                 StrokeWidth = (float)(1.5 * renderZoom),
                 Style = SKPaintStyle.Stroke,
-                PathEffect = SKPathEffect.CreateDash([8f * (float)renderZoom, 6f * (float)renderZoom], 0),
                 StrokeCap = SKStrokeCap.Round,
                 IsAntialias = true
             };
@@ -329,6 +346,10 @@ public partial class PreView
                     canvas.DrawLine(x0 - nx, y0 - ny, x0 + nx, y0 + ny, emPaint);
                     canvas.DrawLine(x1 - nx, y1 - ny, x1 + nx, y1 + ny, emPaint);
                 }
+
+                // Arrowheads at both endpoints
+                RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x0, y0, x1, y1, renderZoom);
+                RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x1, y1, x0, y0, renderZoom);
             }
 
             // Draw label
@@ -346,19 +367,6 @@ public partial class PreView
     }
 
     /// <summary>
-    /// Renders annotations only (no PDF background) onto a transparent surface.
-    /// Used by the searchable PDF export to overlay annotations on original pages.
-    /// </summary>
-    private SKData? RenderAnnotationsOnly(int page, double renderZoom, int pixelWidth, int pixelHeight)
-    {
-        using var surface = SKSurface.Create(new SKImageInfo(pixelWidth, pixelHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
-        if (surface == null) return null;
-        surface.Canvas.Clear(SKColors.Transparent);
-        DrawAnnotationsToCanvas(surface.Canvas, page, renderZoom);
-        using var image = surface.Snapshot();
-        return image.Encode(SKEncodedImageFormat.Png, 100);
-    }
-
     private bool PageHasAnnotations(int page)
     {
         return MuPDFRenderer.GetStrokes(page).Count > 0
@@ -448,6 +456,40 @@ public partial class PreView
         path.MoveTo(lx, ly);
         path.LineTo(tx, ty);
         path.LineTo(rx, ry);
+        path.Close();
+        canvas.DrawPath(path, arrowPaint);
+    }
+
+    /// <summary>
+    /// Draws a measurement-style arrowhead (smaller, slightly wider angle) for Skia export.
+    /// Matches the in-app DrawMeasureArrowhead.
+    /// </summary>
+    private static void RenderSkiaMeasureArrowhead(SKCanvas canvas, SKColor color,
+                                                    float tipX, float tipY,
+                                                    float fromX, float fromY,
+                                                    double renderZoom)
+    {
+        double dx = tipX - fromX;
+        double dy = tipY - fromY;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return;
+        double headLen = Math.Min(6 * renderZoom, len * 0.3);
+        double angle = Math.Atan2(dy, dx);
+        const double half = Math.PI / 7;
+        float p1x = (float)(tipX - headLen * Math.Cos(angle - half));
+        float p1y = (float)(tipY - headLen * Math.Sin(angle - half));
+        float p2x = (float)(tipX - headLen * Math.Cos(angle + half));
+        float p2y = (float)(tipY - headLen * Math.Sin(angle + half));
+        using var arrowPaint = new SKPaint
+        {
+            Color = color,
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+        var path = new SKPath();
+        path.MoveTo(p1x, p1y);
+        path.LineTo(tipX, tipY);
+        path.LineTo(p2x, p2y);
         path.Close();
         canvas.DrawPath(path, arrowPaint);
     }
@@ -587,15 +629,12 @@ public partial class PreView
         string reviewName = ReviewNameBox.Text?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(reviewName))
             reviewName = "review";
-        string exportMode = ExportModePdfSharp.IsChecked == true ? "pdfsharp"
-                          : ExportModeNative.IsChecked == true  ? "native"
-                          : "rendered";
 
         ReviewExportStatus.Text = "Exporting...";
 
         try
         {
-            string exportPath = await Task.Run(() => ExportReviewPdf(reviewName, exportMode));
+            string exportPath = await Task.Run(() => ExportReviewPdf(reviewName));
             ReviewExportCanvas.IsVisible = false;
 
             if (exportPath != null && pwr.CurrentFile != null)
@@ -613,9 +652,9 @@ public partial class PreView
     }
 
     /// <summary>
-    /// Exports a review PDF in either native (editable) or rendered (pixel-perfect) mode.
+    /// Exports a review PDF using PDFSharp vector export.
     /// </summary>
-    private string ExportReviewPdf(string reviewName, string exportMode)
+    private string ExportReviewPdf(string reviewName)
     {
         const double renderZoom = 2.0;
 
@@ -638,93 +677,7 @@ public partial class PreView
         if (sourcePath == null || !File.Exists(sourcePath))
             return ExportReviewPdfImageBased(outputPath, renderZoom);
 
-        return exportMode switch
-        {
-            "native"   => ExportReviewPdfNative(outputPath, sourcePath, renderZoom),
-            "pdfsharp" => ExportReviewPdfSharpOnly(outputPath, sourcePath),
-            _          => ExportReviewPdfRendered(outputPath, sourcePath, renderZoom),
-        };
-    }
-
-    /// <summary>
-    /// Native export: uses PDF annotations for maximum editability in other viewers.
-    /// Revision clouds and measurements (no native equivalent) are stamped as overlay.
-    /// </summary>
-    private string ExportReviewPdfNative(string outputPath, string sourcePath, double renderZoom)
-    {
-        using var reader = new PdfReader(sourcePath);
-        using var writer = new PdfWriter(outputPath);
-        using var pdfDoc = new PdfDocument(reader, writer);
-
-        int pageCount = pdfDoc.GetNumberOfPages();
-        for (int i = 0; i < pageCount; i++)
-        {
-            if (!PageHasAnnotations(i)) continue;
-
-            var pdfPage = pdfDoc.GetPage(i + 1);
-            var mediaBox = pdfPage.GetMediaBox();
-            float pageWidth = mediaBox.GetWidth();
-            float pageHeight = mediaBox.GetHeight();
-
-            AddNativeAnnotationsToPage(pdfPage, i, pageHeight);
-
-            if (PageHasNativeOverlayAnnotations(i))
-            {
-                int pixW = (int)Math.Ceiling(pageWidth * renderZoom);
-                int pixH = (int)Math.Ceiling(pageHeight * renderZoom);
-                using var overlayData = RenderNativeOverlayOnly(i, renderZoom, pixW, pixH);
-                if (overlayData != null)
-                {
-                    byte[] pngBytes = overlayData.ToArray();
-                    var imageData = ImageDataFactory.Create(pngBytes);
-                    var xObject = new iText.Kernel.Pdf.Xobject.PdfImageXObject(imageData);
-                    var pdfCanvas = new PdfCanvas(pdfPage);
-                    pdfCanvas.AddXObjectWithTransformationMatrix(xObject,
-                        pageWidth, 0, 0, pageHeight,
-                        mediaBox.GetLeft(), mediaBox.GetBottom());
-                }
-            }
-        }
-
-        return outputPath;
-    }
-
-    /// <summary>
-    /// Rendered export: stamps a full Skia-rendered image of all annotations
-    /// on each page. Pixel-perfect match to in-app appearance.
-    /// </summary>
-    private string ExportReviewPdfRendered(string outputPath, string sourcePath, double renderZoom)
-    {
-        using var reader = new PdfReader(sourcePath);
-        using var writer = new PdfWriter(outputPath);
-        using var pdfDoc = new PdfDocument(reader, writer);
-
-        int pageCount = pdfDoc.GetNumberOfPages();
-        for (int i = 0; i < pageCount; i++)
-        {
-            if (!PageHasAnnotations(i)) continue;
-
-            var pdfPage = pdfDoc.GetPage(i + 1);
-            var mediaBox = pdfPage.GetMediaBox();
-            float pageWidth = mediaBox.GetWidth();
-            float pageHeight = mediaBox.GetHeight();
-
-            int pixW = (int)Math.Ceiling(pageWidth * renderZoom);
-            int pixH = (int)Math.Ceiling(pageHeight * renderZoom);
-            using var overlayData = RenderAnnotationsOnly(i, renderZoom, pixW, pixH);
-            if (overlayData != null)
-            {
-                byte[] pngBytes = overlayData.ToArray();
-                var imageData = ImageDataFactory.Create(pngBytes);
-                var xObject = new iText.Kernel.Pdf.Xobject.PdfImageXObject(imageData);
-                var pdfCanvas = new PdfCanvas(pdfPage);
-                pdfCanvas.AddXObjectWithTransformationMatrix(xObject,
-                    pageWidth, 0, 0, pageHeight,
-                    mediaBox.GetLeft(), mediaBox.GetBottom());
-            }
-        }
-
-        return outputPath;
+        return ExportReviewPdfSharpOnly(outputPath, sourcePath);
     }
 
     /// <summary>
@@ -841,9 +794,20 @@ public partial class PreView
                     break;
 
                 case InlineAnnotationTool.Arrow:
-                    gfx.DrawLine(pen, sx, sy, ex, ey);
+                {
+                    // Shorten line to arrowhead base to prevent round-cap protrusion
+                    double adx = ex - sx, ady = ey - sy;
+                    double alen = Math.Sqrt(adx * adx + ady * ady);
+                    if (alen > 1)
+                    {
+                        double headLen = Math.Min(8.0, alen * 0.4);
+                        double shX = adx / alen * headLen;
+                        double shY = ady / alen * headLen;
+                        gfx.DrawLine(pen, sx, sy, ex - shX, ey - shY);
+                    }
                     DrawArrowheadPdfSharp(gfx, sx, sy, ex, ey, color);
                     break;
+                }
 
                 case InlineAnnotationTool.Rectangle:
                     if (fill != null) gfx.DrawRectangle(fill, left, top, w, h);
@@ -894,7 +858,7 @@ public partial class PreView
             // to match the in-app / Skia rendered position.
             double yOff = t.FontSize * 0.2;
 
-            const double pad = 5, accentW = 4, r = 4;
+            const double pad = 2, accentW = 4, r = 4;
             double fx = t.Position.X - pad - accentW;
             double fy = t.Position.Y - pad + yOff;
             double fw = maxW + pad * 2 + accentW;
@@ -937,7 +901,17 @@ public partial class PreView
                     double d = (cx - ax) * (cx - ax) + (cy - ay) * (cy - ay);
                     if (d < bestDist) { bestDist = d; attX = cx; attY = cy; }
                 }
-                gfx.DrawLine(new XPen(annColor, 1.2), ax, ay, attX, attY);
+                // Shorten line to arrowhead base to prevent round-cap protrusion
+                var arrowPen = new XPen(annColor, 1.2) { LineCap = XLineCap.Round };
+                double aadx = ax - attX, aady = ay - attY;
+                double aalen = Math.Sqrt(aadx * aadx + aady * aady);
+                if (aalen > 1)
+                {
+                    double headLen = Math.Min(8.0, aalen * 0.4);
+                    double shX = aadx / aalen * headLen;
+                    double shY = aady / aalen * headLen;
+                    gfx.DrawLine(arrowPen, attX, attY, ax - shX, ay - shY);
+                }
                 DrawArrowheadPdfSharp(gfx, attX, attY, ax, ay, annColor);
             }
 
@@ -998,8 +972,6 @@ public partial class PreView
             var color = XColor.FromArgb(220, m.Color.R, m.Color.G, m.Color.B);
             var pen = new XPen(color, 1.5)
             {
-                DashStyle = XDashStyle.Dash,
-                DashPattern = [8, 6],
                 LineCap = XLineCap.Round
             };
 
@@ -1021,6 +993,10 @@ public partial class PreView
                     gfx.DrawLine(emPen, x0 - nx, y0 - ny, x0 + nx, y0 + ny);
                     gfx.DrawLine(emPen, x1 - nx, y1 - ny, x1 + nx, y1 + ny);
                 }
+
+                // Arrowheads at both endpoints
+                DrawMeasureArrowheadPdfSharp(gfx, x0, y0, x1, y1, color);
+                DrawMeasureArrowheadPdfSharp(gfx, x1, y1, x0, y0, color);
             }
 
             // Label
@@ -1055,6 +1031,30 @@ public partial class PreView
             new XPoint(tipX, tipY),
             new XPoint(tipX - headLen * Math.Cos(angle + ang),
                        tipY - headLen * Math.Sin(angle + ang))
+        ]);
+        gfx.DrawPath(new XSolidBrush(color), path);
+    }
+
+    /// <summary>
+    /// Draws a measurement-style arrowhead (smaller, slightly wider angle) for PDFSharp export.
+    /// Matches the in-app DrawMeasureArrowhead.
+    /// </summary>
+    private static void DrawMeasureArrowheadPdfSharp(
+        XGraphics gfx, double tipX, double tipY, double fromX, double fromY, XColor color)
+    {
+        double dx = tipX - fromX, dy = tipY - fromY;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return;
+        double headLen = Math.Min(6.0, len * 0.3);
+        const double half = Math.PI / 7;
+        double angle = Math.Atan2(dy, dx);
+        var path = new XGraphicsPath();
+        path.AddPolygon([
+            new XPoint(tipX - headLen * Math.Cos(angle - half),
+                       tipY - headLen * Math.Sin(angle - half)),
+            new XPoint(tipX, tipY),
+            new XPoint(tipX - headLen * Math.Cos(angle + half),
+                       tipY - headLen * Math.Sin(angle + half))
         ]);
         gfx.DrawPath(new XSolidBrush(color), path);
     }
@@ -1152,442 +1152,6 @@ public partial class PreView
         }
 
         return outputPath;
-    }
-
-    /// <summary>
-    /// Adds native PDF annotations for all supported types so they remain
-    /// editable in other PDF viewers (Acrobat, Acroplot, etc.).
-    /// Only revision clouds and measurements have no native equivalent.
-    /// </summary>
-    private void AddNativeAnnotationsToPage(iText.Kernel.Pdf.PdfPage pdfPage, int page, float pageHeight)
-    {
-        // Ink strokes → PdfInkAnnotation
-        var strokes = MuPDFRenderer.GetStrokes(page);
-        foreach (var stroke in strokes)
-        {
-            if (stroke.Points.Count < 2) continue;
-
-            float minX = float.MaxValue, minY = float.MaxValue;
-            float maxX = float.MinValue, maxY = float.MinValue;
-            var pdfPoints = new List<float>();
-            foreach (var pt in stroke.Points)
-            {
-                float px = (float)pt.X;
-                float py = pageHeight - (float)pt.Y;
-                pdfPoints.Add(px);
-                pdfPoints.Add(py);
-                minX = Math.Min(minX, px); minY = Math.Min(minY, py);
-                maxX = Math.Max(maxX, px); maxY = Math.Max(maxY, py);
-            }
-
-            float pad = (float)stroke.Width + 2;
-            var rect = new iText.Kernel.Geom.Rectangle(minX - pad, minY - pad,
-                (maxX - minX) + pad * 2, (maxY - minY) + pad * 2);
-
-            var inkList = new iText.Kernel.Pdf.PdfArray();
-            var pointsArr = new iText.Kernel.Pdf.PdfArray();
-            foreach (float v in pdfPoints) pointsArr.Add(new iText.Kernel.Pdf.PdfNumber(v));
-            inkList.Add(pointsArr);
-
-            var annot = new PdfInkAnnotation(rect, inkList);
-            annot.SetColor(new iText.Kernel.Colors.DeviceRgb(stroke.Color.R, stroke.Color.G, stroke.Color.B));
-            if (stroke.Opacity < 1.0)
-                annot.Put(iText.Kernel.Pdf.PdfName.CA, new iText.Kernel.Pdf.PdfNumber(stroke.Opacity));
-
-            var bs = new iText.Kernel.Pdf.PdfDictionary();
-            bs.Put(iText.Kernel.Pdf.PdfName.W, new iText.Kernel.Pdf.PdfNumber(stroke.Width));
-            bs.Put(iText.Kernel.Pdf.PdfName.S, iText.Kernel.Pdf.PdfName.S);
-            annot.Put(new iText.Kernel.Pdf.PdfName("BS"), bs);
-
-            annot.SetFlags(iText.Kernel.Pdf.Annot.PdfAnnotation.PRINT);
-            pdfPage.AddAnnotation(annot);
-        }
-
-        // Shapes → native PDF annotations
-        // RevisionCloud has no native equivalent and goes to overlay.
-        var shapes = MuPDFRenderer.GetShapes(page);
-        foreach (var shape in shapes)
-        {
-            if (shape.ShapeType == InlineAnnotationTool.RevisionCloud) continue;
-
-            float sx = (float)shape.Start.X;
-            float sy = pageHeight - (float)shape.Start.Y;
-            float ex = (float)shape.End.X;
-            float ey = pageHeight - (float)shape.End.Y;
-
-            float left = Math.Min(sx, ex), bottom = Math.Min(sy, ey);
-            float right = Math.Max(sx, ex), top = Math.Max(sy, ey);
-            float pad = (float)shape.StrokeWidth + 2;
-
-            var color = new iText.Kernel.Colors.DeviceRgb(shape.Color.R, shape.Color.G, shape.Color.B);
-
-            PdfAnnotation annot;
-            switch (shape.ShapeType)
-            {
-                case InlineAnnotationTool.Rectangle:
-                {
-                    var rect = new iText.Kernel.Geom.Rectangle(left - pad, bottom - pad,
-                        (right - left) + pad * 2, (top - bottom) + pad * 2);
-                    var sq = new PdfSquareAnnotation(rect);
-                    sq.SetColor(color);
-                    if (shape.IsFilled)
-                    {
-                        sq.Put(new iText.Kernel.Pdf.PdfName("IC"),
-                            new iText.Kernel.Pdf.PdfArray(new float[]
-                                { shape.Color.R / 255f, shape.Color.G / 255f, shape.Color.B / 255f }));
-                        // /ca = non-stroke (fill) opacity; matches in-app alpha 80/255
-                        sq.Put(new iText.Kernel.Pdf.PdfName("ca"),
-                            new iText.Kernel.Pdf.PdfNumber(80.0 / 255.0));
-                    }
-                    annot = sq;
-                    break;
-                }
-                case InlineAnnotationTool.Ellipse:
-                {
-                    var rect = new iText.Kernel.Geom.Rectangle(left - pad, bottom - pad,
-                        (right - left) + pad * 2, (top - bottom) + pad * 2);
-                    var circ = new PdfCircleAnnotation(rect);
-                    circ.SetColor(color);
-                    if (shape.IsFilled)
-                    {
-                        circ.Put(new iText.Kernel.Pdf.PdfName("IC"),
-                            new iText.Kernel.Pdf.PdfArray(new float[]
-                                { shape.Color.R / 255f, shape.Color.G / 255f, shape.Color.B / 255f }));
-                        circ.Put(new iText.Kernel.Pdf.PdfName("ca"),
-                            new iText.Kernel.Pdf.PdfNumber(80.0 / 255.0));
-                    }
-                    annot = circ;
-                    break;
-                }
-                case InlineAnnotationTool.Line:
-                {
-                    var rect = new iText.Kernel.Geom.Rectangle(left - pad, bottom - pad,
-                        (right - left) + pad * 2, (top - bottom) + pad * 2);
-                    var line = new PdfLineAnnotation(rect,
-                        new float[] { sx, sy, ex, ey });
-                    line.SetColor(color);
-                    annot = line;
-                    break;
-                }
-                case InlineAnnotationTool.Arrow:
-                {
-                    var rect = new iText.Kernel.Geom.Rectangle(left - pad, bottom - pad,
-                        (right - left) + pad * 2, (top - bottom) + pad * 2);
-                    var line = new PdfLineAnnotation(rect,
-                        new float[] { sx, sy, ex, ey });
-                    line.SetColor(color);
-                    // /LE [/None /OpenArrow] = arrowhead at the endpoint
-                    var le = new iText.Kernel.Pdf.PdfArray();
-                    le.Add(iText.Kernel.Pdf.PdfName.None);
-                    le.Add(new iText.Kernel.Pdf.PdfName("OpenArrow"));
-                    line.Put(new iText.Kernel.Pdf.PdfName("LE"), le);
-                    annot = line;
-                    break;
-                }
-                default:
-                    continue;
-            }
-
-            if (shape.Opacity < 1.0)
-                annot.Put(iText.Kernel.Pdf.PdfName.CA, new iText.Kernel.Pdf.PdfNumber(shape.Opacity));
-
-            var shapeBs = new iText.Kernel.Pdf.PdfDictionary();
-            shapeBs.Put(iText.Kernel.Pdf.PdfName.W, new iText.Kernel.Pdf.PdfNumber(shape.StrokeWidth));
-            shapeBs.Put(iText.Kernel.Pdf.PdfName.S, iText.Kernel.Pdf.PdfName.S);
-            annot.Put(new iText.Kernel.Pdf.PdfName("BS"), shapeBs);
-
-            annot.SetFlags(iText.Kernel.Pdf.Annot.PdfAnnotation.PRINT);
-            pdfPage.AddAnnotation(annot);
-        }
-
-        // Sticky-note annotations → native comment icons.
-        // Plain text and arrow-text → drawn directly into the page content stream
-        // via PdfCanvas so they render identically in every viewer.
-        var texts = MuPDFRenderer.GetTexts(page);
-        if (texts.Count > 0)
-        {
-            var helvetica = iText.Kernel.Font.PdfFontFactory.CreateFont(
-                iText.IO.Font.Constants.StandardFonts.HELVETICA);
-
-            foreach (var t in texts)
-            {
-                float tpx = (float)t.Position.X;
-                float tpy = pageHeight - (float)t.Position.Y;
-                var color = new iText.Kernel.Colors.DeviceRgb(t.Color.R, t.Color.G, t.Color.B);
-
-                if (t.IsStickyNote)
-                {
-                    var noteRect = new iText.Kernel.Geom.Rectangle(tpx - 9, tpy - 9, 18, 18);
-                    var note = new iText.Kernel.Pdf.Annot.PdfTextAnnotation(noteRect);
-                    note.SetIconName(new iText.Kernel.Pdf.PdfName("Comment"));
-                    note.SetColor(color);
-                    note.SetContents(new iText.Kernel.Pdf.PdfString(t.Text));
-                    note.SetOpen(false);
-                    if (t.Opacity < 1.0)
-                        note.Put(iText.Kernel.Pdf.PdfName.CA,
-                            new iText.Kernel.Pdf.PdfNumber(t.Opacity));
-                    var popupRect = new iText.Kernel.Geom.Rectangle(tpx + 20, tpy - 10, 220, 100);
-                    var popup = new iText.Kernel.Pdf.Annot.PdfPopupAnnotation(popupRect);
-                    popup.SetContents(new iText.Kernel.Pdf.PdfString(t.Text));
-                    note.SetPopup(popup);
-                    popup.SetParent(note);
-                    note.SetFlags(iText.Kernel.Pdf.Annot.PdfAnnotation.PRINT);
-                    pdfPage.AddAnnotation(popup);
-                    pdfPage.AddAnnotation(note);
-                    continue;
-                }
-
-                // ── Draw text box directly into the page content stream ──────────
-                float fontSize = (float)t.FontSize;
-                string[] textLines = t.Text.Split('\n');
-                float lineHeight = fontSize * 1.3f;
-                float maxW = 0;
-                foreach (var ln in textLines)
-                    maxW = Math.Max(maxW, helvetica.GetWidth(ln, fontSize));
-                maxW = Math.Max(maxW, fontSize * 2);
-                float totalH = textLines.Length * lineHeight;
-
-                float pad = 5, accentW = 4, radius = 4;
-                // PDF coordinates: tpy is the PDF-Y of the annotation top edge
-                float boxL = tpx - pad - accentW;
-                float boxB = tpy - totalH - pad;
-                float boxW = maxW + pad * 2 + accentW;
-                float boxH = totalH + pad * 2;
-
-                var cv = new PdfCanvas(pdfPage);
-
-                // Shadow
-                cv.SaveState();
-                var shadowGs = new iText.Kernel.Pdf.Extgstate.PdfExtGState();
-                shadowGs.SetFillOpacity(25f / 255f);
-                cv.SetExtGState(shadowGs);
-                cv.SetFillColor(new iText.Kernel.Colors.DeviceRgb(0, 0, 0));
-                cv.RoundRectangle(boxL + 0.5, boxB - 1.5, boxW + 0.5, boxH, radius);
-                cv.Fill();
-                cv.RestoreState();
-
-                // White body
-                cv.SaveState();
-                var bgGs = new iText.Kernel.Pdf.Extgstate.PdfExtGState();
-                bgGs.SetFillOpacity(245f / 255f);
-                cv.SetExtGState(bgGs);
-                cv.SetFillColor(new iText.Kernel.Colors.DeviceRgb(255, 255, 255));
-                cv.RoundRectangle(boxL, boxB, boxW, boxH, radius);
-                cv.Fill();
-                cv.RestoreState();
-
-                // Subtle gray border
-                cv.SaveState();
-                var borderGs = new iText.Kernel.Pdf.Extgstate.PdfExtGState();
-                borderGs.SetStrokeOpacity(40f / 255f);
-                cv.SetExtGState(borderGs);
-                cv.SetStrokeColor(new iText.Kernel.Colors.DeviceRgb(0, 0, 0));
-                cv.SetLineWidth(0.8f);
-                cv.RoundRectangle(boxL, boxB, boxW, boxH, radius);
-                cv.Stroke();
-                cv.RestoreState();
-
-                // Colored left accent bar
-                cv.SaveState();
-                var accentGs = new iText.Kernel.Pdf.Extgstate.PdfExtGState();
-                accentGs.SetFillOpacity(210f / 255f);
-                cv.SetExtGState(accentGs);
-                cv.SetFillColor(color);
-                cv.Rectangle(boxL, boxB + radius, accentW, boxH - radius * 2);
-                cv.Fill();
-                // Rounded top-left and bottom-left arcs via Bézier curves
-                float k = radius * 0.552f; // kappa for circle approximation
-                cv.MoveTo(boxL, boxB + radius);
-                cv.CurveTo(boxL, boxB + radius - k, boxL + radius - k, boxB, boxL + radius, boxB);
-                cv.LineTo(boxL + accentW, boxB);
-                cv.LineTo(boxL + accentW, boxB + boxH);
-                cv.LineTo(boxL + radius, boxB + boxH);
-                cv.CurveTo(boxL + radius - k, boxB + boxH, boxL, boxB + boxH - radius + k, boxL, boxB + boxH - radius);
-                cv.LineTo(boxL, boxB + radius);
-                cv.Fill();
-                cv.RestoreState();
-
-                // Arrow for ArrowText
-                if (t.ArrowOrigin.HasValue)
-                {
-                    float ax = (float)t.ArrowOrigin.Value.X;
-                    float ay = pageHeight - (float)t.ArrowOrigin.Value.Y;
-                    // Closest side center of the box
-                    float midX = boxL + boxW / 2f, midY = boxB + boxH / 2f;
-                    float dL = Math.Abs(ax - boxL), dR = Math.Abs(ax - (boxL + boxW));
-                    float dB = Math.Abs(ay - boxB), dT = Math.Abs(ay - (boxB + boxH));
-                    float minD = Math.Min(Math.Min(dL, dR), Math.Min(dB, dT));
-                    float attX = (minD == dL) ? boxL : (minD == dR) ? boxL + boxW : midX;
-                    float attY = (minD == dB) ? boxB : (minD == dT) ? boxB + boxH : midY;
-
-                    cv.SaveState();
-                    cv.SetStrokeColor(color);
-                    cv.SetLineWidth(1.2f);
-                    cv.MoveTo(ax, ay);
-                    cv.LineTo(attX, attY);
-                    cv.Stroke();
-                    // Filled arrowhead at the tip (ax, ay)
-                    double callAngle = Math.Atan2(attY - ay, attX - ax);
-                    float headLen = 8f;
-                    double halfAngle = Math.PI / 8;
-                    cv.SetFillColor(color);
-                    cv.MoveTo(ax + headLen * Math.Cos(callAngle + halfAngle),
-                              ay + headLen * Math.Sin(callAngle + halfAngle));
-                    cv.LineTo(ax, ay);
-                    cv.LineTo(ax + headLen * Math.Cos(callAngle - halfAngle),
-                              ay + headLen * Math.Sin(callAngle - halfAngle));
-                    cv.ClosePathFillStroke();
-                    cv.RestoreState();
-                }
-
-                // Text
-                cv.SaveState();
-                if (t.Opacity < 1.0)
-                {
-                    var textGs = new iText.Kernel.Pdf.Extgstate.PdfExtGState();
-                    textGs.SetFillOpacity((float)t.Opacity);
-                    cv.SetExtGState(textGs);
-                }
-                cv.BeginText();
-                cv.SetFontAndSize(helvetica, fontSize);
-                cv.SetFillColor(color);
-                // First line baseline: top of box minus padding minus font ascent
-                float cursorY = (boxB + boxH) - pad - fontSize;
-                for (int li = 0; li < textLines.Length; li++)
-                {
-                    if (li == 0)
-                        cv.MoveText(tpx, cursorY);
-                    else
-                        cv.MoveText(0, -lineHeight);
-                    if (textLines[li].Length > 0)
-                        cv.ShowText(textLines[li]);
-                }
-                cv.EndText();
-                cv.RestoreState();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Returns true if the page has annotation types that have no native PDF
-    /// equivalent (revision clouds and measurements only).
-    /// </summary>
-    private bool PageHasNativeOverlayAnnotations(int page)
-    {
-        if (MuPDFRenderer.GetMeasurements(page).Count > 0) return true;
-        foreach (var shape in MuPDFRenderer.GetShapes(page))
-        {
-            if (shape.ShapeType == InlineAnnotationTool.RevisionCloud)
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// Draws revision clouds and measurements onto the given SkiaSharp canvas.
-    /// These are the only annotation types without native PDF equivalents.
-    /// </summary>
-    private void DrawNativeOverlay(SKCanvas canvas, int page, double renderZoom)
-    {
-        // Revision clouds
-        var shapes = MuPDFRenderer.GetShapes(page);
-        foreach (var shape in shapes)
-        {
-            if (shape.ShapeType != InlineAnnotationTool.RevisionCloud) continue;
-
-            using var paint = new SKPaint
-            {
-                Color = shape.Opacity < 1.0
-                    ? new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, (byte)(shape.Opacity * 255))
-                    : new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, shape.Color.A),
-                StrokeWidth = (float)(shape.StrokeWidth * renderZoom),
-                Style = SKPaintStyle.Stroke,
-                StrokeCap = SKStrokeCap.Round,
-                StrokeJoin = SKStrokeJoin.Round,
-                IsAntialias = true
-            };
-
-            SKPaint? fillPaint = null;
-            if (shape.IsFilled)
-            {
-                fillPaint = new SKPaint
-                {
-                    Color = new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, 80),
-                    Style = SKPaintStyle.Fill,
-                    IsAntialias = true
-                };
-            }
-
-            float sx = (float)(shape.Start.X * renderZoom);
-            float sy = (float)(shape.Start.Y * renderZoom);
-            float ex = (float)(shape.End.X * renderZoom);
-            float ey = (float)(shape.End.Y * renderZoom);
-
-            var cloudPath = RenderSkiaCloudPath(sx, sy, ex, ey, renderZoom);
-            if (fillPaint != null)
-                canvas.DrawPath(cloudPath, fillPaint);
-            canvas.DrawPath(cloudPath, paint);
-            fillPaint?.Dispose();
-        }
-
-        // Measurements
-        var measurements = MuPDFRenderer.GetMeasurements(page);
-        foreach (var m in measurements)
-        {
-            using var mPaint = new SKPaint
-            {
-                Color = new SKColor(m.Color.R, m.Color.G, m.Color.B, 220),
-                StrokeWidth = (float)(1.5 * renderZoom),
-                Style = SKPaintStyle.Stroke,
-                PathEffect = SKPathEffect.CreateDash([8f * (float)renderZoom, 6f * (float)renderZoom], 0),
-                StrokeCap = SKStrokeCap.Round,
-                IsAntialias = true
-            };
-
-            var pts = m.Points;
-            if (pts.Count >= 2)
-            {
-                float x0 = (float)(pts[0].X * renderZoom), y0 = (float)(pts[0].Y * renderZoom);
-                float x1 = (float)(pts[1].X * renderZoom), y1 = (float)(pts[1].Y * renderZoom);
-                canvas.DrawLine(x0, y0, x1, y1, mPaint);
-
-                float emLen = (float)(6 * renderZoom);
-                float ddx = x1 - x0, ddy = y1 - y0;
-                float dlen = MathF.Sqrt(ddx * ddx + ddy * ddy);
-                if (dlen > 1)
-                {
-                    float nx = -ddy / dlen * emLen, ny = ddx / dlen * emLen;
-                    using var emPaint = new SKPaint { Color = mPaint.Color, StrokeWidth = mPaint.StrokeWidth, Style = SKPaintStyle.Stroke, IsAntialias = true };
-                    canvas.DrawLine(x0 - nx, y0 - ny, x0 + nx, y0 + ny, emPaint);
-                    canvas.DrawLine(x1 - nx, y1 - ny, x1 + nx, y1 + ny, emPaint);
-                }
-            }
-
-            var labelPos = m.GetLabelPosition();
-            float lx = (float)(labelPos.X * renderZoom), ly = (float)(labelPos.Y * renderZoom);
-            using var labelFont = new SKFont(SKTypeface.Default, (float)(10 * renderZoom));
-            using var labelPaint = new SKPaint { Color = new SKColor(m.Color.R, m.Color.G, m.Color.B), IsAntialias = true };
-            using var labelBg = new SKPaint { Color = new SKColor(255, 255, 255, 200), Style = SKPaintStyle.Fill, IsAntialias = true };
-            string label = m.GetLabel();
-            float labelWidth = labelFont.MeasureText(label, out var labelBounds);
-            canvas.DrawRoundRect(lx + labelBounds.Left - 3, ly + labelBounds.Top - 2,
-                labelBounds.Width + 6, labelBounds.Height + 4, 3, 3, labelBg);
-            canvas.DrawText(label, lx, ly, labelFont, labelPaint);
-        }
-    }
-
-    /// <summary>
-    /// Renders only native-overlay annotations (revision clouds + measurements)
-    /// onto a transparent surface for the native export path.
-    /// </summary>
-    private SKData? RenderNativeOverlayOnly(int page, double renderZoom, int pixelWidth, int pixelHeight)
-    {
-        using var surface = SKSurface.Create(new SKImageInfo(pixelWidth, pixelHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
-        if (surface == null) return null;
-        surface.Canvas.Clear(SKColors.Transparent);
-        DrawNativeOverlay(surface.Canvas, page, renderZoom);
-        using var image = surface.Snapshot();
-        return image.Encode(SKEncodedImageFormat.Png, 100);
     }
 
     private static string SanitizeFileName(string name)

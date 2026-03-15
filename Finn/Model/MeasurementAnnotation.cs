@@ -14,7 +14,7 @@ namespace Finn.Model;
 public class MeasurementAnnotation
 {
     public List<Point> Points { get; set; } = [];
-    public Color Color { get; set; } = Color.FromRgb(59, 130, 217);
+    public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
 
     /// <summary>
     /// Millimetres per PDF point. Default = 25.4/72 (uncalibrated).

@@ -120,7 +120,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     public Color StrokeColor { get; set; } = Color.FromRgb(214, 64, 69);
-    public double StrokeWidth { get; set; } = 3;
+    public double StrokeWidth { get; set; } = 2;
     public double StrokeOpacity { get; set; } = 1.0;
     public bool IsHighlighterMode { get; set; }
     public InlineAnnotationTool ActiveTool { get; set; } = InlineAnnotationTool.Draw;
@@ -129,6 +129,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public string TextFontFamily { get; set; } = "";
     /// <summary>When true, new shapes are rendered with a translucent fill.</summary>
     public bool IsFilledMode { get; set; }
+    /// <summary>Dash pattern for new strokes and shapes.</summary>
+    public LineDashPattern StrokeDashPattern { get; set; } = LineDashPattern.Solid;
 
     // Selection highlight: the item currently being dragged with the Select tool
     private object? _selectHighlightItem;
@@ -235,7 +237,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <paramref name="origin"/> snaps to the nearest 0°/45°/90° axis.
     /// For rectangles/ellipses this produces perfect squares/circles.
     /// </summary>
-    private static Point ConstrainToAxis(Point origin, Point end)
+    internal static Point ConstrainToAxis(Point origin, Point end)
     {
         double dx = end.X - origin.X;
         double dy = end.Y - origin.Y;
@@ -253,7 +255,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>
     /// Constrains a shape endpoint so rectangle/ellipse becomes square/circle.
     /// </summary>
-    private static Point ConstrainToSquare(Point origin, Point end)
+    internal static Point ConstrainToSquare(Point origin, Point end)
     {
         double dx = end.X - origin.X;
         double dy = end.Y - origin.Y;
@@ -315,7 +317,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
-            IsHighlighter = IsHighlighterMode
+            IsHighlighter = IsHighlighterMode,
+            DashPattern = StrokeDashPattern
         };
         _activeStroke.Points.Add(pdfPoint);
     }
@@ -380,7 +383,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
-            IsPolyline = true
+            IsPolyline = true,
+            DashPattern = StrokeDashPattern
         };
         _activePolyline.Points.Add(pdfPoint);
         _polylinePreviewEnd = pdfPoint;
@@ -436,6 +440,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public bool HasActivePolyline => _activePolyline != null;
     public bool HasActiveShape => _activeShape != null;
+    public bool HasActiveMeasurement => _activeMeasurement != null;
 
     /// <summary>
     /// Two-pass Chaikin corner-cutting subdivision to produce a smooth curve
@@ -494,7 +499,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             StrokeWidth = StrokeWidth,
             Opacity = StrokeOpacity,
-            IsFilled = IsFilledMode
+            IsFilled = IsFilledMode,
+            DashPattern = StrokeDashPattern
         };
         InvalidateVisual();
     }
@@ -793,7 +799,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         EnsureDefaultLayer();
         _activeMeasurement = new MeasurementAnnotation
         {
-            Color = Color.FromRgb(59, 130, 217),
+            Color = Color.FromRgb(214, 64, 69),
             Scale = MeasurementScale,
             Points = [pdfPoint, pdfPoint]
         };
@@ -1142,6 +1148,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private static bool HitTestStroke(InkStroke stroke, Point pt, double threshold)
     {
+        // Polylines have sparse points with straight segments — test segment proximity
+        if (stroke.IsPolyline && stroke.Points.Count >= 2)
+        {
+            for (int i = 0; i < stroke.Points.Count - 1; i++)
+                if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= threshold)
+                    return true;
+            return false;
+        }
         double threshSq = threshold * threshold;
         foreach (var p in stroke.Points)
         {
@@ -1726,10 +1740,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void RenderSelectionHighlight(DrawingContext context, Rect da, Size boundsSize,
                                           double scaleX, double scaleY, double penScale)
     {
-        var selectPen = new Pen(new SolidColorBrush(Color.FromArgb(180, 59, 130, 217)).ToImmutable(),
-            1.5 * penScale, dashStyle: new DashStyle([4, 3], 0),
+        // Subtle selection box: thin, low-alpha gray dashed outline
+        var selectPen = new Pen(new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)).ToImmutable(),
+            1.0 * penScale, dashStyle: new DashStyle([5, 4], 0),
             lineCap: PenLineCap.Round);
-        double handleSize = 4 * penScale;
+        // Vertex handles: white fill + dark outline for clean contrast
+        var vertexBrush = new SolidColorBrush(Color.FromRgb(255, 255, 255)).ToImmutable();
+        var vertexPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 60, 60, 60)).ToImmutable(),
+            1.2 * penScale, lineCap: PenLineCap.Round);
 
         Rect? bounds = null;
         switch (_selectHighlightItem)
@@ -1791,19 +1809,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             var inflated = b.Inflate(4 * penScale);
             context.DrawRectangle(null, selectPen, inflated);
-            // Corner handles
-            var handleBrush = new SolidColorBrush(Color.FromRgb(59, 130, 217)).ToImmutable();
-            context.DrawEllipse(handleBrush, null, inflated.TopLeft, handleSize, handleSize);
-            context.DrawEllipse(handleBrush, null, inflated.TopRight, handleSize, handleSize);
-            context.DrawEllipse(handleBrush, null, inflated.BottomLeft, handleSize, handleSize);
-            context.DrawEllipse(handleBrush, null, inflated.BottomRight, handleSize, handleSize);
+            // Corner dots — tiny, very subtle
+            var cornerBrush = new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
+            double cornerSize = 2.0 * penScale;
+            context.DrawEllipse(cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
+            context.DrawEllipse(cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
+            context.DrawEllipse(cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
+            context.DrawEllipse(cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
 
             // Arrow-origin handle: draggable circle at the arrow tip
             if (_selectHighlightItem is TextAnnotation { ArrowOrigin: { } ao })
             {
                 var arrowScreen = PdfToScreen(ao, da, boundsSize);
                 double vtxSize = 5 * penScale;
-                context.DrawEllipse(handleBrush, selectPen, arrowScreen, vtxSize, vtxSize);
+                context.DrawEllipse(vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
             }
 
             // Shape vertex handles: draggable circles at Start and End
@@ -1812,8 +1831,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 var ss = PdfToScreen(selShape.Start, da, boundsSize);
                 var se = PdfToScreen(selShape.End, da, boundsSize);
                 double vtxSize = 5 * penScale;
-                context.DrawEllipse(handleBrush, selectPen, ss, vtxSize, vtxSize);
-                context.DrawEllipse(handleBrush, selectPen, se, vtxSize, vtxSize);
+                context.DrawEllipse(vertexBrush, vertexPen, ss, vtxSize, vtxSize);
+                context.DrawEllipse(vertexBrush, vertexPen, se, vtxSize, vtxSize);
             }
 
             // Measurement vertex handles: draggable circles at endpoints
@@ -1822,8 +1841,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
                 var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
                 double vtxSize = 5 * penScale;
-                context.DrawEllipse(handleBrush, selectPen, mp0, vtxSize, vtxSize);
-                context.DrawEllipse(handleBrush, selectPen, mp1, vtxSize, vtxSize);
+                context.DrawEllipse(vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
+                context.DrawEllipse(vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
+            }
+
+            // Polyline vertex handles: draggable circles at every vertex
+            if (_selectHighlightItem is InkStroke { IsPolyline: true } selPoly)
+            {
+                double vtxSize = 5 * penScale;
+                foreach (var p in selPoly.Points)
+                {
+                    var sp = PdfToScreen(p, da, boundsSize);
+                    context.DrawEllipse(vertexBrush, vertexPen, sp, vtxSize, vtxSize);
+                }
             }
         }
     }
@@ -2161,15 +2191,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         var c = Color.FromArgb(220, color.R, color.G, color.B);
         var brush = new SolidColorBrush(c).ToImmutable();
-        var dashPen = new Pen(brush, 1.5 * penScale,
-            dashStyle: new DashStyle([4, 3], 0),
+        var solidPen = new Pen(brush, 1.5 * penScale,
             lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
 
         var s0 = PdfToScreen(pdfPoints[0], da, boundsSize);
         var s1 = PdfToScreen(pdfPoints[1], da, boundsSize);
-        context.DrawLine(dashPen, s0, s1);
-        DrawEndMark(context, dashPen, s0, s1, penScale);
-        DrawEndMark(context, dashPen, s1, s0, penScale);
+        context.DrawLine(solidPen, s0, s1);
+        DrawEndMark(context, solidPen, s0, s1, penScale);
+        DrawEndMark(context, solidPen, s1, s0, penScale);
         DrawMeasureArrowhead(context, c, s0, s1, penScale);
         DrawMeasureArrowhead(context, c, s1, s0, penScale);
     }
@@ -2529,7 +2558,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
 
                 // Stamp-style frame: accent bar + shadow + white body
-                float pad = 0;
+                float pad = 5;
                 float accentW = 4;
                 var textArea = new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
                 var fullArea = new SKRect(textArea.Left - accentW, textArea.Top,
@@ -2577,6 +2606,8 @@ public class InkStroke
     public bool IsHighlighter { get; set; }
     /// <summary>When true, points are connected with straight line segments instead of spline curves.</summary>
     public bool IsPolyline { get; set; }
+    /// <summary>Dash pattern applied to the stroke.</summary>
+    public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
 
     // Cached pen to avoid per-frame allocation during rendering.
     private IPen? _cachedPen;
@@ -2593,7 +2624,9 @@ public class InkStroke
                 : Color;
             var brush = new SolidColorBrush(c).ToImmutable();
             var cap = IsHighlighter ? PenLineCap.Square : PenLineCap.Round;
-            _cachedPen = new Pen(brush, Width * penScale, lineCap: cap, lineJoin: PenLineJoin.Round);
+            _cachedPen = new Pen(brush, Width * penScale,
+                dashStyle: ShapeAnnotation.GetDashStyle(DashPattern),
+                lineCap: cap, lineJoin: PenLineJoin.Round);
         }
         return _cachedPen;
     }
