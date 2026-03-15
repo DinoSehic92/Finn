@@ -11,7 +11,7 @@ public class TextAnnotation
 {
     public Point Position { get; set; }
     public string Text { get; set; } = "";
-    public double FontSize { get; set; } = 14;
+    public double FontSize { get; set; } = 10;
     public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
     public double Opacity { get; set; } = 1.0;
     /// <summary>Font family name. Empty or null uses the system default.</summary>
