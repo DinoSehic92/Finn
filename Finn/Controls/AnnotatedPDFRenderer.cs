@@ -65,6 +65,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>PDF-space position for the text placement ghost.</summary>
     private Point? _textPlacementPreviewPos;
 
+    // Snap-to-alignment guides (PDF-space X/Y coordinates to draw as dotted lines)
+    private double? _snapGuideX;
+    private double? _snapGuideY;
+
     private ObservableCollection<AnnotationLayer> _layers = [];
 
     /// <summary>
@@ -147,7 +151,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                   || _activeMeasurement != null || _arrowTextPreviewOrigin != null
                                   || _eraserHoverItem != null || _cursorPdfPos != null
                                   || _selectHighlightItem != null || _stickyNoteHoverItem != null
-                                  || _textPlacementPreviewPos != null;
+                                  || _textPlacementPreviewPos != null
+                                  || _snapGuideX != null || _snapGuideY != null;
 
     public bool CanRedo => _redoStack.Count > 0;
 
@@ -1010,6 +1015,91 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     /// <summary>
+    /// Computes snap-to-alignment for a dragged annotation's bounding-box center.
+    /// Compares against all other annotations on the current page and returns a
+    /// snap-corrected delta plus sets guide lines for rendering.
+    /// </summary>
+    public (double dx, double dy) ComputeSnapDelta(object dragging, double rawDx, double rawDy, double threshold = 5.0)
+    {
+        _snapGuideX = null;
+        _snapGuideY = null;
+        if (ActiveLayer == null) return (rawDx, rawDy);
+
+        // Get the center of the dragged item after applying the raw delta
+        var center = GetAnnotationCenter(dragging);
+        double cx = center.X + rawDx;
+        double cy = center.Y + rawDy;
+
+        double bestDx = rawDx, bestDy = rawDy;
+        double bestSnapDistX = threshold, bestSnapDistY = threshold;
+
+        // Collect centers of all other annotations on this page
+        foreach (var layer in Layers)
+        {
+            if (!layer.IsVisible) continue;
+            CollectSnapTargets(layer, dragging, cx, cy, ref bestDx, ref bestDy,
+                ref bestSnapDistX, ref bestSnapDistY, rawDx, rawDy, center);
+        }
+
+        return (bestDx, bestDy);
+    }
+
+    public void ClearSnapGuides()
+    {
+        if (_snapGuideX != null || _snapGuideY != null)
+        {
+            _snapGuideX = null;
+            _snapGuideY = null;
+            InvalidateVisual();
+        }
+    }
+
+    private void CollectSnapTargets(AnnotationLayer layer, object dragging,
+        double cx, double cy, ref double bestDx, ref double bestDy,
+        ref double bestSnapDistX, ref double bestSnapDistY,
+        double rawDx, double rawDy, Point dragCenter)
+    {
+        if (layer.PageTexts.TryGetValue(_currentPage, out var texts))
+            foreach (var t in texts) { if (!ReferenceEquals(t, dragging)) CheckSnap(GetAnnotationCenter(t), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+        if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
+            foreach (var s in shapes) { if (!ReferenceEquals(s, dragging)) CheckSnap(GetAnnotationCenter(s), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+        if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms))
+            foreach (var m in ms) { if (!ReferenceEquals(m, dragging)) CheckSnap(GetAnnotationCenter(m), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+        if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
+            foreach (var ink in strokes) { if (!ReferenceEquals(ink, dragging)) CheckSnap(GetAnnotationCenter(ink), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+    }
+
+    private void CheckSnap(Point other, double cx, double cy, double rawDx, double rawDy,
+        ref double bestDx, ref double bestDy, ref double bestSnapDistX, ref double bestSnapDistY)
+    {
+        double distX = Math.Abs(cx - other.X);
+        double distY = Math.Abs(cy - other.Y);
+        if (distX < bestSnapDistX)
+        {
+            bestSnapDistX = distX;
+            bestDx = rawDx + (other.X - cx);
+            _snapGuideX = other.X;
+        }
+        if (distY < bestSnapDistY)
+        {
+            bestSnapDistY = distY;
+            bestDy = rawDy + (other.Y - cy);
+            _snapGuideY = other.Y;
+        }
+    }
+
+    private static Point GetAnnotationCenter(object item) => item switch
+    {
+        TextAnnotation t => t.Position,
+        ShapeAnnotation s => new Point((s.Start.X + s.End.X) / 2, (s.Start.Y + s.End.Y) / 2),
+        MeasurementAnnotation m when m.Points.Count >= 2 =>
+            new Point((m.Points[0].X + m.Points[1].X) / 2, (m.Points[0].Y + m.Points[1].Y) / 2),
+        InkStroke ink when ink.Points.Count > 0 =>
+            new Point(ink.Points.Average(p => p.X), ink.Points.Average(p => p.Y)),
+        _ => default
+    };
+
+    /// <summary>
     /// Shows or hides the sticky-note hover popup. Call on pointer-move when a
     /// sticky note icon is under the cursor.
     /// </summary>
@@ -1730,6 +1820,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var previewColor = Color.FromArgb(160, StrokeColor.R, StrokeColor.G, StrokeColor.B);
             var previewBrush = new SolidColorBrush(previewColor).ToImmutable();
             context.DrawEllipse(previewBrush, null, cp, radius, radius);
+        }
+
+        // Snap-to-alignment guides: thin dotted lines across the viewport
+        if (_snapGuideX.HasValue || _snapGuideY.HasValue)
+        {
+            var guidePen = new Pen(new SolidColorBrush(Color.FromArgb(120, 59, 130, 217)).ToImmutable(),
+                1.0, dashStyle: new DashStyle([3, 3], 0), lineCap: PenLineCap.Flat);
+            if (_snapGuideX.HasValue)
+            {
+                var sx = PdfToScreen(new Point(_snapGuideX.Value, 0), da, boundsSize).X;
+                context.DrawLine(guidePen, new Point(sx, 0), new Point(sx, boundsSize.Height));
+            }
+            if (_snapGuideY.HasValue)
+            {
+                var sy = PdfToScreen(new Point(0, _snapGuideY.Value), da, boundsSize).Y;
+                context.DrawLine(guidePen, new Point(0, sy), new Point(boundsSize.Width, sy));
+            }
         }
 
         // Selection handles: dashed bounding box around the item being dragged

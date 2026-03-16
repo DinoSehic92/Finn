@@ -248,13 +248,13 @@ public partial class PreView
 
             if (lineInfos.Count > 0)
             {
-                // Stamp-style frame: no extra padding — glyph metrics provide
-                // natural spacing; accent bar + border provide visual framing.
+                // Stamp-style frame: padding matches the in-app renderer.
                 float s   = (float)renderZoom;
+                float pad = 5 * s;
                 float accentW = 4 * s;
                 float radius  = 4 * s;
-                var textArea = new SKRect(frameMinX, frameMinY,
-                                          frameMaxX, frameMaxY);
+                var textArea = new SKRect(frameMinX - pad, frameMinY - pad,
+                                          frameMaxX + pad, frameMaxY + pad);
                 var fullArea = new SKRect(textArea.Left - accentW, textArea.Top,
                                           textArea.Right, textArea.Bottom);
                 var frameRRect = new SKRoundRect(fullArea, radius, radius);

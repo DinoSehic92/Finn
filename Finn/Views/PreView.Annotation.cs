@@ -189,6 +189,7 @@ public partial class PreView
         MuPDFRenderer.CancelStroke();
         MuPDFRenderer.CancelPolyline();
         MuPDFRenderer.ClearSelectHighlight();
+        MuPDFRenderer.ClearSnapGuides();
         MuPDFRenderer.UpdateCursorPreview(null);
         MuPDFRenderer.ClearTextPlacementPreview();
         MuPDFRenderer.Cursor = Avalonia.Input.Cursor.Default;
@@ -261,6 +262,16 @@ public partial class PreView
                 e.Handled = true;
             }
         }
+        else if (e.Key == Key.D && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            // Ctrl+D: duplicate selected annotation in place
+            if (_selectedAnnotation != null)
+            {
+                _annotationClipboard = _selectedAnnotation;
+                PasteAnnotation();
+                e.Handled = true;
+            }
+        }
         else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             OnAnnotateSave(this, e);
@@ -289,10 +300,26 @@ public partial class PreView
             {
                 MuPDFRenderer.CancelStroke();
             }
+            else if (_selectedAnnotation != null)
+            {
+                // First Escape: deselect, stay in annotation mode
+                DeselectAnnotation();
+            }
             else
             {
                 DeactivateAnnotateMode();
             }
+            e.Handled = true;
+        }
+        // Arrow keys: nudge the selected annotation
+        else if (e.Key is Key.Left or Key.Right or Key.Up or Key.Down && _selectedAnnotation != null)
+        {
+            double step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
+            double dx = e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0;
+            double dy = e.Key == Key.Up ? -step : e.Key == Key.Down ? step : 0;
+            MoveAnnotation(_selectedAnnotation, dx, dy);
+            MuPDFRenderer.InvalidateVisual();
+            MuPDFRenderer.NotifyAnnotationChanged();
             e.Handled = true;
         }
         // Keyboard tool shortcuts (1-9, 0)
@@ -360,13 +387,14 @@ public partial class PreView
     private static readonly Avalonia.Input.Cursor CursorNo = new(Avalonia.Input.StandardCursorType.No);
     private static readonly Avalonia.Input.Cursor CursorIbeam = new(Avalonia.Input.StandardCursorType.Ibeam);
     private static readonly Avalonia.Input.Cursor CursorSizeAll = new(Avalonia.Input.StandardCursorType.SizeAll);
+    private static readonly Avalonia.Input.Cursor CursorArrow = new(Avalonia.Input.StandardCursorType.Arrow);
 
     private static Avalonia.Input.Cursor GetToolCursor(InlineAnnotationTool tool) => tool switch
     {
         InlineAnnotationTool.Eraser => CursorNo,
         InlineAnnotationTool.Text => CursorIbeam,
         InlineAnnotationTool.StickyNote => CursorIbeam,
-        InlineAnnotationTool.Select => CursorSizeAll,
+        InlineAnnotationTool.Select => CursorArrow,
         InlineAnnotationTool.Polyline => CursorCross,
         _ => CursorCross
     };
@@ -498,7 +526,17 @@ public partial class PreView
                 e.Handled = true;
                 return;
             }
-            // Right-click with nothing active: deselect and switch to Select tool
+            // Right-click with nothing active: show context menu or switch to Select
+            var rightPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
+            object? rightHit = rightPdf.HasValue ? MuPDFRenderer.FindTopmostAt(rightPdf.Value) : null;
+            if (rightHit != null)
+            {
+                // Right-clicked an annotation: select it and show context menu
+                SelectAnnotation(rightHit);
+                ShowAnnotationContextMenu(e.GetPosition(MuPDFRenderer));
+                e.Handled = true;
+                return;
+            }
             if (_selectedAnnotation != null)
             {
                 DeselectAnnotation();
@@ -839,6 +877,13 @@ public partial class PreView
                 }
                 else
                     MuPDFRenderer.ClearTextPlacementPreview();
+
+                // Hover cursor: show move cursor over grabbable annotations in Select mode
+                if (at is InlineAnnotationTool.Select && hoverPdf.HasValue)
+                {
+                    var hoverHit = MuPDFRenderer.FindTopmostAt(hoverPdf.Value);
+                    MuPDFRenderer.Cursor = hoverHit != null ? CursorSizeAll : CursorArrow;
+                }
             }
             return;
         }
@@ -917,26 +962,32 @@ public partial class PreView
             return;
         }
 
-        // Handle text annotation dragging
+        // Handle text annotation dragging (with snap-to-alignment)
         if (_draggingTextAnnotation != null)
         {
-            double dx = pdfPoint.Value.X - _dragStartPdf.X;
-            double dy = pdfPoint.Value.Y - _dragStartPdf.Y;
+            double rawDx = pdfPoint.Value.X - _dragStartPdf.X;
+            double rawDy = pdfPoint.Value.Y - _dragStartPdf.Y;
+            var (dx, dy) = MuPDFRenderer.ComputeSnapDelta(_draggingTextAnnotation, rawDx, rawDy);
             _draggingTextAnnotation.Position = new Point(
                 _draggingTextAnnotation.Position.X + dx,
                 _draggingTextAnnotation.Position.Y + dy);
-            _dragStartPdf = pdfPoint.Value;
+            if (_draggingTextAnnotation.ArrowOrigin.HasValue)
+                _draggingTextAnnotation.ArrowOrigin = new Point(
+                    _draggingTextAnnotation.ArrowOrigin.Value.X + dx,
+                    _draggingTextAnnotation.ArrowOrigin.Value.Y + dy);
+            _dragStartPdf = new Point(_dragStartPdf.X + dx, _dragStartPdf.Y + dy);
             MuPDFRenderer.InvalidateVisual();
             return;
         }
 
-        // Select tool: drag any annotation type
+        // Select tool: drag any annotation type (with snap-to-alignment)
         if (_selectDragItem != null)
         {
-            double dx = pdfPoint.Value.X - _dragStartPdf.X;
-            double dy = pdfPoint.Value.Y - _dragStartPdf.Y;
+            double rawDx = pdfPoint.Value.X - _dragStartPdf.X;
+            double rawDy = pdfPoint.Value.Y - _dragStartPdf.Y;
+            var (dx, dy) = MuPDFRenderer.ComputeSnapDelta(_selectDragItem, rawDx, rawDy);
             MoveAnnotation(_selectDragItem, dx, dy);
-            _dragStartPdf = pdfPoint.Value;
+            _dragStartPdf = new Point(_dragStartPdf.X + dx, _dragStartPdf.Y + dy);
             MuPDFRenderer.InvalidateVisual();
             return;
         }
@@ -1004,6 +1055,7 @@ public partial class PreView
         if (_selectDragItem != null)
         {
             _selectDragItem = null;
+            MuPDFRenderer.ClearSnapGuides();
             MuPDFRenderer.NotifyAnnotationChanged();
             return;
         }
@@ -1012,6 +1064,7 @@ public partial class PreView
         if (_draggingTextAnnotation != null)
         {
             _draggingTextAnnotation = null;
+            MuPDFRenderer.ClearSnapGuides();
             MuPDFRenderer.NotifyAnnotationChanged();
             return;
         }
@@ -1524,6 +1577,88 @@ public partial class PreView
             OnCalibrationCancel(sender!, e);
             e.Handled = true;
         }
+    }
+
+    /// <summary>Shows a context menu for the currently selected annotation.</summary>
+    private void ShowAnnotationContextMenu(Point screenPos)
+    {
+        if (_selectedAnnotation == null) return;
+
+        var menu = new Avalonia.Controls.ContextMenu();
+
+        var editItem = new MenuItem { Header = "Edit…" };
+        editItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation is TextAnnotation t)
+                ShowTextEdit(t, screenPos);
+        };
+        editItem.IsVisible = _selectedAnnotation is TextAnnotation { IsStickyNote: false };
+
+        var duplicateItem = new MenuItem { Header = "Duplicate           Ctrl+D" };
+        duplicateItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation != null)
+            {
+                _annotationClipboard = _selectedAnnotation;
+                PasteAnnotation();
+            }
+        };
+
+        var copyItem = new MenuItem { Header = "Copy                  Ctrl+C" };
+        copyItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation != null)
+                _annotationClipboard = _selectedAnnotation;
+        };
+
+        var deleteItem = new MenuItem { Header = "Delete                Del" };
+        deleteItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation != null)
+            {
+                MuPDFRenderer.DeleteAnnotation(_selectedAnnotation);
+                _selectedAnnotation = null;
+            }
+        };
+
+        var sep1 = new Separator();
+
+        var fillItem = new MenuItem
+        {
+            Header = _selectedAnnotation is ShapeAnnotation { IsFilled: true } ? "Remove Fill" : "Fill Shape"
+        };
+        fillItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation is ShapeAnnotation sh
+                && sh.ShapeType is InlineAnnotationTool.Rectangle
+                                or InlineAnnotationTool.Ellipse
+                                or InlineAnnotationTool.RevisionCloud)
+            {
+                sh.IsFilled = !sh.IsFilled;
+                MuPDFRenderer.IsFilledMode = sh.IsFilled;
+                sh.InvalidatePen();
+                MuPDFRenderer.InvalidateVisual();
+                MuPDFRenderer.NotifyAnnotationChanged();
+                if (FillToggleBtn != null)
+                {
+                    FillToggleBtn.BorderThickness = MuPDFRenderer.IsFilledMode ? new Thickness(2) : new Thickness(0);
+                    FillToggleBtn.BorderBrush = MuPDFRenderer.IsFilledMode ? Brushes.White : null;
+                }
+            }
+        };
+        fillItem.IsVisible = _selectedAnnotation is ShapeAnnotation sh2
+            && sh2.ShapeType is InlineAnnotationTool.Rectangle
+                             or InlineAnnotationTool.Ellipse
+                             or InlineAnnotationTool.RevisionCloud;
+
+        menu.Items.Add(editItem);
+        menu.Items.Add(duplicateItem);
+        menu.Items.Add(copyItem);
+        menu.Items.Add(sep1);
+        menu.Items.Add(fillItem);
+        menu.Items.Add(deleteItem);
+
+        menu.Open(MuPDFRenderer);
     }
 
     #endregion
