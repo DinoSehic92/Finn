@@ -2,6 +2,7 @@
 using System.Threading;
 using System.Collections.ObjectModel;
 using Finn.Model;
+using Finn.Services;
 using System;
 using Microsoft.Extensions.Logging;
 using Avalonia.Media;
@@ -427,6 +428,300 @@ namespace Finn.ViewModels
         /// interfere with file annotations.
         /// </summary>
         public ObservableCollection<AnnotationLayer> WhiteboardLayers { get; } = [];
+
+        /// <summary>Diff results from the last comparison, keyed by page index.</summary>
+        private List<DiffResultData>? _diffResults;
+        /// <summary>Temp directory holding diff images.</summary>
+        private string? _diffTempDir;
+        /// <summary>PDF path of the original (A) file for side-by-side mode.</summary>
+        private string? _diffOriginalPdfPath;
+        private bool _diffOverlayActive;
+        private DiffViewMode _diffViewMode = DiffViewMode.Overlay;
+        private double _diffSplitPosition = 0.5;
+
+        /// <summary>Whether the diff overlay is currently showing.</summary>
+        public bool DiffOverlayActive
+        {
+            get => _diffOverlayActive;
+            set
+            {
+                if (SetProperty(ref _diffOverlayActive, value))
+                    OnPropertyChanged(nameof(ShowDiffSlider));
+            }
+        }
+
+        /// <summary>Whether diff results are loaded (controls toggle button visibility).</summary>
+        public bool HasDiffResults => _diffResults != null && _diffResults.Count > 0;
+
+        /// <summary>Active diff view mode: Overlay (red highlights), Slider (A/B wipe), or SideBySide.</summary>
+        public DiffViewMode DiffViewMode
+        {
+            get => _diffViewMode;
+            set
+            {
+                if (SetProperty(ref _diffViewMode, value))
+                {
+                    OnPropertyChanged(nameof(DiffModeName));
+                    OnPropertyChanged(nameof(ShowDiffSlider));
+                }
+            }
+        }
+
+        /// <summary>Short label for the current diff mode (shown in toolbar).</summary>
+        public string DiffModeName => _diffViewMode switch
+        {
+            DiffViewMode.Overlay => "Overlay",
+            DiffViewMode.Slider => "Slider",
+            DiffViewMode.SideBySide => "Side by Side",
+            _ => ""
+        };
+
+        /// <summary>Whether the diff split slider should be visible (Slider mode + overlay active).</summary>
+        public bool ShowDiffSlider => _diffOverlayActive && _diffViewMode == DiffViewMode.Slider;
+
+        /// <summary>Normalized split position (0..1) for the A/B slider wipe mode.</summary>
+        public double DiffSplitPosition
+        {
+            get => _diffSplitPosition;
+            set => SetProperty(ref _diffSplitPosition, Math.Clamp(value, 0, 1));
+        }
+
+        /// <summary>
+        /// Loads diff results so the preview can show diff highlights as an overlay.
+        /// </summary>
+        /// <param name="originalPdfPath">Path to the original (A) PDF, used for side-by-side mode.</param>
+        public void LoadDiffResults(List<DiffResultData> results, string tempDir, string? originalPdfPath = null)
+        {
+            CleanupDiffTempDir();
+            _diffResults = results;
+            _diffTempDir = tempDir;
+            _diffOriginalPdfPath = originalPdfPath;
+            DiffOverlayActive = results.Count > 0;
+            OnPropertyChanged(nameof(HasDiffResults));
+            OnPropertyChanged(nameof(DiffSummary));
+        }
+
+        /// <summary>Clears loaded diff results.</summary>
+        public void ClearDiffResults()
+        {
+            CleanupDiffTempDir();
+            _diffResults = null;
+            _diffTempDir = null;
+            _diffOriginalPdfPath = null;
+            DiffOverlayActive = false;
+            OnPropertyChanged(nameof(HasDiffResults));
+            OnPropertyChanged(nameof(DiffSummary));
+        }
+
+        private void CleanupDiffTempDir()
+        {
+            if (!string.IsNullOrEmpty(_diffTempDir) && Directory.Exists(_diffTempDir))
+            {
+                try { Directory.Delete(_diffTempDir, true); }
+                catch { /* best effort */ }
+            }
+        }
+
+        /// <summary>Gets the diff image path for the given page, or null if none.</summary>
+        public string? GetDiffImagePath(int page)
+        {
+            if (_diffResults == null) return null;
+            var result = _diffResults.FirstOrDefault(r => r.PageIndex == page);
+            return result?.HasDifferences == true ? result.DiffPath : null;
+        }
+
+        /// <summary>Gets the original (A) rendered image path for the given page.</summary>
+        public string? GetOriginalImagePath(int page)
+        {
+            if (_diffResults == null) return null;
+            var result = _diffResults.FirstOrDefault(r => r.PageIndex == page);
+            return result?.OriginalPath;
+        }
+
+        /// <summary>Gets the revised (B) rendered image path for the given page.</summary>
+        public string? GetRevisedImagePath(int page)
+        {
+            if (_diffResults == null) return null;
+            var result = _diffResults.FirstOrDefault(r => r.PageIndex == page);
+            return result?.RevisedPath;
+        }
+
+        /// <summary>Gets the diff result for a specific page.</summary>
+        public DiffResultData? GetDiffResult(int page)
+        {
+            return _diffResults?.FirstOrDefault(r => r.PageIndex == page);
+        }
+
+        /// <summary>Diff page count summary for UI display.</summary>
+        public string DiffSummary
+        {
+            get
+            {
+                if (_diffResults == null || _diffResults.Count == 0) return "";
+                int changed = _diffResults.Count(r => r.HasDifferences);
+                return $"{changed}/{_diffResults.Count} pages differ";
+            }
+        }
+
+        /// <summary>PDF path of the original (A) file for side-by-side mode.</summary>
+        public string? DiffOriginalPdfPath => _diffOriginalPdfPath;
+
+        /// <summary>Cycles to the next diff view mode (Overlay → Slider → SideBySide → Overlay).</summary>
+        public void CycleDiffViewMode()
+        {
+            DiffViewMode = DiffViewMode switch
+            {
+                DiffViewMode.Overlay => DiffViewMode.Slider,
+                DiffViewMode.Slider => DiffViewMode.SideBySide,
+                DiffViewMode.SideBySide => DiffViewMode.Overlay,
+                _ => DiffViewMode.Overlay
+            };
+        }
+
+        /// <summary>
+        /// Runs a diff comparison directly and loads results into the previewer.
+        /// No dialog is shown — progress is indicated via StatusMessage/FileWorkerBusy.
+        /// </summary>
+        public async Task RunDiffAsync(string pathA, string pathB, string? originalPdfPath = null)
+        {
+            if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)) return;
+
+            FileWorkerBusy = true;
+            StatusMessage = "Comparing…";
+            try
+            {
+                var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
+                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress);
+                LoadDiffResults(results, dir, originalPdfPath ?? pathA);
+                int diffCount = results.Count(r => r.HasDifferences);
+                StatusMessage = diffCount == 0
+                    ? $"{results.Count} pages — identical"
+                    : $"{results.Count} pages — {diffCount} with differences";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Diff failed: {ex.Message}";
+            }
+            finally
+            {
+                FileWorkerBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// Runs a multi-file diff comparison directly and loads results into the previewer.
+        /// </summary>
+        public async Task RunDiffAsync(IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB, string? originalPdfPath = null)
+        {
+            if (pathsA == null || pathsB == null || pathsA.Count == 0 || pathsB.Count == 0) return;
+
+            FileWorkerBusy = true;
+            StatusMessage = "Comparing…";
+            try
+            {
+                var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
+                var (results, dir) = await PdfDiffService.CompareAsync(pathsA, pathsB, progress);
+                LoadDiffResults(results, dir, originalPdfPath ?? pathsA[0]);
+                int diffCount = results.Count(r => r.HasDifferences);
+                StatusMessage = diffCount == 0
+                    ? $"{results.Count} pages — identical"
+                    : $"{results.Count} pages — {diffCount} with differences";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Diff failed: {ex.Message}";
+            }
+            finally
+            {
+                FileWorkerBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// Opens the original (A) PDF in the secondary renderer for side-by-side diff.
+        /// Returns true if the file was loaded successfully.
+        /// </summary>
+        public async Task<bool> OpenDiffSideBySideAsync()
+        {
+            if (_diffOriginalPdfPath == null || !File.Exists(_diffOriginalPdfPath))
+                return false;
+
+            if (secondaryRenderer == null) return false;
+
+            try
+            {
+                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+
+                MuPDFContext? newCtx = null;
+                MuPDFDocument? newDoc = null;
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    newCtx = new MuPDFContext();
+                    newDoc = new MuPDFDocument(newCtx, _diffOriginalPdfPath);
+                }).GetTask().ConfigureAwait(false);
+
+                if (newDoc == null || newCtx == null) return false;
+
+                secondaryFile = newDoc;
+                secondaryContext = newCtx;
+                Pagecount2 = newDoc.Pages.Count;
+                CurrentFile2 = null; // no FileData for raw diff path
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    // Activate two-page layout without going through the
+                    // DualFileMode setter (which blocks during annotation).
+                    dualFileMode = true;
+                    if (!twopageMode)
+                    {
+                        twopageMode = true;
+                        OnPropertyChanged(nameof(TwopageMode));
+                        _ = ToggleDualViewAsync();
+                    }
+                    linkedPageMode = true;
+                    OnPropertyChanged(nameof(DualFileMode));
+                    OnPropertyChanged(nameof(LinkedPageMode));
+                    OnPropertyChanged(nameof(SecondaryPagecount));
+                    OnPropertyChanged(nameof(ShowSecondaryControls));
+                    OnPropertyChanged(nameof(ShowLinkedPageButton));
+                    requestPage2 = requestPage1;
+                    OnPropertyChanged(nameof(RequestPage2));
+                    CurrentPage2 = requestPage2;
+                    _ = SetSecondaryPageAsync();
+                    secondaryRenderer?.Contain();
+                }).GetTask().ConfigureAwait(false);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error opening diff side-by-side");
+                return false;
+            }
+        }
+
+        /// <summary>Closes the side-by-side diff view and reverts to single page.</summary>
+        public async Task CloseDiffSideBySideAsync()
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                dualFileMode = false;
+                OnPropertyChanged(nameof(DualFileMode));
+                if (twopageMode)
+                {
+                    twopageMode = false;
+                    OnPropertyChanged(nameof(TwopageMode));
+                    _ = ToggleDualViewAsync();
+                }
+                CurrentFile2 = null;
+                Pagecount2 = 0;
+                OnPropertyChanged(nameof(SecondaryPagecount));
+                OnPropertyChanged(nameof(ShowSecondaryControls));
+                OnPropertyChanged(nameof(ShowLinkedPageButton));
+            }).GetTask().ConfigureAwait(false);
+            await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+        }
         #endregion
 
         #region Cancellation Tokens

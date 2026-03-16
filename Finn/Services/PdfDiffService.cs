@@ -25,7 +25,13 @@ namespace Finn.Services
     {
         public const int DefaultTolerance = 250;
         public const int MaxTolerance = 1000;
-        private const float ZOOM = 1.0f;
+        /// <summary>
+        /// Zoom factor used when rendering PDF pages to images.
+        /// At 2.0 the rendered bitmaps are 144 DPI (2× PDF points).
+        /// DrawOps must multiply DisplayArea coordinates by this factor
+        /// when sampling diff/slider bitmaps.
+        /// </summary>
+        public const float ZOOM = 2.0f;
         private const int JPEG_QUALITY = 90;
 
         /// <summary>

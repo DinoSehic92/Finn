@@ -25,6 +25,13 @@ namespace Finn.ViewModels
         private List<DiffResultData> pageInfos = [];
         private string? tempDir;
 
+        /// <summary>Public accessor for diff results so the caller can hand them off after the dialog closes.</summary>
+        public List<DiffResultData> DiffResults => pageInfos;
+        /// <summary>Temp directory containing diff images.</summary>
+        public string? DiffTempDir => tempDir;
+        /// <summary>When true, Cleanup() will not delete the temp directory (caller has taken ownership).</summary>
+        public bool KeepTempDir { get; set; }
+
         private int currentPageIndex;
         private int viewMode = 2; // 0 = SideBySide, 1 = Overlay, 2 = DiffOnly
         private double overlayOpacity = 0.5;
@@ -434,7 +441,7 @@ namespace Finn.ViewModels
             CurrentRevised = null;
             CurrentDiff = null;
 
-            if (!string.IsNullOrEmpty(tempDir) && Directory.Exists(tempDir))
+            if (!KeepTempDir && !string.IsNullOrEmpty(tempDir) && Directory.Exists(tempDir))
             {
                 try { Directory.Delete(tempDir, true); }
                 catch { /* best effort */ }

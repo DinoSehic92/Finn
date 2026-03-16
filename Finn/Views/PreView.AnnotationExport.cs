@@ -45,6 +45,26 @@ public partial class PreView
         canvas.Clear(SKColors.White);
         canvas.DrawBitmap(pageBitmap, 0, 0);
 
+        // Composite diff overlay between PDF page and annotations
+        if (pwr.DiffOverlayActive)
+        {
+            var diffPath = pwr.GetDiffImagePath(page);
+            if (diffPath != null && File.Exists(diffPath))
+            {
+                using var diffBitmap = SKBitmap.Decode(diffPath);
+                if (diffBitmap != null)
+                {
+                    using var diffPaint = new SKPaint
+                    {
+                        Color = SKColors.White.WithAlpha((byte)(MuPDFRenderer.DiffOverlayOpacity * 255)),
+                        FilterQuality = SKFilterQuality.Medium
+                    };
+                    var destRect = new SKRect(0, 0, pageBitmap.Width, pageBitmap.Height);
+                    canvas.DrawBitmap(diffBitmap, destRect, diffPaint);
+                }
+            }
+        }
+
         DrawAnnotationsToCanvas(canvas, page, renderZoom);
 
         using var image = surface.Snapshot();

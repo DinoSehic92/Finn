@@ -227,9 +227,7 @@ namespace Finn.ViewModels
                     return;
                 }
 
-                await OpenDiffDia(mainWindow,
-                    DiffFileA.Namn, DiffFileA.Sökväg,
-                    DiffFileB.Namn, DiffFileB.Sökväg);
+                await RunDiffInPreviewer(DiffFileA.Sökväg, DiffFileB.Sökväg);
             }
 
             /// <summary>
@@ -246,7 +244,7 @@ namespace Finn.ViewModels
                     if (file.Versions.Count < 2) { await ShowVersionError(mainWindow); return; }
                     var v1 = file.Versions[^2];
                     var v2 = file.Versions[^1];
-                    await OpenDiffDia(mainWindow, v1.Label, v1.Sökväg, v2.Label, v2.Sökväg);
+                    await RunDiffInPreviewer(v1.Sökväg, v2.Sökväg);
                     return;
                 }
 
@@ -260,7 +258,7 @@ namespace Finn.ViewModels
                     var fb = CurrentFiles[1];
                     string pa = fa.Versions.Count > 0 ? fa.Versions[^1].Sökväg : fa.Sökväg;
                     string pb = fb.Versions.Count > 0 ? fb.Versions[^1].Sökväg : fb.Sökväg;
-                    await OpenDiffDia(mainWindow, fa.Namn, pa, fb.Namn, pb);
+                    await RunDiffInPreviewer(pa, pb);
                     return;
                 }
 
@@ -268,20 +266,14 @@ namespace Finn.ViewModels
                 {
                     var v1 = eligible[0].Versions[^2];
                     var v2 = eligible[0].Versions[^1];
-                    await OpenDiffDia(mainWindow, v1.Label, v1.Sökväg, v2.Label, v2.Sökväg);
+                    await RunDiffInPreviewer(v1.Sökväg, v2.Sökväg);
                     return;
                 }
 
                 // Two or more files with version history — multi-page diff.
                 var pathsA = eligible.Select(f => f.Versions[^2].Sökväg).ToList();
                 var pathsB = eligible.Select(f => f.Versions[^1].Sökväg).ToList();
-                string nameA = eligible.All(f => f.Versions[^2].Label == eligible[0].Versions[^2].Label)
-                    ? eligible[0].Versions[^2].Label
-                    : $"Previous ({eligible.Count} files)";
-                string nameB = eligible.All(f => f.Versions[^1].Label == eligible[0].Versions[^1].Label)
-                    ? eligible[0].Versions[^1].Label
-                    : $"Latest ({eligible.Count} files)";
-                await OpenDiffDia(mainWindow, nameA, pathsA, nameB, pathsB);
+                await RunDiffInPreviewer(pathsA, pathsB);
             }
 
             private async Task ShowVersionError(Window mainWindow)
@@ -311,6 +303,7 @@ namespace Finn.ViewModels
                     RequestedThemeVariant = mainWindow.ActualThemeVariant
                 };
                 await window.ShowDialog(mainWindow);
+                HandOffDiffResults(vm);
             }
 
             public async Task OpenDiffDia(Window mainWindow,
@@ -332,6 +325,47 @@ namespace Finn.ViewModels
                     RequestedThemeVariant = mainWindow.ActualThemeVariant
                 };
                 await window.ShowDialog(mainWindow);
+                HandOffDiffResults(vm);
+            }
+
+            /// <summary>
+            /// Transfers diff results from the dialog VM to the preview overlay.
+            /// Takes ownership of the temp directory so the dialog cleanup doesn't delete it.
+            /// </summary>
+            private void HandOffDiffResults(DiffViewModel vm)
+            {
+                if (vm.DiffResults.Count > 0 && vm.DiffTempDir != null)
+                {
+                    vm.KeepTempDir = true;
+                    // Pass the original PDF path for side-by-side mode
+                    string? originalPath = vm.FilePathA;
+                    if (string.IsNullOrEmpty(originalPath) && vm.MultiPathsA is { Count: > 0 })
+                        originalPath = vm.MultiPathsA[0];
+                    PreviewVM.LoadDiffResults(vm.DiffResults, vm.DiffTempDir, originalPath);
+                }
+            }
+
+            /// <summary>
+            /// Runs a diff comparison directly in the previewer without opening the diff dialog.
+            /// Ensures the preview is visible before starting.
+            /// </summary>
+            public async Task RunDiffInPreviewer(string pathA, string pathB)
+            {
+                if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
+                    UI.PreviewEmbeddedOpen = true;
+
+                await PreviewVM.RunDiffAsync(pathA, pathB, pathA);
+            }
+
+            /// <summary>
+            /// Runs a multi-file diff comparison directly in the previewer without opening the diff dialog.
+            /// </summary>
+            public async Task RunDiffInPreviewer(IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB)
+            {
+                if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
+                    UI.PreviewEmbeddedOpen = true;
+
+                await PreviewVM.RunDiffAsync(pathsA, pathsB);
             }
         }
     }

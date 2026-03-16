@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Finn.Model;
@@ -8,6 +9,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 
 namespace Finn.Controls;
@@ -35,6 +37,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private InkStroke? _activePolyline;
     private Point? _polylinePreviewEnd;
     private int _currentPage;
+
+    // Rubber-band marquee selection rectangle (PDF-space)
+    private Point? _rubberBandStart;
+    private Point? _rubberBandEnd;
 
     // Eraser hover highlight: the item the eraser is hovering over
     private object? _eraserHoverItem;
@@ -68,6 +74,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // Snap-to-alignment guides (PDF-space X/Y coordinates to draw as dotted lines)
     private double? _snapGuideX;
     private double? _snapGuideY;
+    /// <summary>The vertex position being snapped (for indicator dot rendering).</summary>
+    private Point? _snapVertexPos;
 
     private ObservableCollection<AnnotationLayer> _layers = [];
 
@@ -90,6 +98,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _measurementPreviewPoint = null;
         _activePolyline = null;
         _polylinePreviewEnd = null;
+        _rubberBandStart = null;
+        _rubberBandEnd = null;
         _layers = layers ?? [];
         foreach (var layer in _layers) layer.RecalculateCounts();
         _activeLayer = _layers.Count > 0 ? _layers[0] : null;
@@ -169,6 +179,103 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public double MeasurementScale { get; set; } = 25.4 / 72.0;
 
+    // ── Diff overlay ───────────────────────────────────────────────
+    private SKBitmap? _diffOverlayBitmap;
+    private int _diffOverlayPage = -1;
+    private float _diffImageZoom = 1f;
+
+    /// <summary>Opacity for the diff overlay image (0..1). Default 0.35.</summary>
+    public double DiffOverlayOpacity { get; set; } = 0.35;
+
+    /// <summary>Whether the diff overlay is currently visible.</summary>
+    public bool DiffOverlayVisible { get; set; }
+
+    // ── A/B Slider wipe ─────────────────────────────────────────────
+    private SKBitmap? _sliderOriginalBitmap;
+    private SKBitmap? _sliderRevisedBitmap;
+    private int _sliderPage = -1;
+
+    /// <summary>Whether the A/B slider wipe is currently active.</summary>
+    public bool SliderWipeVisible { get; set; }
+
+    /// <summary>Normalized split position (0..1) — left shows original, right shows revised.</summary>
+    public double SliderSplitPosition { get; set; } = 0.5;
+
+    /// <summary>
+    /// Sets a diff-highlight image to render as a semi-transparent overlay
+    /// between the PDF page and annotations. Pass null to clear.
+    /// </summary>
+    public void SetDiffOverlay(string? imagePath, int page, float zoom = 1f)
+    {
+        _diffOverlayBitmap?.Dispose();
+        _diffOverlayBitmap = null;
+        _diffOverlayPage = page;
+        _diffImageZoom = zoom;
+
+        if (imagePath != null && File.Exists(imagePath))
+        {
+            using var fs = File.OpenRead(imagePath);
+            _diffOverlayBitmap = SKBitmap.Decode(fs);
+            DiffOverlayVisible = true;
+        }
+        InvalidateVisual();
+    }
+
+    /// <summary>Clears the diff overlay image and frees resources.</summary>
+    public void ClearDiffOverlay()
+    {
+        _diffOverlayBitmap?.Dispose();
+        _diffOverlayBitmap = null;
+        _diffOverlayPage = -1;
+        DiffOverlayVisible = false;
+        InvalidateVisual();
+    }
+
+    private bool HasDiffOverlay => DiffOverlayVisible && _diffOverlayBitmap != null
+                                    && _diffOverlayPage == _currentPage;
+
+    /// <summary>
+    /// Loads original (A) and revised (B) images for A/B slider wipe mode.
+    /// </summary>
+    public void SetSliderWipe(string? originalPath, string? revisedPath, int page, float zoom = 1f)
+    {
+        _sliderOriginalBitmap?.Dispose();
+        _sliderRevisedBitmap?.Dispose();
+        _sliderOriginalBitmap = null;
+        _sliderRevisedBitmap = null;
+        _sliderPage = page;
+        _diffImageZoom = zoom;
+
+        if (originalPath != null && File.Exists(originalPath))
+        {
+            using var fs = File.OpenRead(originalPath);
+            _sliderOriginalBitmap = SKBitmap.Decode(fs);
+        }
+        if (revisedPath != null && File.Exists(revisedPath))
+        {
+            using var fs = File.OpenRead(revisedPath);
+            _sliderRevisedBitmap = SKBitmap.Decode(fs);
+        }
+        SliderWipeVisible = _sliderOriginalBitmap != null && _sliderRevisedBitmap != null;
+        InvalidateVisual();
+    }
+
+    /// <summary>Clears the A/B slider wipe and frees resources.</summary>
+    public void ClearSliderWipe()
+    {
+        _sliderOriginalBitmap?.Dispose();
+        _sliderRevisedBitmap?.Dispose();
+        _sliderOriginalBitmap = null;
+        _sliderRevisedBitmap = null;
+        _sliderPage = -1;
+        SliderWipeVisible = false;
+        InvalidateVisual();
+    }
+
+    private bool HasSliderWipe => SliderWipeVisible
+                                   && _sliderOriginalBitmap != null && _sliderRevisedBitmap != null
+                                   && _sliderPage == _currentPage;
+
     public bool HasAnyStrokes => _totalStrokeCount > 0 || _totalShapeCount > 0
                                   || _totalTextCount > 0 || _totalMeasurementCount > 0
                                   || _activeStroke != null || _activeShape != null
@@ -177,7 +284,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                   || _selectHighlightItems.Count > 0 || _stickyNoteHoverItem != null
                                   || _textPlacementPreviewPos != null
                                   || _snapGuideX != null || _snapGuideY != null
-                                  || _selectHoverItem != null;
+                                  || _selectHoverItem != null
+                                  || _rubberBandStart != null;
 
     public bool CanRedo => _redoStack.Count > 0;
 
@@ -201,6 +309,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 if (entry.page == _currentPage) return true;
             return false;
         }
+    }
+
+    /// <summary>The annotation object most recently committed (shape, text, stroke, measurement).
+    /// Used by the view layer to auto-select newly created annotations.</summary>
+    public object? LastPlacedAnnotation { get; private set; }
+
+    /// <summary>Returns all annotation objects on the current page across all visible layers.</summary>
+    public List<object> GetAllAnnotationsOnPage()
+    {
+        var result = new List<object>();
+        foreach (var layer in Layers)
+        {
+            if (!layer.IsVisible) continue;
+            if (layer.PageStrokes.TryGetValue(_currentPage, out var s)) result.AddRange(s);
+            if (layer.PageShapes.TryGetValue(_currentPage, out var sh)) result.AddRange(sh);
+            if (layer.PageTexts.TryGetValue(_currentPage, out var t)) result.AddRange(t);
+            if (layer.PageMeasurements.TryGetValue(_currentPage, out var m)) result.AddRange(m);
+        }
+        return result;
     }
 
     /// <summary>Total annotation count on the current page across all visible layers.</summary>
@@ -419,6 +546,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             _totalStrokeCount++;
             _undoStack.Push((UndoType.Stroke, _currentPage, null));
             _redoStack.Clear();
+            LastPlacedAnnotation = _activeStroke;
             ActiveLayer.RefreshStatus();
             NotifyAnnotationChanged();
         }
@@ -430,6 +558,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void BeginPolyline(Point pdfPoint)
     {
         EnsureDefaultLayer();
+        pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
         {
             Color = StrokeColor,
@@ -448,6 +577,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (_activePolyline == null) return;
         if (constrainAxis && _activePolyline.Points.Count > 0)
             pdfPoint = ConstrainToAxis(_activePolyline.Points[^1], pdfPoint);
+        else
+            pdfPoint = ComputeVertexSnap(_activePolyline, pdfPoint);
         _activePolyline.Points.Add(pdfPoint);
         _polylinePreviewEnd = pdfPoint;
         InvalidateVisual();
@@ -457,6 +588,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (constrainAxis && _activePolyline != null && _activePolyline.Points.Count > 0)
             pdfPoint = ConstrainToAxis(_activePolyline.Points[^1], pdfPoint);
+        else if (_activePolyline != null)
+            pdfPoint = ComputeVertexSnap(_activePolyline, pdfPoint);
         _polylinePreviewEnd = pdfPoint;
         InvalidateVisual();
     }
@@ -475,6 +608,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             _totalStrokeCount++;
             _undoStack.Push((UndoType.Stroke, _currentPage, null));
             _redoStack.Clear();
+            LastPlacedAnnotation = _activePolyline;
             ActiveLayer.RefreshStatus();
             NotifyAnnotationChanged();
         }
@@ -533,6 +667,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _measurementPreviewPoint = null;
         _activePolyline = null;
         _polylinePreviewEnd = null;
+        _rubberBandStart = null;
+        _rubberBandEnd = null;
         InvalidateVisual();
     }
 
@@ -543,6 +679,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void BeginShape(Point pdfPoint)
     {
         EnsureDefaultLayer();
+        pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeShape = new ShapeAnnotation
         {
             ShapeType = ActiveTool,
@@ -569,6 +706,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
         else if (_activeShape.ShapeType is InlineAnnotationTool.Line or InlineAnnotationTool.Arrow)
         {
             pdfPoint = MagneticSnap(_activeShape.Start, pdfPoint);
+            pdfPoint = ComputeVertexSnap(_activeShape, pdfPoint);
+        }
+        else
+        {
+            pdfPoint = ComputeVertexSnap(_activeShape, pdfPoint);
         }
         _activeShape.End = pdfPoint;
         InvalidateVisual();
@@ -594,6 +736,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 _totalShapeCount++;
                 _undoStack.Push((UndoType.Shape, _currentPage, null));
                 _redoStack.Clear();
+                LastPlacedAnnotation = _activeShape;
                 ActiveLayer.RefreshStatus();
                 NotifyAnnotationChanged();
             }
@@ -665,6 +808,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalTextCount++;
         _undoStack.Push((UndoType.Text, _currentPage, null));
         _redoStack.Clear();
+        LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         InvalidateVisual();
@@ -697,6 +841,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalTextCount++;
         _undoStack.Push((UndoType.Text, _currentPage, null));
         _redoStack.Clear();
+        LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         InvalidateVisual();
@@ -730,6 +875,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalTextCount++;
         _undoStack.Push((UndoType.Text, _currentPage, null));
         _redoStack.Clear();
+        LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         ClearArrowTextPreview();
@@ -747,6 +893,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalShapeCount++;
         _undoStack.Push((UndoType.Shape, _currentPage, null));
         _redoStack.Clear();
+        LastPlacedAnnotation = shape;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         InvalidateVisual();
@@ -764,6 +911,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalStrokeCount++;
         _undoStack.Push((UndoType.Stroke, _currentPage, null));
         _redoStack.Clear();
+        LastPlacedAnnotation = stroke;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         InvalidateVisual();
@@ -781,6 +929,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalMeasurementCount++;
         _undoStack.Push((UndoType.Measurement, _currentPage, null));
         _redoStack.Clear();
+        LastPlacedAnnotation = measurement;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         InvalidateVisual();
@@ -854,6 +1003,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void BeginMeasurement(Point pdfPoint)
     {
         EnsureDefaultLayer();
+        pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeMeasurement = new MeasurementAnnotation
         {
             Color = Color.FromRgb(214, 64, 69),
@@ -868,9 +1018,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _measurementPreviewPoint = pdfPoint;
         if (_activeMeasurement != null && _activeMeasurement.Points.Count >= 2)
         {
-            var target = constrainAxis
-                ? ConstrainToAxis(_activeMeasurement.Points[0], pdfPoint)
-                : MagneticSnap(_activeMeasurement.Points[0], pdfPoint);
+            Point target;
+            if (constrainAxis)
+                target = ConstrainToAxis(_activeMeasurement.Points[0], pdfPoint);
+            else
+            {
+                target = MagneticSnap(_activeMeasurement.Points[0], pdfPoint);
+                target = ComputeVertexSnap(_activeMeasurement, target);
+            }
             _activeMeasurement.Points[^1] = target;
         }
         InvalidateVisual();
@@ -890,6 +1045,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             _totalMeasurementCount++;
             _undoStack.Push((UndoType.Measurement, _currentPage, null));
             _redoStack.Clear();
+            LastPlacedAnnotation = _activeMeasurement;
             ActiveLayer.RefreshStatus();
             NotifyAnnotationChanged();
         }
@@ -1109,6 +1265,66 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    #region Rubber-band marquee selection
+
+    /// <summary>Update the rubber-band rectangle (PDF coordinates).</summary>
+    public void SetRubberBand(Point start, Point end)
+    {
+        _rubberBandStart = start;
+        _rubberBandEnd = end;
+        InvalidateVisual();
+    }
+
+    /// <summary>Clear the rubber-band rectangle.</summary>
+    public void ClearRubberBand()
+    {
+        if (_rubberBandStart != null)
+        {
+            _rubberBandStart = null;
+            _rubberBandEnd = null;
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>
+    /// Find all annotations on the current page (active layer) whose bounds
+    /// intersect the given PDF-space rectangle.
+    /// </summary>
+    public List<object> FindAnnotationsInRect(Rect pdfRect)
+    {
+        var results = new List<object>();
+        if (_activeLayer == null) return results;
+        int page = _currentPage;
+
+        if (_activeLayer.PageStrokes.TryGetValue(page, out var strokes))
+        {
+            foreach (var s in strokes)
+                if (GetAnnotationBounds(s) is { Width: > 0 } b && pdfRect.Intersects(b))
+                    results.Add(s);
+        }
+        if (_activeLayer.PageShapes.TryGetValue(page, out var shapes))
+        {
+            foreach (var s in shapes)
+                if (GetAnnotationBounds(s) is var b && pdfRect.Intersects(b))
+                    results.Add(s);
+        }
+        if (_activeLayer.PageTexts.TryGetValue(page, out var texts))
+        {
+            foreach (var t in texts)
+                if (GetAnnotationBounds(t) is var b && pdfRect.Intersects(b))
+                    results.Add(t);
+        }
+        if (_activeLayer.PageMeasurements.TryGetValue(page, out var measurements))
+        {
+            foreach (var m in measurements)
+                if (GetAnnotationBounds(m) is var b && pdfRect.Intersects(b))
+                    results.Add(m);
+        }
+        return results;
+    }
+
+    #endregion
+
     /// <summary>
     /// Record for storing the pre-drag state of an annotation so moves/stretches can be undone.
     /// </summary>
@@ -1273,10 +1489,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void ClearSnapGuides()
     {
-        if (_snapGuideX != null || _snapGuideY != null)
+        if (_snapGuideX != null || _snapGuideY != null || _snapVertexPos != null)
         {
             _snapGuideX = null;
             _snapGuideY = null;
+            _snapVertexPos = null;
             InvalidateVisual();
         }
     }
@@ -1324,7 +1541,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 foreach (var ink in strokes)
                     if (!ReferenceEquals(ink, owner)) SnapVertexAgainst(ink, vertex.X, vertex.Y, ref snapX, ref snapY, ref bestDistX, ref bestDistY);
         }
-        return new Point(snapX, snapY);
+        var result = new Point(snapX, snapY);
+        _snapVertexPos = (_snapGuideX.HasValue || _snapGuideY.HasValue) ? result : null;
+        return result;
     }
 
     private void SnapVertexAgainst(object target, double vx, double vy,
@@ -2269,6 +2488,31 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         base.Render(context);
 
+        // Draw the diff overlay between PDF content and annotations
+        if (HasDiffOverlay)
+        {
+            var oda = DisplayArea;
+            var obs = Bounds.Size;
+            if (oda.Width > 0 && oda.Height > 0 && obs.Width > 0 && obs.Height > 0)
+            {
+                context.Custom(new DiffOverlayDrawOp(
+                    new Rect(obs), _diffOverlayBitmap!, oda, DiffOverlayOpacity, _diffImageZoom));
+            }
+        }
+
+        // Draw the A/B slider wipe overlay
+        if (HasSliderWipe)
+        {
+            var sda = DisplayArea;
+            var sbs = Bounds.Size;
+            if (sda.Width > 0 && sda.Height > 0 && sbs.Width > 0 && sbs.Height > 0)
+            {
+                context.Custom(new SliderWipeDrawOp(
+                    new Rect(sbs), _sliderOriginalBitmap!, _sliderRevisedBitmap!,
+                    sda, SliderSplitPosition, _diffImageZoom));
+            }
+        }
+
         if (!IsViewerInitialized || !HasAnyStrokes) return;
 
         var da = DisplayArea;
@@ -2487,12 +2731,30 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var previewBrush = new SolidColorBrush(previewColor).ToImmutable();
             context.DrawEllipse(previewBrush, null, cp, radius, radius);
         }
+        // Crosshair cursor preview for shape/line/measurement/polyline tools
+        else if (_cursorPdfPos.HasValue
+            && ActiveTool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse
+                or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
+                or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.MeasureDistance
+                or InlineAnnotationTool.Polyline)
+        {
+            var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
+            double arm = 8;
+            var crossColor = Color.FromArgb(180, StrokeColor.R, StrokeColor.G, StrokeColor.B);
+            var crossPen = new Pen(new SolidColorBrush(crossColor).ToImmutable(), 1.0);
+            context.DrawLine(crossPen, new Point(cp.X - arm, cp.Y), new Point(cp.X + arm, cp.Y));
+            context.DrawLine(crossPen, new Point(cp.X, cp.Y - arm), new Point(cp.X, cp.Y + arm));
+            context.DrawEllipse(null, crossPen, cp, 3, 3);
+        }
 
         // Snap-to-alignment guides: thin dotted lines across the viewport
         if (_snapGuideX.HasValue || _snapGuideY.HasValue)
         {
-            var guidePen = new Pen(new SolidColorBrush(Color.FromArgb(120, 59, 130, 217)).ToImmutable(),
+            var snapColor = Color.FromArgb(180, 16, 185, 129);
+            var guidePen = new Pen(new SolidColorBrush(snapColor).ToImmutable(),
                 1.0, dashStyle: new DashStyle([3, 3], 0), lineCap: PenLineCap.Flat);
+            var snapDotBrush = new SolidColorBrush(snapColor).ToImmutable();
+            double dotRadius = 3.5;
             if (_snapGuideX.HasValue)
             {
                 var sx = PdfToScreen(new Point(_snapGuideX.Value, 0), da, boundsSize).X;
@@ -2503,6 +2765,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 var sy = PdfToScreen(new Point(0, _snapGuideY.Value), da, boundsSize).Y;
                 context.DrawLine(guidePen, new Point(0, sy), new Point(boundsSize.Width, sy));
             }
+            // Draw indicator dots at snap intersection points
+            if (_snapGuideX.HasValue && _snapGuideY.HasValue)
+            {
+                var dotPos = PdfToScreen(new Point(_snapGuideX.Value, _snapGuideY.Value), da, boundsSize);
+                context.DrawEllipse(snapDotBrush, null, dotPos, dotRadius, dotRadius);
+            }
+            else if (_snapGuideX.HasValue && _snapVertexPos.HasValue)
+            {
+                var dotPos = PdfToScreen(new Point(_snapGuideX.Value, _snapVertexPos.Value.Y), da, boundsSize);
+                context.DrawEllipse(snapDotBrush, null, dotPos, dotRadius, dotRadius);
+            }
+            else if (_snapGuideY.HasValue && _snapVertexPos.HasValue)
+            {
+                var dotPos = PdfToScreen(new Point(_snapVertexPos.Value.X, _snapGuideY.Value), da, boundsSize);
+                context.DrawEllipse(snapDotBrush, null, dotPos, dotRadius, dotRadius);
+            }
+        }
+
+        // Rubber-band marquee selection rectangle
+        if (_rubberBandStart.HasValue && _rubberBandEnd.HasValue)
+        {
+            var rs = PdfToScreen(_rubberBandStart.Value, da, boundsSize);
+            var re = PdfToScreen(_rubberBandEnd.Value, da, boundsSize);
+            var rect = new Rect(Math.Min(rs.X, re.X), Math.Min(rs.Y, re.Y),
+                Math.Abs(re.X - rs.X), Math.Abs(re.Y - rs.Y));
+            var fillBrush = new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
+            var borderPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
+                1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
+            context.DrawRectangle(fillBrush, borderPen, rect);
         }
 
         // Selection handles: dashed bounding box around selected items
@@ -2657,11 +2948,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 if (text.IsStickyNote)
                 {
                     double sz = 13.0 * penScale;
+                    context.DrawRectangle(hoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, sz, sz), 4, 4);
                 }
                 else
                 {
-                    double w = text.FontSize * text.Text.Length * 0.55 * penScale;
-                    double h = text.FontSize * (1 + text.Text.Count(c => c == '\n')) * 1.3 * penScale;
+                    var tb = GetTextBounds(text);
+                    double w = tb.Width * penScale;
+                    double h = tb.Height * penScale;
                     context.DrawRectangle(hoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, w, h), 4, 4);
                 }
                 break;
@@ -3129,9 +3422,173 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     /// <summary>
-    /// Custom draw operation that renders text annotations and measurement labels
-    /// using SkiaSharp's native text rendering via ICustomDrawOperation.
+    /// Custom draw operation that renders a diff-highlight image as a
+    /// semi-transparent overlay between the PDF page and annotations.
     /// </summary>
+    private class DiffOverlayDrawOp : ICustomDrawOperation
+    {
+        private readonly Rect _bounds;
+        private readonly SKBitmap _bitmap;
+        private readonly Rect _displayArea;
+        private readonly double _opacity;
+        private readonly float _zoom;
+
+        public DiffOverlayDrawOp(Rect bounds, SKBitmap bitmap, Rect displayArea, double opacity, float zoom = 1f)
+        {
+            _bounds = bounds;
+            _bitmap = bitmap;
+            _displayArea = displayArea;
+            _opacity = Math.Clamp(opacity, 0, 1);
+            _zoom = zoom;
+        }
+
+        public Rect Bounds => _bounds;
+        public bool HitTest(Point p) => false;
+        public bool Equals(ICustomDrawOperation? other) => false;
+
+        public void Dispose() { }
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature lease)
+                return;
+            using var api = lease.Lease();
+            var canvas = api.SkCanvas;
+            if (canvas == null) return;
+
+            // Bitmap pixels = PDF points × ZOOM. Scale DisplayArea (PDF coords)
+            // by the zoom factor to get the correct source rect into the bitmap.
+            float z = _zoom;
+            float destW = (float)_bounds.Width;
+            float destH = (float)_bounds.Height;
+            var srcRect = new SKRect(
+                (float)_displayArea.X * z, (float)_displayArea.Y * z,
+                (float)(_displayArea.X + _displayArea.Width) * z,
+                (float)(_displayArea.Y + _displayArea.Height) * z);
+            var destRect = new SKRect(0, 0, destW, destH);
+
+            using var paint = new SKPaint
+            {
+                Color = SKColors.White.WithAlpha((byte)(_opacity * 255)),
+                FilterQuality = SKFilterQuality.Medium,
+                IsAntialias = true
+            };
+
+            canvas.Save();
+            canvas.ClipRect(destRect);
+            canvas.DrawBitmap(_bitmap, srcRect, destRect, paint);
+            canvas.Restore();
+        }
+    }
+
+    /// <summary>
+    /// Custom draw operation that renders an A/B slider wipe: left side shows
+    /// the original image, right side shows the revised image, with a vertical
+    /// split line at the given normalized position.
+    /// </summary>
+    private class SliderWipeDrawOp : ICustomDrawOperation
+    {
+        private readonly Rect _bounds;
+        private readonly SKBitmap _original;
+        private readonly SKBitmap _revised;
+        private readonly Rect _displayArea;
+        private readonly double _splitPos;
+        private readonly float _zoom;
+
+        public SliderWipeDrawOp(Rect bounds, SKBitmap original, SKBitmap revised,
+                                 Rect displayArea, double splitPos, float zoom = 1f)
+        {
+            _bounds = bounds;
+            _original = original;
+            _revised = revised;
+            _displayArea = displayArea;
+            _splitPos = Math.Clamp(splitPos, 0, 1);
+            _zoom = zoom;
+        }
+
+        public Rect Bounds => _bounds;
+        public bool HitTest(Point p) => false;
+        public bool Equals(ICustomDrawOperation? other) => false;
+        public void Dispose() { }
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature lease)
+                return;
+            using var api = lease.Lease();
+            var canvas = api.SkCanvas;
+            if (canvas == null) return;
+
+            float w = (float)_bounds.Width;
+            float h = (float)_bounds.Height;
+            float splitX = (float)(w * _splitPos);
+
+            using var paint = new SKPaint
+            {
+                FilterQuality = SKFilterQuality.Medium,
+                IsAntialias = true
+            };
+
+            // Bitmap pixels = PDF points × ZOOM. Scale DisplayArea by zoom.
+            float z = _zoom;
+            var srcRect = new SKRect(
+                (float)_displayArea.X * z, (float)_displayArea.Y * z,
+                (float)(_displayArea.X + _displayArea.Width) * z,
+                (float)(_displayArea.Y + _displayArea.Height) * z);
+            var destRect = new SKRect(0, 0, w, h);
+
+            // Left side: original (A)
+            canvas.Save();
+            canvas.ClipRect(new SKRect(0, 0, splitX, h));
+            canvas.DrawBitmap(_original, srcRect, destRect, paint);
+            canvas.Restore();
+
+            // Right side: revised (B)
+            canvas.Save();
+            canvas.ClipRect(new SKRect(splitX, 0, w, h));
+            canvas.DrawBitmap(_revised, srcRect, destRect, paint);
+            canvas.Restore();
+
+            // Split line
+            using var linePaint = new SKPaint
+            {
+                Color = SKColors.White,
+                StrokeWidth = 2,
+                IsAntialias = true,
+                Style = SKPaintStyle.Stroke
+            };
+            canvas.DrawLine(splitX, 0, splitX, h, linePaint);
+
+            // Labels
+            using var labelPaint = new SKPaint
+            {
+                Color = SKColors.White,
+                TextSize = 12,
+                IsAntialias = true,
+                Style = SKPaintStyle.Fill
+            };
+            using var bgPaint = new SKPaint
+            {
+                Color = new SKColor(0, 0, 0, 140),
+                Style = SKPaintStyle.Fill
+            };
+
+            // "A" label top-left
+            var labelA = "A (Original)";
+            var labelB = "B (Revised)";
+            float labelY = 20;
+            float labelPadH = 4, labelPadV = 2;
+
+            float wA = labelPaint.MeasureText(labelA);
+            canvas.DrawRect(4, labelY - 12 - labelPadV, wA + labelPadH * 2, 14 + labelPadV * 2, bgPaint);
+            canvas.DrawText(labelA, 4 + labelPadH, labelY, labelPaint);
+
+            float wB = labelPaint.MeasureText(labelB);
+            float bX = Math.Max(splitX + 4, w - wB - labelPadH * 2 - 4);
+            canvas.DrawRect(bX, labelY - 12 - labelPadV, wB + labelPadH * 2, 14 + labelPadV * 2, bgPaint);
+            canvas.DrawText(labelB, bX + labelPadH, labelY, labelPaint);
+        }
+    }
     private class TextOverlayDrawOp : ICustomDrawOperation
     {
         public record struct TextItem(float X, float Y, string Text, float FontSize, SKColor Color,

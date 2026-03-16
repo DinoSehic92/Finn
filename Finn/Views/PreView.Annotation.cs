@@ -56,17 +56,59 @@ public partial class PreView
     private List<object>? _multiDragSnapshots;
     /// <summary>Timestamp of the last arrow-key nudge for undo coalescing.</summary>
     private DateTime _lastNudgeTime;
+    /// <summary>Toolbar state saved before selection syncing, restored on deselect.</summary>
+    private Color _preSelectColor;
+    private double _preSelectWidth;
+    private LineDashPattern _preSelectDash;
+    private double _preSelectOpacity;
+    private bool _hasPreSelectState;
+    /// <summary>True while the user is dragging a rubber-band marquee rectangle in Select mode.</summary>
+    private bool _rubberBandActive;
+    /// <summary>PDF-space start point of the rubber-band rectangle.</summary>
+    private Point _rubberBandStartPdf;
 
     private void DeselectAnnotation()
     {
         _selectedAnnotation = null;
         _selectedAnnotations.Clear();
         MuPDFRenderer.ClearSelectHighlight();
+        RestorePreSelectState();
         MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Saves the current toolbar state so it can be restored after deselecting.</summary>
+    private void SavePreSelectState()
+    {
+        if (_hasPreSelectState) return;
+        _preSelectColor = MuPDFRenderer.StrokeColor;
+        _preSelectWidth = MuPDFRenderer.IsHighlighterMode ? _normalStrokeWidth : MuPDFRenderer.StrokeWidth;
+        _preSelectDash = MuPDFRenderer.StrokeDashPattern;
+        _preSelectOpacity = MuPDFRenderer.StrokeOpacity;
+        _hasPreSelectState = true;
+    }
+
+    /// <summary>Restores the toolbar state that was active before the last selection.</summary>
+    private void RestorePreSelectState()
+    {
+        if (!_hasPreSelectState) return;
+        _hasPreSelectState = false;
+        MuPDFRenderer.StrokeColor = _preSelectColor;
+        if (!MuPDFRenderer.IsHighlighterMode)
+        {
+            MuPDFRenderer.StrokeWidth = _preSelectWidth;
+            _normalStrokeWidth = _preSelectWidth;
+        }
+        MuPDFRenderer.StrokeDashPattern = _preSelectDash;
+        MuPDFRenderer.StrokeOpacity = _preSelectOpacity;
+        SetActiveColorButton(MatchColorTag(_preSelectColor) is { } tag ? FindToolbarButtonByTag(tag) : null);
+        SetActiveWidthButton(FindToolbarButtonByTag(((int)_preSelectWidth).ToString()));
+        SetActiveDashButton(FindToolbarButtonByTag(_preSelectDash.ToString()));
+        if (OpacitySlider != null) OpacitySlider.Value = _preSelectOpacity;
     }
 
     private void SelectAnnotation(object item)
     {
+        SavePreSelectState();
         _selectedAnnotation = item;
         _selectedAnnotations.Clear();
         _selectedAnnotations.Add(item);
@@ -198,7 +240,7 @@ public partial class PreView
         this.AddHandler(KeyDownEvent, OnAnnotateKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         this.AddHandler(KeyUpEvent, OnAnnotateKeyUp, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
-        // Suppress the context menu so right-click can finish polylines
+        // Suppress the default context menu while annotating
         _savedContextMenu = MuPDFRenderer.ContextMenu as Avalonia.Controls.ContextMenu;
         MuPDFRenderer.ContextMenu = null;
 
@@ -228,6 +270,7 @@ public partial class PreView
         _resizingTextAnnotation = null;
         _selectDragItem = null;
         _selectedAnnotation = null;
+        _rubberBandActive = false;
         _calibrationMode = false;
         _arrowTextOrigin = null;
         _pendingStickyNote = false;
@@ -362,6 +405,12 @@ public partial class PreView
             {
                 MuPDFRenderer.CancelStroke();
             }
+            else if (_rubberBandActive)
+            {
+                _rubberBandActive = false;
+                _inkDrawing = false;
+                MuPDFRenderer.ClearRubberBand();
+            }
             else if (_selectedAnnotations.Count > 0)
             {
                 // First Escape: deselect, stay in annotation mode
@@ -489,6 +538,8 @@ public partial class PreView
         _draggingArrowOrigin = null;
         _draggingVertexItem = null;
         _selectDragItem = null;
+        _rubberBandActive = false;
+        MuPDFRenderer.ClearRubberBand();
 
         if (previousTool is InlineAnnotationTool.MeasureDistance && tool != previousTool)
         {
@@ -594,7 +645,7 @@ public partial class PreView
             }
             if (TextInputCanvas.IsVisible)
             {
-                OnTextInputCancel(this, e);
+                OnTextInputCommit(this, e);
                 e.Handled = true;
                 return;
             }
@@ -676,12 +727,13 @@ public partial class PreView
             return;
         }
 
-        // ── Universal hover-grab: any tool can move existing annotations ──
-        // (except Eraser which should just erase, and Draw/Highlight which draw)
-        if (tool is not InlineAnnotationTool.Draw
-            and not InlineAnnotationTool.Highlight
-            and not InlineAnnotationTool.Eraser
-            && !(tool is InlineAnnotationTool.Polyline && MuPDFRenderer.HasActivePolyline))
+        // ── Hover-grab: Select and text-editing tools can grab/edit existing annotations ──
+        // Drawing tools (shapes, measure, polyline, freehand) always draw — vertex
+        // snapping handles alignment. Switch to Select (V) to move things.
+        if (tool is InlineAnnotationTool.Select
+            or InlineAnnotationTool.Text
+            or InlineAnnotationTool.ArrowText
+            or InlineAnnotationTool.StickyNote)
         {
             // Check for existing annotations under cursor
             object? hitItem = null;
@@ -689,8 +741,6 @@ public partial class PreView
                 hitItem = MuPDFRenderer.FindStickyNoteAt(pdfPoint.Value);
             else if (tool is InlineAnnotationTool.Text or InlineAnnotationTool.ArrowText)
                 hitItem = MuPDFRenderer.FindTextAt(pdfPoint.Value);
-            else if (tool is InlineAnnotationTool.Select)
-                hitItem = MuPDFRenderer.FindTopmostAt(pdfPoint.Value);
             else
                 hitItem = MuPDFRenderer.FindTopmostAt(pdfPoint.Value);
 
@@ -941,6 +991,11 @@ public partial class PreView
                 DeselectAnnotation();
             }
         }
+        // Any other tool: just clear the existing selection before drawing
+        else if (_selectedAnnotations.Count > 0)
+        {
+            DeselectAnnotation();
+        }
 
         // ── Tool-specific first-click actions ──
         MuPDFRenderer.ClearTextPlacementPreview();
@@ -984,7 +1039,11 @@ public partial class PreView
                 break;
 
             case InlineAnnotationTool.Select:
-                // Nothing hit — do nothing
+                // Empty space — start rubber-band marquee selection
+                _rubberBandActive = true;
+                _rubberBandStartPdf = pdfPoint.Value;
+                _inkDrawing = true;
+                MuPDFRenderer.SetRubberBand(pdfPoint.Value, pdfPoint.Value);
                 break;
 
             case InlineAnnotationTool.Rectangle:
@@ -1099,11 +1158,12 @@ public partial class PreView
                 else
                     MuPDFRenderer.ClearTextPlacementPreview();
 
-                // Hover outline + cursor: show on any tool that can grab existing annotations
+                // Hover outline + cursor: show only for tools that can grab annotations
                 if (hoverPdf.HasValue
-                    && at is not InlineAnnotationTool.Draw
-                    and not InlineAnnotationTool.Highlight
-                    and not InlineAnnotationTool.Eraser)
+                    && at is InlineAnnotationTool.Select
+                        or InlineAnnotationTool.Text
+                        or InlineAnnotationTool.ArrowText
+                        or InlineAnnotationTool.StickyNote)
                 {
                     var hoverHit = MuPDFRenderer.FindTopmostAt(hoverPdf.Value);
                     MuPDFRenderer.UpdateSelectHover(hoverHit);
@@ -1239,6 +1299,13 @@ public partial class PreView
             return;
         }
 
+        // Rubber-band marquee: update rectangle while dragging
+        if (_rubberBandActive)
+        {
+            MuPDFRenderer.SetRubberBand(_rubberBandStartPdf, pdfPoint.Value);
+            return;
+        }
+
         bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         var tool = MuPDFRenderer.ActiveTool;
 
@@ -1334,6 +1401,41 @@ public partial class PreView
             MuPDFRenderer.ClearSnapGuides();
             MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
             MuPDFRenderer.NotifyAnnotationChanged();
+            return;
+        }
+
+        // Handle rubber-band marquee release — select all items in the rectangle
+        if (_rubberBandActive)
+        {
+            _rubberBandActive = false;
+            var endPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
+            MuPDFRenderer.ClearRubberBand();
+            if (endPdf.HasValue)
+            {
+                double x = Math.Min(_rubberBandStartPdf.X, endPdf.Value.X);
+                double y = Math.Min(_rubberBandStartPdf.Y, endPdf.Value.Y);
+                double w = Math.Abs(endPdf.Value.X - _rubberBandStartPdf.X);
+                double h = Math.Abs(endPdf.Value.Y - _rubberBandStartPdf.Y);
+                if (w > 2 || h > 2) // ignore tiny accidental drags
+                {
+                    var rect = new Rect(x, y, w, h);
+                    var found = MuPDFRenderer.FindAnnotationsInRect(rect);
+                    if (found.Count > 0)
+                    {
+                        SavePreSelectState();
+                        _selectedAnnotations.Clear();
+                        MuPDFRenderer.ClearSelectHighlight();
+                        foreach (var item in found)
+                        {
+                            _selectedAnnotations.Add(item);
+                            MuPDFRenderer.AddSelectHighlight(item);
+                        }
+                        _selectedAnnotation = found[0];
+                        SyncToolbarToSelection();
+                    }
+                }
+            }
+            MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
             return;
         }
 
@@ -2041,13 +2143,53 @@ public partial class PreView
 
         var sep2 = new Separator();
 
+        var matchStyleItem = new MenuItem { Header = "Match Style" };
+        matchStyleItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation == null) return;
+            SavePreSelectState();
+            SyncToolbarToSelection();
+            DeselectAnnotation();
+        };
+
+        var pasteItem = new MenuItem { Header = "Paste                   Ctrl+V" };
+        pasteItem.Click += (_, _) => PasteAnnotation();
+        pasteItem.IsVisible = _annotationClipboard != null;
+
+        var selectAllItem = new MenuItem { Header = "Select All on Page" };
+        selectAllItem.Click += (_, _) =>
+        {
+            var page = pwr.CurrentPage1;
+            _selectedAnnotations.Clear();
+            MuPDFRenderer.ClearSelectHighlight();
+            SavePreSelectState();
+            foreach (var stroke in MuPDFRenderer.GetStrokes(page))
+            { _selectedAnnotations.Add(stroke); MuPDFRenderer.AddSelectHighlight(stroke); }
+            foreach (var shape in MuPDFRenderer.GetShapes(page))
+            { _selectedAnnotations.Add(shape); MuPDFRenderer.AddSelectHighlight(shape); }
+            foreach (var text in MuPDFRenderer.GetTexts(page))
+            { _selectedAnnotations.Add(text); MuPDFRenderer.AddSelectHighlight(text); }
+            foreach (var meas in MuPDFRenderer.GetMeasurements(page))
+            { _selectedAnnotations.Add(meas); MuPDFRenderer.AddSelectHighlight(meas); }
+            if (_selectedAnnotations.Count > 0)
+            {
+                _selectedAnnotation = _selectedAnnotations.First();
+                SyncToolbarToSelection();
+            }
+            MuPDFRenderer.InvalidateVisual();
+        };
+
+        menu.Items.Add(matchStyleItem);
+        menu.Items.Add(new Separator());
         menu.Items.Add(editItem);
         menu.Items.Add(duplicateItem);
         menu.Items.Add(copyItem);
+        menu.Items.Add(pasteItem);
         menu.Items.Add(sep1);
         menu.Items.Add(fillItem);
         menu.Items.Add(bringFrontItem);
         menu.Items.Add(sendBackItem);
+        menu.Items.Add(selectAllItem);
         menu.Items.Add(sep2);
         menu.Items.Add(deleteItem);
 

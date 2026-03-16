@@ -1,6 +1,7 @@
 ﻿using Finn.ViewModels;
 using Finn.Model;
 using Finn.Controls;
+using Finn.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -89,6 +90,7 @@ public partial class PreView : UserControl
                 // Always sync layers on file switch — CurrentPage1 may not
                 // change if both files share the same page number.
                 SyncLayers();
+                SyncDiffOverlay();
             });
         }
 
@@ -97,6 +99,21 @@ public partial class PreView : UserControl
             DeselectAnnotation();
             MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
             SyncLayers();
+            SyncDiffOverlay();
+        }
+
+        if (e.PropertyName == "DiffOverlayActive" || e.PropertyName == "DiffViewMode")
+        {
+            SyncDiffOverlay();
+        }
+
+        if (e.PropertyName == "DiffSplitPosition")
+        {
+            if (pwr.DiffOverlayActive && pwr.DiffViewMode == DiffViewMode.Slider)
+            {
+                MuPDFRenderer.SliderSplitPosition = pwr.DiffSplitPosition;
+                MuPDFRenderer.InvalidateVisual();
+            }
         }
 
         if (e.PropertyName == "WhiteboardMode")
@@ -130,6 +147,73 @@ public partial class PreView : UserControl
         if (layers != MuPDFRenderer.Layers)
             MuPDFRenderer.SetLayers(layers);
     }
+
+    /// <summary>
+    /// Updates the diff display on the renderer for the current page and view mode.
+    /// Overlay: red diff highlights. Slider: A/B wipe. SideBySide: dual-page.
+    /// </summary>
+    private void SyncDiffOverlay()
+    {
+        if (pwr == null)
+        {
+            MuPDFRenderer.ClearDiffOverlay();
+            MuPDFRenderer.ClearSliderWipe();
+            return;
+        }
+
+        if (!pwr.DiffOverlayActive)
+        {
+            MuPDFRenderer.ClearDiffOverlay();
+            MuPDFRenderer.ClearSliderWipe();
+            // Close side-by-side if it was open for diff
+            if (_diffSideBySideOpen)
+            {
+                _diffSideBySideOpen = false;
+                _ = pwr.CloseDiffSideBySideAsync();
+            }
+            return;
+        }
+
+        int page = pwr.CurrentPage1;
+        switch (pwr.DiffViewMode)
+        {
+            case DiffViewMode.Overlay:
+                MuPDFRenderer.ClearSliderWipe();
+                if (_diffSideBySideOpen) { _diffSideBySideOpen = false; _ = pwr.CloseDiffSideBySideAsync(); }
+                var diffPath = pwr.GetDiffImagePath(page);
+                if (diffPath != null)
+                    MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM);
+                else
+                    MuPDFRenderer.ClearDiffOverlay();
+                break;
+
+            case DiffViewMode.Slider:
+                MuPDFRenderer.ClearDiffOverlay();
+                if (_diffSideBySideOpen) { _diffSideBySideOpen = false; _ = pwr.CloseDiffSideBySideAsync(); }
+                var origPath = pwr.GetOriginalImagePath(page);
+                var revPath = pwr.GetRevisedImagePath(page);
+                if (origPath != null && revPath != null)
+                {
+                    MuPDFRenderer.SliderSplitPosition = pwr.DiffSplitPosition;
+                    MuPDFRenderer.SetSliderWipe(origPath, revPath, page, PdfDiffService.ZOOM);
+                }
+                else
+                    MuPDFRenderer.ClearSliderWipe();
+                break;
+
+            case DiffViewMode.SideBySide:
+                MuPDFRenderer.ClearDiffOverlay();
+                MuPDFRenderer.ClearSliderWipe();
+                if (!_diffSideBySideOpen && pwr.DiffOriginalPdfPath != null)
+                {
+                    _diffSideBySideOpen = true;
+                    _ = pwr.OpenDiffSideBySideAsync();
+                }
+                break;
+        }
+    }
+
+    private bool _diffSideBySideOpen;
 
 
     public void SetRenderer()
@@ -339,4 +423,6 @@ public partial class PreView : UserControl
             _panRenderer = null;
         }
     }
+
+    private void OnDiffCycleMode(object? sender, RoutedEventArgs e) => pwr?.CycleDiffViewMode();
 }

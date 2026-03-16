@@ -1096,10 +1096,7 @@ public partial class MainView : UserControl
             || !File.Exists(pathA) || !File.Exists(pathB))
             return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        await _ctx.OpenDiffDia(window,
-            $"{file.Namn} (Original)", pathA,
-            $"{file.Namn} ({selected.Label})", pathB);
+        await _ctx.RunDiffInPreviewer(pathA, pathB);
     }
 
     private async void OnCompareVersionWithPrevious(object? sender, RoutedEventArgs e)
@@ -1113,17 +1110,14 @@ public partial class MainView : UserControl
         // Previous version in the sorted list; if selected is the first version,
         // compare against original instead.
         string pathA;
-        string nameA;
         if (idx == 0 && !string.IsNullOrEmpty(file.OriginalPath))
         {
             pathA = file.OriginalPath;
-            nameA = $"{file.Namn} (Original)";
         }
         else
         {
             var prev = file.Versions[idx - 1];
             pathA = prev.Sökväg;
-            nameA = $"{file.Namn} ({prev.Label})";
         }
 
         string pathB = selected.Sökväg;
@@ -1134,10 +1128,7 @@ public partial class MainView : UserControl
             || !File.Exists(pathA) || !File.Exists(pathB))
             return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        await _ctx.OpenDiffDia(window,
-            nameA, pathA,
-            $"{file.Namn} ({selected.Label})", pathB);
+        await _ctx.RunDiffInPreviewer(pathA, pathB);
     }
 
     private void OnLabelFromFolderDate(object? sender, RoutedEventArgs e)
