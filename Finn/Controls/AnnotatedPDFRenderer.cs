@@ -45,7 +45,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private int _totalTextCount;
     private int _totalMeasurementCount;
 
-    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage }
+    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder }
     private readonly Stack<(UndoType type, int page, object? data)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item)> _redoStack = new();
 
@@ -96,8 +96,30 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _undoStack.Clear();
         _redoStack.Clear();
         RecalculateStrokeCount();
+        RestoreMeasurementScale();
         if (IsViewerInitialized)
             InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Picks up MeasurementScale from the first existing measurement in the
+    /// current layer collection. Each MeasurementAnnotation stores the
+    /// calibrated scale, so this restores the per-file value after a file switch.
+    /// </summary>
+    private void RestoreMeasurementScale()
+    {
+        foreach (var layer in _layers)
+        {
+            foreach (var list in layer.PageMeasurements.Values)
+            {
+                if (list.Count > 0)
+                {
+                    MeasurementScale = list[0].Scale;
+                    return;
+                }
+            }
+        }
+        MeasurementScale = 25.4 / 72.0;
     }
 
     private void RecalculateStrokeCount()
@@ -136,8 +158,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Dash pattern for new strokes and shapes.</summary>
     public LineDashPattern StrokeDashPattern { get; set; } = LineDashPattern.Solid;
 
-    // Selection highlight: the item currently being dragged with the Select tool
-    private object? _selectHighlightItem;
+    // Selection highlight: the items currently selected with the Select tool
+    private readonly HashSet<object> _selectHighlightItems = new();
+    // Hover highlight: the item under the cursor in Select mode (for outline preview)
+    private object? _selectHoverItem;
 
     /// <summary>
     /// Millimetres per PDF point used for measurement labels.
@@ -150,11 +174,34 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                   || _activeStroke != null || _activeShape != null
                                   || _activeMeasurement != null || _arrowTextPreviewOrigin != null
                                   || _eraserHoverItem != null || _cursorPdfPos != null
-                                  || _selectHighlightItem != null || _stickyNoteHoverItem != null
+                                  || _selectHighlightItems.Count > 0 || _stickyNoteHoverItem != null
                                   || _textPlacementPreviewPos != null
-                                  || _snapGuideX != null || _snapGuideY != null;
+                                  || _snapGuideX != null || _snapGuideY != null
+                                  || _selectHoverItem != null;
 
     public bool CanRedo => _redoStack.Count > 0;
+
+    /// <summary>True if there is at least one undo entry for the current page.</summary>
+    public bool CanUndoCurrentPage
+    {
+        get
+        {
+            foreach (var entry in _undoStack)
+                if (entry.page == _currentPage) return true;
+            return false;
+        }
+    }
+
+    /// <summary>True if there is at least one redo entry for the current page.</summary>
+    public bool CanRedoCurrentPage
+    {
+        get
+        {
+            foreach (var entry in _redoStack)
+                if (entry.page == _currentPage) return true;
+            return false;
+        }
+    }
 
     /// <summary>Total annotation count on the current page across all visible layers.</summary>
     public int CurrentPageAnnotationCount
@@ -588,6 +635,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
+    /// <summary>Default max width (PDF units) for new text annotations. 0 = no wrapping.</summary>
+    public double TextMaxWidth { get; set; } = 150;
+
     public void PlaceText(Point pdfPoint, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
@@ -601,7 +651,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             FontSize = TextFontSize,
             Color = StrokeColor,
             Opacity = StrokeOpacity,
-            FontFamily = TextFontFamily
+            FontFamily = TextFontFamily,
+            MaxWidth = TextMaxWidth
         };
 
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
@@ -665,7 +716,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             Opacity = StrokeOpacity,
             FontFamily = TextFontFamily,
-            ArrowOrigin = arrowOrigin
+            ArrowOrigin = arrowOrigin,
+            MaxWidth = TextMaxWidth
         };
 
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
@@ -853,12 +905,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public void CalibrateFromLastMeasurement(double realDistanceMm)
     {
-        // Find the last committed measurement on the current page across all layers
+        // Find the last committed measurement on the current page.
+        // Prefer the active layer (where the user just drew), then fall back to any layer.
         MeasurementAnnotation? last = null;
-        foreach (var layer in Layers)
+        if (ActiveLayer != null
+            && ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var activeMs)
+            && activeMs.Count > 0)
         {
-            if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Count > 0)
-                last = ms[^1];
+            last = activeMs[^1];
+        }
+        else
+        {
+            foreach (var layer in Layers)
+            {
+                if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Count > 0)
+                    last = ms[^1];
+            }
         }
         if (last == null || last.Points.Count < 2 || realDistanceMm <= 0) return;
 
@@ -908,9 +970,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     : HitTestText(texts[i], pdfPoint);
                 if (hit)
                 {
+                    var erased = texts[i];
                     texts.RemoveAt(i);
                     ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1);
                     _totalTextCount = Math.Max(0, _totalTextCount - 1);
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -925,9 +990,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 if (HitTestMeasurement(measurements[i], pdfPoint, threshold))
                 {
+                    var erased = measurements[i];
                     measurements.RemoveAt(i);
                     ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1);
                     _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1);
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -942,9 +1010,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 if (HitTestShape(shapes[i], pdfPoint, threshold))
                 {
+                    var erased = shapes[i];
                     shapes.RemoveAt(i);
                     ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1);
                     _totalShapeCount = Math.Max(0, _totalShapeCount - 1);
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -959,9 +1030,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 if (HitTestStroke(strokes[i], pdfPoint, threshold))
                 {
+                    var erased = strokes[i];
                     strokes.RemoveAt(i);
                     ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1);
                     _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1);
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -995,22 +1069,177 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
-    /// <summary>Set the item to draw selection handles around (Select tool).</summary>
+    /// <summary>Set the item to draw selection handles around (Select tool). Replaces existing selection.</summary>
     public void SetSelectHighlight(object? item)
     {
-        if (_selectHighlightItem != item)
-        {
-            _selectHighlightItem = item;
-            InvalidateVisual();
-        }
+        _selectHighlightItems.Clear();
+        if (item != null) _selectHighlightItems.Add(item);
+        InvalidateVisual();
+    }
+
+    /// <summary>Add an item to the selection highlight set (Shift+Click).</summary>
+    public void AddSelectHighlight(object item)
+    {
+        _selectHighlightItems.Add(item);
+        InvalidateVisual();
+    }
+
+    /// <summary>Remove an item from the selection highlight set.</summary>
+    public void RemoveSelectHighlight(object item)
+    {
+        if (_selectHighlightItems.Remove(item)) InvalidateVisual();
     }
 
     public void ClearSelectHighlight()
     {
-        if (_selectHighlightItem != null)
+        if (_selectHighlightItems.Count > 0)
         {
-            _selectHighlightItem = null;
+            _selectHighlightItems.Clear();
             InvalidateVisual();
+        }
+    }
+
+    /// <summary>Update the hover-outline item in Select mode. Null clears it.</summary>
+    public void UpdateSelectHover(object? item)
+    {
+        if (_selectHoverItem != item)
+        {
+            _selectHoverItem = item;
+            InvalidateVisual();
+        }
+    }
+
+    /// <summary>
+    /// Record for storing the pre-drag state of an annotation so moves/stretches can be undone.
+    /// </summary>
+    private record MoveSnapshot(object Item, Point[]? Points, Point? Position, Point? ArrowOrigin,
+                                 Point? ShapeStart, Point? ShapeEnd);
+
+    /// <summary>
+    /// Captures the current position state of an annotation before a drag begins.
+    /// Call at drag-start; the returned snapshot is pushed to undo on drag-end.
+    /// </summary>
+    public object? CapturePreDragSnapshot(object item) => item switch
+    {
+        TextAnnotation t => new MoveSnapshot(t, null, t.Position, t.ArrowOrigin, null, null),
+        ShapeAnnotation s => new MoveSnapshot(s, null, null, null, s.Start, s.End),
+        MeasurementAnnotation m => new MoveSnapshot(m, [.. m.Points], null, null, null, null),
+        InkStroke ink => new MoveSnapshot(ink, [.. ink.Points], null, null, null, null),
+        _ => null
+    };
+
+    /// <summary>
+    /// Pushes a Move undo entry using a previously captured snapshot.
+    /// Call on drag-end.
+    /// </summary>
+    public void PushMoveUndo(object snapshot)
+    {
+        _undoStack.Push((UndoType.Move, _currentPage, snapshot));
+        _redoStack.Clear();
+    }
+
+    /// <summary>
+    /// Snapshot of all visual properties of an annotation, used for property-change undo.
+    /// </summary>
+    private record PropertySnapshot(
+        object Item,
+        Color Color, double Opacity,
+        // InkStroke / ShapeAnnotation
+        double StrokeWidth, LineDashPattern DashPattern,
+        // ShapeAnnotation
+        bool IsFilled,
+        // TextAnnotation
+        double FontSize, string Text, double MaxWidth);
+
+    /// <summary>
+    /// Captures a snapshot of all visual properties of an annotation.
+    /// Call before changing color, width, dash, opacity, fill, font size, or text.
+    /// </summary>
+    public object? CapturePropertySnapshot(object item) => item switch
+    {
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, 0, "", 0),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, 0, "", 0),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, t.FontSize, t.Text, t.MaxWidth),
+        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, "", 0),
+        _ => null
+    };
+
+    /// <summary>Restores all visual properties from a PropertySnapshot.</summary>
+    private static void RestorePropertySnapshot(PropertySnapshot snap)
+    {
+        switch (snap.Item)
+        {
+            case InkStroke s:
+                s.Color = snap.Color; s.Opacity = snap.Opacity;
+                s.Width = snap.StrokeWidth; s.DashPattern = snap.DashPattern;
+                s.InvalidatePen();
+                break;
+            case ShapeAnnotation sh:
+                sh.Color = snap.Color; sh.Opacity = snap.Opacity;
+                sh.StrokeWidth = snap.StrokeWidth; sh.DashPattern = snap.DashPattern;
+                sh.IsFilled = snap.IsFilled;
+                sh.InvalidatePen();
+                break;
+            case TextAnnotation t:
+                t.Color = snap.Color; t.Opacity = snap.Opacity;
+                t.FontSize = snap.FontSize; t.Text = snap.Text;
+                t.MaxWidth = snap.MaxWidth;
+                break;
+            case MeasurementAnnotation m:
+                m.Color = snap.Color;
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Pushes a property-change undo entry using a previously captured snapshot.
+    /// </summary>
+    public void PushPropertyUndo(object snapshot)
+    {
+        _undoStack.Push((UndoType.PropertyChange, _currentPage, snapshot));
+        _redoStack.Clear();
+    }
+
+    /// <summary>Record for z-order undo: stores the item and its index before the move.</summary>
+    private record ZOrderSnapshot(object Item, int OldIndex);
+
+    /// <summary>Captures the current z-order index of an annotation for undo.</summary>
+    public object? CaptureZOrderSnapshot(object item)
+    {
+        if (ActiveLayer == null) return null;
+        int idx = item switch
+        {
+            InkStroke s => ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var st) ? st.IndexOf(s) : -1,
+            ShapeAnnotation sh => ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shp) ? shp.IndexOf(sh) : -1,
+            TextAnnotation t => ActiveLayer.PageTexts.TryGetValue(_currentPage, out var txt) ? txt.IndexOf(t) : -1,
+            MeasurementAnnotation m => ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) ? ms.IndexOf(m) : -1,
+            _ => -1
+        };
+        return idx >= 0 ? new ZOrderSnapshot(item, idx) : null;
+    }
+
+    /// <summary>Restores an annotation to a previously captured z-order index.</summary>
+    private void RestoreZOrder(ZOrderSnapshot snap)
+    {
+        if (ActiveLayer == null) return;
+        switch (snap.Item)
+        {
+            case InkStroke s:
+                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var st) && st.Remove(s))
+                    st.Insert(Math.Min(snap.OldIndex, st.Count), s);
+                break;
+            case ShapeAnnotation sh:
+                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shp) && shp.Remove(sh))
+                    shp.Insert(Math.Min(snap.OldIndex, shp.Count), sh);
+                break;
+            case TextAnnotation t:
+                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var txt) && txt.Remove(t))
+                    txt.Insert(Math.Min(snap.OldIndex, txt.Count), t);
+                break;
+            case MeasurementAnnotation m:
+                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
+                    ms.Insert(Math.Min(snap.OldIndex, ms.Count), m);
+                break;
         }
     }
 
@@ -1025,20 +1254,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _snapGuideY = null;
         if (ActiveLayer == null) return (rawDx, rawDy);
 
-        // Get the center of the dragged item after applying the raw delta
-        var center = GetAnnotationCenter(dragging);
-        double cx = center.X + rawDx;
-        double cy = center.Y + rawDy;
+        var db = GetAnnotationBounds(dragging);
+        double dL = db.Left + rawDx, dR = db.Right + rawDx, dCx = (db.Left + db.Right) / 2 + rawDx;
+        double dT = db.Top + rawDy, dB = db.Bottom + rawDy, dCy = (db.Top + db.Bottom) / 2 + rawDy;
 
         double bestDx = rawDx, bestDy = rawDy;
         double bestSnapDistX = threshold, bestSnapDistY = threshold;
 
-        // Collect centers of all other annotations on this page
         foreach (var layer in Layers)
         {
             if (!layer.IsVisible) continue;
-            CollectSnapTargets(layer, dragging, cx, cy, ref bestDx, ref bestDy,
-                ref bestSnapDistX, ref bestSnapDistY, rawDx, rawDy, center);
+            CollectSnapTargets(layer, dragging, dL, dCx, dR, dT, dCy, dB,
+                rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY);
         }
 
         return (bestDx, bestDy);
@@ -1055,37 +1282,91 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     private void CollectSnapTargets(AnnotationLayer layer, object dragging,
-        double cx, double cy, ref double bestDx, ref double bestDy,
-        ref double bestSnapDistX, ref double bestSnapDistY,
-        double rawDx, double rawDy, Point dragCenter)
+        double dL, double dCx, double dR, double dT, double dCy, double dB,
+        double rawDx, double rawDy,
+        ref double bestDx, ref double bestDy,
+        ref double bestSnapDistX, ref double bestSnapDistY)
     {
         if (layer.PageTexts.TryGetValue(_currentPage, out var texts))
-            foreach (var t in texts) { if (!ReferenceEquals(t, dragging)) CheckSnap(GetAnnotationCenter(t), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+            foreach (var t in texts) { if (!ReferenceEquals(t, dragging)) SnapAgainst(t, dL, dCx, dR, dT, dCy, dB, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
         if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
-            foreach (var s in shapes) { if (!ReferenceEquals(s, dragging)) CheckSnap(GetAnnotationCenter(s), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+            foreach (var s in shapes) { if (!ReferenceEquals(s, dragging)) SnapAgainst(s, dL, dCx, dR, dT, dCy, dB, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
         if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms))
-            foreach (var m in ms) { if (!ReferenceEquals(m, dragging)) CheckSnap(GetAnnotationCenter(m), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+            foreach (var m in ms) { if (!ReferenceEquals(m, dragging)) SnapAgainst(m, dL, dCx, dR, dT, dCy, dB, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
         if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
-            foreach (var ink in strokes) { if (!ReferenceEquals(ink, dragging)) CheckSnap(GetAnnotationCenter(ink), cx, cy, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
+            foreach (var ink in strokes) { if (!ReferenceEquals(ink, dragging)) SnapAgainst(ink, dL, dCx, dR, dT, dCy, dB, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
     }
 
-    private void CheckSnap(Point other, double cx, double cy, double rawDx, double rawDy,
-        ref double bestDx, ref double bestDy, ref double bestSnapDistX, ref double bestSnapDistY)
+    /// <summary>
+    /// Snap a single vertex position against other annotations' edges and centers.
+    /// Returns the snapped position. Sets _snapGuideX/_snapGuideY for guide rendering.
+    /// </summary>
+    public Point ComputeVertexSnap(object owner, Point vertex, double threshold = 5.0)
     {
-        double distX = Math.Abs(cx - other.X);
-        double distY = Math.Abs(cy - other.Y);
-        if (distX < bestSnapDistX)
+        _snapGuideX = null;
+        _snapGuideY = null;
+        double bestDistX = threshold, bestDistY = threshold;
+        double snapX = vertex.X, snapY = vertex.Y;
+
+        foreach (var layer in Layers)
         {
-            bestSnapDistX = distX;
-            bestDx = rawDx + (other.X - cx);
-            _snapGuideX = other.X;
+            if (!layer.IsVisible) continue;
+            if (layer.PageTexts.TryGetValue(_currentPage, out var texts))
+                foreach (var t in texts)
+                    if (!ReferenceEquals(t, owner)) SnapVertexAgainst(t, vertex.X, vertex.Y, ref snapX, ref snapY, ref bestDistX, ref bestDistY);
+            if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
+                foreach (var s in shapes)
+                    if (!ReferenceEquals(s, owner)) SnapVertexAgainst(s, vertex.X, vertex.Y, ref snapX, ref snapY, ref bestDistX, ref bestDistY);
+            if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms))
+                foreach (var m in ms)
+                    if (!ReferenceEquals(m, owner)) SnapVertexAgainst(m, vertex.X, vertex.Y, ref snapX, ref snapY, ref bestDistX, ref bestDistY);
+            if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
+                foreach (var ink in strokes)
+                    if (!ReferenceEquals(ink, owner)) SnapVertexAgainst(ink, vertex.X, vertex.Y, ref snapX, ref snapY, ref bestDistX, ref bestDistY);
         }
-        if (distY < bestSnapDistY)
+        return new Point(snapX, snapY);
+    }
+
+    private void SnapVertexAgainst(object target, double vx, double vy,
+        ref double snapX, ref double snapY, ref double bestDistX, ref double bestDistY)
+    {
+        var tb = GetAnnotationBounds(target);
+        var tc = GetAnnotationCenter(target);
+        foreach (double tx in new[] { tb.Left, tc.X, tb.Right })
         {
-            bestSnapDistY = distY;
-            bestDy = rawDy + (other.Y - cy);
-            _snapGuideY = other.Y;
+            double dist = Math.Abs(vx - tx);
+            if (dist < bestDistX) { bestDistX = dist; snapX = tx; _snapGuideX = tx; }
         }
+        foreach (double ty in new[] { tb.Top, tc.Y, tb.Bottom })
+        {
+            double dist = Math.Abs(vy - ty);
+            if (dist < bestDistY) { bestDistY = dist; snapY = ty; _snapGuideY = ty; }
+        }
+    }
+
+    private void SnapAgainst(object target, double dL, double dCx, double dR, double dT, double dCy, double dB,
+        double rawDx, double rawDy, ref double bestDx, ref double bestDy,
+        ref double bestSnapDistX, ref double bestSnapDistY)
+    {
+        var tb = GetAnnotationBounds(target);
+        var tc = GetAnnotationCenter(target);
+        double tL = tb.Left, tR = tb.Right, tCx = tc.X;
+        double tT = tb.Top, tB = tb.Bottom, tCy = tc.Y;
+
+        foreach (double dx in new[] { dL, dCx, dR })
+            foreach (double tx in new[] { tL, tCx, tR })
+            {
+                double dist = Math.Abs(dx - tx);
+                if (dist < bestSnapDistX)
+                { bestSnapDistX = dist; bestDx = rawDx + (tx - dx); _snapGuideX = tx; }
+            }
+        foreach (double dy in new[] { dT, dCy, dB })
+            foreach (double ty in new[] { tT, tCy, tB })
+            {
+                double dist = Math.Abs(dy - ty);
+                if (dist < bestSnapDistY)
+                { bestSnapDistY = dist; bestDy = rawDy + (ty - dy); _snapGuideY = ty; }
+            }
     }
 
     private static Point GetAnnotationCenter(object item) => item switch
@@ -1098,6 +1379,148 @@ public class AnnotatedPDFRenderer : PDFRenderer
             new Point(ink.Points.Average(p => p.X), ink.Points.Average(p => p.Y)),
         _ => default
     };
+
+    internal static Rect GetAnnotationBounds(object item) => item switch
+    {
+        TextAnnotation t => GetTextBounds(t),
+        ShapeAnnotation s => NormalizedRect(s.Start, s.End),
+        MeasurementAnnotation m when m.Points.Count >= 2 => NormalizedRect(m.Points[0], m.Points[1]),
+        InkStroke ink when ink.Points.Count > 0 => GetStrokeBounds(ink),
+        _ => default
+    };
+
+    /// <summary>Compute bounding box for a text annotation, accounting for MaxWidth word wrap.</summary>
+    internal static Rect GetTextBounds(TextAnnotation t)
+    {
+        double w, h;
+        if (t.MaxWidth > 0)
+        {
+            w = t.MaxWidth;
+            double totalCharWidth = t.FontSize * Math.Max(1, t.Text.Length) * 0.55;
+            int lineCount = Math.Max(1, (int)Math.Ceiling(totalCharWidth / t.MaxWidth));
+            lineCount = Math.Max(lineCount, 1 + t.Text.Count(c => c == '\n'));
+            h = t.FontSize * lineCount * 1.3;
+        }
+        else
+        {
+            w = t.FontSize * Math.Max(1, t.Text.Length) * 0.55;
+            h = t.FontSize * (1 + t.Text.Count(c => c == '\n')) * 1.3;
+        }
+        return new Rect(t.Position.X, t.Position.Y, w, h);
+    }
+
+    /// <summary>
+    /// Word-wraps text into lines that fit within maxWidthPx (screen pixels).
+    /// Preserves explicit newlines and breaks at word boundaries.
+    /// </summary>
+    private static List<string> WrapTextLines(string text, float maxWidthPx, SKFont font)
+    {
+        var result = new List<string>();
+        foreach (var paragraph in text.Split('\n'))
+        {
+            if (string.IsNullOrEmpty(paragraph)) { result.Add(""); continue; }
+            var words = paragraph.Split(' ');
+            string currentLine = "";
+            foreach (var word in words)
+            {
+                string test = currentLine.Length == 0 ? word : currentLine + " " + word;
+                float width = font.MeasureText(test);
+                if (width <= maxWidthPx || currentLine.Length == 0)
+                    currentLine = test;
+                else
+                {
+                    result.Add(currentLine);
+                    currentLine = word;
+                }
+            }
+            if (currentLine.Length > 0)
+                result.Add(currentLine);
+        }
+        if (result.Count == 0) result.Add("");
+        return result;
+    }
+
+    private static Rect GetStrokeBounds(InkStroke ink)
+    {
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+        foreach (var p in ink.Points)
+        {
+            minX = Math.Min(minX, p.X); minY = Math.Min(minY, p.Y);
+            maxX = Math.Max(maxX, p.X); maxY = Math.Max(maxY, p.Y);
+        }
+        return new Rect(minX, minY, Math.Max(0, maxX - minX), Math.Max(0, maxY - minY));
+    }
+
+    #region Z-Ordering
+
+    /// <summary>Move an annotation to the top of its type list (drawn last = visually on top).</summary>
+    public bool BringToFront(object item)
+    {
+        if (ActiveLayer == null) return false;
+        var zSnap = CaptureZOrderSnapshot(item);
+        bool moved = false;
+        switch (item)
+        {
+            case InkStroke s:
+                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes) && strokes.Remove(s))
+                { strokes.Add(s); moved = true; }
+                break;
+            case ShapeAnnotation sh:
+                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes) && shapes.Remove(sh))
+                { shapes.Add(sh); moved = true; }
+                break;
+            case TextAnnotation t:
+                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts) && texts.Remove(t))
+                { texts.Add(t); moved = true; }
+                break;
+            case MeasurementAnnotation m:
+                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
+                { ms.Add(m); moved = true; }
+                break;
+        }
+        if (moved)
+        {
+            if (zSnap != null) { _undoStack.Push((UndoType.ZOrder, _currentPage, zSnap)); _redoStack.Clear(); }
+            InvalidateVisual(); NotifyAnnotationChanged();
+        }
+        return moved;
+    }
+
+    /// <summary>Move an annotation to the bottom of its type list (drawn first = visually behind).</summary>
+    public bool SendToBack(object item)
+    {
+        if (ActiveLayer == null) return false;
+        var zSnap = CaptureZOrderSnapshot(item);
+        bool moved = false;
+        switch (item)
+        {
+            case InkStroke s:
+                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes) && strokes.Remove(s))
+                { strokes.Insert(0, s); moved = true; }
+                break;
+            case ShapeAnnotation sh:
+                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes) && shapes.Remove(sh))
+                { shapes.Insert(0, sh); moved = true; }
+                break;
+            case TextAnnotation t:
+                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts) && texts.Remove(t))
+                { texts.Insert(0, t); moved = true; }
+                break;
+            case MeasurementAnnotation m:
+                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
+                { ms.Insert(0, m); moved = true; }
+                break;
+        }
+        if (moved)
+        {
+            if (zSnap != null) { _undoStack.Push((UndoType.ZOrder, _currentPage, zSnap)); _redoStack.Clear(); }
+            InvalidateVisual(); NotifyAnnotationChanged();
+        }
+        return moved;
+    }
+
+    #endregion
 
     /// <summary>
     /// Shows or hides the sticky-note hover popup. Call on pointer-move when a
@@ -1112,6 +1535,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             if (!layer.PageTexts.TryGetValue(_currentPage, out var texts)) continue;
             for (int i = texts.Count - 1; i >= 0; i--)
             {
+                // Only show hover popup for sticky notes — regular text annotations
+                // are already visible on the canvas and don't need a redundant tooltip.
                 if (texts[i].IsStickyNote && HitTestStickyNote(texts[i], pdfPoint))
                 { hit = texts[i]; break; }
             }
@@ -1228,12 +1653,39 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         if (removed)
         {
+            _undoStack.Push((UndoType.Delete, _currentPage, item));
+            _redoStack.Clear();
             ActiveLayer.RefreshStatus();
-            ClearSelectHighlight();
+            _selectHighlightItems.Remove(item);
             InvalidateVisual();
             NotifyAnnotationChanged();
         }
         return removed;
+    }
+
+    /// <summary>Re-adds a previously deleted annotation to the active layer's current page.</summary>
+    private void RestoreDeletedAnnotation(int page, object item)
+    {
+        if (ActiveLayer == null) return;
+        switch (item)
+        {
+            case TextAnnotation t:
+                if (!ActiveLayer.PageTexts.TryGetValue(page, out var texts)) { texts = []; ActiveLayer.PageTexts[page] = texts; }
+                texts.Add(t); ActiveLayer.TextCount++; _totalTextCount++;
+                break;
+            case ShapeAnnotation s:
+                if (!ActiveLayer.PageShapes.TryGetValue(page, out var shapes)) { shapes = []; ActiveLayer.PageShapes[page] = shapes; }
+                shapes.Add(s); ActiveLayer.ShapeCount++; _totalShapeCount++;
+                break;
+            case MeasurementAnnotation m:
+                if (!ActiveLayer.PageMeasurements.TryGetValue(page, out var ms)) { ms = []; ActiveLayer.PageMeasurements[page] = ms; }
+                ms.Add(m); ActiveLayer.MeasurementCount++; _totalMeasurementCount++;
+                break;
+            case InkStroke ink:
+                if (!ActiveLayer.PageStrokes.TryGetValue(page, out var strokes)) { strokes = []; ActiveLayer.PageStrokes[page] = strokes; }
+                strokes.Add(ink); ActiveLayer.StrokeCount++; _totalStrokeCount++;
+                break;
+        }
     }
 
     private static bool HitTestStroke(InkStroke stroke, Point pt, double threshold)
@@ -1327,12 +1779,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     private static bool HitTestText(TextAnnotation text, Point pt)
-    {
-        double w = text.FontSize * text.Text.Length * 0.55;
-        double h = text.FontSize * (1 + text.Text.Count(c => c == '\n')) * 1.3;
-        var rect = new Rect(text.Position.X, text.Position.Y, w, h);
-        return rect.Contains(pt);
-    }
+        => GetTextBounds(text).Contains(pt);
 
     private static bool HitTestMeasurement(MeasurementAnnotation m, Point pt, double threshold)
     {
@@ -1349,7 +1796,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (ActiveLayer == null || _undoStack.Count == 0) return;
 
-        var (type, page, data) = _undoStack.Pop();
+        // Find the topmost entry for the current page, shelving entries for other pages
+        var shelved = new Stack<(UndoType type, int page, object? data)>();
+        (UndoType type, int page, object? data)? found = null;
+        while (_undoStack.Count > 0)
+        {
+            var entry = _undoStack.Pop();
+            if (entry.page == _currentPage) { found = entry; break; }
+            shelved.Push(entry);
+        }
+        // Restore shelved entries
+        while (shelved.Count > 0) _undoStack.Push(shelved.Pop());
+        if (found is not { } f) return;
+
+        var (type, page, data) = f;
         bool removed = false;
         object? item = null;
 
@@ -1430,6 +1890,42 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     removed = true;
                 }
                 break;
+            case UndoType.Move:
+                if (data is MoveSnapshot movSnap)
+                {
+                    var redoSnap = CapturePreDragSnapshot(movSnap.Item);
+                    RestoreMoveSnapshot(movSnap);
+                    item = redoSnap;
+                    removed = true;
+                }
+                break;
+            case UndoType.Delete:
+                if (data != null)
+                {
+                    // Undo delete = re-add the item
+                    RestoreDeletedAnnotation(page, data);
+                    item = data;
+                    removed = true;
+                }
+                break;
+            case UndoType.PropertyChange:
+                if (data is PropertySnapshot propSnap)
+                {
+                    var redoSnap = CapturePropertySnapshot(propSnap.Item);
+                    RestorePropertySnapshot(propSnap);
+                    item = redoSnap;
+                    removed = true;
+                }
+                break;
+            case UndoType.ZOrder:
+                if (data is ZOrderSnapshot zSnap)
+                {
+                    var redoZ = CaptureZOrderSnapshot(zSnap.Item);
+                    RestoreZOrder(zSnap);
+                    item = redoZ;
+                    removed = true;
+                }
+                break;
         }
 
         if (removed)
@@ -1441,11 +1937,50 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    /// <summary>Restores annotation positions from a MoveSnapshot.</summary>
+    private static void RestoreMoveSnapshot(MoveSnapshot snap)
+    {
+        switch (snap.Item)
+        {
+            case TextAnnotation t:
+                if (snap.Position.HasValue) t.Position = snap.Position.Value;
+                t.ArrowOrigin = snap.ArrowOrigin;
+                break;
+            case ShapeAnnotation s:
+                if (snap.ShapeStart.HasValue) s.Start = snap.ShapeStart.Value;
+                if (snap.ShapeEnd.HasValue) s.End = snap.ShapeEnd.Value;
+                s.InvalidatePen();
+                break;
+            case MeasurementAnnotation m when snap.Points != null:
+                for (int i = 0; i < snap.Points.Length && i < m.Points.Count; i++)
+                    m.Points[i] = snap.Points[i];
+                break;
+            case InkStroke ink when snap.Points != null:
+                ink.Points.Clear();
+                ink.Points.AddRange(snap.Points);
+                ink.InvalidatePen();
+                break;
+        }
+    }
+
     public void Redo()
     {
         if (ActiveLayer == null || _redoStack.Count == 0) return;
 
-        var (type, page, item) = _redoStack.Pop();
+        // Find the topmost entry for the current page, shelving entries for other pages
+        var shelved = new Stack<(UndoType type, int page, object item)>();
+        (UndoType type, int page, object item)? found = null;
+        while (_redoStack.Count > 0)
+        {
+            var entry = _redoStack.Pop();
+            if (entry.page == _currentPage) { found = entry; break; }
+            shelved.Push(entry);
+        }
+        // Restore shelved entries
+        while (shelved.Count > 0) _redoStack.Push(shelved.Pop());
+        if (found is not { } f) return;
+
+        var (type, page, item) = f;
         bool restored = false;
 
         switch (type)
@@ -1518,6 +2053,76 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     if (ActiveLayer.PageMeasurements.TryGetValue(page, out var cm) && cm.Count > 0)
                     { ActiveLayer.MeasurementCount -= cm.Count; _totalMeasurementCount -= cm.Count; cm.Clear(); }
                     restored = true;
+                }
+                break;
+            case UndoType.Move:
+                if (item is MoveSnapshot movRedoSnap)
+                {
+                    var undoSnap = CapturePreDragSnapshot(movRedoSnap.Item);
+                    RestoreMoveSnapshot(movRedoSnap);
+                    _undoStack.Push((UndoType.Move, page, undoSnap!));
+                    ActiveLayer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.Delete:
+            {
+                // Redo delete = remove the item again
+                bool didRemove = false;
+                switch (item)
+                {
+                    case TextAnnotation t:
+                        if (ActiveLayer.PageTexts.TryGetValue(page, out var txts) && txts.Remove(t))
+                        { ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1); _totalTextCount = Math.Max(0, _totalTextCount - 1); didRemove = true; }
+                        break;
+                    case ShapeAnnotation s:
+                        if (ActiveLayer.PageShapes.TryGetValue(page, out var shps) && shps.Remove(s))
+                        { ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1); _totalShapeCount = Math.Max(0, _totalShapeCount - 1); didRemove = true; }
+                        break;
+                    case MeasurementAnnotation m:
+                        if (ActiveLayer.PageMeasurements.TryGetValue(page, out var mss) && mss.Remove(m))
+                        { ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1); _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1); didRemove = true; }
+                        break;
+                    case InkStroke ink:
+                        if (ActiveLayer.PageStrokes.TryGetValue(page, out var stks) && stks.Remove(ink))
+                        { ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1); _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1); didRemove = true; }
+                        break;
+                }
+                if (didRemove)
+                {
+                    _undoStack.Push((UndoType.Delete, page, item));
+                    ActiveLayer.RefreshStatus();
+                    ClearSelectHighlight();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            }
+            case UndoType.PropertyChange:
+                if (item is PropertySnapshot propRedoSnap)
+                {
+                    var undoPropSnap = CapturePropertySnapshot(propRedoSnap.Item);
+                    RestorePropertySnapshot(propRedoSnap);
+                    _undoStack.Push((UndoType.PropertyChange, page, undoPropSnap!));
+                    ActiveLayer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.ZOrder:
+                if (item is ZOrderSnapshot zRedoSnap)
+                {
+                    var undoZ = CaptureZOrderSnapshot(zRedoSnap.Item);
+                    RestoreZOrder(zRedoSnap);
+                    _undoStack.Push((UndoType.ZOrder, page, undoZ!));
+                    ActiveLayer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
                 }
                 break;
         }
@@ -1774,9 +2379,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             DrawArrowhead(context, previewPen, to, from, penScale);
         }
 
-        // Hover popup for the sticky note under the cursor (drawn above all other items)
+        // Hover popup for the text annotation under the cursor (drawn above all other items)
         if (_stickyNoteHoverItem != null)
-            CollectStickyNoteIcon(_stickyNoteHoverItem, da, boundsSize, penScale, textItems, isExpanded: true);
+        {
+            if (_stickyNoteHoverItem.IsStickyNote)
+                CollectStickyNoteIcon(_stickyNoteHoverItem, da, boundsSize, penScale, textItems, isExpanded: true);
+            else
+                CollectTextHoverPopup(_stickyNoteHoverItem, da, boundsSize, penScale, textItems);
+        }
 
         // Text / Sticky / ArrowText placement ghost at cursor
         if (_textPlacementPreviewPos.HasValue && _textPlacementPreviewTool.HasValue)
@@ -1812,6 +2422,62 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (_eraserHoverItem != null)
             RenderEraserHover(context, da, boundsSize, scaleX, scaleY, penScale);
 
+        // Select-mode hover outline: dotted bounding-box around the hovered annotation
+        if (_selectHoverItem != null && !_selectHighlightItems.Contains(_selectHoverItem))
+        {
+            var hoverPen = new Pen(new SolidColorBrush(Color.FromArgb(90, 232, 125, 47)).ToImmutable(),
+                1.0 * penScale, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Round);
+            Rect? hoverBounds = null;
+            switch (_selectHoverItem)
+            {
+                case InkStroke hoverStroke when hoverStroke.Points.Count > 0:
+                {
+                    double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                    foreach (var p in hoverStroke.Points)
+                    {
+                        var sp = PdfToScreen(p, da, boundsSize);
+                        minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
+                        maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                    }
+                    hoverBounds = new Rect(minX, minY, maxX - minX, maxY - minY);
+                    break;
+                }
+                case ShapeAnnotation hoverShape:
+                {
+                    var hs = PdfToScreen(hoverShape.Start, da, boundsSize);
+                    var he = PdfToScreen(hoverShape.End, da, boundsSize);
+                    hoverBounds = new Rect(Math.Min(hs.X, he.X), Math.Min(hs.Y, he.Y),
+                        Math.Abs(he.X - hs.X), Math.Abs(he.Y - hs.Y));
+                    break;
+                }
+                case TextAnnotation hoverText:
+                {
+                    var hp = PdfToScreen(hoverText.Position, da, boundsSize);
+                    if (hoverText.IsStickyNote)
+                    {
+                        double sz = 13.0 * penScale;
+                        hoverBounds = new Rect(hp.X, hp.Y, sz, sz);
+                    }
+                    else
+                    {
+                        var htb = GetTextBounds(hoverText);
+                        hoverBounds = new Rect(hp.X, hp.Y, htb.Width * penScale, htb.Height * penScale);
+                    }
+                    break;
+                }
+                case MeasurementAnnotation hoverMeas when hoverMeas.Points.Count >= 2:
+                {
+                    var hm0 = PdfToScreen(hoverMeas.Points[0], da, boundsSize);
+                    var hm1 = PdfToScreen(hoverMeas.Points[1], da, boundsSize);
+                    hoverBounds = new Rect(Math.Min(hm0.X, hm1.X), Math.Min(hm0.Y, hm1.Y),
+                        Math.Abs(hm1.X - hm0.X), Math.Abs(hm1.Y - hm0.Y));
+                    break;
+                }
+            }
+            if (hoverBounds is { } hb)
+                context.DrawRectangle(null, hoverPen, hb.Inflate(5 * penScale), 3, 3);
+        }
+
         // Pen cursor preview: colored circle showing pen size at cursor position
         if (_cursorPdfPos.HasValue && ActiveTool is InlineAnnotationTool.Draw or InlineAnnotationTool.Highlight)
         {
@@ -1839,127 +2505,132 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
-        // Selection handles: dashed bounding box around the item being dragged
-        if (_selectHighlightItem != null)
+        // Selection handles: dashed bounding box around selected items
+        if (_selectHighlightItems.Count > 0)
             RenderSelectionHighlight(context, da, boundsSize, scaleX, scaleY, penScale);
     }
 
     private void RenderSelectionHighlight(DrawingContext context, Rect da, Size boundsSize,
                                           double scaleX, double scaleY, double penScale)
     {
-        // Subtle selection box: thin, low-alpha gray dashed outline
         var selectPen = new Pen(new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)).ToImmutable(),
             1.0 * penScale, dashStyle: new DashStyle([5, 4], 0),
             lineCap: PenLineCap.Round);
-        // Vertex handles: white fill + dark outline for clean contrast
         var vertexBrush = new SolidColorBrush(Color.FromRgb(255, 255, 255)).ToImmutable();
         var vertexPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 60, 60, 60)).ToImmutable(),
             1.2 * penScale, lineCap: PenLineCap.Round);
+        bool single = _selectHighlightItems.Count == 1;
 
-        Rect? bounds = null;
-        switch (_selectHighlightItem)
+        foreach (var highlightItem in _selectHighlightItems)
         {
-            case InkStroke stroke:
+            Rect? bounds = null;
+            switch (highlightItem)
             {
-                if (stroke.Points.Count == 0) break;
-                double minX = double.MaxValue, minY = double.MaxValue;
-                double maxX = double.MinValue, maxY = double.MinValue;
-                foreach (var p in stroke.Points)
+                case InkStroke stroke:
                 {
-                    var sp = PdfToScreen(p, da, boundsSize);
-                    minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
-                    maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                    if (stroke.Points.Count == 0) break;
+                    double minX = double.MaxValue, minY = double.MaxValue;
+                    double maxX = double.MinValue, maxY = double.MinValue;
+                    foreach (var p in stroke.Points)
+                    {
+                        var sp = PdfToScreen(p, da, boundsSize);
+                        minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
+                        maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                    }
+                    bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
+                    break;
                 }
-                bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
-                break;
-            }
-            case ShapeAnnotation shape:
-            {
-                var s = PdfToScreen(shape.Start, da, boundsSize);
-                var e = PdfToScreen(shape.End, da, boundsSize);
-                bounds = new Rect(
-                    Math.Min(s.X, e.X), Math.Min(s.Y, e.Y),
-                    Math.Abs(e.X - s.X), Math.Abs(e.Y - s.Y));
-                break;
-            }
-            case TextAnnotation t:
-            {
-                var sp = PdfToScreen(t.Position, da, boundsSize);
-                if (t.IsStickyNote)
+                case ShapeAnnotation shape:
                 {
-                    double sz = 13.0 * penScale;
-                    bounds = new Rect(sp.X, sp.Y, sz, sz);
-                }
-                else
-                {
-                    double w = t.FontSize * penScale * t.Text.Length * 0.55;
-                    double h = t.FontSize * penScale * (1 + t.Text.Count(c => c == '\n')) * 1.3;
-                    bounds = new Rect(sp.X, sp.Y, w, h);
-                }
-                break;
-            }
-            case MeasurementAnnotation m:
-            {
-                if (m.Points.Count >= 2)
-                {
-                    var s0 = PdfToScreen(m.Points[0], da, boundsSize);
-                    var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+                    var s = PdfToScreen(shape.Start, da, boundsSize);
+                    var e = PdfToScreen(shape.End, da, boundsSize);
                     bounds = new Rect(
-                        Math.Min(s0.X, s1.X), Math.Min(s0.Y, s1.Y),
-                        Math.Abs(s1.X - s0.X), Math.Abs(s1.Y - s0.Y));
+                        Math.Min(s.X, e.X), Math.Min(s.Y, e.Y),
+                        Math.Abs(e.X - s.X), Math.Abs(e.Y - s.Y));
+                    break;
                 }
-                break;
-            }
-        }
-
-        if (bounds is { } b)
-        {
-            var inflated = b.Inflate(4 * penScale);
-            context.DrawRectangle(null, selectPen, inflated);
-            // Corner dots — tiny, very subtle
-            var cornerBrush = new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
-            double cornerSize = 2.0 * penScale;
-            context.DrawEllipse(cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
-            context.DrawEllipse(cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
-            context.DrawEllipse(cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
-            context.DrawEllipse(cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
-
-            // Arrow-origin handle: draggable circle at the arrow tip
-            if (_selectHighlightItem is TextAnnotation { ArrowOrigin: { } ao })
-            {
-                var arrowScreen = PdfToScreen(ao, da, boundsSize);
-                double vtxSize = 5 * penScale;
-                context.DrawEllipse(vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
-            }
-
-            // Shape vertex handles: draggable circles at Start and End
-            if (_selectHighlightItem is ShapeAnnotation selShape)
-            {
-                var ss = PdfToScreen(selShape.Start, da, boundsSize);
-                var se = PdfToScreen(selShape.End, da, boundsSize);
-                double vtxSize = 5 * penScale;
-                context.DrawEllipse(vertexBrush, vertexPen, ss, vtxSize, vtxSize);
-                context.DrawEllipse(vertexBrush, vertexPen, se, vtxSize, vtxSize);
-            }
-
-            // Measurement vertex handles: draggable circles at endpoints
-            if (_selectHighlightItem is MeasurementAnnotation selMeas && selMeas.Points.Count >= 2)
-            {
-                var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
-                var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
-                double vtxSize = 5 * penScale;
-                context.DrawEllipse(vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
-                context.DrawEllipse(vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
-            }
-
-            // Polyline vertex handles: draggable circles at every vertex
-            if (_selectHighlightItem is InkStroke { IsPolyline: true } selPoly)
-            {
-                double vtxSize = 5 * penScale;
-                foreach (var p in selPoly.Points)
+                case TextAnnotation t:
                 {
-                    var sp = PdfToScreen(p, da, boundsSize);
-                    context.DrawEllipse(vertexBrush, vertexPen, sp, vtxSize, vtxSize);
+                    var sp = PdfToScreen(t.Position, da, boundsSize);
+                    if (t.IsStickyNote)
+                    {
+                        double sz = 13.0 * penScale;
+                        bounds = new Rect(sp.X, sp.Y, sz, sz);
+                    }
+                    else
+                    {
+                        var tb = GetTextBounds(t);
+                        bounds = new Rect(sp.X, sp.Y, tb.Width * penScale, tb.Height * penScale);
+                    }
+                    break;
+                }
+                case MeasurementAnnotation m:
+                {
+                    if (m.Points.Count >= 2)
+                    {
+                        var s0 = PdfToScreen(m.Points[0], da, boundsSize);
+                        var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+                        bounds = new Rect(
+                            Math.Min(s0.X, s1.X), Math.Min(s0.Y, s1.Y),
+                            Math.Abs(s1.X - s0.X), Math.Abs(s1.Y - s0.Y));
+                    }
+                    break;
+                }
+            }
+
+            if (bounds is { } b)
+            {
+                var inflated = b.Inflate(4 * penScale);
+                context.DrawRectangle(null, selectPen, inflated);
+
+                if (single)
+                {
+                    var cornerBrush = new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
+                    double cornerSize = 2.0 * penScale;
+                    context.DrawEllipse(cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
+                    context.DrawEllipse(cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
+                    context.DrawEllipse(cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
+                    context.DrawEllipse(cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
+
+                    if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
+                    {
+                        var arrowScreen = PdfToScreen(ao, da, boundsSize);
+                        double vtxSize = 5 * penScale;
+                        context.DrawEllipse(vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
+                    }
+                    if (highlightItem is ShapeAnnotation selShape)
+                    {
+                        var ss = PdfToScreen(selShape.Start, da, boundsSize);
+                        var se = PdfToScreen(selShape.End, da, boundsSize);
+                        double vtxSize = 5 * penScale;
+                        context.DrawEllipse(vertexBrush, vertexPen, ss, vtxSize, vtxSize);
+                        context.DrawEllipse(vertexBrush, vertexPen, se, vtxSize, vtxSize);
+                    }
+                    if (highlightItem is MeasurementAnnotation selMeas && selMeas.Points.Count >= 2)
+                    {
+                        var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
+                        var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
+                        double vtxSize = 5 * penScale;
+                        context.DrawEllipse(vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
+                        context.DrawEllipse(vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
+                    }
+                    if (highlightItem is InkStroke { IsPolyline: true } selPoly)
+                    {
+                        double vtxSize = 5 * penScale;
+                        foreach (var p in selPoly.Points)
+                        {
+                            var sp = PdfToScreen(p, da, boundsSize);
+                            context.DrawEllipse(vertexBrush, vertexPen, sp, vtxSize, vtxSize);
+                        }
+                    }
+                    // Text width resize handle: right-center edge
+                    if (highlightItem is TextAnnotation { IsStickyNote: false } selTextResize && bounds is { } tb2)
+                    {
+                        var midRight = new Point(tb2.Inflate(4 * penScale).Right,
+                            (tb2.Inflate(4 * penScale).Top + tb2.Inflate(4 * penScale).Bottom) / 2);
+                        double vtxSize = 5 * penScale;
+                        context.DrawEllipse(vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
+                    }
                 }
             }
         }
@@ -2230,16 +2901,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var arrowTip = PdfToScreen(t.ArrowOrigin.Value, da, boundsSize);
         var boxOrigin = PdfToScreen(t.Position, da, boundsSize);
 
-        // Measure exact text box using SkiaSharp (same logic as DrawTextAnnotationFrames)
+        // Use GetTextBounds which accounts for MaxWidth word-wrapping,
+        // then measure actual rendered lines with SkiaSharp for pixel accuracy.
         float fontSize = (float)(t.FontSize * penScale);
         float lineHeight = fontSize * 1.3f;
         float x = (float)boxOrigin.X;
         float y = (float)boxOrigin.Y + fontSize;
 
+        string fontFamily = t.FontFamily ?? "";
+        var typeface = string.IsNullOrEmpty(fontFamily)
+            ? SKTypeface.Default
+            : SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
+        using var skFont = new SKFont(typeface, fontSize);
+
+        // Word-wrap if MaxWidth is set, otherwise split on explicit newlines
+        List<string> lines;
+        if (t.MaxWidth > 0)
+        {
+            float scaleX = da.Width > 0 ? (float)(boundsSize.Width / da.Width) : (float)penScale;
+            float maxWidthPx = (float)(t.MaxWidth * scaleX);
+            lines = WrapTextLines(t.Text, maxWidthPx, skFont);
+        }
+        else
+        {
+            lines = [.. t.Text.Split('\n')];
+        }
+
         float minX = float.MaxValue, minY = float.MaxValue;
         float maxX = float.MinValue, maxY = float.MinValue;
-        using var skFont = new SKFont(SKTypeface.Default, fontSize);
-        foreach (var line in t.Text.Split('\n'))
+        foreach (var line in lines)
         {
             if (line.Length > 0)
             {
@@ -2377,7 +3067,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
         string fontFamily = t.FontFamily ?? "";
 
-        var lines = t.Text.Split('\n');
+        // Word-wrap if MaxWidth is set, otherwise split on explicit newlines
+        List<string> lines;
+        if (t.MaxWidth > 0)
+        {
+            float scaleX = da.Width > 0 ? (float)(boundsSize.Width / da.Width) : (float)penScale;
+            float maxWidthPx = (float)(t.MaxWidth * scaleX);
+            var typeface = string.IsNullOrEmpty(fontFamily)
+                ? SKTypeface.Default
+                : SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
+            using var skFont = new SKFont(typeface, fontSize);
+            lines = WrapTextLines(t.Text, maxWidthPx, skFont);
+        }
+        else
+        {
+            lines = [.. t.Text.Split('\n')];
+        }
+
         float lineHeight = fontSize * 1.3f;
         float y = (float)screenPos.Y + fontSize;
         bool first = true;
@@ -2407,6 +3113,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
             HasBackground: true, HasBorder: false, IsTextAnnotation: false));
     }
 
+    /// <summary>Collect a hover popup for a non-sticky text annotation (shown on hover like sticky notes).</summary>
+    private void CollectTextHoverPopup(TextAnnotation t, Rect da, Size boundsSize,
+                                       double penScale, List<TextOverlayDrawOp.TextItem> items)
+    {
+        var screenPos = PdfToScreen(t.Position, da, boundsSize);
+        float fontSize = (float)(t.FontSize * penScale);
+        byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
+        var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
+        items.Add(new TextOverlayDrawOp.TextItem(
+            (float)screenPos.X, (float)screenPos.Y, t.Text, fontSize, color,
+            HasBackground: false, HasBorder: false, IsTextAnnotation: false,
+            IsStickyNote: true, IsExpandedStickyNote: true, IsPopupOnly: true,
+            PopupFontSize: fontSize));
+    }
+
     /// <summary>
     /// Custom draw operation that renders text annotations and measurement labels
     /// using SkiaSharp's native text rendering via ICustomDrawOperation.
@@ -2417,7 +3138,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                        bool HasBackground, bool HasBorder, bool IsTextAnnotation,
                                        string FontFamily = "",
                                        bool IsStickyNote = false, bool IsExpandedStickyNote = false,
-                                       float PopupFontSize = 0f);
+                                       float PopupFontSize = 0f, bool IsPopupOnly = false);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -2505,7 +3226,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             foreach (var item in _items)
             {
                 if (!item.IsStickyNote) continue;
-                DrawStickyNoteIcon(canvas, item.X, item.Y, item.FontSize, item.Color, bgPaint, borderPaint);
+                if (!item.IsPopupOnly)
+                    DrawStickyNoteIcon(canvas, item.X, item.Y, item.FontSize, item.Color, bgPaint, borderPaint);
                 if (item.IsExpandedStickyNote && !string.IsNullOrEmpty(item.Text))
                     DrawStickyNotePopup(canvas, item.X, item.Y, item.FontSize, item.Text, item.Color, bgPaint, borderPaint, item.PopupFontSize);
             }

@@ -148,10 +148,10 @@
 						</Button>
 						<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
 						<!-- Undo / Redo / Clear -->
-						<Button ToolTip.Tip="Undo (Ctrl+Z)" Width="26" Height="26" Padding="0" Click="OnAnnotateUndo" BorderThickness="0">
+						<Button Name="UndoBtn" ToolTip.Tip="Undo (Ctrl+Z)" Width="26" Height="26" Padding="0" Click="OnAnnotateUndo" BorderThickness="0">
 							<ic:SymbolIcon Symbol="ArrowUndo" IconVariant="Regular" FontSize="14"/>
 						</Button>
-						<Button ToolTip.Tip="Redo (Ctrl+Y)" Width="26" Height="26" Padding="0" Click="OnAnnotateRedo" BorderThickness="0">
+						<Button Name="RedoBtn" ToolTip.Tip="Redo (Ctrl+Y)" Width="26" Height="26" Padding="0" Click="OnAnnotateRedo" BorderThickness="0">
 							<ic:SymbolIcon Symbol="ArrowRedo" IconVariant="Regular" FontSize="14"/>
 						</Button>
 						<Button ToolTip.Tip="Clear Page" Width="26" Height="26" Padding="0" Click="OnAnnotateClear" BorderThickness="0">
@@ -240,23 +240,18 @@
 				</StackPanel>
 			</Border>
 
-			<!-- Text input overlay: shown when the Text tool is clicked on the PDF -->
-			<Canvas Name="TextInputCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+			<!-- Text input overlay: shown when the Text tool is clicked on the PDF.
+				 Clicking the canvas background (outside the border) auto-commits. -->
+			<Canvas Name="TextInputCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+					PointerPressed="OnTextInputBackgroundClick">
 				<Border Name="TextInputBorder" Background="{DynamicResource TextControlBackground}" CornerRadius="4" Padding="8" BoxShadow="0 1 4 0 #40000000">
-					<StackPanel Spacing="4">
-						<TextBox Name="TextInputBox" Width="220" MinHeight="50" AcceptsReturn="True" Watermark="Type text (Enter=Done, Shift+Enter=newline)" TextWrapping="Wrap"/>
-						<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-							<Button Content="Done" Click="OnTextInputCommit" Padding="8,2" FontSize="11"/>
-							<Button Content="Cancel" Click="OnTextInputCancel" Padding="8,2" FontSize="11"/>
-						</StackPanel>
-					</StackPanel>
+					<TextBox Name="TextInputBox" Width="220" MinHeight="50" AcceptsReturn="True" TextWrapping="Wrap"/>
 				</Border>
 			</Canvas>
 
 			<!-- Calibration input overlay -->
 			<Canvas Name="CalibrationCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-				<Border Name="CalibrationBorder" Background="{DynamicResource TextControlBackground}" CornerRadius="4" Padding="8" BoxShadow="0 1 4 0 #40000000"
-						Canvas.Left="80" Canvas.Top="40">
+				<Border Name="CalibrationBorder" Background="{DynamicResource TextControlBackground}" CornerRadius="4" Padding="8" BoxShadow="0 1 4 0 #40000000">
 					<StackPanel Spacing="6">
 						<TextBlock Name="CalibrationPromptText" Text="Enter real-world distance for the last measurement:" FontSize="12" TextWrapping="Wrap" MaxWidth="220"/>
 						<StackPanel Orientation="Horizontal" Spacing="4">

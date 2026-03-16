@@ -24,6 +24,12 @@ public class TextAnnotation
     public Point? ArrowOrigin { get; set; }
 
     /// <summary>
+    /// Maximum width (PDF units) for word wrapping. 0 = no wrapping (single line).
+    /// Set automatically for new annotations; the user can resize via the right-edge handle.
+    /// </summary>
+    public double MaxWidth { get; set; }
+
+    /// <summary>
     /// When true, this annotation is rendered as a sticky-note icon (folded corner)
     /// and exported as a native PDF comment annotation (/Subtype /Text).
     /// The text content is shown in a hover popup rather than stamped on the page.

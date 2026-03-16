@@ -83,7 +83,13 @@ public partial class PreView : UserControl
         // a background thread (SetFileAsync after ConfigureAwait), so dispatch.
         if (e.PropertyName == "CurrentFile" && !pwr.WhiteboardMode)
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => DeactivateAnnotateMode());
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                DeactivateAnnotateMode();
+                // Always sync layers on file switch — CurrentPage1 may not
+                // change if both files share the same page number.
+                SyncLayers();
+            });
         }
 
         if (e.PropertyName == "CurrentPage1")
