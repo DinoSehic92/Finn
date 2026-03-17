@@ -95,7 +95,8 @@ namespace Finn.Services
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "FinnDiff_" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(tempDir);
-
+            try
+            {
             byte[] bytesA = File.ReadAllBytes(pathA);
             byte[] bytesB = File.ReadAllBytes(pathB);
 
@@ -179,6 +180,12 @@ namespace Finn.Services
             });
 
             return (new List<DiffResultData>(results), tempDir);
+            }
+            catch
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+                throw;
+            }
         }
 
         private static (List<DiffResultData> Results, string TempDir) CompareMulti(
@@ -189,7 +196,8 @@ namespace Finn.Services
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "FinnDiff_" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(tempDir);
-
+            try
+            {
             var filesA = RenderSide(pathsA, "a", tempDir, ct);
             var filesB = RenderSide(pathsB, "b", tempDir, ct);
             progress?.Report(50);
@@ -232,6 +240,12 @@ namespace Finn.Services
             });
 
             return (new List<DiffResultData>(results), tempDir);
+            }
+            catch
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+                throw;
+            }
         }
 
         private static List<string> RenderSide(

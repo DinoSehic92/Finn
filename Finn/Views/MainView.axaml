@@ -260,7 +260,6 @@
 										<CheckBox Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}"/>
 										<CheckBox Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}"/>
 										<CheckBox Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}"/>
-										<CheckBox Content="PDF Compare"  Height="28" IsChecked="{Binding UI.TrayDiff, Mode=TwoWay}"/>
 										<CheckBox Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}"/>
 											<CheckBox Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}"/>
 									</StackPanel>
@@ -724,16 +723,7 @@
 							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
 								</MenuItem>
-							<MenuItem Header="Compare">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="ItemCompare"/></MenuItem.Icon>
-								<MenuItem Header="Set as A" Command="{Binding SetDiffFileA}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowLeft"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Set as B" Command="{Binding SetDiffFileB}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
-								</MenuItem>
-								</MenuItem>
-                            <MenuItem Header="Watermark">
+							<MenuItem Header="Watermark">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
@@ -1148,39 +1138,7 @@
 				</Border>
 			</Panel>
 
-			<!-- PDF Compare panel -->
-			<Border Grid.Row="8" Classes="shadow" IsVisible="{Binding UI.TrayDiff}" Background="{DynamicResource TextControlBackground}" Padding="6,2">
-				<Grid RowDefinitions="20,26,26,28" ColumnDefinitions="22,*,28">
-					<TextBlock Grid.Row="0" Grid.ColumnSpan="3" Text="PDF Compare"
-							   FontSize="12" FontStyle="Italic" Opacity="0.6" VerticalAlignment="Center"/>
-					<TextBlock Grid.Row="1" Grid.Column="0" Text="A:" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
-					<TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DiffFileAName}"
-							   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
-					<Button Grid.Row="1" Grid.Column="2" Width="22" Height="22" Padding="0"
-							Command="{Binding ClearDiffFileA}" ToolTip.Tip="Clear A"
-							IsVisible="{Binding DiffFileA, Converter={x:Static ObjectConverters.IsNotNull}}">
-						<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
-					</Button>
-					<TextBlock Grid.Row="2" Grid.Column="0" Text="B:" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"/>
-					<TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DiffFileBName}"
-							   VerticalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis"/>
-					<Button Grid.Row="2" Grid.Column="2" Width="22" Height="22" Padding="0"
-							Command="{Binding ClearDiffFileB}" ToolTip.Tip="Clear B"
-							IsVisible="{Binding DiffFileB, Converter={x:Static ObjectConverters.IsNotNull}}">
-						<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
-					</Button>
-							<Button Grid.Row="3" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" Height="24"
-										Command="{Binding OpenDiffDia}" CommandParameter="{Binding $parent[Window]}"
-										IsEnabled="{Binding DiffReady}">
-									<StackPanel Orientation="Horizontal" Spacing="6">
-										<ic:SymbolIcon Symbol="DocumentSearch" FontSize="13"/>
-										<TextBlock Text="Compare" VerticalAlignment="Center" FontSize="12"/>
-									</StackPanel>
-								</Button>
-							</Grid>
-						</Border>
-
-						<!-- File versions panel -->
+			<!-- File versions panel -->
 						<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
 							<!-- Toolbar -->
 							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">

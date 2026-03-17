@@ -37,6 +37,7 @@ public partial class MainView : UserControl
         FileGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestMain);
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectFiles);
+        FileGrid.AddHandler(DataGrid.KeyDownEvent, OnFileGridKeyDown, RoutingStrategies.Tunnel);
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
 
         // Drag-and-drop visual hints
@@ -404,6 +405,20 @@ public partial class MainView : UserControl
     #endregion
 
     #region Preview Requests (thin wrappers → ViewModel does the work)
+
+    private void OnFileGridKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Up or Key.Down)) return;
+        if (FileGrid.ItemsSource is not System.Collections.IList items || items.Count == 0) return;
+
+        int current = FileGrid.SelectedItem != null ? items.IndexOf(FileGrid.SelectedItem) : -1;
+        int next = e.Key == Key.Up ? current - 1 : current + 1;
+        if (next < 0 || next >= items.Count) return;
+
+        FileGrid.SelectedItem = items[next];
+        FileGrid.ScrollIntoView(items[next], null);
+        e.Handled = true;
+    }
 
     private void SetPreviewRequestMain(object? sender, RoutedEventArgs r)
     {

@@ -115,10 +115,8 @@ public partial class PreView : UserControl
             SyncDiffOverlay();
         }
 
-        if (e.PropertyName is "DiffOverlayActive" or "DiffPathChoices")
-        {
-            // No longer needed — version picker is now a pop-out dialog.
-        }
+        if (e.PropertyName == nameof(PreviewViewModel.DiffShowingOriginal) && _diffToggleOpen)
+            ShowToggleRenderer(pwr.DiffShowingOriginal);
 
         if (e.PropertyName == "WhiteboardMode")
         {
@@ -192,8 +190,24 @@ public partial class PreView : UserControl
 
             case DiffViewMode.Toggle:
                 MuPDFRenderer.ClearDiffOverlay();
-                if (_diffSideBySideOpen) { _diffSideBySideOpen = false; _ = pwr.CloseDiffSideBySideAsync(); }
-                if (!_diffToggleOpen)
+                if (_diffSideBySideOpen)
+                {
+                    _diffSideBySideOpen = false;
+                    StopDisplayAreaSync();
+                    // Collapse the SBS layout without disposing the document, then
+                    // chain the toggle open so it reuses the already-loaded doc.
+                    _ = pwr.CollapseSecondaryLayoutAsync().ContinueWith(_ =>
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            if (pwr.DiffViewMode == DiffViewMode.Toggle && !_diffToggleOpen)
+                            {
+                                _diffToggleOpen = true;
+                                _ = OpenDiffToggleAsync();
+                            }
+                        }),
+                        System.Threading.Tasks.TaskScheduler.Default);
+                }
+                else if (!_diffToggleOpen)
                 {
                     _diffToggleOpen = true;
                     _ = OpenDiffToggleAsync();
@@ -202,7 +216,22 @@ public partial class PreView : UserControl
 
             case DiffViewMode.SideBySide:
                 MuPDFRenderer.ClearDiffOverlay();
-                if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
+                if (_diffToggleOpen)
+                {
+                    _diffToggleOpen = false;
+                    // Reset toggle visual state only — do NOT dispose the document.
+                    // OpenDiffSideBySideAsync will reuse the already-loaded doc.
+                    StopDisplayAreaSync();
+                    pwr.DiffShowingOriginal = false;
+                    MuPDFRenderer.Opacity = 1;
+                    MuPDFRenderer.IsHitTestVisible = true;
+                    MuPDFRendererSecondary.Opacity = 1;
+                    MuPDFRendererSecondary.IsHitTestVisible = true;
+                    MuPDFRendererSecondary.IsVisible = false;
+                    Avalonia.Controls.Grid.SetColumn(MuPDFRendererSecondary, 2);
+                    // Cancel any pending OpenDiffToggleAsync without disposing the doc.
+                    pwr.CancelSecondaryOpen();
+                }
                 if (!_diffSideBySideOpen && pwr.DiffOriginalPdfPath != null)
                 {
                     _diffSideBySideOpen = true;
@@ -393,30 +422,25 @@ public partial class PreView : UserControl
 
     private void PageNrSlider(object sender, RoutedEventArgs e)
     {
-        if (ScrollSlider.IsFocused)
-        {
-            if ((int)ScrollSlider.Value - 1 != pwr.RequestPage1)
-            {
-                pwr.RequestPage1 = (int)ScrollSlider.Value - 1;
-            }
-        }
+        if (pwr == null) return;
+        int page = (int)ScrollSlider.Value - 1;
+        if (page != pwr.RequestPage1)
+            pwr.RequestPage1 = page;
     }
 
     private void SecondaryPageNrSlider(object sender, RoutedEventArgs e)
     {
-        if (ScrollSliderSecondary.IsFocused)
+        if (pwr == null) return;
+        int page = (int)ScrollSliderSecondary.Value - 1;
+        if (pwr.DualFileMode && pwr.LinkedPageMode)
         {
-            int page = (int)ScrollSliderSecondary.Value - 1;
-            if (pwr.DualFileMode && pwr.LinkedPageMode)
-            {
-                if (page != pwr.RequestPage1)
-                    pwr.RequestPage1 = page;
-            }
-            else
-            {
-                if (page != pwr.RequestPage2)
-                    pwr.RequestPage2 = page;
-            }
+            if (page != pwr.RequestPage1)
+                pwr.RequestPage1 = page;
+        }
+        else
+        {
+            if (page != pwr.RequestPage2)
+                pwr.RequestPage2 = page;
         }
     }
 
@@ -429,7 +453,8 @@ public partial class PreView : UserControl
     private void ResetView(object sender, RoutedEventArgs e)
     {
         MuPDFRenderer.Contain();
-        MuPDFRendererSecondary.Contain();
+        if (MuPDFRendererSecondary.Bounds.Width > 0 && MuPDFRendererSecondary.Bounds.Height > 0)
+            MuPDFRendererSecondary.Contain();
     }
 
     public void RotateRight(object sender, RoutedEventArgs e)
@@ -530,15 +555,6 @@ public partial class PreView : UserControl
         }
     }
 
-    private void OnDiffCycleMode(object? sender, RoutedEventArgs e) => pwr?.CycleDiffViewMode();
-
-    private void OnDiffToggle(object? sender, RoutedEventArgs e)
-    {
-        if (pwr == null) return;
-        pwr.DiffShowingOriginal = !pwr.DiffShowingOriginal;
-        ShowToggleRenderer(pwr.DiffShowingOriginal);
-    }
-
     private void OnDiffSaveAsLayer(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
@@ -560,11 +576,15 @@ public partial class PreView : UserControl
     {
         if (pwr == null || !pwr.CanRerunDiff) return;
         await pwr.RerunDiffWithToleranceAsync();
-        // Force-reload the overlay since the image on disk changed (new tolerance)
+        if (pwr.DiffViewMode != DiffViewMode.Overlay) return;
+        // Force-reload the overlay since the diff image on disk changed.
+        // If this page is now clean (tolerance absorbed all differences), clear the overlay.
         int page = pwr.CurrentPage1;
         var diffPath = pwr.GetDiffImagePath(page);
-        if (diffPath != null && pwr.DiffViewMode == DiffViewMode.Overlay)
+        if (diffPath != null)
             MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM, forceReload: true);
+        else
+            MuPDFRenderer.ClearDiffOverlay();
     }
 
     private async void OnDiffCompareVersions(object? sender, RoutedEventArgs e)
@@ -605,6 +625,8 @@ public partial class PreView : UserControl
         var owner = this.FindAncestorOfType<Window>();
         if (owner != null)
         {
+            dialog.FontFamily = owner.FontFamily;
+            dialog.RequestedThemeVariant = owner.ActualThemeVariant;
             dialog.WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner;
             await dialog.ShowDialog(owner);
         }

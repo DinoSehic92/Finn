@@ -159,9 +159,6 @@ namespace Finn.ViewModels
         private bool trayRecent;
         public bool TrayRecent { get => trayRecent; set { trayRecent = value; RaisePropertyChanged(nameof(TrayRecent)); } }
 
-        private bool trayDiff;
-        public bool TrayDiff { get => trayDiff; set { trayDiff = value; RaisePropertyChanged(nameof(TrayDiff)); } }
-
         private bool trayVersions;
         public bool TrayVersions { get => trayVersions; set { trayVersions = value; RaisePropertyChanged(nameof(TrayVersions)); } }
 
@@ -231,7 +228,6 @@ namespace Finn.ViewModels
                 TrayCollections = this.TrayCollections,
                 TrayBookmarks = this.TrayBookmarks,
                 TrayRecent = this.TrayRecent,
-                TrayDiff = this.TrayDiff,
                 TrayVersions = this.TrayVersions,
                 TrayOtherFiles = this.TrayOtherFiles,
                 TrayAnnotations = this.TrayAnnotations,
@@ -275,7 +271,6 @@ namespace Finn.ViewModels
                 this.TrayCollections = ui.TrayCollections;
                 this.TrayBookmarks = ui.TrayBookmarks;
                 this.TrayRecent = ui.TrayRecent;
-                this.TrayDiff = ui.TrayDiff;
                 this.TrayVersions = ui.TrayVersions;
                 this.TrayOtherFiles = ui.TrayOtherFiles;
                 this.TrayAnnotations = ui.TrayAnnotations;

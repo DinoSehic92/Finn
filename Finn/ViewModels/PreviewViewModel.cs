@@ -79,6 +79,8 @@ namespace Finn.ViewModels
         private bool fileAvailable = false;
         private MuPDFDocument? secondaryFile = null;
         private MuPDFContext? secondaryContext = null;
+        private int _secondaryCloseGen;
+        private int _dualViewGen;
         #endregion
 
         #region File Properties
@@ -208,6 +210,14 @@ namespace Finn.ViewModels
             {
                 // Block activation while annotating; always allow deactivation.
                 if (value && AnnotationActive) return;
+                // When deactivating, hide the secondary renderer BEFORE the
+                // property change collapses the grid column to 0px.  The
+                // PDFRenderer throws if arranged at less than 1×1.
+                if (!value && twopageMode && secondaryRenderer != null)
+                {
+                    secondaryRenderer.ReleaseResources();
+                    secondaryRenderer.IsVisible = false;
+                }
                 SetProperty(ref twopageMode, value, () => _ = ToggleDualViewAsync());
             }
         }
@@ -465,7 +475,6 @@ namespace Finn.ViewModels
         }
         private bool _diffOverlayActive;
         private DiffViewMode _diffViewMode = DiffViewMode.Overlay;
-        private double _diffSplitPosition = 0.5;
         private int _diffTolerance = PdfDiffService.DefaultTolerance;
         private bool _diffRerunBusy;
 
@@ -494,7 +503,6 @@ namespace Finn.ViewModels
             {
                 if (SetProperty(ref _diffViewMode, value))
                 {
-                    OnPropertyChanged(nameof(DiffModeName));
                     OnPropertyChanged(nameof(ShowDiffToggle));
                     OnPropertyChanged(nameof(IsOverlayMode));
                     OnPropertyChanged(nameof(IsToggleMode));
@@ -502,15 +510,6 @@ namespace Finn.ViewModels
                 }
             }
         }
-
-        /// <summary>Short label for the current diff mode (shown in toolbar).</summary>
-        public string DiffModeName => _diffViewMode switch
-        {
-            DiffViewMode.Overlay => "Overlay",
-            DiffViewMode.Toggle => "A/B Toggle",
-            DiffViewMode.SideBySide => "Side by Side",
-            _ => ""
-        };
 
         // Bool properties for radio-style toggle buttons in the diff toolbar.
         public bool IsOverlayMode
@@ -583,17 +582,7 @@ namespace Finn.ViewModels
         public bool DiffShowingOriginal
         {
             get => _diffShowingOriginal;
-            set => SetProperty(ref _diffShowingOriginal, value, () => OnPropertyChanged(nameof(DiffToggleLabel)));
-        }
-
-        /// <summary>Label for the A/B toggle button.</summary>
-        public string DiffToggleLabel => _diffShowingOriginal ? "Showing A (Original)" : "Showing B (Revised)";
-
-        /// <summary>Unused — kept for binding compatibility. Always 0.5.</summary>
-        public double DiffSplitPosition
-        {
-            get => _diffSplitPosition;
-            set => SetProperty(ref _diffSplitPosition, Math.Clamp(value, 0, 1));
+            set => SetProperty(ref _diffShowingOriginal, value);
         }
 
         /// <summary>
@@ -927,18 +916,6 @@ namespace Finn.ViewModels
             await RunDiffAsync(_diffChoiceA.Path, _diffChoiceB.Path, _diffChoiceA.Path, _diffSourceFile);
         }
 
-        /// <summary>Cycles to the next diff view mode (Overlay → Toggle → SideBySide → Overlay).</summary>
-        public void CycleDiffViewMode()
-        {
-            DiffViewMode = DiffViewMode switch
-            {
-                DiffViewMode.Overlay => DiffViewMode.Toggle,
-                DiffViewMode.Toggle => DiffViewMode.SideBySide,
-                DiffViewMode.SideBySide => DiffViewMode.Overlay,
-                _ => DiffViewMode.Overlay
-            };
-        }
-
         /// <summary>
         /// Opens the A/B toggle mode by loading the original (A) PDF in the
         /// secondary renderer. Does NOT use TwopageMode — the view layer
@@ -953,42 +930,64 @@ namespace Finn.ViewModels
 
             DiffShowingOriginal = false;
 
+            int openStartGen = _secondaryCloseGen;
+
             try
             {
-                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
-
-                string path = _diffOriginalPdfPath;
-                MuPDFContext? newCtx = null;
-                MuPDFDocument? newDoc = null;
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                if (secondaryFile == null)
                 {
-                    newCtx = new MuPDFContext();
-                    newDoc = new MuPDFDocument(newCtx, path);
-                }).GetTask().ConfigureAwait(false);
+                    // No secondary doc loaded — full dispose + reload.
+                    await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+                    if (_secondaryCloseGen != openStartGen) return;
 
-                if (newDoc == null || newCtx == null) return;
+                    string path = _diffOriginalPdfPath;
+                    MuPDFContext? newCtx = null;
+                    MuPDFDocument? newDoc = null;
 
-                secondaryFile = newDoc;
-                secondaryContext = newCtx;
-                Pagecount2 = newDoc.Pages.Count;
-                CurrentFile2 = null;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        newCtx = new MuPDFContext();
+                        newDoc = new MuPDFDocument(newCtx, path);
+                    }).GetTask().ConfigureAwait(false);
+
+                    if (newDoc == null || newCtx == null) return;
+
+                    if (_secondaryCloseGen != openStartGen)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() => { newDoc.Dispose(); newCtx.Dispose(); }).GetTask().ConfigureAwait(false);
+                        return;
+                    }
+
+                    secondaryFile = newDoc;
+                    secondaryContext = newCtx;
+                    Pagecount2 = newDoc.Pages.Count;
+                    CurrentFile2 = null;
+                }
+
+                // Whether newly loaded or reused from SideBySide, set the mode flags.
+                // Always sync Pagecount2 — CollapseSecondaryLayoutAsync zeroes it,
+                // but the doc may have been reused without re-setting the count.
+                Pagecount2 = secondaryFile!.Pages.Count;
                 dualFileMode = true;
                 linkedPageMode = true;
                 OnPropertyChanged(nameof(DualFileMode));
                 OnPropertyChanged(nameof(LinkedPageMode));
+
+                var docToInit = secondaryFile!;
 
                 // Initialize the secondary renderer on the current page.
                 // TwopageMode stays false — the view positions it in column 0.
                 await renderSemaphore.WaitAsync().ConfigureAwait(false);
                 try
                 {
+                    if (_secondaryCloseGen != openStartGen) return;
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
+                        if (_secondaryCloseGen != openStartGen) return;
                         int page = Math.Clamp(requestPage1, 0,
-                            Math.Max(0, newDoc.Pages.Count - 1));
+                            Math.Max(0, docToInit.Pages.Count - 1));
                         secondaryRenderer!.ReleaseResources();
-                        secondaryRenderer.Initialize(newDoc, 1, page, ZOOM_LEVEL);
+                        secondaryRenderer.Initialize(docToInit, 1, page, ZOOM_LEVEL);
                         CurrentPage2 = page;
                         requestPage2 = page;
                     }).GetTask().ConfigureAwait(false);
@@ -1004,6 +1003,7 @@ namespace Finn.ViewModels
         /// <summary>Closes the A/B toggle and disposes the secondary document.</summary>
         public async Task CloseDiffToggleAsync()
         {
+            Interlocked.Increment(ref _secondaryCloseGen);
             DiffShowingOriginal = false;
             dualFileMode = false;
             OnPropertyChanged(nameof(DualFileMode));
@@ -1011,8 +1011,14 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Runs a diff comparison directly and loads results into the previewer.
-        /// No dialog is shown — progress is indicated via StatusMessage/FileWorkerBusy.
+        /// Cancels any pending OpenDiffToggleAsync without disposing the secondary document.
+        /// Call when switching away from Toggle mode to a mode that will reuse the doc.
+        /// </summary>
+        internal void CancelSecondaryOpen() => Interlocked.Increment(ref _secondaryCloseGen);
+
+        /// <summary>
+        /// Runs a diff comparison and loads results into the previewer.
+        /// Progress is indicated via StatusMessage/FileWorkerBusy.
         /// </summary>
         public async Task RunDiffAsync(string pathA, string pathB, string? originalPdfPath = null, FileData? sourceFile = null)
         {
@@ -1041,7 +1047,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Runs a multi-file diff comparison directly and loads results into the previewer.
+        /// Runs a multi-file diff comparison and loads results into the previewer.
         /// </summary>
         public async Task RunDiffAsync(IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB, string? originalPdfPath = null)
         {
@@ -1082,23 +1088,31 @@ namespace Finn.ViewModels
 
             try
             {
-                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
-
-                MuPDFContext? newCtx = null;
-                MuPDFDocument? newDoc = null;
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                if (secondaryFile == null)
                 {
-                    newCtx = new MuPDFContext();
-                    newDoc = new MuPDFDocument(newCtx, _diffOriginalPdfPath);
-                }).GetTask().ConfigureAwait(false);
+                    // No secondary doc loaded — full dispose + reload.
+                    await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
 
-                if (newDoc == null || newCtx == null) return false;
+                    MuPDFContext? newCtx = null;
+                    MuPDFDocument? newDoc = null;
 
-                secondaryFile = newDoc;
-                secondaryContext = newCtx;
-                Pagecount2 = newDoc.Pages.Count;
-                CurrentFile2 = null; // no FileData for raw diff path
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        newCtx = new MuPDFContext();
+                        newDoc = new MuPDFDocument(newCtx, _diffOriginalPdfPath);
+                    }).GetTask().ConfigureAwait(false);
+
+                    if (newDoc == null || newCtx == null) return false;
+
+                    secondaryFile = newDoc;
+                    secondaryContext = newCtx;
+                    Pagecount2 = newDoc.Pages.Count;
+                    CurrentFile2 = null; // no FileData for raw diff path
+                }
+
+                // Always sync Pagecount2 — CollapseSecondaryLayoutAsync zeroes it,
+                // but the doc may have been reused without re-setting the count.
+                Pagecount2 = secondaryFile!.Pages.Count;
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -1125,7 +1139,8 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(RequestPage2));
                     CurrentPage2 = requestPage2;
                     _ = SetSecondaryPageAsync();
-                    secondaryRenderer?.Contain();
+                    if (secondaryRenderer?.Bounds is { Width: > 0, Height: > 0 })
+                        secondaryRenderer.Contain();
                 }).GetTask().ConfigureAwait(false);
 
                 return true;
@@ -1137,15 +1152,16 @@ namespace Finn.ViewModels
             }
         }
 
-        /// <summary>Closes the side-by-side diff view and reverts to single page.</summary>
-        public async Task CloseDiffSideBySideAsync()
+        /// <summary>
+        /// Tears down the SideBySide visual layout without disposing the secondary document.
+        /// Use when transitioning to Toggle mode so the loaded doc can be reused.
+        /// </summary>
+        public async Task CollapseSecondaryLayoutAsync()
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                // Release resources and hide the secondary renderer BEFORE
-                // collapsing the column. Otherwise ArrangeOverride runs on a
-                // visible, initialized renderer with zero-width bounds and
-                // MuPDFCore tries to create a WriteableBitmap(0, h) → crash.
+                // Release renderer resources and hide BEFORE collapsing the column to
+                // prevent ArrangeOverride creating WriteableBitmaps with zero bounds.
                 secondaryRenderer?.ReleaseResources();
                 if (secondaryRenderer != null)
                     secondaryRenderer.IsVisible = false;
@@ -1154,16 +1170,25 @@ namespace Finn.ViewModels
                 OnPropertyChanged(nameof(DualFileMode));
                 if (twopageMode)
                 {
+                    // Set backing field directly — skip ToggleDualViewAsync so it cannot
+                    // race with the incoming mode's renderer initialisation. Also bump the
+                    // dual-view generation so any already-running ToggleDualViewAsync bails.
                     twopageMode = false;
+                    Interlocked.Increment(ref _dualViewGen);
                     OnPropertyChanged(nameof(TwopageMode));
-                    _ = ToggleDualViewAsync();
+                    OnPropertyChanged(nameof(ShowLinkedPageButton));
                 }
                 CurrentFile2 = null;
                 Pagecount2 = 0;
                 OnPropertyChanged(nameof(SecondaryPagecount));
                 OnPropertyChanged(nameof(ShowSecondaryControls));
-                OnPropertyChanged(nameof(ShowLinkedPageButton));
             }).GetTask().ConfigureAwait(false);
+        }
+
+        /// <summary>Closes the side-by-side diff view and reverts to single page.</summary>
+        public async Task CloseDiffSideBySideAsync()
+        {
+            await CollapseSecondaryLayoutAsync().ConfigureAwait(false);
             await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
         }
 
@@ -1716,7 +1741,8 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(RequestPage2));
                     CurrentPage2 = requestPage2;
                     _ = SetSecondaryPageAsync();
-                    secondaryRenderer?.Contain();
+                    if (secondaryRenderer?.Bounds is { Width: > 0, Height: > 0 })
+                        secondaryRenderer.Contain();
                 }).GetTask().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -1874,10 +1900,13 @@ namespace Finn.ViewModels
         #region View Mode Methods
         public async Task ToggleDualViewAsync()
         {
+            int gen = Interlocked.Increment(ref _dualViewGen);
             try
             {
                 OnPropertyChanged(nameof(ShowLinkedPageButton));
                 await Task.Delay(RENDER_DELAY).ConfigureAwait(false);
+
+                if (Volatile.Read(ref _dualViewGen) != gen) return;
 
                 if (!DualFileMode && TwopageMode && RequestPage1 % 2 != 0)
                     requestPage1 = RequestPage1 - 1;
@@ -1890,8 +1919,11 @@ namespace Finn.ViewModels
                 if (!DualFileMode)
                     await SetMainPageAsync().ConfigureAwait(false);
 
+                if (Volatile.Read(ref _dualViewGen) != gen) return;
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    if (Volatile.Read(ref _dualViewGen) != gen) return;
                     mainRenderer?.Contain();
                     if (TwopageMode)
                     {
@@ -1901,7 +1933,8 @@ namespace Finn.ViewModels
                         // in OpenDiffSideBySideAsync may have been skipped due to zero
                         // bounds before layout settled. Now bounds are valid.
                         _ = SetSecondaryPageAsync();
-                        secondaryRenderer?.Contain();
+                        if (secondaryRenderer?.Bounds is { Width: > 0, Height: > 0 })
+                            secondaryRenderer.Contain();
                     }
                     else if (secondaryRenderer != null)
                     {
