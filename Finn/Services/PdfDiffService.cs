@@ -334,5 +334,84 @@ namespace Finn.Services
             g.DrawImage(source, 0, 0, source.Width, source.Height);
             return padded;
         }
+
+        /// <summary>
+        /// Scans a diff image and returns bounding rectangles (in PDF-space coordinates)
+        /// for contiguous regions of changed pixels. The image was rendered at the given
+        /// <paramref name="zoom"/> factor, so pixel coordinates are divided by zoom to
+        /// convert back to PDF points.
+        /// </summary>
+        public static List<(double X, double Y, double Width, double Height)> ExtractDiffRegions(
+            string diffImagePath, float zoom, int cellSize = 8)
+        {
+            var regions = new List<(double X, double Y, double Width, double Height)>();
+            if (!File.Exists(diffImagePath)) return regions;
+
+            using var bmp = new SysBitmap(diffImagePath);
+            int w = bmp.Width, h = bmp.Height;
+            int cols = (w + cellSize - 1) / cellSize;
+            int rows = (h + cellSize - 1) / cellSize;
+            var grid = new bool[rows, cols];
+
+            var rect = new SysRectangle(0, 0, w, h);
+            var data = bmp.LockBits(rect, SysImageLockMode.ReadOnly, SysPixelFormat.Format32bppArgb);
+            try
+            {
+                int stride = data.Stride;
+                byte[] buf = new byte[stride * h];
+                Marshal.Copy(data.Scan0, buf, 0, buf.Length);
+
+                // Mark grid cells that contain diff-red pixels (R≥200, G<100, B<100)
+                for (int cy = 0; cy < rows; cy++)
+                    for (int cx = 0; cx < cols; cx++)
+                    {
+                        bool found = false;
+                        int pyEnd = Math.Min((cy + 1) * cellSize, h);
+                        int pxEnd = Math.Min((cx + 1) * cellSize, w);
+                        for (int py = cy * cellSize; py < pyEnd && !found; py++)
+                            for (int px = cx * cellSize; px < pxEnd && !found; px++)
+                            {
+                                int idx = py * stride + px * 4; // BGRA
+                                if (buf[idx + 2] >= 200 && buf[idx + 1] < 100 && buf[idx] < 100)
+                                    found = true;
+                            }
+                        grid[cy, cx] = found;
+                    }
+            }
+            finally { bmp.UnlockBits(data); }
+
+            // Greedy rectangle merge: sweep marked cells into bounding rectangles
+            var visited = new bool[rows, cols];
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                {
+                    if (!grid[r, c] || visited[r, c]) continue;
+                    // Expand right
+                    int c2 = c;
+                    while (c2 + 1 < cols && grid[r, c2 + 1] && !visited[r, c2 + 1]) c2++;
+                    // Expand down while full row of cells is marked
+                    int r2 = r;
+                    while (r2 + 1 < rows)
+                    {
+                        bool fullRow = true;
+                        for (int cc = c; cc <= c2; cc++)
+                            if (!grid[r2 + 1, cc] || visited[r2 + 1, cc]) { fullRow = false; break; }
+                        if (!fullRow) break;
+                        r2++;
+                    }
+                    // Mark visited
+                    for (int rr = r; rr <= r2; rr++)
+                        for (int cc = c; cc <= c2; cc++)
+                            visited[rr, cc] = true;
+
+                    double px = c * cellSize / (double)zoom;
+                    double py = r * cellSize / (double)zoom;
+                    double pw = (c2 - c + 1) * cellSize / (double)zoom;
+                    double ph = (r2 - r + 1) * cellSize / (double)zoom;
+                    regions.Add((px, py, pw, ph));
+                }
+
+            return regions;
+        }
     }
 }

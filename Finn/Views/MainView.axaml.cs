@@ -417,7 +417,12 @@ public partial class MainView : UserControl
 
     private async void RequestPreview(FileData? file)
     {
-        if (_pwr.DualFileMode) return;
+        // Allow file selection even during diff-initiated DualFileMode.
+        // SetFileAsync's CloseDiffModeSync will clean up the secondary
+        // renderer and reset DualFileMode before the new file loads.
+        // Only block when the user explicitly opened a second file via
+        // the DualFile button (CurrentFile2 is set in that case).
+        if (_pwr.DualFileMode && _pwr.CurrentFile2 != null) return;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
         await _ctx.RequestPreviewAsync(file, searchText);
     }

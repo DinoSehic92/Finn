@@ -7,8 +7,8 @@ namespace Finn.Model
     {
         /// <summary>Red highlights overlaid on the current page.</summary>
         Overlay,
-        /// <summary>A/B wipe slider — left shows original, right shows revised.</summary>
-        Slider,
+        /// <summary>A/B toggle — quickly swap between original and revised document.</summary>
+        Toggle,
         /// <summary>Side-by-side using the dual page infrastructure.</summary>
         SideBySide
     }

@@ -354,7 +354,7 @@ namespace Finn.ViewModels
                 if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
                     UI.PreviewEmbeddedOpen = true;
 
-                await PreviewVM.RunDiffAsync(pathA, pathB, pathA);
+                await PreviewVM.RunDiffAsync(pathA, pathB, pathA, CurrentFile);
             }
 
             /// <summary>

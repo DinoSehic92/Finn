@@ -1294,9 +1294,9 @@
 											<DataGridTemplateColumn Width="30" CanUserResize="False">
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:AnnotationLayer">
-														<TextBlock Text="{Binding StrokeCount}" FontSize="11"
-																   Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
-													</DataTemplate>
+																			<TextBlock Text="{Binding TotalCount}" FontSize="11"
+																					   Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
+																		</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>

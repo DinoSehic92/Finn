@@ -190,24 +190,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Whether the diff overlay is currently visible.</summary>
     public bool DiffOverlayVisible { get; set; }
 
-    // ── A/B Slider wipe ─────────────────────────────────────────────
-    private SKBitmap? _sliderOriginalBitmap;
-    private SKBitmap? _sliderRevisedBitmap;
-    private int _sliderPage = -1;
-
-    /// <summary>Whether the A/B slider wipe is currently active.</summary>
-    public bool SliderWipeVisible { get; set; }
-
-    /// <summary>Normalized split position (0..1) — left shows original, right shows revised.</summary>
-    public double SliderSplitPosition { get; set; } = 0.5;
-
     /// <summary>
     /// Sets a diff-highlight image to render as a semi-transparent overlay
     /// between the PDF page and annotations. Pass null to clear.
     /// </summary>
-    public void SetDiffOverlay(string? imagePath, int page, float zoom = 1f)
+    /// <param name="forceReload">Skip the cache check and reload from disk (e.g. after tolerance change).</param>
+    public void SetDiffOverlay(string? imagePath, int page, float zoom = 1f, bool forceReload = false)
     {
-        _diffOverlayBitmap?.Dispose();
+        // Fast path: skip reload if already showing the same page's overlay.
+        if (!forceReload && _diffOverlayBitmap != null && _diffOverlayPage == page && DiffOverlayVisible)
+            return;
+
+        // Don't Dispose — a deferred DiffOverlayDrawOp on the render thread
+        // may still hold a reference to the old bitmap. Nulling the field
+        // lets GC finalize it safely after the draw op completes.
         _diffOverlayBitmap = null;
         _diffOverlayPage = page;
         _diffImageZoom = zoom;
@@ -224,7 +220,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Clears the diff overlay image and frees resources.</summary>
     public void ClearDiffOverlay()
     {
-        _diffOverlayBitmap?.Dispose();
+        // Don't Dispose — see SetDiffOverlay comment.
         _diffOverlayBitmap = null;
         _diffOverlayPage = -1;
         DiffOverlayVisible = false;
@@ -233,48 +229,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private bool HasDiffOverlay => DiffOverlayVisible && _diffOverlayBitmap != null
                                     && _diffOverlayPage == _currentPage;
-
-    /// <summary>
-    /// Loads original (A) and revised (B) images for A/B slider wipe mode.
-    /// </summary>
-    public void SetSliderWipe(string? originalPath, string? revisedPath, int page, float zoom = 1f)
-    {
-        _sliderOriginalBitmap?.Dispose();
-        _sliderRevisedBitmap?.Dispose();
-        _sliderOriginalBitmap = null;
-        _sliderRevisedBitmap = null;
-        _sliderPage = page;
-        _diffImageZoom = zoom;
-
-        if (originalPath != null && File.Exists(originalPath))
-        {
-            using var fs = File.OpenRead(originalPath);
-            _sliderOriginalBitmap = SKBitmap.Decode(fs);
-        }
-        if (revisedPath != null && File.Exists(revisedPath))
-        {
-            using var fs = File.OpenRead(revisedPath);
-            _sliderRevisedBitmap = SKBitmap.Decode(fs);
-        }
-        SliderWipeVisible = _sliderOriginalBitmap != null && _sliderRevisedBitmap != null;
-        InvalidateVisual();
-    }
-
-    /// <summary>Clears the A/B slider wipe and frees resources.</summary>
-    public void ClearSliderWipe()
-    {
-        _sliderOriginalBitmap?.Dispose();
-        _sliderRevisedBitmap?.Dispose();
-        _sliderOriginalBitmap = null;
-        _sliderRevisedBitmap = null;
-        _sliderPage = -1;
-        SliderWipeVisible = false;
-        InvalidateVisual();
-    }
-
-    private bool HasSliderWipe => SliderWipeVisible
-                                   && _sliderOriginalBitmap != null && _sliderRevisedBitmap != null
-                                   && _sliderPage == _currentPage;
 
     public bool HasAnyStrokes => _totalStrokeCount > 0 || _totalShapeCount > 0
                                   || _totalTextCount > 0 || _totalMeasurementCount > 0
@@ -2500,19 +2454,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
-        // Draw the A/B slider wipe overlay
-        if (HasSliderWipe)
-        {
-            var sda = DisplayArea;
-            var sbs = Bounds.Size;
-            if (sda.Width > 0 && sda.Height > 0 && sbs.Width > 0 && sbs.Height > 0)
-            {
-                context.Custom(new SliderWipeDrawOp(
-                    new Rect(sbs), _sliderOriginalBitmap!, _sliderRevisedBitmap!,
-                    sda, SliderSplitPosition, _diffImageZoom));
-            }
-        }
-
         if (!IsViewerInitialized || !HasAnyStrokes) return;
 
         var da = DisplayArea;
@@ -3481,114 +3422,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
-    /// <summary>
-    /// Custom draw operation that renders an A/B slider wipe: left side shows
-    /// the original image, right side shows the revised image, with a vertical
-    /// split line at the given normalized position.
-    /// </summary>
-    private class SliderWipeDrawOp : ICustomDrawOperation
-    {
-        private readonly Rect _bounds;
-        private readonly SKBitmap _original;
-        private readonly SKBitmap _revised;
-        private readonly Rect _displayArea;
-        private readonly double _splitPos;
-        private readonly float _zoom;
-
-        public SliderWipeDrawOp(Rect bounds, SKBitmap original, SKBitmap revised,
-                                 Rect displayArea, double splitPos, float zoom = 1f)
-        {
-            _bounds = bounds;
-            _original = original;
-            _revised = revised;
-            _displayArea = displayArea;
-            _splitPos = Math.Clamp(splitPos, 0, 1);
-            _zoom = zoom;
-        }
-
-        public Rect Bounds => _bounds;
-        public bool HitTest(Point p) => false;
-        public bool Equals(ICustomDrawOperation? other) => false;
-        public void Dispose() { }
-
-        public void Render(ImmediateDrawingContext context)
-        {
-            if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature lease)
-                return;
-            using var api = lease.Lease();
-            var canvas = api.SkCanvas;
-            if (canvas == null) return;
-
-            float w = (float)_bounds.Width;
-            float h = (float)_bounds.Height;
-            float splitX = (float)(w * _splitPos);
-
-            using var paint = new SKPaint
-            {
-                FilterQuality = SKFilterQuality.Medium,
-                IsAntialias = true
-            };
-
-            // Bitmap pixels = PDF points × ZOOM. Scale DisplayArea by zoom.
-            float z = _zoom;
-            var srcRect = new SKRect(
-                (float)_displayArea.X * z, (float)_displayArea.Y * z,
-                (float)(_displayArea.X + _displayArea.Width) * z,
-                (float)(_displayArea.Y + _displayArea.Height) * z);
-            var destRect = new SKRect(0, 0, w, h);
-
-            // Left side: original (A)
-            canvas.Save();
-            canvas.ClipRect(new SKRect(0, 0, splitX, h));
-            canvas.DrawBitmap(_original, srcRect, destRect, paint);
-            canvas.Restore();
-
-            // Right side: revised (B)
-            canvas.Save();
-            canvas.ClipRect(new SKRect(splitX, 0, w, h));
-            canvas.DrawBitmap(_revised, srcRect, destRect, paint);
-            canvas.Restore();
-
-            // Split line
-            using var linePaint = new SKPaint
-            {
-                Color = SKColors.White,
-                StrokeWidth = 2,
-                IsAntialias = true,
-                Style = SKPaintStyle.Stroke
-            };
-            canvas.DrawLine(splitX, 0, splitX, h, linePaint);
-
-            // Labels
-            using var labelPaint = new SKPaint
-            {
-                Color = SKColors.White,
-                TextSize = 12,
-                IsAntialias = true,
-                Style = SKPaintStyle.Fill
-            };
-            using var bgPaint = new SKPaint
-            {
-                Color = new SKColor(0, 0, 0, 140),
-                Style = SKPaintStyle.Fill
-            };
-
-            // "A" label top-left
-            var labelA = "A (Original)";
-            var labelB = "B (Revised)";
-            float labelY = 20;
-            float labelPadH = 4, labelPadV = 2;
-
-            float wA = labelPaint.MeasureText(labelA);
-            canvas.DrawRect(4, labelY - 12 - labelPadV, wA + labelPadH * 2, 14 + labelPadV * 2, bgPaint);
-            canvas.DrawText(labelA, 4 + labelPadH, labelY, labelPaint);
-
-            float wB = labelPaint.MeasureText(labelB);
-            float bX = Math.Max(splitX + 4, w - wB - labelPadH * 2 - 4);
-            canvas.DrawRect(bX, labelY - 12 - labelPadV, wB + labelPadH * 2, 14 + labelPadV * 2, bgPaint);
-            canvas.DrawText(labelB, bX + labelPadH, labelY, labelPaint);
-        }
-    }
     private class TextOverlayDrawOp : ICustomDrawOperation
     {
         public record struct TextItem(float X, float Y, string Text, float FontSize, SKColor Color,

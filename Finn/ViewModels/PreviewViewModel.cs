@@ -86,7 +86,11 @@ namespace Finn.ViewModels
         public FileData? CurrentFile
         {
             get => currentFile;
-            set => SetProperty(ref currentFile, value);
+            set
+            {
+                if (SetProperty(ref currentFile, value))
+                    OnPropertyChanged(nameof(CanCompareVersions));
+            }
         }
 
         private FileData? currentFile2 = null;
@@ -236,6 +240,11 @@ namespace Finn.ViewModels
                     }
                     else
                     {
+                        // Release and hide BEFORE collapsing the column (TwopageMode=false)
+                        // to prevent ArrangeOverride creating 0-size WriteableBitmaps.
+                        secondaryRenderer?.ReleaseResources();
+                        if (secondaryRenderer != null)
+                            secondaryRenderer.IsVisible = false;
                         CurrentFile2 = null;
                         Pagecount2 = 0;
                         TwopageMode = false; // triggers ToggleDualViewAsync → reverts to single page layout
@@ -435,9 +444,33 @@ namespace Finn.ViewModels
         private string? _diffTempDir;
         /// <summary>PDF path of the original (A) file for side-by-side mode.</summary>
         private string? _diffOriginalPdfPath;
+        /// <summary>PDF path of the revised (B) file, kept for re-running with new tolerance.</summary>
+        private string? _diffRevisedPdfPath;
+        /// <summary>
+        /// The real FileData that owns version data. Stored separately because
+        /// <see cref="CurrentFile"/> may be a stub created by PreviewVersionAsync
+        /// that has no version information.
+        /// </summary>
+        private FileData? _diffSourceFile;
+
+        /// <summary>Sets the source file for version lookups during diff comparisons.</summary>
+        public FileData? DiffSourceFile
+        {
+            get => _diffSourceFile;
+            set
+            {
+                _diffSourceFile = value;
+                OnPropertyChanged(nameof(CanCompareVersions));
+            }
+        }
         private bool _diffOverlayActive;
         private DiffViewMode _diffViewMode = DiffViewMode.Overlay;
         private double _diffSplitPosition = 0.5;
+        private int _diffTolerance = PdfDiffService.DefaultTolerance;
+        private bool _diffRerunBusy;
+
+        // ── A/B Toggle (renderer visibility swap) ──────────────────────
+        private bool _diffShowingOriginal;
 
         /// <summary>Whether the diff overlay is currently showing.</summary>
         public bool DiffOverlayActive
@@ -446,14 +479,14 @@ namespace Finn.ViewModels
             set
             {
                 if (SetProperty(ref _diffOverlayActive, value))
-                    OnPropertyChanged(nameof(ShowDiffSlider));
+                    OnPropertyChanged(nameof(ShowDiffToggle));
             }
         }
 
         /// <summary>Whether diff results are loaded (controls toggle button visibility).</summary>
         public bool HasDiffResults => _diffResults != null && _diffResults.Count > 0;
 
-        /// <summary>Active diff view mode: Overlay (red highlights), Slider (A/B wipe), or SideBySide.</summary>
+        /// <summary>Active diff view mode: Overlay, Toggle (A/B swap), or SideBySide.</summary>
         public DiffViewMode DiffViewMode
         {
             get => _diffViewMode;
@@ -462,7 +495,10 @@ namespace Finn.ViewModels
                 if (SetProperty(ref _diffViewMode, value))
                 {
                     OnPropertyChanged(nameof(DiffModeName));
-                    OnPropertyChanged(nameof(ShowDiffSlider));
+                    OnPropertyChanged(nameof(ShowDiffToggle));
+                    OnPropertyChanged(nameof(IsOverlayMode));
+                    OnPropertyChanged(nameof(IsToggleMode));
+                    OnPropertyChanged(nameof(IsSideBySideMode));
                 }
             }
         }
@@ -471,15 +507,89 @@ namespace Finn.ViewModels
         public string DiffModeName => _diffViewMode switch
         {
             DiffViewMode.Overlay => "Overlay",
-            DiffViewMode.Slider => "Slider",
+            DiffViewMode.Toggle => "A/B Toggle",
             DiffViewMode.SideBySide => "Side by Side",
             _ => ""
         };
 
-        /// <summary>Whether the diff split slider should be visible (Slider mode + overlay active).</summary>
-        public bool ShowDiffSlider => _diffOverlayActive && _diffViewMode == DiffViewMode.Slider;
+        // Bool properties for radio-style toggle buttons in the diff toolbar.
+        public bool IsOverlayMode
+        {
+            get => _diffViewMode == DiffViewMode.Overlay;
+            set { if (value) DiffViewMode = DiffViewMode.Overlay; }
+        }
+        public bool IsToggleMode
+        {
+            get => _diffViewMode == DiffViewMode.Toggle;
+            set { if (value) DiffViewMode = DiffViewMode.Toggle; }
+        }
+        public bool IsSideBySideMode
+        {
+            get => _diffViewMode == DiffViewMode.SideBySide;
+            set { if (value) DiffViewMode = DiffViewMode.SideBySide; }
+        }
 
-        /// <summary>Normalized split position (0..1) for the A/B slider wipe mode.</summary>
+        /// <summary>Whether the A/B toggle button should be visible.</summary>
+        public bool ShowDiffToggle => _diffOverlayActive && _diffViewMode == DiffViewMode.Toggle;
+
+        /// <summary>Pixel-difference tolerance (0–1000). Higher = ignore smaller differences.</summary>
+        public int DiffTolerance
+        {
+            get => _diffTolerance;
+            set => SetProperty(ref _diffTolerance, Math.Clamp(value, 0, PdfDiffService.MaxTolerance));
+        }
+
+        /// <summary>True while a tolerance re-run is in progress.</summary>
+        public bool DiffRerunBusy
+        {
+            get => _diffRerunBusy;
+            set => SetProperty(ref _diffRerunBusy, value);
+        }
+
+        /// <summary>Whether re-running the diff is possible (results loaded, paths known).</summary>
+        public bool CanRerunDiff => _diffResults is { Count: > 0 } && !_diffRerunBusy;
+
+        /// <summary>
+        /// Re-runs the diff comparison with the current <see cref="DiffTolerance"/>.
+        /// Only recomputes the diff images — skips PDF rendering for speed.
+        /// </summary>
+        public async Task RerunDiffWithToleranceAsync()
+        {
+            if (_diffResults == null || _diffResults.Count == 0) return;
+            DiffRerunBusy = true;
+            OnPropertyChanged(nameof(CanRerunDiff));
+            StatusMessage = "Recomputing diff…";
+            try
+            {
+                await PdfDiffService.RecomputeDiffsAsync(_diffResults, _diffTolerance);
+                int diffCount = _diffResults.Count(r => r.HasDifferences);
+                StatusMessage = diffCount == 0
+                    ? $"{_diffResults.Count} pages — identical"
+                    : $"{_diffResults.Count} pages — {diffCount} with differences";
+                OnPropertyChanged(nameof(DiffSummary));
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Diff recompute failed: {ex.Message}";
+            }
+            finally
+            {
+                DiffRerunBusy = false;
+                OnPropertyChanged(nameof(CanRerunDiff));
+            }
+        }
+
+        /// <summary>Whether we are currently showing the original (A) document in A/B toggle mode.</summary>
+        public bool DiffShowingOriginal
+        {
+            get => _diffShowingOriginal;
+            set => SetProperty(ref _diffShowingOriginal, value, () => OnPropertyChanged(nameof(DiffToggleLabel)));
+        }
+
+        /// <summary>Label for the A/B toggle button.</summary>
+        public string DiffToggleLabel => _diffShowingOriginal ? "Showing A (Original)" : "Showing B (Revised)";
+
+        /// <summary>Unused — kept for binding compatibility. Always 0.5.</summary>
         public double DiffSplitPosition
         {
             get => _diffSplitPosition;
@@ -490,15 +600,22 @@ namespace Finn.ViewModels
         /// Loads diff results so the preview can show diff highlights as an overlay.
         /// </summary>
         /// <param name="originalPdfPath">Path to the original (A) PDF, used for side-by-side mode.</param>
-        public void LoadDiffResults(List<DiffResultData> results, string tempDir, string? originalPdfPath = null)
+        public void LoadDiffResults(List<DiffResultData> results, string tempDir, string? originalPdfPath = null, string? revisedPdfPath = null, FileData? sourceFile = null)
         {
             CleanupDiffTempDir();
             _diffResults = results;
             _diffTempDir = tempDir;
             _diffOriginalPdfPath = originalPdfPath;
+            _diffRevisedPdfPath = revisedPdfPath;
+            _diffSourceFile = sourceFile;
+            // Populate path choices BEFORE activating the overlay so the
+            // version picker has data when the view rebuilds its rows.
+            RefreshDiffPathChoices();
             DiffOverlayActive = results.Count > 0;
             OnPropertyChanged(nameof(HasDiffResults));
             OnPropertyChanged(nameof(DiffSummary));
+            OnPropertyChanged(nameof(CanRerunDiff));
+            OnPropertyChanged(nameof(CanCompareVersions));
         }
 
         /// <summary>Clears loaded diff results.</summary>
@@ -508,9 +625,92 @@ namespace Finn.ViewModels
             _diffResults = null;
             _diffTempDir = null;
             _diffOriginalPdfPath = null;
+            _diffRevisedPdfPath = null;
+            _diffSourceFile = null;
+            _diffChoiceA = null;
+            _diffChoiceB = null;
             DiffOverlayActive = false;
             OnPropertyChanged(nameof(HasDiffResults));
+            OnPropertyChanged(nameof(CanRerunDiff));
             OnPropertyChanged(nameof(DiffSummary));
+            OnPropertyChanged(nameof(DiffChoiceA));
+            OnPropertyChanged(nameof(DiffChoiceB));
+            DiffPathChoices = [];
+            OnPropertyChanged(nameof(DiffPathChoices));
+            OnPropertyChanged(nameof(HasDiffPathChoices));
+        }
+
+        /// <summary>
+        /// Synchronously resets diff state so that <see cref="DualFileMode"/> is false
+        /// and the secondary renderer is released before the next file load begins.
+        /// Call on UI thread before <see cref="SetFileAsync"/>.
+        /// </summary>
+        public void CloseDiffModeSync()
+        {
+            if (!_diffOverlayActive && !dualFileMode) return;
+
+            // Release secondary renderer resources BEFORE dualFileMode goes false
+            // so DisposeCurrentDocumentAsync won't skip the secondary.
+            secondaryRenderer?.ReleaseResources();
+            if (secondaryRenderer != null)
+                secondaryRenderer.IsVisible = false;
+
+            if (twopageMode)
+            {
+                twopageMode = false;
+                OnPropertyChanged(nameof(TwopageMode));
+            }
+            dualFileMode = false;
+            OnPropertyChanged(nameof(DualFileMode));
+
+            ClearDiffResults();
+        }
+
+        /// <summary>
+        /// Creates an annotation layer from the current diff results and adds it
+        /// to the current file's annotation layers. Each page with differences gets
+        /// semi-transparent red rectangles covering changed regions.
+        /// </summary>
+        public AnnotationLayer? CreateDiffAnnotationLayer(string? comparedFileName = null)
+        {
+            if (_diffResults == null || _diffResults.Count == 0 || CurrentFile == null) return null;
+
+            string layerName = string.IsNullOrEmpty(comparedFileName)
+                ? $"Diff {DateTime.Now:yyyy-MM-dd HH:mm}"
+                : $"Diff vs {Path.GetFileNameWithoutExtension(comparedFileName)}";
+
+            var layer = new AnnotationLayer
+            {
+                Name = layerName,
+                Color = Avalonia.Media.Color.FromRgb(230, 60, 60)
+            };
+
+            foreach (var result in _diffResults)
+            {
+                if (!result.HasDifferences || result.DiffPath == null) continue;
+                var regions = PdfDiffService.ExtractDiffRegions(result.DiffPath, PdfDiffService.ZOOM);
+                if (regions.Count == 0) continue;
+
+                var shapes = new List<ShapeAnnotation>();
+                foreach (var r in regions)
+                {
+                    shapes.Add(new ShapeAnnotation
+                    {
+                        ShapeType = InlineAnnotationTool.Rectangle,
+                        Start = new Avalonia.Point(r.X, r.Y),
+                        End = new Avalonia.Point(r.X + r.Width, r.Y + r.Height),
+                        Color = Avalonia.Media.Color.FromRgb(230, 60, 60),
+                        StrokeWidth = 1.5,
+                        Opacity = 0.35,
+                        IsFilled = true
+                    });
+                }
+                layer.PageShapes[result.PageIndex] = shapes;
+            }
+
+            layer.RecalculateCounts();
+            CurrentFile.AnnotationLayers.Add(layer);
+            return layer;
         }
 
         private void CleanupDiffTempDir()
@@ -566,23 +766,255 @@ namespace Finn.ViewModels
         /// <summary>PDF path of the original (A) file for side-by-side mode.</summary>
         public string? DiffOriginalPdfPath => _diffOriginalPdfPath;
 
-        /// <summary>Cycles to the next diff view mode (Overlay → Slider → SideBySide → Overlay).</summary>
+        /// <summary>
+        /// All comparable paths for the current file: "Original" + every version.
+        /// Each entry is a display label + file path tuple.
+        /// </summary>
+        public List<DiffPathChoice> DiffPathChoices { get; private set; } = [];
+
+        /// <summary>Whether the version dropdowns should be visible.</summary>
+        public bool HasDiffPathChoices => DiffPathChoices.Count >= 2;
+
+        /// <summary>True when the current file (or diff source file) has enough versions for a comparison dialog.</summary>
+        public bool CanCompareVersions
+        {
+            get
+            {
+                var file = _diffSourceFile ?? currentFile;
+                if (file is { HasVersions: true }) return true;
+                // Also allow when diff is active (paths are known)
+                return !string.IsNullOrEmpty(_diffOriginalPdfPath) && !string.IsNullOrEmpty(_diffRevisedPdfPath);
+            }
+        }
+
+        /// <summary>
+        /// Builds a version choice list for the dialog, independent of current diff state.
+        /// Uses <see cref="_diffSourceFile"/> or the real <see cref="CurrentFile"/> from MainViewModel.
+        /// </summary>
+        public List<DiffPathChoice> GetVersionChoicesForDialog(FileData? realFile = null)
+        {
+            var choices = new List<DiffPathChoice>();
+            var addedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var file = realFile ?? _diffSourceFile ?? currentFile;
+            if (file != null)
+            {
+                string? origPath = file.HasVersions && !string.IsNullOrEmpty(file.OriginalPath)
+                    ? file.OriginalPath
+                    : file.Sökväg;
+                if (!string.IsNullOrEmpty(origPath)
+                    && origPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                    && addedPaths.Add(origPath))
+                    choices.Add(new DiffPathChoice("Original", origPath));
+
+                if (file.HasVersions)
+                {
+                    foreach (var v in file.Versions)
+                    {
+                        if (!string.IsNullOrEmpty(v.Sökväg)
+                            && v.Sökväg.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                            && addedPaths.Add(v.Sökväg))
+                            choices.Add(new DiffPathChoice(
+                                string.IsNullOrEmpty(v.Label) ? Path.GetFileNameWithoutExtension(v.Sökväg) : v.Label,
+                                v.Sökväg));
+                    }
+                }
+            }
+
+            if (choices.Count < 2 && !string.IsNullOrEmpty(_diffOriginalPdfPath))
+            {
+                if (addedPaths.Add(_diffOriginalPdfPath))
+                    choices.Insert(0, new DiffPathChoice(Path.GetFileNameWithoutExtension(_diffOriginalPdfPath), _diffOriginalPdfPath));
+                if (!string.IsNullOrEmpty(_diffRevisedPdfPath) && addedPaths.Add(_diffRevisedPdfPath))
+                    choices.Add(new DiffPathChoice(Path.GetFileNameWithoutExtension(_diffRevisedPdfPath), _diffRevisedPdfPath));
+            }
+            return choices;
+        }
+
+        /// <summary>Selected A-side (reference) path choice.</summary>
+        private DiffPathChoice? _diffChoiceA;
+        public DiffPathChoice? DiffChoiceA
+        {
+            get => _diffChoiceA;
+            set => SetProperty(ref _diffChoiceA, value);
+        }
+
+        /// <summary>Selected B-side (compared) path choice.</summary>
+        private DiffPathChoice? _diffChoiceB;
+        public DiffPathChoice? DiffChoiceB
+        {
+            get => _diffChoiceB;
+            set => SetProperty(ref _diffChoiceB, value);
+        }
+
+        /// <summary>
+        /// Populates <see cref="DiffPathChoices"/> from the current file's original path + versions.
+        /// Falls back to the raw diff paths when version data is unavailable.
+        /// Pre-selects A and B based on the current diff paths.
+        /// </summary>
+        public void RefreshDiffPathChoices()
+        {
+            var choices = new List<DiffPathChoice>();
+            var addedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Use _diffSourceFile (the real file with versions) instead of
+            // CurrentFile, which may be a version-preview stub without versions.
+            var file = _diffSourceFile ?? CurrentFile;
+
+            if (file != null)
+            {
+                // Add original file path (may differ from any version)
+                string? origPath = file.HasVersions && !string.IsNullOrEmpty(file.OriginalPath)
+                    ? file.OriginalPath
+                    : file.Sökväg;
+                if (!string.IsNullOrEmpty(origPath)
+                    && origPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                    && addedPaths.Add(origPath))
+                {
+                    choices.Add(new DiffPathChoice("Original", origPath));
+                }
+
+                // Add every version
+                if (file.HasVersions)
+                {
+                    foreach (var v in file.Versions)
+                    {
+                        if (!string.IsNullOrEmpty(v.Sökväg)
+                            && v.Sökväg.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                            && addedPaths.Add(v.Sökväg))
+                        {
+                            choices.Add(new DiffPathChoice(
+                                string.IsNullOrEmpty(v.Label) ? Path.GetFileNameWithoutExtension(v.Sökväg) : v.Label,
+                                v.Sökväg));
+                        }
+                    }
+                }
+            }
+
+            // Fallback: if file versions didn't produce enough choices,
+            // build entries from the actual diff paths so the panel always works.
+            if (choices.Count < 2)
+            {
+                if (!string.IsNullOrEmpty(_diffOriginalPdfPath) && addedPaths.Add(_diffOriginalPdfPath))
+                    choices.Insert(0, new DiffPathChoice(Path.GetFileNameWithoutExtension(_diffOriginalPdfPath), _diffOriginalPdfPath));
+                if (!string.IsNullOrEmpty(_diffRevisedPdfPath) && addedPaths.Add(_diffRevisedPdfPath))
+                    choices.Add(new DiffPathChoice(Path.GetFileNameWithoutExtension(_diffRevisedPdfPath), _diffRevisedPdfPath));
+            }
+
+            DiffPathChoices = choices;
+
+            // Pre-select based on current diff paths
+            _diffChoiceA = choices.FirstOrDefault(c =>
+                string.Equals(c.Path, _diffOriginalPdfPath, StringComparison.OrdinalIgnoreCase))
+                ?? choices.FirstOrDefault();
+            _diffChoiceB = choices.FirstOrDefault(c =>
+                string.Equals(c.Path, _diffRevisedPdfPath, StringComparison.OrdinalIgnoreCase));
+
+            OnPropertyChanged(nameof(DiffPathChoices));
+            OnPropertyChanged(nameof(HasDiffPathChoices));
+            OnPropertyChanged(nameof(DiffChoiceA));
+            OnPropertyChanged(nameof(DiffChoiceB));
+        }
+
+        /// <summary>
+        /// Re-runs the diff comparison with the currently selected A and B paths.
+        /// </summary>
+        public async Task CompareSelectedPathsAsync()
+        {
+            if (_diffChoiceA == null || _diffChoiceB == null) return;
+            if (string.Equals(_diffChoiceA.Path, _diffChoiceB.Path, StringComparison.OrdinalIgnoreCase)) return;
+            // Preserve the source file reference so version data survives re-comparisons.
+            await RunDiffAsync(_diffChoiceA.Path, _diffChoiceB.Path, _diffChoiceA.Path, _diffSourceFile);
+        }
+
+        /// <summary>Cycles to the next diff view mode (Overlay → Toggle → SideBySide → Overlay).</summary>
         public void CycleDiffViewMode()
         {
             DiffViewMode = DiffViewMode switch
             {
-                DiffViewMode.Overlay => DiffViewMode.Slider,
-                DiffViewMode.Slider => DiffViewMode.SideBySide,
+                DiffViewMode.Overlay => DiffViewMode.Toggle,
+                DiffViewMode.Toggle => DiffViewMode.SideBySide,
                 DiffViewMode.SideBySide => DiffViewMode.Overlay,
                 _ => DiffViewMode.Overlay
             };
         }
 
         /// <summary>
+        /// Opens the A/B toggle mode by loading the original (A) PDF in the
+        /// secondary renderer. Does NOT use TwopageMode — the view layer
+        /// places the secondary renderer in the same grid cell as the main
+        /// so they overlap. Toggle just swaps visibility.
+        /// </summary>
+        public async Task OpenDiffToggleAsync()
+        {
+            if (_diffOriginalPdfPath == null || !File.Exists(_diffOriginalPdfPath))
+                return;
+            if (secondaryRenderer == null) return;
+
+            DiffShowingOriginal = false;
+
+            try
+            {
+                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+
+                string path = _diffOriginalPdfPath;
+                MuPDFContext? newCtx = null;
+                MuPDFDocument? newDoc = null;
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    newCtx = new MuPDFContext();
+                    newDoc = new MuPDFDocument(newCtx, path);
+                }).GetTask().ConfigureAwait(false);
+
+                if (newDoc == null || newCtx == null) return;
+
+                secondaryFile = newDoc;
+                secondaryContext = newCtx;
+                Pagecount2 = newDoc.Pages.Count;
+                CurrentFile2 = null;
+                dualFileMode = true;
+                linkedPageMode = true;
+                OnPropertyChanged(nameof(DualFileMode));
+                OnPropertyChanged(nameof(LinkedPageMode));
+
+                // Initialize the secondary renderer on the current page.
+                // TwopageMode stays false — the view positions it in column 0.
+                await renderSemaphore.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        int page = Math.Clamp(requestPage1, 0,
+                            Math.Max(0, newDoc.Pages.Count - 1));
+                        secondaryRenderer!.ReleaseResources();
+                        secondaryRenderer.Initialize(newDoc, 1, page, ZOOM_LEVEL);
+                        CurrentPage2 = page;
+                        requestPage2 = page;
+                    }).GetTask().ConfigureAwait(false);
+                }
+                finally { renderSemaphore.Release(); }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error opening diff toggle");
+            }
+        }
+
+        /// <summary>Closes the A/B toggle and disposes the secondary document.</summary>
+        public async Task CloseDiffToggleAsync()
+        {
+            DiffShowingOriginal = false;
+            dualFileMode = false;
+            OnPropertyChanged(nameof(DualFileMode));
+            await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Runs a diff comparison directly and loads results into the previewer.
         /// No dialog is shown — progress is indicated via StatusMessage/FileWorkerBusy.
         /// </summary>
-        public async Task RunDiffAsync(string pathA, string pathB, string? originalPdfPath = null)
+        public async Task RunDiffAsync(string pathA, string pathB, string? originalPdfPath = null, FileData? sourceFile = null)
         {
             if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)) return;
 
@@ -591,8 +1023,8 @@ namespace Finn.ViewModels
             try
             {
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
-                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress);
-                LoadDiffResults(results, dir, originalPdfPath ?? pathA);
+                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress, default, _diffTolerance);
+                LoadDiffResults(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — identical"
@@ -620,8 +1052,8 @@ namespace Finn.ViewModels
             try
             {
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
-                var (results, dir) = await PdfDiffService.CompareAsync(pathsA, pathsB, progress);
-                LoadDiffResults(results, dir, originalPdfPath ?? pathsA[0]);
+                var (results, dir) = await PdfDiffService.CompareAsync(pathsA, pathsB, progress, default, _diffTolerance);
+                LoadDiffResults(results, dir, originalPdfPath ?? pathsA[0], pathsB[0]);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — identical"
@@ -685,6 +1117,10 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(SecondaryPagecount));
                     OnPropertyChanged(nameof(ShowSecondaryControls));
                     OnPropertyChanged(nameof(ShowLinkedPageButton));
+                    // Make visible before Initialize — the removed XAML binding
+                    // no longer does this automatically from TwopageMode.
+                    if (secondaryRenderer != null)
+                        secondaryRenderer.IsVisible = true;
                     requestPage2 = requestPage1;
                     OnPropertyChanged(nameof(RequestPage2));
                     CurrentPage2 = requestPage2;
@@ -706,6 +1142,14 @@ namespace Finn.ViewModels
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
+                // Release resources and hide the secondary renderer BEFORE
+                // collapsing the column. Otherwise ArrangeOverride runs on a
+                // visible, initialized renderer with zero-width bounds and
+                // MuPDFCore tries to create a WriteableBitmap(0, h) → crash.
+                secondaryRenderer?.ReleaseResources();
+                if (secondaryRenderer != null)
+                    secondaryRenderer.IsVisible = false;
+
                 dualFileMode = false;
                 OnPropertyChanged(nameof(DualFileMode));
                 if (twopageMode)
@@ -722,6 +1166,7 @@ namespace Finn.ViewModels
             }).GetTask().ConfigureAwait(false);
             await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
         }
+
         #endregion
 
         #region Cancellation Tokens
@@ -845,6 +1290,14 @@ namespace Finn.ViewModels
                 return;
 
             WhiteboardMode = false;
+
+            // Close any active diff mode BEFORE disposing the document.
+            // DisposeCurrentDocumentAsync skips the secondary renderer while
+            // dualFileMode is true, so we must reset it synchronously first.
+            if (_diffOverlayActive || dualFileMode)
+            {
+                await Dispatcher.UIThread.InvokeAsync(CloseDiffModeSync).GetTask().ConfigureAwait(false);
+            }
 
             int myGeneration = Interlocked.Increment(ref fileGeneration);
 
@@ -1442,11 +1895,17 @@ namespace Finn.ViewModels
                     mainRenderer?.Contain();
                     if (TwopageMode)
                     {
-                        // In DualFileMode the caller (SetFile2Async) renders the secondary page directly,
-                        // so skip the redundant render here to avoid a wasted Initialize call.
-                        if (!DualFileMode)
-                            _ = SetSecondaryPageAsync();
+                        if (secondaryRenderer != null)
+                            secondaryRenderer.IsVisible = true;
+                        // In DualFileMode, retry secondary page init — the initial call
+                        // in OpenDiffSideBySideAsync may have been skipped due to zero
+                        // bounds before layout settled. Now bounds are valid.
+                        _ = SetSecondaryPageAsync();
                         secondaryRenderer?.Contain();
+                    }
+                    else if (secondaryRenderer != null)
+                    {
+                        secondaryRenderer.IsVisible = false;
                     }
                     if (!LinkedPageMode && !DualFileMode)
                         LinkedPageMode = true;
@@ -1543,7 +2002,10 @@ namespace Finn.ViewModels
         private async Task SetSecondaryPageAsync()
         {
             bool inRange = DualFileMode ? PageInRange2(RequestPage2) : PageInRange(RequestPage2);
-            if (disposed || FileWorkerBusy || SearchBusy || !inRange || !TwopageMode || secondaryRenderer == null)
+            // Allow rendering when TwopageMode is active (side-by-side) OR when
+            // the A/B toggle overlay is active (secondary in column 0, no TwopageMode).
+            bool rendererActive = TwopageMode || _diffShowingOriginal || (DiffOverlayActive && _diffViewMode == DiffViewMode.Toggle);
+            if (disposed || FileWorkerBusy || SearchBusy || !inRange || !rendererActive || secondaryRenderer == null)
                 return;
 
             await renderSemaphore.WaitAsync().ConfigureAwait(false);
@@ -1559,10 +2021,16 @@ namespace Finn.ViewModels
                         if (doc != null && secondaryRenderer != null)
                         {
                             secondaryRenderer.ReleaseResources();
-                            secondaryRenderer.Initialize(doc, 1, RequestPage2, ZOOM_LEVEL);
+                            // Guard: skip Initialize when the renderer has zero bounds
+                            // (not yet in layout). ToggleDualViewAsync or Contain()
+                            // will retry after layout completes.
+                            if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
+                            {
+                                secondaryRenderer.Initialize(doc, 1, RequestPage2, ZOOM_LEVEL);
+                                if (!DualFileMode) SetSecondarySearchResults();
+                                CurrentPage2 = RequestPage2;
+                            }
                             secondaryRenderer.IsVisible = true;
-                            if (!DualFileMode) SetSecondarySearchResults();
-                            CurrentPage2 = RequestPage2;
                         }
                     }
                     catch (NullReferenceException nre)

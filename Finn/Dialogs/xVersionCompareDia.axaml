@@ -1,0 +1,36 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        mc:Ignorable="d" d:DesignWidth="340" d:DesignHeight="400"
+        Width="340" SizeToContent="Height"
+        x:Class="Finn.Dialogs.xVersionCompareDia"
+        Title="Compare Versions"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ExtendClientAreaToDecorationsHint="True">
+    <Grid RowDefinitions="30,Auto,*,Auto" Margin="12">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+        <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
+            <TextBlock Text="Compare Versions" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="Select two versions to compare." FontSize="12" Opacity="0.6"/>
+        </StackPanel>
+        <Border Grid.Row="2" CornerRadius="4" BorderThickness="1"
+                BorderBrush="{DynamicResource TextControlBorderBrush}" Padding="6,4" MinHeight="80">
+            <StackPanel Spacing="2">
+                <Grid ColumnDefinitions="28,28,*" Margin="0,0,0,6">
+                    <TextBlock Text="A" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Opacity="0.5"/>
+                    <TextBlock Text="B" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Grid.Column="1" Opacity="0.5"/>
+                    <TextBlock Text="Version" FontSize="11" FontWeight="SemiBold" Grid.Column="2" Margin="6,0,0,0" Opacity="0.5"/>
+                </Grid>
+                <StackPanel Name="VersionRows" Spacing="2"/>
+            </StackPanel>
+        </Border>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+            <Button Content="Cancel" Padding="16,6" Click="OnCancel" IsCancel="True"/>
+            <Button Name="CompareBtn" Content="Compare" Padding="16,6" Click="OnCompare"
+                    Classes="accent"/>
+        </StackPanel>
+    </Grid>
+</Window>
