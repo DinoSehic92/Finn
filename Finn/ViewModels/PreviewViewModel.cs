@@ -517,20 +517,22 @@ namespace Finn.ViewModels
         }
 
         // Bool properties for radio-style toggle buttons in the diff toolbar.
+        // When the user clicks the already-active mode, the ToggleButton sends
+        // false.  We reject it and re-raise so the UI snaps back to checked.
         public bool IsOverlayMode
         {
             get => _diffViewMode == DiffViewMode.Overlay;
-            set { if (value) DiffViewMode = DiffViewMode.Overlay; }
+            set { if (value) DiffViewMode = DiffViewMode.Overlay; else OnPropertyChanged(); }
         }
         public bool IsToggleMode
         {
             get => _diffViewMode == DiffViewMode.Toggle;
-            set { if (value) DiffViewMode = DiffViewMode.Toggle; }
+            set { if (value) DiffViewMode = DiffViewMode.Toggle; else OnPropertyChanged(); }
         }
         public bool IsSideBySideMode
         {
             get => _diffViewMode == DiffViewMode.SideBySide;
-            set { if (value) DiffViewMode = DiffViewMode.SideBySide; }
+            set { if (value) DiffViewMode = DiffViewMode.SideBySide; else OnPropertyChanged(); }
         }
 
         /// <summary>Whether the A/B toggle button should be visible.</summary>

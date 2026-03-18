@@ -63,11 +63,16 @@ public class ShapeAnnotation
     private IPen? _cachedPen;
     private double _cachedPenScale;
 
+    // Cached dash styles — avoid allocating identical objects per pen creation
+    private static readonly DashStyle s_dashed = new([4, 3], 0);
+    private static readonly DashStyle s_dotted = new([1, 2], 0);
+    private static readonly DashStyle s_dashDot = new([4, 2, 1, 2], 0);
+
     internal static DashStyle? GetDashStyle(LineDashPattern pattern) => pattern switch
     {
-        LineDashPattern.Dashed => new DashStyle([4, 3], 0),
-        LineDashPattern.Dotted => new DashStyle([1, 2], 0),
-        LineDashPattern.DashDot => new DashStyle([4, 2, 1, 2], 0),
+        LineDashPattern.Dashed => s_dashed,
+        LineDashPattern.Dotted => s_dotted,
+        LineDashPattern.DashDot => s_dashDot,
         _ => null
     };
 

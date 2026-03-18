@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Rendering.SceneGraph;
 using Avalonia.Skia;
 using Finn.Model;
@@ -10,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
 
 namespace Finn.Controls;
 
@@ -81,8 +79,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static readonly DashStyle s_dashStyle3_3 = new([3, 3], 0);
 
     private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder }
-    private readonly Stack<(UndoType type, int page, object? data)> _undoStack = new();
-    private readonly Stack<(UndoType type, int page, object item)> _redoStack = new();
+    private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
+    private readonly Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> _redoStack = new();
 
     /// <summary>Raised whenever annotations are added, removed, or modified.</summary>
     public event Action? AnnotationChanged;
@@ -177,6 +175,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _totalMeasurementCount = totalMeasurements;
     }
 
+    /// <summary>
+    /// Call after externally modifying the layer collection (e.g. adding a
+    /// diff annotation layer) so cached counts and visuals stay in sync.
+    /// </summary>
+    public void NotifyLayersChanged()
+    {
+        RecalculateStrokeCount();
+        InvalidateVisual();
+    }
+
     private AnnotationLayer? _activeLayer;
     public AnnotationLayer? ActiveLayer
     {
@@ -209,7 +217,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public double MeasurementScale { get; set; } = 25.4 / 72.0;
 
     // ── Diff overlay ───────────────────────────────────────────────
-    private SKBitmap? _diffOverlayBitmap;
     /// <summary>
     /// GPU-friendly immutable image created from the diff bitmap on load.
     /// SKImage can be cached in GPU texture memory, avoiding costly
@@ -233,13 +240,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void SetDiffOverlay(string? imagePath, int page, float zoom = 1f, bool forceReload = false)
     {
         // Fast path: skip reload if already showing the same page's overlay.
-        if (!forceReload && _diffOverlayBitmap != null && _diffOverlayPage == page && DiffOverlayVisible)
+        if (!forceReload && _diffOverlayImage != null && _diffOverlayPage == page && DiffOverlayVisible)
             return;
 
-        // Don't Dispose — a deferred DiffOverlayDrawOp on the render thread
-        // may still hold a reference to the old image. Nulling the field
-        // lets GC finalize it safely after the draw op completes.
-        _diffOverlayBitmap = null;
+        // Don't Dispose the SKImage — a deferred DiffOverlayDrawOp on the render thread
+        // may still hold a reference. Nulling the field lets GC finalize it safely.
         _diffOverlayImage = null;
         _diffOverlayPage = page;
         _diffImageZoom = zoom;
@@ -247,11 +252,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (imagePath != null && File.Exists(imagePath))
         {
             using var fs = File.OpenRead(imagePath);
-            _diffOverlayBitmap = SKBitmap.Decode(fs);
+            using var bitmap = SKBitmap.Decode(fs);
             // Create an immutable SKImage for GPU-cached rendering.
             // SKImage.FromBitmap is cheap (shares pixel data) but allows
             // Skia to cache the texture on GPU between frames.
-            _diffOverlayImage = SKImage.FromBitmap(_diffOverlayBitmap);
+            // The bitmap can be disposed immediately — SKImage retains
+            // a copy of the pixel data.
+            _diffOverlayImage = SKImage.FromBitmap(bitmap);
             DiffOverlayVisible = true;
         }
         InvalidateVisual();
@@ -261,7 +268,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void ClearDiffOverlay()
     {
         // Don't Dispose — see SetDiffOverlay comment.
-        _diffOverlayBitmap = null;
         _diffOverlayImage = null;
         _diffOverlayPage = -1;
         DiffOverlayVisible = false;
@@ -284,24 +290,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public bool CanRedo => _redoStack.Count > 0;
 
-    /// <summary>True if there is at least one undo entry for the current page.</summary>
+    /// <summary>True if there is at least one undo entry for the current page and active layer.</summary>
     public bool CanUndoCurrentPage
     {
         get
         {
             foreach (var entry in _undoStack)
-                if (entry.page == _currentPage) return true;
+                if (entry.page == _currentPage
+                    && (entry.layer == null || entry.layer == ActiveLayer))
+                    return true;
             return false;
         }
     }
 
-    /// <summary>True if there is at least one redo entry for the current page.</summary>
+    /// <summary>True if there is at least one redo entry for the current page and active layer.</summary>
     public bool CanRedoCurrentPage
     {
         get
         {
             foreach (var entry in _redoStack)
-                if (entry.page == _currentPage) return true;
+                if (entry.page == _currentPage
+                    && (entry.layer == null || entry.layer == ActiveLayer))
+                    return true;
             return false;
         }
     }
@@ -554,7 +564,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             strokes.Add(_activeStroke);
             ActiveLayer.StrokeCount++;
             _totalStrokeCount++;
-            _undoStack.Push((UndoType.Stroke, _currentPage, null));
+            _undoStack.Push((UndoType.Stroke, _currentPage, null, ActiveLayer));
             _redoStack.Clear();
             LastPlacedAnnotation = _activeStroke;
             ActiveLayer.RefreshStatus();
@@ -617,7 +627,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             strokes.Add(_activePolyline);
             ActiveLayer.StrokeCount++;
             _totalStrokeCount++;
-            _undoStack.Push((UndoType.Stroke, _currentPage, null));
+            _undoStack.Push((UndoType.Stroke, _currentPage, null, ActiveLayer));
             _redoStack.Clear();
             LastPlacedAnnotation = _activePolyline;
             ActiveLayer.RefreshStatus();
@@ -754,7 +764,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 shapes.Add(_activeShape);
                 ActiveLayer.ShapeCount++;
                 _totalShapeCount++;
-                _undoStack.Push((UndoType.Shape, _currentPage, null));
+                _undoStack.Push((UndoType.Shape, _currentPage, null, ActiveLayer));
                 _redoStack.Clear();
                 LastPlacedAnnotation = _activeShape;
                 ActiveLayer.RefreshStatus();
@@ -829,7 +839,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         texts.Add(annotation);
         ActiveLayer.TextCount++;
         _totalTextCount++;
-        _undoStack.Push((UndoType.Text, _currentPage, null));
+        _undoStack.Push((UndoType.Text, _currentPage, null, ActiveLayer));
         _redoStack.Clear();
         LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
@@ -862,7 +872,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         texts.Add(annotation);
         ActiveLayer.TextCount++;
         _totalTextCount++;
-        _undoStack.Push((UndoType.Text, _currentPage, null));
+        _undoStack.Push((UndoType.Text, _currentPage, null, ActiveLayer));
         _redoStack.Clear();
         LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
@@ -896,7 +906,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         texts.Add(annotation);
         ActiveLayer.TextCount++;
         _totalTextCount++;
-        _undoStack.Push((UndoType.Text, _currentPage, null));
+        _undoStack.Push((UndoType.Text, _currentPage, null, ActiveLayer));
         _redoStack.Clear();
         LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
@@ -914,7 +924,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         shapes.Add(shape);
         ActiveLayer.ShapeCount++;
         _totalShapeCount++;
-        _undoStack.Push((UndoType.Shape, _currentPage, null));
+        _undoStack.Push((UndoType.Shape, _currentPage, null, ActiveLayer));
         _redoStack.Clear();
         LastPlacedAnnotation = shape;
         ActiveLayer.RefreshStatus();
@@ -932,7 +942,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         strokes.Add(stroke);
         ActiveLayer.StrokeCount++;
         _totalStrokeCount++;
-        _undoStack.Push((UndoType.Stroke, _currentPage, null));
+        _undoStack.Push((UndoType.Stroke, _currentPage, null, ActiveLayer));
         _redoStack.Clear();
         LastPlacedAnnotation = stroke;
         ActiveLayer.RefreshStatus();
@@ -950,7 +960,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         ms.Add(measurement);
         ActiveLayer.MeasurementCount++;
         _totalMeasurementCount++;
-        _undoStack.Push((UndoType.Measurement, _currentPage, null));
+        _undoStack.Push((UndoType.Measurement, _currentPage, null, ActiveLayer));
         _redoStack.Clear();
         LastPlacedAnnotation = measurement;
         ActiveLayer.RefreshStatus();
@@ -1066,7 +1076,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             measurements.Add(_activeMeasurement);
             ActiveLayer.MeasurementCount++;
             _totalMeasurementCount++;
-            _undoStack.Push((UndoType.Measurement, _currentPage, null));
+            _undoStack.Push((UndoType.Measurement, _currentPage, null, ActiveLayer));
             _redoStack.Clear();
             LastPlacedAnnotation = _activeMeasurement;
             ActiveLayer.RefreshStatus();
@@ -1156,7 +1166,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     texts.RemoveAt(i);
                     ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1);
                     _totalTextCount = Math.Max(0, _totalTextCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
                     _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
@@ -1176,7 +1186,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     measurements.RemoveAt(i);
                     ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1);
                     _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
                     _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
@@ -1196,7 +1206,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     shapes.RemoveAt(i);
                     ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1);
                     _totalShapeCount = Math.Max(0, _totalShapeCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
                     _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
@@ -1216,7 +1226,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     strokes.RemoveAt(i);
                     ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1);
                     _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased));
+                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
                     _redoStack.Clear();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
@@ -1376,7 +1386,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public void PushMoveUndo(object snapshot)
     {
-        _undoStack.Push((UndoType.Move, _currentPage, snapshot));
+        _undoStack.Push((UndoType.Move, _currentPage, snapshot, ActiveLayer));
         _redoStack.Clear();
     }
 
@@ -1438,7 +1448,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public void PushPropertyUndo(object snapshot)
     {
-        _undoStack.Push((UndoType.PropertyChange, _currentPage, snapshot));
+        _undoStack.Push((UndoType.PropertyChange, _currentPage, snapshot, ActiveLayer));
         _redoStack.Clear();
     }
 
@@ -1659,6 +1669,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Compute bounding box for a text annotation, accounting for MaxWidth word wrap.</summary>
     internal static Rect GetTextBounds(TextAnnotation t)
     {
+        // Use pixel-accurate cached bounds when available (set during render)
+        if (t.HasMeasuredBounds)
+            return new Rect(t.Position.X, t.Position.Y, t.MeasuredWidth, t.MeasuredHeight);
+
+        // Fallback heuristic for pre-render hit-testing
         double w, h;
         int newlineCount = CountNewlines(t.Text);
         if (t.MaxWidth > 0)
@@ -1757,7 +1772,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         if (moved)
         {
-            if (zSnap != null) { _undoStack.Push((UndoType.ZOrder, _currentPage, zSnap)); _redoStack.Clear(); }
+            if (zSnap != null) { _undoStack.Push((UndoType.ZOrder, _currentPage, zSnap, ActiveLayer)); _redoStack.Clear(); }
             InvalidateVisual(); NotifyAnnotationChanged();
         }
         return moved;
@@ -1790,7 +1805,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         if (moved)
         {
-            if (zSnap != null) { _undoStack.Push((UndoType.ZOrder, _currentPage, zSnap)); _redoStack.Clear(); }
+            if (zSnap != null) { _undoStack.Push((UndoType.ZOrder, _currentPage, zSnap, ActiveLayer)); _redoStack.Clear(); }
             InvalidateVisual(); NotifyAnnotationChanged();
         }
         return moved;
@@ -1929,7 +1944,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         if (removed)
         {
-            _undoStack.Push((UndoType.Delete, _currentPage, item));
+            _undoStack.Push((UndoType.Delete, _currentPage, item, ActiveLayer));
             _redoStack.Clear();
             ActiveLayer.RefreshStatus();
             _selectHighlightItems.Remove(item);
@@ -1939,27 +1954,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return removed;
     }
 
-    /// <summary>Re-adds a previously deleted annotation to the active layer's current page.</summary>
-    private void RestoreDeletedAnnotation(int page, object item)
+    /// <summary>Re-adds a previously deleted annotation to the specified layer's given page.</summary>
+    private void RestoreDeletedAnnotation(int page, object item, AnnotationLayer? targetLayer = null)
     {
-        if (ActiveLayer == null) return;
+        var layer = targetLayer ?? ActiveLayer;
+        if (layer == null) return;
         switch (item)
         {
             case TextAnnotation t:
-                if (!ActiveLayer.PageTexts.TryGetValue(page, out var texts)) { texts = []; ActiveLayer.PageTexts[page] = texts; }
-                texts.Add(t); ActiveLayer.TextCount++; _totalTextCount++;
+                if (!layer.PageTexts.TryGetValue(page, out var texts)) { texts = []; layer.PageTexts[page] = texts; }
+                texts.Add(t); layer.TextCount++; _totalTextCount++;
                 break;
             case ShapeAnnotation s:
-                if (!ActiveLayer.PageShapes.TryGetValue(page, out var shapes)) { shapes = []; ActiveLayer.PageShapes[page] = shapes; }
-                shapes.Add(s); ActiveLayer.ShapeCount++; _totalShapeCount++;
+                if (!layer.PageShapes.TryGetValue(page, out var shapes)) { shapes = []; layer.PageShapes[page] = shapes; }
+                shapes.Add(s); layer.ShapeCount++; _totalShapeCount++;
                 break;
             case MeasurementAnnotation m:
-                if (!ActiveLayer.PageMeasurements.TryGetValue(page, out var ms)) { ms = []; ActiveLayer.PageMeasurements[page] = ms; }
-                ms.Add(m); ActiveLayer.MeasurementCount++; _totalMeasurementCount++;
+                if (!layer.PageMeasurements.TryGetValue(page, out var ms)) { ms = []; layer.PageMeasurements[page] = ms; }
+                ms.Add(m); layer.MeasurementCount++; _totalMeasurementCount++;
                 break;
             case InkStroke ink:
-                if (!ActiveLayer.PageStrokes.TryGetValue(page, out var strokes)) { strokes = []; ActiveLayer.PageStrokes[page] = strokes; }
-                strokes.Add(ink); ActiveLayer.StrokeCount++; _totalStrokeCount++;
+                if (!layer.PageStrokes.TryGetValue(page, out var strokes)) { strokes = []; layer.PageStrokes[page] = strokes; }
+                strokes.Add(ink); layer.StrokeCount++; _totalStrokeCount++;
                 break;
         }
     }
@@ -2070,63 +2086,69 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void Undo()
     {
-        if (ActiveLayer == null || _undoStack.Count == 0) return;
+        if (_undoStack.Count == 0) return;
 
-        // Find the topmost entry for the current page, shelving entries for other pages
-        var shelved = new Stack<(UndoType type, int page, object? data)>();
-        (UndoType type, int page, object? data)? found = null;
+        // Find the topmost entry for the current page AND active layer
+        var shelved = new Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)>();
+        (UndoType type, int page, object? data, AnnotationLayer? layer)? found = null;
         while (_undoStack.Count > 0)
         {
             var entry = _undoStack.Pop();
-            if (entry.page == _currentPage) { found = entry; break; }
+            if (entry.page == _currentPage
+                && (entry.layer == null || entry.layer == ActiveLayer))
+            { found = entry; break; }
             shelved.Push(entry);
         }
         // Restore shelved entries
         while (shelved.Count > 0) _undoStack.Push(shelved.Pop());
         if (found is not { } f) return;
 
-        var (type, page, data) = f;
+        // Use the layer stored in the entry (falls back to ActiveLayer)
+        var (type, page, data, entryLayer) = f;
+        var layer = entryLayer ?? ActiveLayer;
+        if (layer == null) return;
+
         bool removed = false;
         object? item = null;
 
         switch (type)
         {
             case UndoType.Stroke:
-                if (ActiveLayer.PageStrokes.TryGetValue(page, out var strokes) && strokes.Count > 0)
+                if (layer.PageStrokes.TryGetValue(page, out var strokes) && strokes.Count > 0)
                 {
                     item = strokes[^1];
                     strokes.RemoveAt(strokes.Count - 1);
-                    ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1);
+                    layer.StrokeCount = Math.Max(0, layer.StrokeCount - 1);
                     _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1);
                     removed = true;
                 }
                 break;
             case UndoType.Shape:
-                if (ActiveLayer.PageShapes.TryGetValue(page, out var shapes) && shapes.Count > 0)
+                if (layer.PageShapes.TryGetValue(page, out var shapes) && shapes.Count > 0)
                 {
                     item = shapes[^1];
                     shapes.RemoveAt(shapes.Count - 1);
-                    ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1);
+                    layer.ShapeCount = Math.Max(0, layer.ShapeCount - 1);
                     _totalShapeCount = Math.Max(0, _totalShapeCount - 1);
                     removed = true;
                 }
                 break;
             case UndoType.Text:
-                if (ActiveLayer.PageTexts.TryGetValue(page, out var texts) && texts.Count > 0)
+                if (layer.PageTexts.TryGetValue(page, out var texts) && texts.Count > 0)
                 {
                     item = texts[^1];
                     texts.RemoveAt(texts.Count - 1);
-                    ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1);
+                    layer.TextCount = Math.Max(0, layer.TextCount - 1);
                     _totalTextCount = Math.Max(0, _totalTextCount - 1);
                     removed = true;
                 }
                 break;
             case UndoType.Measurement:
-                if (ActiveLayer.PageMeasurements.TryGetValue(page, out var measurements) && measurements.Count > 0)
+                if (layer.PageMeasurements.TryGetValue(page, out var measurements) && measurements.Count > 0)
                 {
                     item = measurements[^1];
                     measurements.RemoveAt(measurements.Count - 1);
-                    ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1);
+                    layer.MeasurementCount = Math.Max(0, layer.MeasurementCount - 1);
                     _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1);
                     removed = true;
                 }
@@ -2136,30 +2158,30 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     if (snap.Strokes is { Count: > 0 })
                     {
-                        if (!ActiveLayer.PageStrokes.TryGetValue(page, out var rs)) { rs = []; ActiveLayer.PageStrokes[page] = rs; }
+                        if (!layer.PageStrokes.TryGetValue(page, out var rs)) { rs = []; layer.PageStrokes[page] = rs; }
                         rs.AddRange(snap.Strokes);
-                        ActiveLayer.StrokeCount += snap.Strokes.Count;
+                        layer.StrokeCount += snap.Strokes.Count;
                         _totalStrokeCount += snap.Strokes.Count;
                     }
                     if (snap.Shapes is { Count: > 0 })
                     {
-                        if (!ActiveLayer.PageShapes.TryGetValue(page, out var rsh)) { rsh = []; ActiveLayer.PageShapes[page] = rsh; }
+                        if (!layer.PageShapes.TryGetValue(page, out var rsh)) { rsh = []; layer.PageShapes[page] = rsh; }
                         rsh.AddRange(snap.Shapes);
-                        ActiveLayer.ShapeCount += snap.Shapes.Count;
+                        layer.ShapeCount += snap.Shapes.Count;
                         _totalShapeCount += snap.Shapes.Count;
                     }
                     if (snap.Texts is { Count: > 0 })
                     {
-                        if (!ActiveLayer.PageTexts.TryGetValue(page, out var rt)) { rt = []; ActiveLayer.PageTexts[page] = rt; }
+                        if (!layer.PageTexts.TryGetValue(page, out var rt)) { rt = []; layer.PageTexts[page] = rt; }
                         rt.AddRange(snap.Texts);
-                        ActiveLayer.TextCount += snap.Texts.Count;
+                        layer.TextCount += snap.Texts.Count;
                         _totalTextCount += snap.Texts.Count;
                     }
                     if (snap.Measurements is { Count: > 0 })
                     {
-                        if (!ActiveLayer.PageMeasurements.TryGetValue(page, out var rm)) { rm = []; ActiveLayer.PageMeasurements[page] = rm; }
+                        if (!layer.PageMeasurements.TryGetValue(page, out var rm)) { rm = []; layer.PageMeasurements[page] = rm; }
                         rm.AddRange(snap.Measurements);
-                        ActiveLayer.MeasurementCount += snap.Measurements.Count;
+                        layer.MeasurementCount += snap.Measurements.Count;
                         _totalMeasurementCount += snap.Measurements.Count;
                     }
                     item = data;
@@ -2178,8 +2200,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.Delete:
                 if (data != null)
                 {
-                    // Undo delete = re-add the item
-                    RestoreDeletedAnnotation(page, data);
+                    RestoreDeletedAnnotation(page, data, layer);
                     item = data;
                     removed = true;
                 }
@@ -2206,8 +2227,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         if (removed)
         {
-            _redoStack.Push((type, page, item!));
-            ActiveLayer.RefreshStatus();
+            _redoStack.Push((type, page, item!, entryLayer));
+            layer.RefreshStatus();
             InvalidateVisual();
             NotifyAnnotationChanged();
         }
@@ -2241,22 +2262,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void Redo()
     {
-        if (ActiveLayer == null || _redoStack.Count == 0) return;
+        if (_redoStack.Count == 0) return;
 
-        // Find the topmost entry for the current page, shelving entries for other pages
-        var shelved = new Stack<(UndoType type, int page, object item)>();
-        (UndoType type, int page, object item)? found = null;
+        // Find the topmost entry for the current page AND active layer
+        var shelved = new Stack<(UndoType type, int page, object item, AnnotationLayer? layer)>();
+        (UndoType type, int page, object item, AnnotationLayer? layer)? found = null;
         while (_redoStack.Count > 0)
         {
             var entry = _redoStack.Pop();
-            if (entry.page == _currentPage) { found = entry; break; }
+            if (entry.page == _currentPage
+                && (entry.layer == null || entry.layer == ActiveLayer))
+            { found = entry; break; }
             shelved.Push(entry);
         }
         // Restore shelved entries
         while (shelved.Count > 0) _redoStack.Push(shelved.Pop());
         if (found is not { } f) return;
 
-        var (type, page, item) = f;
+        var (type, page, item, entryLayer) = f;
+        var layer = entryLayer ?? ActiveLayer;
+        if (layer == null) return;
+
         bool restored = false;
 
         switch (type)
@@ -2264,13 +2290,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.Stroke:
                 if (item is InkStroke stroke)
                 {
-                    if (!ActiveLayer.PageStrokes.TryGetValue(page, out var strokes))
+                    if (!layer.PageStrokes.TryGetValue(page, out var strokes))
                     {
                         strokes = [];
-                        ActiveLayer.PageStrokes[page] = strokes;
+                        layer.PageStrokes[page] = strokes;
                     }
                     strokes.Add(stroke);
-                    ActiveLayer.StrokeCount++;
+                    layer.StrokeCount++;
                     _totalStrokeCount++;
                     restored = true;
                 }
@@ -2278,13 +2304,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.Shape:
                 if (item is ShapeAnnotation shape)
                 {
-                    if (!ActiveLayer.PageShapes.TryGetValue(page, out var shapes))
+                    if (!layer.PageShapes.TryGetValue(page, out var shapes))
                     {
                         shapes = [];
-                        ActiveLayer.PageShapes[page] = shapes;
+                        layer.PageShapes[page] = shapes;
                     }
                     shapes.Add(shape);
-                    ActiveLayer.ShapeCount++;
+                    layer.ShapeCount++;
                     _totalShapeCount++;
                     restored = true;
                 }
@@ -2292,13 +2318,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.Text:
                 if (item is TextAnnotation text)
                 {
-                    if (!ActiveLayer.PageTexts.TryGetValue(page, out var texts))
+                    if (!layer.PageTexts.TryGetValue(page, out var texts))
                     {
                         texts = [];
-                        ActiveLayer.PageTexts[page] = texts;
+                        layer.PageTexts[page] = texts;
                     }
                     texts.Add(text);
-                    ActiveLayer.TextCount++;
+                    layer.TextCount++;
                     _totalTextCount++;
                     restored = true;
                 }
@@ -2306,13 +2332,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.Measurement:
                 if (item is MeasurementAnnotation measurement)
                 {
-                    if (!ActiveLayer.PageMeasurements.TryGetValue(page, out var measurements))
+                    if (!layer.PageMeasurements.TryGetValue(page, out var measurements))
                     {
                         measurements = [];
-                        ActiveLayer.PageMeasurements[page] = measurements;
+                        layer.PageMeasurements[page] = measurements;
                     }
                     measurements.Add(measurement);
-                    ActiveLayer.MeasurementCount++;
+                    layer.MeasurementCount++;
                     _totalMeasurementCount++;
                     restored = true;
                 }
@@ -2320,14 +2346,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.ClearPage:
                 if (item is ClearPageSnapshot snap)
                 {
-                    if (ActiveLayer.PageStrokes.TryGetValue(page, out var cs) && cs.Count > 0)
-                    { ActiveLayer.StrokeCount -= cs.Count; _totalStrokeCount -= cs.Count; cs.Clear(); }
-                    if (ActiveLayer.PageShapes.TryGetValue(page, out var csh) && csh.Count > 0)
-                    { ActiveLayer.ShapeCount -= csh.Count; _totalShapeCount -= csh.Count; csh.Clear(); }
-                    if (ActiveLayer.PageTexts.TryGetValue(page, out var ct) && ct.Count > 0)
-                    { ActiveLayer.TextCount -= ct.Count; _totalTextCount -= ct.Count; ct.Clear(); }
-                    if (ActiveLayer.PageMeasurements.TryGetValue(page, out var cm) && cm.Count > 0)
-                    { ActiveLayer.MeasurementCount -= cm.Count; _totalMeasurementCount -= cm.Count; cm.Clear(); }
+                    if (layer.PageStrokes.TryGetValue(page, out var cs) && cs.Count > 0)
+                    { layer.StrokeCount -= cs.Count; _totalStrokeCount -= cs.Count; cs.Clear(); }
+                    if (layer.PageShapes.TryGetValue(page, out var csh) && csh.Count > 0)
+                    { layer.ShapeCount -= csh.Count; _totalShapeCount -= csh.Count; csh.Clear(); }
+                    if (layer.PageTexts.TryGetValue(page, out var ct) && ct.Count > 0)
+                    { layer.TextCount -= ct.Count; _totalTextCount -= ct.Count; ct.Clear(); }
+                    if (layer.PageMeasurements.TryGetValue(page, out var cm) && cm.Count > 0)
+                    { layer.MeasurementCount -= cm.Count; _totalMeasurementCount -= cm.Count; cm.Clear(); }
                     restored = true;
                 }
                 break;
@@ -2336,8 +2362,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var undoSnap = CapturePreDragSnapshot(movRedoSnap.Item);
                     RestoreMoveSnapshot(movRedoSnap);
-                    _undoStack.Push((UndoType.Move, page, undoSnap!));
-                    ActiveLayer.RefreshStatus();
+                    _undoStack.Push((UndoType.Move, page, undoSnap!, entryLayer));
+                    layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
                     return;
@@ -2350,26 +2376,26 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 switch (item)
                 {
                     case TextAnnotation t:
-                        if (ActiveLayer.PageTexts.TryGetValue(page, out var txts) && txts.Remove(t))
-                        { ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1); _totalTextCount = Math.Max(0, _totalTextCount - 1); didRemove = true; }
+                        if (layer.PageTexts.TryGetValue(page, out var txts) && txts.Remove(t))
+                        { layer.TextCount = Math.Max(0, layer.TextCount - 1); _totalTextCount = Math.Max(0, _totalTextCount - 1); didRemove = true; }
                         break;
                     case ShapeAnnotation s:
-                        if (ActiveLayer.PageShapes.TryGetValue(page, out var shps) && shps.Remove(s))
-                        { ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1); _totalShapeCount = Math.Max(0, _totalShapeCount - 1); didRemove = true; }
+                        if (layer.PageShapes.TryGetValue(page, out var shps) && shps.Remove(s))
+                        { layer.ShapeCount = Math.Max(0, layer.ShapeCount - 1); _totalShapeCount = Math.Max(0, _totalShapeCount - 1); didRemove = true; }
                         break;
                     case MeasurementAnnotation m:
-                        if (ActiveLayer.PageMeasurements.TryGetValue(page, out var mss) && mss.Remove(m))
-                        { ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1); _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1); didRemove = true; }
+                        if (layer.PageMeasurements.TryGetValue(page, out var mss) && mss.Remove(m))
+                        { layer.MeasurementCount = Math.Max(0, layer.MeasurementCount - 1); _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1); didRemove = true; }
                         break;
                     case InkStroke ink:
-                        if (ActiveLayer.PageStrokes.TryGetValue(page, out var stks) && stks.Remove(ink))
-                        { ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1); _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1); didRemove = true; }
+                        if (layer.PageStrokes.TryGetValue(page, out var stks) && stks.Remove(ink))
+                        { layer.StrokeCount = Math.Max(0, layer.StrokeCount - 1); _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1); didRemove = true; }
                         break;
                 }
                 if (didRemove)
                 {
-                    _undoStack.Push((UndoType.Delete, page, item));
-                    ActiveLayer.RefreshStatus();
+                    _undoStack.Push((UndoType.Delete, page, item, entryLayer));
+                    layer.RefreshStatus();
                     ClearSelectHighlight();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -2382,8 +2408,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var undoPropSnap = CapturePropertySnapshot(propRedoSnap.Item);
                     RestorePropertySnapshot(propRedoSnap);
-                    _undoStack.Push((UndoType.PropertyChange, page, undoPropSnap!));
-                    ActiveLayer.RefreshStatus();
+                    _undoStack.Push((UndoType.PropertyChange, page, undoPropSnap!, entryLayer));
+                    layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
                     return;
@@ -2394,8 +2420,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var undoZ = CaptureZOrderSnapshot(zRedoSnap.Item);
                     RestoreZOrder(zRedoSnap);
-                    _undoStack.Push((UndoType.ZOrder, page, undoZ!));
-                    ActiveLayer.RefreshStatus();
+                    _undoStack.Push((UndoType.ZOrder, page, undoZ!, entryLayer));
+                    layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
                     return;
@@ -2405,8 +2431,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         if (restored)
         {
-            _undoStack.Push((type, page, null));
-            ActiveLayer.RefreshStatus();
+            _undoStack.Push((type, page, null, entryLayer));
+            layer.RefreshStatus();
             InvalidateVisual();
             NotifyAnnotationChanged();
         }
@@ -2453,7 +2479,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (savedStrokes != null || savedShapes != null || savedTexts != null || savedMeasurements != null)
         {
             var snapshot = new ClearPageSnapshot(savedStrokes, savedShapes, savedTexts, savedMeasurements);
-            _undoStack.Push((UndoType.ClearPage, _currentPage, snapshot));
+            _undoStack.Push((UndoType.ClearPage, _currentPage, snapshot, ActiveLayer));
             _redoStack.Clear();
             ActiveLayer.RefreshStatus();
             InvalidateVisual();
@@ -3398,14 +3424,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
         string fontFamily = t.FontFamily ?? "";
 
+        var typeface = GetCachedTypeface(fontFamily);
+        using var skFont = new SKFont(typeface, fontSize);
+
         // Word-wrap if MaxWidth is set, otherwise split on explicit newlines
         List<string> lines;
         if (t.MaxWidth > 0)
         {
             float scaleX = da.Width > 0 ? (float)(boundsSize.Width / da.Width) : (float)penScale;
             float maxWidthPx = (float)(t.MaxWidth * scaleX);
-            var typeface = GetCachedTypeface(fontFamily);
-            using var skFont = new SKFont(typeface, fontSize);
             lines = WrapTextLines(t.Text, maxWidthPx, skFont);
         }
         else
@@ -3417,10 +3444,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         float y = (float)screenPos.Y + fontSize;
         bool first = true;
 
+        // Track pixel-accurate extents for cached bounds
+        float measuredMaxW = 0;
+
         foreach (var line in lines)
         {
             if (line.Length > 0)
             {
+                float lineW = skFont.MeasureText(line);
+                measuredMaxW = Math.Max(measuredMaxW, lineW);
                 items.Add(new TextOverlayDrawOp.TextItem(
                     (float)screenPos.X, y, line, fontSize, color,
                     HasBackground: true, HasBorder: first, IsTextAnnotation: true,
@@ -3428,6 +3460,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 first = false;
             }
             y += lineHeight;
+        }
+
+        // Cache pixel-accurate bounds back to the annotation (in PDF units)
+        // so hit-testing and selection boxes match the actual rendered text.
+        if (penScale > 0.001)
+        {
+            t.MeasuredWidth = measuredMaxW / penScale;
+            t.MeasuredHeight = lines.Count * t.FontSize * 1.3;
         }
     }
 

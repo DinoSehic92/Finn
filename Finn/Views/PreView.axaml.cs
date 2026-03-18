@@ -193,9 +193,9 @@ public partial class PreView : UserControl
                     MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM);
                 else
                     MuPDFRenderer.ClearDiffOverlay();
-                // Re-center only when returning from a split/toggle layout
-                if (wasToggle || wasSBS)
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain(), Avalonia.Threading.DispatcherPriority.Render);
+                // Always re-center when entering overlay — the layout may have
+                // changed from Toggle/SBS or this may be the first activation.
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain(), Avalonia.Threading.DispatcherPriority.Render);
                 break;
 
             case DiffViewMode.Toggle:
@@ -204,20 +204,7 @@ public partial class PreView : UserControl
                 {
                     _diffSideBySideOpen = false;
                     StopDisplayAreaSync();
-                    // Collapse the SBS layout without disposing the document, then
-                    // chain the toggle open so it reuses the already-loaded doc.
-                    _ = pwr.CollapseSecondaryLayoutAsync().ContinueWith(_ =>
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            if (pwr.DiffViewMode == DiffViewMode.Toggle && !_diffToggleOpen)
-                            {
-                                _diffToggleOpen = true;
-                                _ = OpenDiffToggleAsync().ContinueWith(_ =>
-                                    Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain()),
-                                    System.Threading.Tasks.TaskScheduler.Default);
-                            }
-                        }),
-                        System.Threading.Tasks.TaskScheduler.Default);
+                    _ = TransitionSbsToToggleAsync();
                 }
                 else if (!_diffToggleOpen)
                 {
@@ -233,8 +220,6 @@ public partial class PreView : UserControl
                 if (_diffToggleOpen)
                 {
                     _diffToggleOpen = false;
-                    // Reset toggle visual state only — do NOT dispose the document.
-                    // OpenDiffSideBySideAsync will reuse the already-loaded doc.
                     StopDisplayAreaSync();
                     pwr.DiffShowingOriginal = false;
                     MuPDFRenderer.Opacity = 1;
@@ -243,7 +228,6 @@ public partial class PreView : UserControl
                     MuPDFRendererSecondary.IsHitTestVisible = true;
                     MuPDFRendererSecondary.IsVisible = false;
                     Avalonia.Controls.Grid.SetColumn(MuPDFRendererSecondary, 2);
-                    // Cancel any pending OpenDiffToggleAsync without disposing the doc.
                     pwr.CancelSecondaryOpen();
                 }
                 if (!_diffSideBySideOpen && (pwr.DiffOriginalPdfPath != null || pwr.HasDiffResults))
@@ -268,6 +252,23 @@ public partial class PreView : UserControl
     private bool _syncingDisplayArea; // re-entrancy guard for display area sync
     private IDisposable? _mainDisplayAreaSub;
     private IDisposable? _secondaryDisplayAreaSub;
+
+    /// <summary>
+    /// Collapses SBS layout then opens Toggle mode in a single async flow,
+    /// avoiding nested ContinueWith + Dispatcher.Post dispatch hops.
+    /// </summary>
+    private async Task TransitionSbsToToggleAsync()
+    {
+        await pwr.CollapseSecondaryLayoutAsync();
+
+        // Re-check on the UI thread — the user may have switched modes again
+        // while the collapse was running.
+        if (pwr.DiffViewMode != DiffViewMode.Toggle || _diffToggleOpen) return;
+
+        _diffToggleOpen = true;
+        await OpenDiffToggleAsync();
+        MuPDFRenderer.Contain();
+    }
 
     /// <summary>
     /// Subscribes to DisplayArea changes on both renderers so that pan/zoom
@@ -582,7 +583,11 @@ public partial class PreView : UserControl
         if (layer != null)
         {
             SyncLayers();
-            MuPDFRenderer.InvalidateVisual();
+            // The layer was added to the same collection the renderer already
+            // holds, so SyncLayers (reference check) won't call SetLayers.
+            // Manually recount and activate the new layer so it renders.
+            MuPDFRenderer.ActiveLayer = layer;
+            MuPDFRenderer.NotifyLayersChanged();
             pwr.StatusMessage = $"Diff saved as layer: {layer.Name}";
             ctx?.MarkDirty();
         }
