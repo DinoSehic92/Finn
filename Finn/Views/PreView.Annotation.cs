@@ -261,6 +261,7 @@ public partial class PreView
         // Highlight default tool/color/width buttons to match initial state
         HighlightInitialButtons();
         UpdateUndoRedoButtons();
+        UpdateActiveLayerLabel();
     }
 
     private void DeactivateAnnotateMode()
@@ -387,6 +388,26 @@ public partial class PreView
                 PasteAnnotation();
                 e.Handled = true;
             }
+        }
+        else if (e.Key == Key.A && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        {
+            // Ctrl+A: select all annotations on the current page
+            var all = MuPDFRenderer.GetAllAnnotationsOnPage();
+            if (all.Count > 0)
+            {
+                SavePreSelectState();
+                _selectedAnnotations.Clear();
+                MuPDFRenderer.ClearSelectHighlight();
+                foreach (var item in all)
+                {
+                    _selectedAnnotations.Add(item);
+                    MuPDFRenderer.AddSelectHighlight(item);
+                }
+                _selectedAnnotation = all[0];
+                SyncToolbarToSelection();
+                MuPDFRenderer.InvalidateVisual();
+            }
+            e.Handled = true;
         }
         else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
@@ -1467,6 +1488,7 @@ public partial class PreView
 
             default: // Draw, Highlight
                 MuPDFRenderer.EndStroke();
+                MuPDFRenderer.UpdateCursorPreview(null);
                 break;
         }
     }
@@ -1777,16 +1799,67 @@ public partial class PreView
 
     private void UpdateUndoRedoButtons()
     {
+        bool canUndo = MuPDFRenderer.CanUndoCurrentPage;
+        bool canRedo = MuPDFRenderer.CanRedoCurrentPage;
         var undoBtn = this.FindControl<Button>("UndoBtn");
         var redoBtn = this.FindControl<Button>("RedoBtn");
-        if (undoBtn != null) undoBtn.Opacity = MuPDFRenderer.CanUndoCurrentPage ? 1.0 : 0.35;
-        if (redoBtn != null) redoBtn.Opacity = MuPDFRenderer.CanRedoCurrentPage ? 1.0 : 0.35;
+        if (undoBtn != null) { undoBtn.Opacity = canUndo ? 1.0 : 0.35; undoBtn.IsEnabled = canUndo; }
+        if (redoBtn != null) { redoBtn.Opacity = canRedo ? 1.0 : 0.35; redoBtn.IsEnabled = canRedo; }
     }
 
     private void OnAnnotationChanged()
     {
         UpdateAnnotationCountBadge();
         UpdateUndoRedoButtons();
+        UpdateActiveLayerLabel();
+    }
+
+    /// <summary>Shows a context menu listing all layers; clicking one sets it as the active layer.</summary>
+    private void OnLayerPickerClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var layers = MuPDFRenderer.Layers;
+        if (layers.Count == 0) return;
+        var menu = new ContextMenu();
+        foreach (var layer in layers.ToList())
+        {
+            var capturedLayer = layer;
+            var item = new MenuItem
+            {
+                Header = capturedLayer.Name,
+                IsChecked = capturedLayer == MuPDFRenderer.ActiveLayer
+            };
+            item.Click += (_, _) =>
+            {
+                MuPDFRenderer.ActiveLayer = capturedLayer;
+                UpdateActiveLayerLabel();
+                MuPDFRenderer.Focus();
+            };
+            menu.Items.Add(item);
+        }
+        menu.Open(btn);
+    }
+
+    /// <summary>Toggles the visibility of the active annotation layer.</summary>
+    private void OnToggleLayerVisibility(object? sender, RoutedEventArgs e)
+    {
+        var layer = MuPDFRenderer.ActiveLayer;
+        if (layer == null) return;
+        layer.IsVisible = !layer.IsVisible;
+        MuPDFRenderer.InvalidateVisual();
+        UpdateActiveLayerLabel();
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Syncs the layer label and visibility button opacity to the current active layer state.</summary>
+    private void UpdateActiveLayerLabel()
+    {
+        var layer = MuPDFRenderer.ActiveLayer;
+        if (layer == null) return;
+        if (ActiveLayerLabel != null)
+            ActiveLayerLabel.Text = layer.Name;
+        if (LayerVisBtn != null)
+            LayerVisBtn.Opacity = layer.IsVisible ? 1.0 : 0.35;
     }
 
     private void UpdateActiveToolLabel(InlineAnnotationTool tool)

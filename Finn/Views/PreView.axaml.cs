@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Finn.Views;
@@ -108,6 +109,7 @@ public partial class PreView : UserControl
             MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
             SyncLayers();
             SyncDiffOverlay();
+            if (_annotateMode) UpdateUndoRedoButtons();
         }
 
         if (e.PropertyName == "DiffOverlayActive" || e.PropertyName == "DiffViewMode")
@@ -590,6 +592,8 @@ public partial class PreView : UserControl
         }
     }
 
+    private void OnCancelDiff(object? sender, RoutedEventArgs e) => pwr?.CancelDiff();
+
     private async void OnDiffRerun(object? sender, RoutedEventArgs e)
     {
         if (pwr == null || !pwr.CanRerunDiff) return;
@@ -630,7 +634,25 @@ public partial class PreView : UserControl
         // Build choices from the real file (via MainViewModel.CurrentFile)
         var mainVm = this.DataContext as Finn.ViewModels.MainViewModel
                   ?? (this.FindAncestorOfType<Window>()?.DataContext as Finn.ViewModels.MainViewModel);
-        var choices = pwr.GetVersionChoicesForDialog(mainVm?.CurrentFile);
+        var currentFile = mainVm?.CurrentFile;
+        IEnumerable<FileData>? appendedFiles = null;
+        if (currentFile != null && mainVm?.CurrentProject?.StoredFiles != null)
+        {
+            if (currentFile.IsAppendedFile && currentFile.ParentFile != null)
+            {
+                // Attached file selected: include parent + all siblings as comparison options
+                var parent = currentFile.ParentFile;
+                appendedFiles = mainVm.CurrentProject.StoredFiles
+                    .Where(f => f != currentFile && (f == parent || f.ParentNamn == parent.Namn));
+            }
+            else if (currentFile.HasChildren)
+            {
+                // Parent file with attached children: include all children as comparison options
+                appendedFiles = mainVm.CurrentProject.StoredFiles
+                    .Where(f => f.ParentNamn == currentFile.Namn);
+            }
+        }
+        var choices = pwr.GetVersionChoicesForDialog(currentFile, appendedFiles);
         if (choices.Count < 2)
         {
             pwr.StatusMessage = "Not enough versions to compare";

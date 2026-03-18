@@ -41,6 +41,7 @@ namespace Finn.ViewModels
         private CancellationTokenSource secondaryCts = new();
         private bool fastOpenMode; // Toggle for fast open (first pages only) vs full open
         private TaskCompletionSource? searchDone; // Signalled when SearchDocumentAsync finishes
+        private CancellationTokenSource? _diffCts;
         #endregion
 
         #region Constructor
@@ -406,6 +407,13 @@ namespace Finn.ViewModels
             set => SetProperty(ref fileWorkerBusy, value);
         }
 
+        private bool diffBusy = false;
+        public bool DiffBusy
+        {
+            get => diffBusy;
+            set => SetProperty(ref diffBusy, value);
+        }
+
         private string statusMessage;
         public string StatusMessage
         {
@@ -767,6 +775,8 @@ namespace Finn.ViewModels
             {
                 var file = _diffSourceFile ?? currentFile;
                 if (file is { HasVersions: true }) return true;
+                if (file is { HasChildren: true }) return true;
+                if (file is { IsAppendedFile: true }) return true;
                 // Also allow when diff is active (paths are known)
                 return !string.IsNullOrEmpty(_diffOriginalPdfPath) && !string.IsNullOrEmpty(_diffRevisedPdfPath);
             }
@@ -776,7 +786,7 @@ namespace Finn.ViewModels
         /// Builds a version choice list for the dialog, independent of current diff state.
         /// Uses <see cref="_diffSourceFile"/> or the real <see cref="CurrentFile"/> from MainViewModel.
         /// </summary>
-        public List<DiffPathChoice> GetVersionChoicesForDialog(FileData? realFile = null)
+        public List<DiffPathChoice> GetVersionChoicesForDialog(FileData? realFile = null, IEnumerable<FileData>? appendedFiles = null)
         {
             var choices = new List<DiffPathChoice>();
             var addedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -803,6 +813,19 @@ namespace Finn.ViewModels
                                 string.IsNullOrEmpty(v.Label) ? Path.GetFileNameWithoutExtension(v.Sökväg) : v.Label,
                                 v.Sökväg));
                     }
+                }
+            }
+
+            if (appendedFiles != null)
+            {
+                foreach (var appended in appendedFiles)
+                {
+                    if (!string.IsNullOrEmpty(appended.Sökväg)
+                        && appended.Sökväg.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                        && addedPaths.Add(appended.Sökväg))
+                        choices.Add(new DiffPathChoice(
+                            string.IsNullOrEmpty(appended.Namn) ? Path.GetFileNameWithoutExtension(appended.Sökväg) : appended.Namn,
+                            appended.Sökväg));
                 }
             }
 
@@ -989,6 +1012,9 @@ namespace Finn.ViewModels
         /// </summary>
         internal void CancelSecondaryOpen() => Interlocked.Increment(ref _secondaryCloseGen);
 
+        /// <summary>Cancels any in-progress diff comparison.</summary>
+        public void CancelDiff() => _diffCts?.Cancel();
+
         /// <summary>
         /// Runs a diff comparison and loads results into the previewer.
         /// Progress is indicated via StatusMessage/FileWorkerBusy.
@@ -997,17 +1023,27 @@ namespace Finn.ViewModels
         {
             if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)) return;
 
+            _diffCts?.Cancel();
+            _diffCts?.Dispose();
+            _diffCts = new CancellationTokenSource();
+            var ct = _diffCts.Token;
+
             FileWorkerBusy = true;
+            DiffBusy = true;
             StatusMessage = "Comparing…";
             try
             {
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
-                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress, default, _diffTolerance);
+                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress, ct, _diffTolerance);
                 LoadDiffResults(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — identical"
                     : $"{results.Count} pages — {diffCount} with differences";
+            }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = "Comparison cancelled";
             }
             catch (Exception ex)
             {
@@ -1015,6 +1051,7 @@ namespace Finn.ViewModels
             }
             finally
             {
+                DiffBusy = false;
                 FileWorkerBusy = false;
             }
         }
@@ -2323,9 +2360,11 @@ namespace Finn.ViewModels
                 await mainCts.CancelAsync().ConfigureAwait(false);
                 await searchCts.CancelAsync().ConfigureAwait(false);
                 await secondaryCts.CancelAsync().ConfigureAwait(false);
+                _diffCts?.Cancel();
                 mainCts.Dispose();
                 searchCts.Dispose();
                 secondaryCts.Dispose();
+                _diffCts?.Dispose();
                 renderSemaphore.Dispose();
             }
             catch (Exception ex)

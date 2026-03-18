@@ -51,6 +51,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private int _totalTextCount;
     private int _totalMeasurementCount;
 
+    // ── Cached rendering resources (avoid per-frame allocations) ────────
+    private readonly List<TextOverlayDrawOp.TextItem> _textItemPool = new(64);
+    // Cached SKTypeface lookups — FromFamilyName is expensive native interop
+    private static readonly Dictionary<string, SKTypeface> _typefaceCache = new();
+    // Cached brushes / pens used every frame (static colors, scale-independent)
+    private static readonly ImmutableSolidColorBrush s_eraserHoverBrush =
+        new SolidColorBrush(Color.FromArgb(60, 255, 50, 50)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_eraserHoverPenBrush =
+        new SolidColorBrush(Color.FromArgb(140, 255, 50, 50)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_selectPenBrush =
+        new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_vertexBrush =
+        new SolidColorBrush(Color.FromRgb(255, 255, 255)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_vertexPenBrush =
+        new SolidColorBrush(Color.FromArgb(160, 60, 60, 60)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_cornerBrush =
+        new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_snapBrush =
+        new SolidColorBrush(Color.FromArgb(180, 16, 185, 129)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_rubberBandFillBrush =
+        new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_rubberBandBorderBrush =
+        new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable();
+    private static readonly ImmutableSolidColorBrush s_selectHoverBrush =
+        new SolidColorBrush(Color.FromArgb(90, 232, 125, 47)).ToImmutable();
+    private static readonly DashStyle s_dashStyle4_3 = new([4, 3], 0);
+    private static readonly DashStyle s_dashStyle5_4 = new([5, 4], 0);
+    private static readonly DashStyle s_dashStyle3_3 = new([3, 3], 0);
+
     private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder }
     private readonly Stack<(UndoType type, int page, object? data)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item)> _redoStack = new();
@@ -363,6 +392,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     #endregion
 
+    /// <summary>
+    /// Returns a cached SKTypeface for the given family name.
+    /// Avoids repeated expensive native SKTypeface.FromFamilyName lookups.
+    /// </summary>
+    private static SKTypeface GetCachedTypeface(string fontFamily)
+    {
+        if (string.IsNullOrEmpty(fontFamily)) return SKTypeface.Default;
+        if (!_typefaceCache.TryGetValue(fontFamily, out var tf))
+        {
+            tf = SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
+            _typefaceCache[fontFamily] = tf;
+        }
+        return tf;
+    }
+
     #region Coordinate Transform
 
     /// <summary>
@@ -505,6 +549,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             NotifyAnnotationChanged();
         }
         _activeStroke = null;
+        InvalidateVisual();
     }
 
     // ── Polyline (multi-click straight-line segments) ─────────────────
@@ -1505,13 +1550,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         var tb = GetAnnotationBounds(target);
         var tc = GetAnnotationCenter(target);
-        foreach (double tx in new[] { tb.Left, tc.X, tb.Right })
+
+        // Inline iteration over {Left, CenterX, Right} to avoid allocating new[]
+        double tx = tb.Left;
+        for (int i = 0; i < 3; i++)
         {
+            if (i == 1) tx = tc.X; else if (i == 2) tx = tb.Right;
             double dist = Math.Abs(vx - tx);
             if (dist < bestDistX) { bestDistX = dist; snapX = tx; _snapGuideX = tx; }
         }
-        foreach (double ty in new[] { tb.Top, tc.Y, tb.Bottom })
+        double ty = tb.Top;
+        for (int i = 0; i < 3; i++)
         {
+            if (i == 1) ty = tc.Y; else if (i == 2) ty = tb.Bottom;
             double dist = Math.Abs(vy - ty);
             if (dist < bestDistY) { bestDistY = dist; snapY = ty; _snapGuideY = ty; }
         }
@@ -1526,19 +1577,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double tL = tb.Left, tR = tb.Right, tCx = tc.X;
         double tT = tb.Top, tB = tb.Bottom, tCy = tc.Y;
 
-        foreach (double dx in new[] { dL, dCx, dR })
-            foreach (double tx in new[] { tL, tCx, tR })
+        // Inline 3×3 iteration to avoid allocating new[] arrays each call
+        Span<double> dxVals = [dL, dCx, dR];
+        Span<double> txVals = [tL, tCx, tR];
+        for (int di = 0; di < 3; di++)
+            for (int ti = 0; ti < 3; ti++)
             {
-                double dist = Math.Abs(dx - tx);
+                double dist = Math.Abs(dxVals[di] - txVals[ti]);
                 if (dist < bestSnapDistX)
-                { bestSnapDistX = dist; bestDx = rawDx + (tx - dx); _snapGuideX = tx; }
+                { bestSnapDistX = dist; bestDx = rawDx + (txVals[ti] - dxVals[di]); _snapGuideX = txVals[ti]; }
             }
-        foreach (double dy in new[] { dT, dCy, dB })
-            foreach (double ty in new[] { tT, tCy, tB })
+        Span<double> dyVals = [dT, dCy, dB];
+        Span<double> tyVals = [tT, tCy, tB];
+        for (int di = 0; di < 3; di++)
+            for (int ti = 0; ti < 3; ti++)
             {
-                double dist = Math.Abs(dy - ty);
+                double dist = Math.Abs(dyVals[di] - tyVals[ti]);
                 if (dist < bestSnapDistY)
-                { bestSnapDistY = dist; bestDy = rawDy + (ty - dy); _snapGuideY = ty; }
+                { bestSnapDistY = dist; bestDy = rawDy + (tyVals[ti] - dyVals[di]); _snapGuideY = tyVals[ti]; }
             }
     }
 
@@ -1548,10 +1604,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
         ShapeAnnotation s => new Point((s.Start.X + s.End.X) / 2, (s.Start.Y + s.End.Y) / 2),
         MeasurementAnnotation m when m.Points.Count >= 2 =>
             new Point((m.Points[0].X + m.Points[1].X) / 2, (m.Points[0].Y + m.Points[1].Y) / 2),
-        InkStroke ink when ink.Points.Count > 0 =>
-            new Point(ink.Points.Average(p => p.X), ink.Points.Average(p => p.Y)),
+        InkStroke ink when ink.Points.Count > 0 => GetStrokeCenter(ink),
         _ => default
     };
+
+    private static Point GetStrokeCenter(InkStroke ink)
+    {
+        double sumX = 0, sumY = 0;
+        int count = ink.Points.Count;
+        for (int i = 0; i < count; i++)
+        {
+            sumX += ink.Points[i].X;
+            sumY += ink.Points[i].Y;
+        }
+        return new Point(sumX / count, sumY / count);
+    }
 
     internal static Rect GetAnnotationBounds(object item) => item switch
     {
@@ -1566,20 +1633,29 @@ public class AnnotatedPDFRenderer : PDFRenderer
     internal static Rect GetTextBounds(TextAnnotation t)
     {
         double w, h;
+        int newlineCount = CountNewlines(t.Text);
         if (t.MaxWidth > 0)
         {
             w = t.MaxWidth;
             double totalCharWidth = t.FontSize * Math.Max(1, t.Text.Length) * 0.55;
             int lineCount = Math.Max(1, (int)Math.Ceiling(totalCharWidth / t.MaxWidth));
-            lineCount = Math.Max(lineCount, 1 + t.Text.Count(c => c == '\n'));
+            lineCount = Math.Max(lineCount, 1 + newlineCount);
             h = t.FontSize * lineCount * 1.3;
         }
         else
         {
             w = t.FontSize * Math.Max(1, t.Text.Length) * 0.55;
-            h = t.FontSize * (1 + t.Text.Count(c => c == '\n')) * 1.3;
+            h = t.FontSize * (1 + newlineCount) * 1.3;
         }
         return new Rect(t.Position.X, t.Position.Y, w, h);
+    }
+
+    private static int CountNewlines(string text)
+    {
+        int count = 0;
+        for (int i = 0; i < text.Length; i++)
+            if (text[i] == '\n') count++;
+        return count;
     }
 
     /// <summary>
@@ -2465,8 +2541,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double scaleY = boundsSize.Height / da.Height;
         double penScale = (scaleX + scaleY) * 0.5;
 
-        // Collect text items for the SkiaSharp overlay pass
-        var textItems = new List<TextOverlayDrawOp.TextItem>();
+        // Collect text items for the SkiaSharp overlay pass (reuse pooled list)
+        _textItemPool.Clear();
+        var textItems = _textItemPool;
 
         // Draw all visible layers
         foreach (var layer in Layers)
@@ -2610,8 +2687,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Select-mode hover outline: dotted bounding-box around the hovered annotation
         if (_selectHoverItem != null && !_selectHighlightItems.Contains(_selectHoverItem))
         {
-            var hoverPen = new Pen(new SolidColorBrush(Color.FromArgb(90, 232, 125, 47)).ToImmutable(),
-                1.0 * penScale, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Round);
+            var hoverPen = new Pen(s_selectHoverBrush,
+                1.0 * penScale, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Round);
             Rect? hoverBounds = null;
             switch (_selectHoverItem)
             {

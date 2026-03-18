@@ -83,6 +83,10 @@
 							<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="36" Foreground="White"/>
 							<TextBlock Text="{Binding PreviewVM.StatusMessage}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
 							<ProgressBar Width="200" Height="6" Minimum="0" Maximum="100" Value="{Binding PreviewVM.Progress}"/>
+							<Button Content="Cancel" IsVisible="{Binding PreviewVM.DiffBusy}"
+									Click="OnCancelDiff" Padding="16,4" HorizontalAlignment="Center"
+									Foreground="White" Background="Transparent"
+									BorderThickness="1" BorderBrush="White" CornerRadius="3"/>
 						</StackPanel>
 					</Grid>
 				</Grid>
@@ -170,11 +174,21 @@
 						<Button ToolTip.Tip="Export Review" Width="26" Height="26" Padding="0" Click="OnAnnotateExportReview" BorderThickness="0">
 							<ic:SymbolIcon Symbol="ArrowExportUp" IconVariant="Regular" FontSize="14"/>
 						</Button>
-						<TextBlock Name="AnnotationCountBadge" Text="" FontSize="9" VerticalAlignment="Center" Margin="3,0"
-							Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.7"/>
-						<TextBlock Name="ActiveToolLabel" Text="Draw" FontSize="9" VerticalAlignment="Center" Margin="3,0"
-							Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.5" FontStyle="Italic"/>
-					</StackPanel>
+							<TextBlock Name="AnnotationCountBadge" Text="" FontSize="9" VerticalAlignment="Center" Margin="3,0"
+								Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.7"/>
+							<TextBlock Name="ActiveToolLabel" Text="Draw" FontSize="9" VerticalAlignment="Center" Margin="3,0"
+								Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.5" FontStyle="Italic"/>
+							<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+							<Button Name="LayerPickerBtn" ToolTip.Tip="Active layer — click to switch" Height="26" Padding="4,0" Click="OnLayerPickerClick" BorderThickness="0">
+								<StackPanel Orientation="Horizontal" Spacing="3">
+									<ic:SymbolIcon Symbol="Layer" IconVariant="Regular" FontSize="12"/>
+									<TextBlock Name="ActiveLayerLabel" Text="Layer 1" FontSize="9" VerticalAlignment="Center" Opacity="0.7" MaxWidth="60" TextTrimming="CharacterEllipsis"/>
+								</StackPanel>
+							</Button>
+							<Button Name="LayerVisBtn" ToolTip.Tip="Toggle active layer visibility" Width="26" Height="26" Padding="0" Click="OnToggleLayerVisibility" BorderThickness="0">
+								<ic:SymbolIcon Symbol="Eye" IconVariant="Regular" FontSize="14"/>
+							</Button>
+						</StackPanel>
 					<!-- Row 2: Colors, Stroke, Properties -->
 					<StackPanel Orientation="Horizontal" Spacing="1" HorizontalAlignment="Center">
 						<Button ToolTip.Tip="Red" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
