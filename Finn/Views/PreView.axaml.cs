@@ -116,7 +116,10 @@ public partial class PreView : UserControl
         }
 
         if (e.PropertyName == nameof(PreviewViewModel.DiffShowingOriginal) && _diffToggleOpen)
+        {
             ShowToggleRenderer(pwr.DiffShowingOriginal);
+            DiffABLabel.Text = pwr.DiffShowingOriginal ? "A" : "B";
+        }
 
         if (e.PropertyName == "WhiteboardMode")
         {
@@ -179,6 +182,8 @@ public partial class PreView : UserControl
         switch (pwr.DiffViewMode)
         {
             case DiffViewMode.Overlay:
+                bool wasToggle = _diffToggleOpen;
+                bool wasSBS = _diffSideBySideOpen;
                 if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
                 if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); _ = pwr.CloseDiffSideBySideAsync(); }
                 var diffPath = pwr.GetDiffImagePath(page);
@@ -186,6 +191,9 @@ public partial class PreView : UserControl
                     MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM);
                 else
                     MuPDFRenderer.ClearDiffOverlay();
+                // Re-center only when returning from a split/toggle layout
+                if (wasToggle || wasSBS)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain(), Avalonia.Threading.DispatcherPriority.Render);
                 break;
 
             case DiffViewMode.Toggle:
@@ -202,7 +210,9 @@ public partial class PreView : UserControl
                             if (pwr.DiffViewMode == DiffViewMode.Toggle && !_diffToggleOpen)
                             {
                                 _diffToggleOpen = true;
-                                _ = OpenDiffToggleAsync();
+                                _ = OpenDiffToggleAsync().ContinueWith(_ =>
+                                    Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain()),
+                                    System.Threading.Tasks.TaskScheduler.Default);
                             }
                         }),
                         System.Threading.Tasks.TaskScheduler.Default);
@@ -210,7 +220,9 @@ public partial class PreView : UserControl
                 else if (!_diffToggleOpen)
                 {
                     _diffToggleOpen = true;
-                    _ = OpenDiffToggleAsync();
+                    _ = OpenDiffToggleAsync().ContinueWith(_ =>
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain()),
+                        System.Threading.Tasks.TaskScheduler.Default);
                 }
                 break;
 
@@ -232,11 +244,17 @@ public partial class PreView : UserControl
                     // Cancel any pending OpenDiffToggleAsync without disposing the doc.
                     pwr.CancelSecondaryOpen();
                 }
-                if (!_diffSideBySideOpen && pwr.DiffOriginalPdfPath != null)
+                if (!_diffSideBySideOpen && (pwr.DiffOriginalPdfPath != null || pwr.HasDiffResults))
                 {
                     _diffSideBySideOpen = true;
                     _ = pwr.OpenDiffSideBySideAsync().ContinueWith(_ =>
-                        Avalonia.Threading.Dispatcher.UIThread.Post(StartDisplayAreaSync),
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                        {
+                            MuPDFRenderer.Contain();
+                            if (MuPDFRendererSecondary.IsVisible)
+                                MuPDFRendererSecondary.Contain();
+                            StartDisplayAreaSync();
+                        }),
                         System.Threading.Tasks.TaskScheduler.Default);
                 }
                 break;
@@ -620,6 +638,10 @@ public partial class PreView : UserControl
         }
 
         var dialog = new Finn.Dialogs.xVersionCompareDia();
+        // Pass MainViewModel as DataContext so UI.CornerRadius / UI.Shadow / UI.BorderThickness
+        // bindings in the dialog (and the global App.axaml Border/DataGrid styles) resolve correctly.
+        if (mainVm != null)
+            dialog.DataContext = mainVm;
         dialog.Populate(choices, pwr.DiffChoiceA, pwr.DiffChoiceB);
 
         var owner = this.FindAncestorOfType<Window>();

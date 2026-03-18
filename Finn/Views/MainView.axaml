@@ -651,15 +651,11 @@
 							</MenuItem>
 							<MenuItem Header="Rename Last" ItemsSource="{Binding VersionLabels}" Click="OnLabelLatestVersion">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
-								<MenuItem.ItemTemplate>
-									<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
-								</MenuItem.ItemTemplate>
-							</MenuItem>
-							<Separator/>
-							<MenuItem Header="Compare Last Two" Click="OnCompareVersionDiff">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="ItemCompare"/></MenuItem.Icon>
-							</MenuItem>
-						</MenuItem>
+										<MenuItem.ItemTemplate>
+											<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+										</MenuItem.ItemTemplate>
+									</MenuItem>
+								</MenuItem>
 
 						<Separator/>
 

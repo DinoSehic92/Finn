@@ -48,19 +48,6 @@ namespace Finn.Services
         }
 
         /// <summary>
-        /// Compares two sets of PDFs treating each set as a single concatenated document.
-        /// Pages from each list are rendered sequentially and matched by global page index.
-        /// </summary>
-        public static async Task<(List<DiffResultData> Results, string TempDir)> CompareAsync(
-            IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB,
-            IProgress<int>? progress = null,
-            CancellationToken ct = default,
-            int tolerance = DefaultTolerance)
-        {
-            return await Task.Run(() => CompareMulti(pathsA, pathsB, progress, ct, tolerance), ct);
-        }
-
-        /// <summary>
         /// Recomputes only the diff images for already-rendered page pairs using a new tolerance.
         /// Much faster than a full compare since PDF rendering is skipped.
         /// </summary>
@@ -97,176 +84,100 @@ namespace Finn.Services
             Directory.CreateDirectory(tempDir);
             try
             {
-            byte[] bytesA = File.ReadAllBytes(pathA);
-            byte[] bytesB = File.ReadAllBytes(pathB);
+                // Use file-path constructor — avoids reading entire PDFs into managed memory.
+                using var ctxA = new MuPDFContext();
+                using var ctxB = new MuPDFContext();
+                using var docA = new MuPDFDocument(ctxA, pathA);
+                using var docB = new MuPDFDocument(ctxB, pathB);
 
-            using var ctxA = new MuPDFContext();
-            using var ctxB = new MuPDFContext();
-            using var docA = new MuPDFDocument(ctxA, bytesA, InputFileTypes.PDF);
-            using var docB = new MuPDFDocument(ctxB, bytesB, InputFileTypes.PDF);
+                int pagesA = docA.Pages.Count;
+                int pagesB = docB.Pages.Count;
+                int maxPages = Math.Max(pagesA, pagesB);
 
-            int pagesA = docA.Pages.Count;
-            int pagesB = docB.Pages.Count;
-            int maxPages = Math.Max(pagesA, pagesB);
+                string?[] filesA = new string?[pagesA];
+                string?[] filesB = new string?[pagesB];
 
-            string?[] filesA = new string?[pagesA];
-            string?[] filesB = new string?[pagesB];
+                // Phase 1 (0–50 %): render both documents concurrently.
+                // ctxA/docA and ctxB/docB are fully independent so this is thread-safe.
+                int renderedCount = 0;
+                int totalRenderPages = pagesA + pagesB;
+                progress?.Report(0);
 
-            // Phase 1 (0–50 %): render both documents concurrently.
-            // ctxA/docA and ctxB/docB are fully independent so this is thread-safe.
-            int renderedCount = 0;
-            int totalRenderPages = pagesA + pagesB;
-            progress?.Report(0);
-
-            Parallel.Invoke(
-                new ParallelOptions { CancellationToken = ct },
-                () =>
-                {
-                    for (int i = 0; i < pagesA; i++)
+                Parallel.Invoke(
+                    new ParallelOptions { CancellationToken = ct },
+                    () =>
                     {
-                        ct.ThrowIfCancellationRequested();
-                        filesA[i] = Path.Combine(tempDir, $"a_{i}.jpg");
-                        docA.SaveImageAsJPEG(i, ZOOM, filesA[i], JPEG_QUALITY);
-                        progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
-                    }
-                },
-                () =>
-                {
-                    for (int i = 0; i < pagesB; i++)
+                        for (int i = 0; i < pagesA; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            filesA[i] = Path.Combine(tempDir, $"a_{i}.jpg");
+                            docA.SaveImageAsJPEG(i, ZOOM, filesA[i], JPEG_QUALITY);
+                            progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
+                        }
+                    },
+                    () =>
                     {
-                        ct.ThrowIfCancellationRequested();
-                        filesB[i] = Path.Combine(tempDir, $"b_{i}.jpg");
-                        docB.SaveImageAsJPEG(i, ZOOM, filesB[i], JPEG_QUALITY);
-                        progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
+                        for (int i = 0; i < pagesB; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            filesB[i] = Path.Combine(tempDir, $"b_{i}.jpg");
+                            docB.SaveImageAsJPEG(i, ZOOM, filesB[i], JPEG_QUALITY);
+                            progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
+                        }
                     }
-                }
-            );
+                );
 
-            // Phase 2 (50–100 %): compute diffs in parallel — each page pair is independent.
-            var results = new DiffResultData[maxPages];
-            int diffedCount = 0;
+                // Phase 2 (50–100 %): compute diffs in parallel — each page pair is independent.
+                var results = new DiffResultData[maxPages];
+                int diffedCount = 0;
 
-            Parallel.For(0, maxPages, new ParallelOptions { CancellationToken = ct }, i =>
-            {
-                ct.ThrowIfCancellationRequested();
-
-                string? fileA = i < pagesA ? filesA[i] : null;
-                string? fileB = i < pagesB ? filesB[i] : null;
-                string? fileD = null;
-                bool hasDiff;
-
-                if (fileA != null && fileB != null)
-                {
-                    using var bmpA = new SysBitmap(fileA);
-                    using var bmpB = new SysBitmap(fileB);
-                    fileD = Path.Combine(tempDir, $"d_{i}.png");
-                    hasDiff = ComputeAndSaveDiff(bmpA, bmpB, fileD, tolerance);
-                }
-                else
-                {
-                    hasDiff = fileA != null || fileB != null;
-                }
-
-                results[i] = new DiffResultData
-                {
-                    PageIndex = i,
-                    OriginalPath = fileA,
-                    RevisedPath = fileB,
-                    DiffPath = fileD,
-                    HasDifferences = hasDiff
-                };
-
-                progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, maxPages));
-            });
-
-            return (new List<DiffResultData>(results), tempDir);
-            }
-            catch
-            {
-                try { Directory.Delete(tempDir, true); } catch { }
-                throw;
-            }
-        }
-
-        private static (List<DiffResultData> Results, string TempDir) CompareMulti(
-            IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB,
-            IProgress<int>? progress,
-            CancellationToken ct,
-            int tolerance)
-        {
-            string tempDir = Path.Combine(Path.GetTempPath(), "FinnDiff_" + Guid.NewGuid().ToString("N")[..8]);
-            Directory.CreateDirectory(tempDir);
-            try
-            {
-            var filesA = RenderSide(pathsA, "a", tempDir, ct);
-            var filesB = RenderSide(pathsB, "b", tempDir, ct);
-            progress?.Report(50);
-
-            int maxPages = Math.Max(filesA.Count, filesB.Count);
-            var results = new DiffResultData[maxPages];
-            int diffedCount = 0;
-
-            Parallel.For(0, maxPages, new ParallelOptions { CancellationToken = ct }, i =>
-            {
-                ct.ThrowIfCancellationRequested();
-
-                string? fileA = i < filesA.Count ? filesA[i] : null;
-                string? fileB = i < filesB.Count ? filesB[i] : null;
-                string? fileD = null;
-                bool hasDiff;
-
-                if (fileA != null && fileB != null)
-                {
-                    using var bmpA = new SysBitmap(fileA);
-                    using var bmpB = new SysBitmap(fileB);
-                    fileD = Path.Combine(tempDir, $"d_{i}.png");
-                    hasDiff = ComputeAndSaveDiff(bmpA, bmpB, fileD, tolerance);
-                }
-                else
-                {
-                    hasDiff = fileA != null || fileB != null;
-                }
-
-                results[i] = new DiffResultData
-                {
-                    PageIndex = i,
-                    OriginalPath = fileA,
-                    RevisedPath = fileB,
-                    DiffPath = fileD,
-                    HasDifferences = hasDiff
-                };
-
-                progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, maxPages));
-            });
-
-            return (new List<DiffResultData>(results), tempDir);
-            }
-            catch
-            {
-                try { Directory.Delete(tempDir, true); } catch { }
-                throw;
-            }
-        }
-
-        private static List<string> RenderSide(
-            IReadOnlyList<string> paths, string prefix, string tempDir, CancellationToken ct)
-        {
-            var files = new List<string>();
-            foreach (string path in paths)
-            {
-                ct.ThrowIfCancellationRequested();
-                byte[] bytes = File.ReadAllBytes(path);
-                using var ctx = new MuPDFContext();
-                using var doc = new MuPDFDocument(ctx, bytes, InputFileTypes.PDF);
-                for (int i = 0; i < doc.Pages.Count; i++)
+                Parallel.For(0, maxPages, new ParallelOptions { CancellationToken = ct }, i =>
                 {
                     ct.ThrowIfCancellationRequested();
-                    string file = Path.Combine(tempDir, $"{prefix}_{files.Count}.jpg");
-                    doc.SaveImageAsJPEG(i, ZOOM, file, JPEG_QUALITY);
-                    files.Add(file);
-                }
+
+                    string? fileA = i < pagesA ? filesA[i] : null;
+                    string? fileB = i < pagesB ? filesB[i] : null;
+                    string? fileD = null;
+                    bool hasDiff;
+
+                    if (fileA != null && fileB != null)
+                    {
+                        using var bmpA = new SysBitmap(fileA);
+                        using var bmpB = new SysBitmap(fileB);
+                        fileD = Path.Combine(tempDir, $"d_{i}.png");
+                        hasDiff = ComputeAndSaveDiff(bmpA, bmpB, fileD, tolerance);
+                        // Clean up the diff image if pages were identical —
+                        // GetDiffImagePath returns null for !HasDifferences anyway.
+                        if (!hasDiff && File.Exists(fileD))
+                        {
+                            try { File.Delete(fileD); } catch { }
+                            fileD = null;
+                        }
+                    }
+                    else
+                    {
+                        hasDiff = fileA != null || fileB != null;
+                    }
+
+                    results[i] = new DiffResultData
+                    {
+                        PageIndex = i,
+                        OriginalPath = fileA,
+                        RevisedPath = fileB,
+                        DiffPath = fileD,
+                        HasDifferences = hasDiff
+                    };
+
+                    progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, maxPages));
+                });
+
+                return (new List<DiffResultData>(results), tempDir);
             }
-            return files;
+            catch
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+                throw;
+            }
         }
 
         private static bool ComputeAndSaveDiff(SysBitmap a, SysBitmap b, string outputPath, int tolerance)
@@ -342,6 +253,12 @@ namespace Finn.Services
 
         private static SysBitmap PadToSize(SysBitmap source, int width, int height)
         {
+            // Skip the copy when the source already matches — avoids an allocation + blit.
+            if (source.Width == width && source.Height == height)
+            {
+                // Clone into 32bppArgb so LockBits always gets a consistent format.
+                return source.Clone(new SysRectangle(0, 0, width, height), SysPixelFormat.Format32bppArgb);
+            }
             var padded = new SysBitmap(width, height, SysPixelFormat.Format32bppArgb);
             using var g = SysGraphics.FromImage(padded);
             g.Clear(SysColor.White);

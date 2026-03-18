@@ -1125,13 +1125,14 @@ public partial class MainView : UserControl
         if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
 
         int idx = file.Versions.IndexOf(selected);
-        if (idx <= 0) return;
+        if (idx < 0) return;
 
-        // Previous version in the sorted list; if selected is the first version,
-        // compare against original instead.
+        // First version: compare against original file.
+        // Other versions: compare against the preceding version.
         string pathA;
-        if (idx == 0 && !string.IsNullOrEmpty(file.OriginalPath))
+        if (idx == 0)
         {
+            if (string.IsNullOrEmpty(file.OriginalPath)) return;
             pathA = file.OriginalPath;
         }
         else
@@ -1155,12 +1156,6 @@ public partial class MainView : UserControl
     {
         if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
         _ctx.LabelVersionFromFolderDate();
-    }
-
-    private async void OnCompareVersionDiff(object? sender, RoutedEventArgs e)
-    {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        await _ctx.CompareLastTwoVersions(window);
     }
 
     #endregion

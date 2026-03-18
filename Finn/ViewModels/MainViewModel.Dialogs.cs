@@ -216,60 +216,6 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
-            /// Compares the last two versions of a single selected file, or the last two
-            /// versions of all selected files treated as a combined multi-page document.
-            /// </summary>
-            public async Task CompareLastTwoVersions(Window mainWindow)
-            {
-                if (CurrentFiles == null || CurrentFiles.Count == 0) { await ShowVersionError(mainWindow); return; }
-
-                if (CurrentFiles.Count == 1)
-                {
-                    var file = CurrentFiles[0];
-                    if (file.Versions.Count < 2) { await ShowVersionError(mainWindow); return; }
-                    var v1 = file.Versions[^2];
-                    var v2 = file.Versions[^1];
-                    await RunDiffInPreviewer(v1.Sökväg, v2.Sökväg);
-                    return;
-                }
-
-                // Multiple files — gather those with at least two versions.
-                var eligible = CurrentFiles.Where(f => f.Versions.Count >= 2).ToList();
-
-                if (eligible.Count == 0)
-                {
-                    // No version history — fall back to comparing latest path of first two files.
-                    var fa = CurrentFiles[0];
-                    var fb = CurrentFiles[1];
-                    string pa = fa.Versions.Count > 0 ? fa.Versions[^1].Sökväg : fa.Sökväg;
-                    string pb = fb.Versions.Count > 0 ? fb.Versions[^1].Sökväg : fb.Sökväg;
-                    await RunDiffInPreviewer(pa, pb);
-                    return;
-                }
-
-                if (eligible.Count == 1)
-                {
-                    var v1 = eligible[0].Versions[^2];
-                    var v2 = eligible[0].Versions[^1];
-                    await RunDiffInPreviewer(v1.Sökväg, v2.Sökväg, eligible[0]);
-                    return;
-                }
-
-                // Two or more files with version history — multi-page diff.
-                var pathsA = eligible.Select(f => f.Versions[^2].Sökväg).ToList();
-                var pathsB = eligible.Select(f => f.Versions[^1].Sökväg).ToList();
-                await RunDiffInPreviewer(pathsA, pathsB);
-            }
-
-            private async Task ShowVersionError(Window mainWindow)
-            {
-                var msg = new xMessageDia();
-                ConfigureWindow(msg, mainWindow);
-                msg.SetMessage("Select a file with at least two versions, or select two files to compare.");
-                await msg.ShowDialog(mainWindow);
-            }
-
-            /// <summary>
             /// Runs a diff comparison directly in the previewer.
             /// Ensures the preview is visible before starting.
             /// </summary>
@@ -279,17 +225,6 @@ namespace Finn.ViewModels
                     UI.PreviewEmbeddedOpen = true;
 
                 await PreviewVM.RunDiffAsync(pathA, pathB, pathA, sourceFile ?? CurrentFile);
-            }
-
-            /// <summary>
-            /// Runs a multi-file diff comparison directly in the previewer.
-            /// </summary>
-            public async Task RunDiffInPreviewer(IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB)
-            {
-                if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
-                    UI.PreviewEmbeddedOpen = true;
-
-                await PreviewVM.RunDiffAsync(pathsA, pathsB);
             }
         }
     }

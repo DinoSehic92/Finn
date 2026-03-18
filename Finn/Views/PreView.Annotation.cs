@@ -219,7 +219,18 @@ public partial class PreView
     {
         if (_annotateMode) return;
 
-        // Annotation only works in single-page view. Collapse dual modes first.
+        // Close diff renderer modes at the view level FIRST so that renderer
+        // opacity, column positions and display-area sync are fully restored
+        // before we collapse the ViewModel modes below.
+        //
+        // A/B toggle: CloseDiffToggle() synchronously resets MuPDFRenderer.Opacity=1
+        // and fires CloseDiffToggleAsync which synchronously sets DualFileMode=false,
+        // so the DualFileMode check below will be a no-op.
+        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
+        // SideBySide: stop the pan-sync subscription; ViewModel cleanup handled below.
+        if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
+
+        // Annotation only works in single-page view. Collapse any remaining dual modes.
         if (pwr.TwopageMode)
             pwr.TwopageMode = false;
         if (pwr.DualFileMode)

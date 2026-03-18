@@ -126,23 +126,20 @@ namespace Finn.ViewModels
             {
                 SetProperty(ref requestPage1, value);
 
-                if (PageInRange(requestPage1))
-                    _ = SetMainPageAsync();
-
                 if (LinkedPageMode)
                 {
+                    // Update the secondary page number, then render both
+                    // pages in a single semaphore+dispatch for tight sync.
                     if (DualFileMode)
-                    {
                         SetProperty(ref requestPage2, requestPage1, nameof(RequestPage2));
-                        if (PageInRange2(requestPage2))
-                            _ = SetSecondaryPageAsync();
-                    }
                     else
-                    {
                         SetProperty(ref requestPage2, requestPage1 + 1, nameof(RequestPage2));
-                        if (PageInRange(requestPage2))
-                            _ = SetSecondaryPageAsync();
-                    }
+                    _ = SetLinkedPagesAsync();
+                }
+                else
+                {
+                    if (PageInRange(requestPage1))
+                        _ = SetMainPageAsync();
                 }
             }
         }
@@ -638,6 +635,9 @@ namespace Finn.ViewModels
         {
             if (!_diffOverlayActive && !dualFileMode) return;
 
+            // Reset A/B toggle flag so it doesn't carry into the next file.
+            _diffShowingOriginal = false;
+
             // Release secondary renderer resources BEFORE dualFileMode goes false
             // so DisposeCurrentDocumentAsync won't skip the secondary.
             secondaryRenderer?.ReleaseResources();
@@ -714,31 +714,27 @@ namespace Finn.ViewModels
         /// <summary>Gets the diff image path for the given page, or null if none.</summary>
         public string? GetDiffImagePath(int page)
         {
-            if (_diffResults == null) return null;
-            var result = _diffResults.FirstOrDefault(r => r.PageIndex == page);
+            var result = GetDiffResult(page);
             return result?.HasDifferences == true ? result.DiffPath : null;
         }
 
         /// <summary>Gets the original (A) rendered image path for the given page.</summary>
         public string? GetOriginalImagePath(int page)
-        {
-            if (_diffResults == null) return null;
-            var result = _diffResults.FirstOrDefault(r => r.PageIndex == page);
-            return result?.OriginalPath;
-        }
+            => GetDiffResult(page)?.OriginalPath;
 
         /// <summary>Gets the revised (B) rendered image path for the given page.</summary>
         public string? GetRevisedImagePath(int page)
-        {
-            if (_diffResults == null) return null;
-            var result = _diffResults.FirstOrDefault(r => r.PageIndex == page);
-            return result?.RevisedPath;
-        }
+            => GetDiffResult(page)?.RevisedPath;
 
-        /// <summary>Gets the diff result for a specific page.</summary>
+        /// <summary>Gets the diff result for a specific page. O(1) when results are contiguous.</summary>
         public DiffResultData? GetDiffResult(int page)
         {
-            return _diffResults?.FirstOrDefault(r => r.PageIndex == page);
+            if (_diffResults == null || page < 0) return null;
+            // Results are stored contiguously by page index — direct index when valid.
+            if (page < _diffResults.Count && _diffResults[page].PageIndex == page)
+                return _diffResults[page];
+            // Fallback for non-contiguous results (shouldn't happen, but safe).
+            return _diffResults.FirstOrDefault(r => r.PageIndex == page);
         }
 
         /// <summary>Diff page count summary for UI display.</summary>
@@ -843,53 +839,7 @@ namespace Finn.ViewModels
         /// </summary>
         public void RefreshDiffPathChoices()
         {
-            var choices = new List<DiffPathChoice>();
-            var addedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            // Use _diffSourceFile (the real file with versions) instead of
-            // CurrentFile, which may be a version-preview stub without versions.
-            var file = _diffSourceFile ?? CurrentFile;
-
-            if (file != null)
-            {
-                // Add original file path (may differ from any version)
-                string? origPath = file.HasVersions && !string.IsNullOrEmpty(file.OriginalPath)
-                    ? file.OriginalPath
-                    : file.Sökväg;
-                if (!string.IsNullOrEmpty(origPath)
-                    && origPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-                    && addedPaths.Add(origPath))
-                {
-                    choices.Add(new DiffPathChoice("Original", origPath));
-                }
-
-                // Add every version
-                if (file.HasVersions)
-                {
-                    foreach (var v in file.Versions)
-                    {
-                        if (!string.IsNullOrEmpty(v.Sökväg)
-                            && v.Sökväg.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-                            && addedPaths.Add(v.Sökväg))
-                        {
-                            choices.Add(new DiffPathChoice(
-                                string.IsNullOrEmpty(v.Label) ? Path.GetFileNameWithoutExtension(v.Sökväg) : v.Label,
-                                v.Sökväg));
-                        }
-                    }
-                }
-            }
-
-            // Fallback: if file versions didn't produce enough choices,
-            // build entries from the actual diff paths so the panel always works.
-            if (choices.Count < 2)
-            {
-                if (!string.IsNullOrEmpty(_diffOriginalPdfPath) && addedPaths.Add(_diffOriginalPdfPath))
-                    choices.Insert(0, new DiffPathChoice(Path.GetFileNameWithoutExtension(_diffOriginalPdfPath), _diffOriginalPdfPath));
-                if (!string.IsNullOrEmpty(_diffRevisedPdfPath) && addedPaths.Add(_diffRevisedPdfPath))
-                    choices.Add(new DiffPathChoice(Path.GetFileNameWithoutExtension(_diffRevisedPdfPath), _diffRevisedPdfPath));
-            }
-
+            var choices = GetVersionChoicesForDialog();
             DiffPathChoices = choices;
 
             // Pre-select based on current diff paths
@@ -917,14 +867,37 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Opens the A/B toggle mode by loading the original (A) PDF in the
+        /// Returns the diff file path that the secondary renderer should load.
+        /// If the main renderer is already showing one of the two diff files,
+        /// the secondary gets the OTHER one. Falls back to the original (A) path.
+        /// </summary>
+        private string? GetSecondaryDiffPath()
+        {
+            string? mainPath = RequestFile?.Sökväg;
+            bool mainShowsOriginal = string.Equals(mainPath, _diffOriginalPdfPath, StringComparison.OrdinalIgnoreCase);
+            bool mainShowsRevised = string.Equals(mainPath, _diffRevisedPdfPath, StringComparison.OrdinalIgnoreCase);
+
+            if (mainShowsRevised)
+                return _diffOriginalPdfPath; // main=B, secondary=A
+            if (mainShowsOriginal)
+                return _diffRevisedPdfPath;  // main=A, secondary=B
+
+            // Main shows neither A nor B (e.g. original file before any version
+            // was selected). Default to the revised file so the user sees both
+            // sides of the comparison rather than the same file twice.
+            return _diffRevisedPdfPath ?? _diffOriginalPdfPath;
+        }
+
+        /// <summary>
+        /// Opens the A/B toggle mode by loading the counterpart PDF in the
         /// secondary renderer. Does NOT use TwopageMode — the view layer
         /// places the secondary renderer in the same grid cell as the main
         /// so they overlap. Toggle just swaps visibility.
         /// </summary>
         public async Task OpenDiffToggleAsync()
         {
-            if (_diffOriginalPdfPath == null || !File.Exists(_diffOriginalPdfPath))
+            var secondaryPath = GetSecondaryDiffPath();
+            if (secondaryPath == null || !File.Exists(secondaryPath))
                 return;
             if (secondaryRenderer == null) return;
 
@@ -940,7 +913,7 @@ namespace Finn.ViewModels
                     await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
                     if (_secondaryCloseGen != openStartGen) return;
 
-                    string path = _diffOriginalPdfPath;
+                    string path = secondaryPath;
                     MuPDFContext? newCtx = null;
                     MuPDFDocument? newDoc = null;
 
@@ -1047,41 +1020,13 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Runs a multi-file diff comparison and loads results into the previewer.
-        /// </summary>
-        public async Task RunDiffAsync(IReadOnlyList<string> pathsA, IReadOnlyList<string> pathsB, string? originalPdfPath = null)
-        {
-            if (pathsA == null || pathsB == null || pathsA.Count == 0 || pathsB.Count == 0) return;
-
-            FileWorkerBusy = true;
-            StatusMessage = "Comparing…";
-            try
-            {
-                var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
-                var (results, dir) = await PdfDiffService.CompareAsync(pathsA, pathsB, progress, default, _diffTolerance);
-                LoadDiffResults(results, dir, originalPdfPath ?? pathsA[0], pathsB[0]);
-                int diffCount = results.Count(r => r.HasDifferences);
-                StatusMessage = diffCount == 0
-                    ? $"{results.Count} pages — identical"
-                    : $"{results.Count} pages — {diffCount} with differences";
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Diff failed: {ex.Message}";
-            }
-            finally
-            {
-                FileWorkerBusy = false;
-            }
-        }
-
-        /// <summary>
-        /// Opens the original (A) PDF in the secondary renderer for side-by-side diff.
+        /// Opens the counterpart PDF in the secondary renderer for side-by-side diff.
         /// Returns true if the file was loaded successfully.
         /// </summary>
         public async Task<bool> OpenDiffSideBySideAsync()
         {
-            if (_diffOriginalPdfPath == null || !File.Exists(_diffOriginalPdfPath))
+            var secondaryPath = GetSecondaryDiffPath();
+            if (secondaryPath == null || !File.Exists(secondaryPath))
                 return false;
 
             if (secondaryRenderer == null) return false;
@@ -1099,7 +1044,7 @@ namespace Finn.ViewModels
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         newCtx = new MuPDFContext();
-                        newDoc = new MuPDFDocument(newCtx, _diffOriginalPdfPath);
+                        newDoc = new MuPDFDocument(newCtx, secondaryPath);
                     }).GetTask().ConfigureAwait(false);
 
                     if (newDoc == null || newCtx == null) return false;
@@ -1518,6 +1463,11 @@ namespace Finn.ViewModels
             {
                 if (!DualFileMode)
                     LinkedPageMode = true;
+
+                // Single-page files cannot use two-page mode — revert to single.
+                if (Pagecount <= 1 && twopageMode)
+                    TwopageMode = false;
+
                 requestPage1 = desired;
                 OnPropertyChanged(nameof(RequestPage1));
                 // Reset the backing field to a sentinel so that
@@ -2082,7 +2032,90 @@ namespace Finn.ViewModels
                 renderSemaphore.Release();
             }
         }
-        #endregion
+
+                        /// <summary>
+                        /// Renders both the main and secondary pages in a single semaphore
+                        /// acquisition and a single UI-thread dispatch so they update in
+                        /// the same frame. Used by <see cref="RequestPage1"/> when
+                        /// <see cref="LinkedPageMode"/> is active.
+                        /// </summary>
+                        private async Task SetLinkedPagesAsync()
+                        {
+                            if (disposed || FileWorkerBusy || SearchBusy || mainRenderer == null)
+                                return;
+
+                            int page1 = requestPage1;
+                            int page2 = requestPage2;
+                            bool mainInRange = PageInRange(page1);
+                            bool secInRange = DualFileMode ? PageInRange2(page2) : PageInRange(page2);
+                            bool rendererActive = TwopageMode || _diffShowingOriginal
+                                || (DiffOverlayActive && _diffViewMode == DiffViewMode.Toggle);
+
+                            if (!mainInRange && !secInRange) return;
+
+                            await renderSemaphore.WaitAsync().ConfigureAwait(false);
+                            try
+                            {
+                                await Dispatcher.UIThread.InvokeAsync(() =>
+                                {
+                                    // ── Main page ──
+                                    if (mainInRange && mainRenderer != null && MainPreviewFile != null)
+                                    {
+                                        mainRenderer.IsVisible = false;
+                                        mainRenderer.HighlightedRegions = null;
+                                        try
+                                        {
+                                            mainRenderer.ReleaseResources();
+                                            mainRenderer.Initialize(MainPreviewFile, 1, page1, ZOOM_LEVEL);
+                                            mainRenderer.IsVisible = true;
+                                            SetSearchResults();
+                                            CurrentPage1 = page1;
+                                        }
+                                        catch (NullReferenceException nre)
+                                        {
+                                            logger?.LogError(nre, "NullReference in SetLinkedPagesAsync main");
+                                            Finn.Utils.ErrorLogger.Log(nre, "SetLinkedPagesAsync.main");
+                                        }
+                                    }
+
+                                    // ── Secondary page ──
+                                    if (secInRange && rendererActive && secondaryRenderer != null)
+                                    {
+                                        secondaryRenderer.IsVisible = false;
+                                        secondaryRenderer.HighlightedRegions = null;
+                                        try
+                                        {
+                                            var doc = DualFileMode ? secondaryFile : MainPreviewFile;
+                                            if (doc != null)
+                                            {
+                                                secondaryRenderer.ReleaseResources();
+                                                if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
+                                                {
+                                                    secondaryRenderer.Initialize(doc, 1, page2, ZOOM_LEVEL);
+                                                    if (!DualFileMode) SetSecondarySearchResults();
+                                                    CurrentPage2 = page2;
+                                                }
+                                                secondaryRenderer.IsVisible = true;
+                                            }
+                                        }
+                                        catch (NullReferenceException nre)
+                                        {
+                                            logger?.LogError(nre, "NullReference in SetLinkedPagesAsync secondary");
+                                            Finn.Utils.ErrorLogger.Log(nre, "SetLinkedPagesAsync.secondary");
+                                        }
+                                    }
+                                }).GetTask().ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger?.LogError(ex, "Error in SetLinkedPagesAsync");
+                            }
+                            finally
+                            {
+                                renderSemaphore.Release();
+                            }
+                        }
+                        #endregion
 
         #region Search Methods
         public async Task SearchAsync(string text, CancellationToken cancellationToken = default)

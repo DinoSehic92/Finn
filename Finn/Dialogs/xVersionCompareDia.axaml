@@ -3,9 +3,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ic="using:FluentIcons.Avalonia"
+        xmlns:vm="clr-namespace:Finn.ViewModels"
         mc:Ignorable="d" d:DesignWidth="340" d:DesignHeight="460"
         Width="340" SizeToContent="Height"
         x:Class="Finn.Dialogs.xVersionCompareDia"
+        x:DataType="vm:MainViewModel"
         Title="Compare Versions"
         CanResize="False"
         WindowStartupLocation="CenterOwner"
@@ -15,24 +17,27 @@
         <Style Selector="Button.accent">
             <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="15"/>
         </Style>
         <Style Selector="Button.normal">
             <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
-            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="15"/>
         </Style>
     </Window.Styles>
 
     <Grid RowDefinitions="30,Auto,*,Auto" Margin="12">
         <Panel Grid.Row="0" IsHitTestVisible="False"/>
 
-        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,20">
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,16">
             <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
                 <ContentControl>
                     <ic:SymbolIcon Symbol="ItemCompare" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -42,10 +47,10 @@
             <TextBlock Text="Select two versions to compare." FontSize="13" FontStyle="Italic" Opacity="0.6" HorizontalAlignment="Center"/>
         </StackPanel>
 
-        <Border Grid.Row="2" CornerRadius="4" BorderThickness="1"
-                BorderBrush="{DynamicResource TextControlBorderBrush}" Padding="6,4" MinHeight="80">
+        <!-- Version list — Classes="shadow" applies UI.CornerRadius, UI.Shadow and UI.BorderThickness from App.axaml global styles -->
+        <Border Grid.Row="2" Classes="shadow" Padding="6,4" MinHeight="80" Margin="0,0,0,0" Background="{DynamicResource TextControlBackground}">
             <StackPanel Spacing="2">
-                <Grid ColumnDefinitions="28,28,*" Margin="0,0,0,6">
+                <Grid ColumnDefinitions="28,28,*" Margin="0,2,0,6">
                     <TextBlock Text="A" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Opacity="0.5"/>
                     <TextBlock Text="B" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" Grid.Column="1" Opacity="0.5"/>
                     <TextBlock Text="Version" FontSize="11" FontWeight="SemiBold" Grid.Column="2" Margin="6,0,0,0" Opacity="0.5"/>
@@ -54,9 +59,9 @@
             </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,16,0,4">
-            <Button Content="Cancel" Width="90" Padding="16,6" Classes="normal" Click="OnCancel" IsCancel="True"/>
-            <Button Name="CompareBtn" Content="Compare" Width="90" Padding="16,6" Click="OnCompare" Classes="accent"/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,12,0,4">
+            <Button Content="Cancel" Width="90" Padding="16,6" Classes="normal" Click="OnCancel" HotKey="Escape"/>
+            <Button Name="CompareBtn" Content="Compare" Width="100" Padding="16,6" Click="OnCompare" Classes="accent" HotKey="Enter"/>
         </StackPanel>
     </Grid>
 </Window>
