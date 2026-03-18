@@ -56,25 +56,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // Cached SKTypeface lookups — FromFamilyName is expensive native interop
     private static readonly Dictionary<string, SKTypeface> _typefaceCache = new();
     // Cached brushes / pens used every frame (static colors, scale-independent)
-    private static readonly ImmutableSolidColorBrush s_eraserHoverBrush =
+    private static readonly IBrush s_eraserHoverBrush =
         new SolidColorBrush(Color.FromArgb(60, 255, 50, 50)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_eraserHoverPenBrush =
+    private static readonly IBrush s_eraserHoverPenBrush =
         new SolidColorBrush(Color.FromArgb(140, 255, 50, 50)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_selectPenBrush =
+    private static readonly IBrush s_selectPenBrush =
         new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_vertexBrush =
+    private static readonly IBrush s_vertexBrush =
         new SolidColorBrush(Color.FromRgb(255, 255, 255)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_vertexPenBrush =
+    private static readonly IBrush s_vertexPenBrush =
         new SolidColorBrush(Color.FromArgb(160, 60, 60, 60)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_cornerBrush =
+    private static readonly IBrush s_cornerBrush =
         new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_snapBrush =
+    private static readonly IBrush s_snapBrush =
         new SolidColorBrush(Color.FromArgb(180, 16, 185, 129)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_rubberBandFillBrush =
+    private static readonly IBrush s_rubberBandFillBrush =
         new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_rubberBandBorderBrush =
+    private static readonly IBrush s_rubberBandBorderBrush =
         new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable();
-    private static readonly ImmutableSolidColorBrush s_selectHoverBrush =
+    private static readonly IBrush s_selectHoverBrush =
         new SolidColorBrush(Color.FromArgb(90, 232, 125, 47)).ToImmutable();
     private static readonly DashStyle s_dashStyle4_3 = new([4, 3], 0);
     private static readonly DashStyle s_dashStyle5_4 = new([5, 4], 0);
@@ -210,6 +210,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // ── Diff overlay ───────────────────────────────────────────────
     private SKBitmap? _diffOverlayBitmap;
+    /// <summary>
+    /// GPU-friendly immutable image created from the diff bitmap on load.
+    /// SKImage can be cached in GPU texture memory, avoiding costly
+    /// CPU→GPU pixel uploads on every frame during pan/zoom.
+    /// </summary>
+    private SKImage? _diffOverlayImage;
     private int _diffOverlayPage = -1;
     private float _diffImageZoom = 1f;
 
@@ -231,9 +237,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             return;
 
         // Don't Dispose — a deferred DiffOverlayDrawOp on the render thread
-        // may still hold a reference to the old bitmap. Nulling the field
+        // may still hold a reference to the old image. Nulling the field
         // lets GC finalize it safely after the draw op completes.
         _diffOverlayBitmap = null;
+        _diffOverlayImage = null;
         _diffOverlayPage = page;
         _diffImageZoom = zoom;
 
@@ -241,6 +248,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             using var fs = File.OpenRead(imagePath);
             _diffOverlayBitmap = SKBitmap.Decode(fs);
+            // Create an immutable SKImage for GPU-cached rendering.
+            // SKImage.FromBitmap is cheap (shares pixel data) but allows
+            // Skia to cache the texture on GPU between frames.
+            _diffOverlayImage = SKImage.FromBitmap(_diffOverlayBitmap);
             DiffOverlayVisible = true;
         }
         InvalidateVisual();
@@ -251,12 +262,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         // Don't Dispose — see SetDiffOverlay comment.
         _diffOverlayBitmap = null;
+        _diffOverlayImage = null;
         _diffOverlayPage = -1;
         DiffOverlayVisible = false;
         InvalidateVisual();
     }
 
-    private bool HasDiffOverlay => DiffOverlayVisible && _diffOverlayBitmap != null
+    private bool HasDiffOverlay => DiffOverlayVisible && _diffOverlayImage != null
                                     && _diffOverlayPage == _currentPage;
 
     public bool HasAnyStrokes => _totalStrokeCount > 0 || _totalShapeCount > 0
@@ -613,6 +625,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         _activePolyline = null;
         _polylinePreviewEnd = null;
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
         InvalidateVisual();
     }
 
@@ -620,6 +635,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         _activePolyline = null;
         _polylinePreviewEnd = null;
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
         InvalidateVisual();
     }
 
@@ -668,6 +686,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _polylinePreviewEnd = null;
         _rubberBandStart = null;
         _rubberBandEnd = null;
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
         InvalidateVisual();
     }
 
@@ -741,6 +762,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
         _activeShape = null;
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
         InvalidateVisual();
     }
 
@@ -1050,11 +1074,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         _activeMeasurement = null;
         _measurementPreviewPoint = null;
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
         InvalidateVisual();
     }
 
     /// <summary>
-    /// Calibrate the measurement scale using the most recent measurement.
+    /// Calibrate the measurement scale
     /// The user specifies the real-world distance in mm for that measurement,
     /// and all future (and existing) measurements are rescaled accordingly.
     /// </summary>
@@ -2526,7 +2553,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             if (oda.Width > 0 && oda.Height > 0 && obs.Width > 0 && obs.Height > 0)
             {
                 context.Custom(new DiffOverlayDrawOp(
-                    new Rect(obs), _diffOverlayBitmap!, oda, DiffOverlayOpacity, _diffImageZoom));
+                    new Rect(obs), _diffOverlayImage!, oda, DiffOverlayOpacity, _diffImageZoom));
             }
         }
 
@@ -2676,9 +2703,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
-        // Render all text via SkiaSharp overlay
+        // Render all text via SkiaSharp overlay (snapshot the list — the draw
+        // op may execute on the render thread after _textItemPool is cleared)
         if (textItems.Count > 0)
-            context.Custom(new TextOverlayDrawOp(new Rect(boundsSize), textItems));
+            context.Custom(new TextOverlayDrawOp(new Rect(boundsSize), new List<TextOverlayDrawOp.TextItem>(textItems)));
 
         // Eraser hover highlight: draw a translucent red overlay on the hovered item
         if (_eraserHoverItem != null)
@@ -2768,10 +2796,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Snap-to-alignment guides: thin dotted lines across the viewport
         if (_snapGuideX.HasValue || _snapGuideY.HasValue)
         {
-            var snapColor = Color.FromArgb(180, 16, 185, 129);
-            var guidePen = new Pen(new SolidColorBrush(snapColor).ToImmutable(),
-                1.0, dashStyle: new DashStyle([3, 3], 0), lineCap: PenLineCap.Flat);
-            var snapDotBrush = new SolidColorBrush(snapColor).ToImmutable();
+            var guidePen = new Pen(s_snapBrush,
+                1.0, dashStyle: s_dashStyle3_3, lineCap: PenLineCap.Flat);
             double dotRadius = 3.5;
             if (_snapGuideX.HasValue)
             {
@@ -2787,17 +2813,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
             if (_snapGuideX.HasValue && _snapGuideY.HasValue)
             {
                 var dotPos = PdfToScreen(new Point(_snapGuideX.Value, _snapGuideY.Value), da, boundsSize);
-                context.DrawEllipse(snapDotBrush, null, dotPos, dotRadius, dotRadius);
+                context.DrawEllipse(s_snapBrush, null, dotPos, dotRadius, dotRadius);
             }
             else if (_snapGuideX.HasValue && _snapVertexPos.HasValue)
             {
                 var dotPos = PdfToScreen(new Point(_snapGuideX.Value, _snapVertexPos.Value.Y), da, boundsSize);
-                context.DrawEllipse(snapDotBrush, null, dotPos, dotRadius, dotRadius);
+                context.DrawEllipse(s_snapBrush, null, dotPos, dotRadius, dotRadius);
             }
             else if (_snapGuideY.HasValue && _snapVertexPos.HasValue)
             {
                 var dotPos = PdfToScreen(new Point(_snapVertexPos.Value.X, _snapGuideY.Value), da, boundsSize);
-                context.DrawEllipse(snapDotBrush, null, dotPos, dotRadius, dotRadius);
+                context.DrawEllipse(s_snapBrush, null, dotPos, dotRadius, dotRadius);
             }
         }
 
@@ -2808,10 +2834,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var re = PdfToScreen(_rubberBandEnd.Value, da, boundsSize);
             var rect = new Rect(Math.Min(rs.X, re.X), Math.Min(rs.Y, re.Y),
                 Math.Abs(re.X - rs.X), Math.Abs(re.Y - rs.Y));
-            var fillBrush = new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
-            var borderPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
-                1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
-            context.DrawRectangle(fillBrush, borderPen, rect);
+            var borderPen = new Pen(s_rubberBandBorderBrush,
+                1.0, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Flat);
+            context.DrawRectangle(s_rubberBandFillBrush, borderPen, rect);
         }
 
         // Selection handles: dashed bounding box around selected items
@@ -2822,11 +2847,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void RenderSelectionHighlight(DrawingContext context, Rect da, Size boundsSize,
                                           double scaleX, double scaleY, double penScale)
     {
-        var selectPen = new Pen(new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)).ToImmutable(),
-            1.0 * penScale, dashStyle: new DashStyle([5, 4], 0),
+        var selectPen = new Pen(s_selectPenBrush,
+            1.0 * penScale, dashStyle: s_dashStyle5_4,
             lineCap: PenLineCap.Round);
-        var vertexBrush = new SolidColorBrush(Color.FromRgb(255, 255, 255)).ToImmutable();
-        var vertexPen = new Pen(new SolidColorBrush(Color.FromArgb(160, 60, 60, 60)).ToImmutable(),
+        var vertexPen = new Pen(s_vertexPenBrush,
             1.2 * penScale, lineCap: PenLineCap.Round);
         bool single = _selectHighlightItems.Count == 1;
 
@@ -2894,34 +2918,33 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
                 if (single)
                 {
-                    var cornerBrush = new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
                     double cornerSize = 2.0 * penScale;
-                    context.DrawEllipse(cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
-                    context.DrawEllipse(cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
-                    context.DrawEllipse(cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
-                    context.DrawEllipse(cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
+                    context.DrawEllipse(s_cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
+                    context.DrawEllipse(s_cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
+                    context.DrawEllipse(s_cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
+                    context.DrawEllipse(s_cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
 
                     if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
                     {
                         var arrowScreen = PdfToScreen(ao, da, boundsSize);
                         double vtxSize = 5 * penScale;
-                        context.DrawEllipse(vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
+                        context.DrawEllipse(s_vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
                     }
                     if (highlightItem is ShapeAnnotation selShape)
                     {
                         var ss = PdfToScreen(selShape.Start, da, boundsSize);
                         var se = PdfToScreen(selShape.End, da, boundsSize);
                         double vtxSize = 5 * penScale;
-                        context.DrawEllipse(vertexBrush, vertexPen, ss, vtxSize, vtxSize);
-                        context.DrawEllipse(vertexBrush, vertexPen, se, vtxSize, vtxSize);
+                        context.DrawEllipse(s_vertexBrush, vertexPen, ss, vtxSize, vtxSize);
+                        context.DrawEllipse(s_vertexBrush, vertexPen, se, vtxSize, vtxSize);
                     }
                     if (highlightItem is MeasurementAnnotation selMeas && selMeas.Points.Count >= 2)
                     {
                         var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
                         var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
                         double vtxSize = 5 * penScale;
-                        context.DrawEllipse(vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
-                        context.DrawEllipse(vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
+                        context.DrawEllipse(s_vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
+                        context.DrawEllipse(s_vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
                     }
                     if (highlightItem is InkStroke { IsPolyline: true } selPoly)
                     {
@@ -2929,7 +2952,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         foreach (var p in selPoly.Points)
                         {
                             var sp = PdfToScreen(p, da, boundsSize);
-                            context.DrawEllipse(vertexBrush, vertexPen, sp, vtxSize, vtxSize);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, sp, vtxSize, vtxSize);
                         }
                     }
                     // Text width resize handle: right-center edge
@@ -2938,7 +2961,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         var midRight = new Point(tb2.Inflate(4 * penScale).Right,
                             (tb2.Inflate(4 * penScale).Top + tb2.Inflate(4 * penScale).Bottom) / 2);
                         double vtxSize = 5 * penScale;
-                        context.DrawEllipse(vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
+                        context.DrawEllipse(s_vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
                     }
                 }
             }
@@ -2948,8 +2971,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void RenderEraserHover(DrawingContext context, Rect da, Size boundsSize,
                                     double scaleX, double scaleY, double penScale)
     {
-        var hoverBrush = new SolidColorBrush(Color.FromArgb(60, 255, 50, 50)).ToImmutable();
-        var hoverPen = new Pen(new SolidColorBrush(Color.FromArgb(140, 255, 50, 50)).ToImmutable(),
+        var hoverPen = new Pen(s_eraserHoverPenBrush,
             2 * penScale, lineCap: PenLineCap.Round);
 
         switch (_eraserHoverItem)
@@ -2966,14 +2988,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 if (text.IsStickyNote)
                 {
                     double sz = 13.0 * penScale;
-                    context.DrawRectangle(hoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, sz, sz), 4, 4);
+                    context.DrawRectangle(s_eraserHoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, sz, sz), 4, 4);
                 }
                 else
                 {
                     var tb = GetTextBounds(text);
                     double w = tb.Width * penScale;
                     double h = tb.Height * penScale;
-                    context.DrawRectangle(hoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, w, h), 4, 4);
+                    context.DrawRectangle(s_eraserHoverBrush, hoverPen, new Rect(screenPos.X, screenPos.Y, w, h), 4, 4);
                 }
                 break;
             }
@@ -3220,9 +3242,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         float y = (float)boxOrigin.Y + fontSize;
 
         string fontFamily = t.FontFamily ?? "";
-        var typeface = string.IsNullOrEmpty(fontFamily)
-            ? SKTypeface.Default
-            : SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
+        var typeface = GetCachedTypeface(fontFamily);
         using var skFont = new SKFont(typeface, fontSize);
 
         // Word-wrap if MaxWidth is set, otherwise split on explicit newlines
@@ -3384,9 +3404,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             float scaleX = da.Width > 0 ? (float)(boundsSize.Width / da.Width) : (float)penScale;
             float maxWidthPx = (float)(t.MaxWidth * scaleX);
-            var typeface = string.IsNullOrEmpty(fontFamily)
-                ? SKTypeface.Default
-                : SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
+            var typeface = GetCachedTypeface(fontFamily);
             using var skFont = new SKFont(typeface, fontSize);
             lines = WrapTextLines(t.Text, maxWidthPx, skFont);
         }
@@ -3446,15 +3464,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private class DiffOverlayDrawOp : ICustomDrawOperation
     {
         private readonly Rect _bounds;
-        private readonly SKBitmap _bitmap;
+        private readonly SKImage _image;
         private readonly Rect _displayArea;
         private readonly double _opacity;
         private readonly float _zoom;
 
-        public DiffOverlayDrawOp(Rect bounds, SKBitmap bitmap, Rect displayArea, double opacity, float zoom = 1f)
+        // Reuse a single SKPaint across frames on the render thread to
+        // avoid the native alloc+dispose overhead every frame.
+        [ThreadStatic]
+        private static SKPaint? s_paint;
+
+        public DiffOverlayDrawOp(Rect bounds, SKImage image, Rect displayArea, double opacity, float zoom = 1f)
         {
             _bounds = bounds;
-            _bitmap = bitmap;
+            _image = image;
             _displayArea = displayArea;
             _opacity = Math.Clamp(opacity, 0, 1);
             _zoom = zoom;
@@ -3474,8 +3497,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var canvas = api.SkCanvas;
             if (canvas == null) return;
 
-            // Bitmap pixels = PDF points × ZOOM. Scale DisplayArea (PDF coords)
-            // by the zoom factor to get the correct source rect into the bitmap.
+            // Image pixels = PDF points × ZOOM. Scale DisplayArea (PDF coords)
+            // by the zoom factor to get the correct source rect into the image.
             float z = _zoom;
             float destW = (float)_bounds.Width;
             float destH = (float)_bounds.Height;
@@ -3485,16 +3508,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 (float)(_displayArea.Y + _displayArea.Height) * z);
             var destRect = new SKRect(0, 0, destW, destH);
 
-            using var paint = new SKPaint
-            {
-                Color = SKColors.White.WithAlpha((byte)(_opacity * 255)),
-                FilterQuality = SKFilterQuality.Medium,
-                IsAntialias = true
-            };
+            // Reuse the cached paint; create once per render thread.
+            var paint = s_paint ??= new SKPaint { IsAntialias = false };
+            paint.Color = SKColors.White.WithAlpha((byte)(_opacity * 255));
+            // Low (nearest neighbor) is significantly faster than Medium
+            // for large images during continuous pan/zoom. The visual
+            // difference is negligible for diff highlight overlays.
+            paint.FilterQuality = SKFilterQuality.Low;
 
             canvas.Save();
             canvas.ClipRect(destRect);
-            canvas.DrawBitmap(_bitmap, srcRect, destRect, paint);
+            // SKImage.DrawImage uses GPU-cached textures when available,
+            // avoiding the per-frame CPU→GPU pixel upload that DrawBitmap requires.
+            canvas.DrawImage(_image, srcRect, destRect, paint);
             canvas.Restore();
         }
     }
@@ -3556,7 +3582,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         if (item.FontFamily != lastFamily)
                         {
                             customFont?.Dispose();
-                            var typeface = SKTypeface.FromFamilyName(item.FontFamily) ?? SKTypeface.Default;
+                            var typeface = GetCachedTypeface(item.FontFamily);
                             customFont = new SKFont(typeface);
                             lastFamily = item.FontFamily;
                         }
