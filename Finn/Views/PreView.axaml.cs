@@ -36,6 +36,10 @@ public partial class PreView : UserControl
         TextInputBox.AddHandler(KeyDownEvent, OnTextInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, OnOpacitySliderChanged);
 
+        // Centralized keyboard shortcuts — replaces per-button HotKey attributes
+        // so every shortcut respects CanExecute guards and mode state.
+        this.AddHandler(KeyDownEvent, OnPreviewShortcutKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+
         this.AddHandler(LoadedEvent, InitSetup);
     }
 
@@ -408,6 +412,61 @@ public partial class PreView : UserControl
         ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
     }
 
+    /// <summary>
+    /// Centralized Ctrl+ keyboard shortcut handler. Replaces per-button HotKey
+    /// attributes so every shortcut respects mode guards (CanSearch, CanToggleLayout, etc.).
+    /// Registered as Tunnel so it runs before the annotation handler, but only
+    /// processes Ctrl+key combos that don't overlap with annotation shortcuts.
+    /// </summary>
+    private void OnPreviewShortcutKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (pwr == null) return;
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+
+        // Annotation mode has its own Ctrl+ shortcuts (Z, Y, C, V, D, S, A).
+        // Let the annotation handler take full priority.
+        if (_annotateMode) return;
+
+        // Don't intercept while a text input overlay is visible
+        if (TextInputCanvas.IsVisible || CalibrationCanvas.IsVisible || ColorInputCanvas.IsVisible)
+            return;
+
+        bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+
+        switch (e.Key)
+        {
+            case Key.G when !shift:
+                pwr.DarkMode = !pwr.DarkMode;
+                e.Handled = true;
+                break;
+
+            case Key.D when !shift:
+                if (pwr.CanToggleLayout && !pwr.DualFileMode)
+                    pwr.TwopageMode = !pwr.TwopageMode;
+                e.Handled = true;
+                break;
+
+            case Key.L when !shift:
+                if (pwr.ShowLinkedPageButton)
+                    pwr.LinkedPageMode = !pwr.LinkedPageMode;
+                e.Handled = true;
+                break;
+
+            case Key.F when !shift:
+                // Allow closing search even when CanSearch is false
+                if (pwr.SearchMode || pwr.CanSearch)
+                    pwr.SearchMode = !pwr.SearchMode;
+                e.Handled = true;
+                break;
+
+            case Key.T when shift:
+                if (pwr.ShowDiffToggle)
+                    pwr.DiffShowingOriginal = !pwr.DiffShowingOriginal;
+                e.Handled = true;
+                break;
+        }
+    }
+
     private async void OnSeachRegex(object sender, RoutedEventArgs e)
     {
         string text = SearchRegex.Text;
@@ -599,6 +658,23 @@ public partial class PreView : UserControl
 
     private void OnCancelDiff(object? sender, RoutedEventArgs e) => pwr?.CancelDiff();
 
+    /// <summary>Close Dual File mode from the banner close button.</summary>
+    private void OnCloseDualFileMode(object? sender, RoutedEventArgs e)
+    {
+        if (pwr != null) pwr.DualFileMode = false;
+    }
+
+    /// <summary>Close Diff comparison mode from the banner close button.</summary>
+    private void OnCloseDiffMode(object? sender, RoutedEventArgs e)
+    {
+        if (pwr == null) return;
+        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
+        if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
+        pwr.CloseDiffModeSync();
+        MuPDFRenderer.ClearDiffOverlay();
+        MuPDFRenderer.Contain();
+    }
+
     private async void OnDiffRerun(object? sender, RoutedEventArgs e)
     {
         if (pwr == null || !pwr.CanRerunDiff) return;
@@ -641,18 +717,22 @@ public partial class PreView : UserControl
                   ?? (this.FindAncestorOfType<Window>()?.DataContext as Finn.ViewModels.MainViewModel);
         var currentFile = mainVm?.CurrentFile;
         IEnumerable<FileData>? appendedFiles = null;
-        if (currentFile != null && mainVm?.CurrentProject?.StoredFiles != null)
+
+        // Only include sibling/child attached files as comparison options when
+        // the file itself has no version history. When versions exist, they
+        // are the natural comparison targets and showing 50+ siblings would
+        // overwhelm the dialog.
+        if (currentFile != null && !currentFile.HasVersions
+            && mainVm?.CurrentProject?.StoredFiles != null)
         {
             if (currentFile.IsAppendedFile && currentFile.ParentFile != null)
             {
-                // Attached file selected: include parent + all siblings as comparison options
                 var parent = currentFile.ParentFile;
                 appendedFiles = mainVm.CurrentProject.StoredFiles
                     .Where(f => f != currentFile && (f == parent || f.ParentNamn == parent.Namn));
             }
             else if (currentFile.HasChildren)
             {
-                // Parent file with attached children: include all children as comparison options
                 appendedFiles = mainVm.CurrentProject.StoredFiles
                     .Where(f => f.ParentNamn == currentFile.Namn);
             }

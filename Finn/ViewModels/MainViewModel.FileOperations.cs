@@ -65,14 +65,8 @@ namespace Finn.ViewModels
             public async Task AddFilesWithVersionCheck(IEnumerable<string> paths, Window? mainWindow)
             {
                 // Build O(1) lookup structures to avoid linear scans per file
-                var existingPaths = new HashSet<string>(
-                    CurrentProject.StoredFiles.Select(f => f.Sökväg),
-                    StringComparer.OrdinalIgnoreCase);
-                var existingByName = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
-                foreach (var f in CurrentProject.StoredFiles)
-                {
-                    existingByName.TryAdd(f.Namn, f);
-                }
+                var existingPaths = BuildKnownPathSet();
+                var existingByName = BuildFileNameLookup();
 
                 var newFiles = new List<FileData>();
                 var versionCandidates = new List<VersionImportEntry>();

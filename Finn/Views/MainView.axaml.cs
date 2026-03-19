@@ -39,6 +39,10 @@ public partial class MainView : UserControl
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectFiles);
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
 
+        // Global arrow-key navigation: Up/Down = file selection, Left/Right = page.
+        // Uses Bubble so annotation Tunnel handlers (nudging) get first priority.
+        this.AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Bubble);
+
         // Drag-and-drop visual hints
         MainGrid.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
         MainGrid.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
@@ -403,6 +407,58 @@ public partial class MainView : UserControl
 
     #endregion
 
+    #region Global Arrow-Key Navigation
+
+    /// <summary>
+    /// Handles arrow keys via Bubble routing so annotation Tunnel handlers
+    /// (nudging) fire first.  Up/Down = file selection, Left/Right = page change.
+    /// Skipped when the event was already handled, when focus is in a text input,
+    /// or when annotation mode is active.
+    /// </summary>
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        // Already consumed by annotation nudging or another handler
+        if (e.Handled) return;
+        if (e.Key is not (Key.Up or Key.Down or Key.Left or Key.Right)) return;
+        // Not yet initialized
+        if (_ctx == null || _pwr == null) return;
+
+        // Don't intercept when typing in a TextBox, Slider, etc.
+        if (TopLevel.GetTopLevel(this) is { } top)
+        {
+            var focused = top.FocusManager?.GetFocusedElement();
+            if (focused is TextBox or Slider) return;
+        }
+
+        // Don't change pages/files while in annotation mode
+        if (_pwr?.AnnotationActive == true) return;
+
+        // Preview must be open for page navigation
+        bool previewOpen = _ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen;
+
+        if (e.Key is Key.Left or Key.Right && previewOpen && _pwr != null && _pwr.Pagecount > 0)
+        {
+            if (e.Key == Key.Left) _pwr.PrevPage(false);
+            else _pwr.NextPage(false);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key is Key.Up or Key.Down)
+        {
+            if (FileGrid.ItemsSource is not System.Collections.IList items || items.Count == 0) return;
+            int current = FileGrid.SelectedItem != null ? items.IndexOf(FileGrid.SelectedItem) : -1;
+            int next = e.Key == Key.Up ? current - 1 : current + 1;
+            if (next < 0 || next >= items.Count) return;
+
+            FileGrid.SelectedItem = items[next];
+            FileGrid.ScrollIntoView(items[next], null);
+            e.Handled = true;
+        }
+    }
+
+    #endregion
+
     #region Preview Requests (thin wrappers → ViewModel does the work)
 
     private void SetPreviewRequestMain(object? sender, RoutedEventArgs r)
@@ -417,12 +473,10 @@ public partial class MainView : UserControl
 
     private async void RequestPreview(FileData? file)
     {
-        // Allow file selection even during diff-initiated DualFileMode.
-        // SetFileAsync's CloseDiffModeSync will clean up the secondary
-        // renderer and reset DualFileMode before the new file loads.
-        // Only block when the user explicitly opened a second file via
-        // the DualFile button (CurrentFile2 is set in that case).
-        if (_pwr.DualFileMode && _pwr.CurrentFile2 != null) return;
+        // Block automatic file switching while in Dual-File or Diff mode.
+        // The user must explicitly close these modes first, or use the
+        // View Left/Right context menu items in Dual-File mode.
+        if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
         await _ctx.RequestPreviewAsync(file, searchText);
     }
@@ -882,6 +936,7 @@ public partial class MainView : UserControl
 
     private async void OnViewLeft(object? sender, RoutedEventArgs e)
     {
+        if (!_pwr.DualFileMode) return;
         var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
         if (file != null)
             await _ctx.RequestPreviewLeftAsync(file);
@@ -889,6 +944,7 @@ public partial class MainView : UserControl
 
     private async void OnViewRight(object? sender, RoutedEventArgs e)
     {
+        if (!_pwr.DualFileMode) return;
         var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
         if (file != null)
             await _ctx.RequestPreview2Async(file);
@@ -1047,6 +1103,8 @@ public partial class MainView : UserControl
     private async void SelectVersion(object? sender, RoutedEventArgs e)
     {
         if (VersionsGrid.SelectedItem is not FileVersionData version) return;
+        // Block version preview while in Diff or Dual-File mode
+        if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
         _ctx.SelectedVersion = version;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
         await _ctx.PreviewVersionAsync(version, searchText);

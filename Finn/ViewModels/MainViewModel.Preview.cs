@@ -45,7 +45,8 @@ namespace Finn.ViewModels
             CheckSingleFile();
             PreviewVM.RequestFile = file;
             PreviewVM.ToggleVisibility(false);
-            await PreviewVM.SetFileAsync();
+            // Preserve the dual-file layout — only replace the left document.
+            await PreviewVM.SetFileAsync(preserveDualFile: true);
         }
 
         public async Task RequestPreview2Async(FileData? file)

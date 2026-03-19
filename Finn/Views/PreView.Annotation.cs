@@ -218,6 +218,8 @@ public partial class PreView
     private void ActivateAnnotateMode()
     {
         if (_annotateMode) return;
+        // Block activation while in dual-file mode (ambiguous annotation target)
+        if (pwr.DualFileMode && !pwr.WhiteboardMode) return;
 
         // Close diff renderer modes at the view level FIRST so that renderer
         // opacity, column positions and display-area sync are fully restored
@@ -319,6 +321,10 @@ public partial class PreView
 
     private void OnAnnotateKeyDown(object? sender, KeyEventArgs e)
     {
+        // Safety: handler should only be registered during annotation mode.
+        // Guard against mismatched register/remove leaving this active.
+        if (!_annotateMode) return;
+
         // While the text input is open, only intercept Escape so the user
         // can still type Shift+digits (!, @, …), capital letters, brackets, etc.
         if (TextInputCanvas.IsVisible)

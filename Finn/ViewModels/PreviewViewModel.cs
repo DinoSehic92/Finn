@@ -180,7 +180,11 @@ namespace Finn.ViewModels
         public int Pagecount
         {
             get => pagecount;
-            set => SetProperty(ref pagecount, value);
+            set
+            {
+                if (SetProperty(ref pagecount, value))
+                    OnPropertyChanged(nameof(SecondaryPagecount));
+            }
         }
 
         private int pagecount2 = 0;
@@ -197,6 +201,26 @@ namespace Finn.ViewModels
         public int SecondaryPagecount => DualFileMode ? pagecount2 : pagecount;
         public bool ShowSecondaryControls => !linkedPageMode || dualFileMode;
         public bool ShowLinkedPageButton => twopageMode;
+
+        /// <summary>
+        /// Fires change notifications for all computed properties that depend
+        /// on mode backing fields (dualFileMode, twopageMode, linkedPageMode,
+        /// _diffOverlayActive). Call after directly setting any of these.
+        /// Eliminates the "forgot to notify property X" bug class.
+        /// </summary>
+        private void NotifyModeChanged()
+        {
+            OnPropertyChanged(nameof(DualFileMode));
+            OnPropertyChanged(nameof(TwopageMode));
+            OnPropertyChanged(nameof(LinkedPageMode));
+            OnPropertyChanged(nameof(SecondaryPagecount));
+            OnPropertyChanged(nameof(ShowSecondaryControls));
+            OnPropertyChanged(nameof(ShowLinkedPageButton));
+            OnPropertyChanged(nameof(IsUserDualFileMode));
+            OnPropertyChanged(nameof(CanToggleLayout));
+            OnPropertyChanged(nameof(CanSearch));
+            OnPropertyChanged(nameof(CanAnnotate));
+        }
         #endregion
 
         #region View Mode Properties
@@ -206,8 +230,8 @@ namespace Finn.ViewModels
             get => twopageMode;
             set
             {
-                // Block activation while annotating; always allow deactivation.
-                if (value && AnnotationActive) return;
+                // Block activation while annotating or diff is active; always allow deactivation.
+                if (value && (AnnotationActive || _diffOverlayActive)) return;
                 // When deactivating, hide the secondary renderer BEFORE the
                 // property change collapses the grid column to 0px.  The
                 // PDFRenderer throws if arranged at less than 1×1.
@@ -226,13 +250,18 @@ namespace Finn.ViewModels
             get => dualFileMode;
             set
             {
-                // Block activation while annotating; always allow deactivation.
-                if (value && AnnotationActive) return;
+                // Block activation while annotating or diff is active; always allow deactivation.
+                if (value && (AnnotationActive || _diffOverlayActive)) return;
                 if (SetProperty(ref dualFileMode, value))
                 {
                     OnPropertyChanged(nameof(SecondaryPagecount));
                     OnPropertyChanged(nameof(ShowSecondaryControls));
                     OnPropertyChanged(nameof(ShowLinkedPageButton));
+                    OnPropertyChanged(nameof(IsUserDualFileMode));
+                    OnPropertyChanged(nameof(CanSearch));
+                    OnPropertyChanged(nameof(CanAnnotate));
+                    // Auto-close search when entering a mode that blocks it
+                    if (value && searchMode) SearchMode = false;
                     if (value)
                     {
                         if (twopageMode)
@@ -269,16 +298,29 @@ namespace Finn.ViewModels
             set => SetProperty(ref linkedPageMode, value, ToggleLinkedMode);
         }
 
-        private bool dimmedBackground = false;
-        public bool DimmedBackground
-        {
-            get => dimmedBackground;
-            set
-            {
-                if (fileAvailable && SetProperty(ref dimmedBackground, value))
-                    SetDimmedMode();
-            }
-        }
+        /// <summary>True when Dual-File mode was activated by the user (not by diff side-by-side).</summary>
+        public bool IsUserDualFileMode => dualFileMode && !_diffOverlayActive;
+
+        /// <summary>
+        /// True when the user may toggle Dual-Page / Dual-File modes.
+        /// Blocked during annotation mode and while a diff comparison is active
+        /// (diff manages its own layout).
+        /// </summary>
+        public bool CanToggleLayout => !annotationActive && !_diffOverlayActive;
+
+        /// <summary>
+        /// True when search is available. Blocked during diff comparisons (the
+        /// secondary document is not the current file) and in Dual-File mode
+        /// (search targets the main file only, which is confusing in split view).
+        /// </summary>
+        public bool CanSearch => !_diffOverlayActive && !dualFileMode;
+
+        /// <summary>
+        /// True when annotation mode may be activated. Blocked in Dual-File mode
+        /// where there are two independent documents and annotation targets are
+        /// ambiguous.
+        /// </summary>
+        public bool CanAnnotate => !dualFileMode;
 
         private double rotation = 0;
         public double Rotation
@@ -388,7 +430,12 @@ namespace Finn.ViewModels
         public bool SearchMode
         {
             get => searchMode;
-            set => SetProperty(ref searchMode, value);
+            set
+            {
+                // Reject activation when search is blocked (diff/dual-file mode)
+                if (value && !CanSearch) return;
+                SetProperty(ref searchMode, value);
+            }
         }
 
         private bool searchBusy = false;
@@ -443,7 +490,11 @@ namespace Finn.ViewModels
         public bool AnnotationActive
         {
             get => annotationActive;
-            set => SetProperty(ref annotationActive, value);
+            set
+            {
+                if (SetProperty(ref annotationActive, value))
+                    OnPropertyChanged(nameof(CanToggleLayout));
+            }
         }
 
         /// <summary>
@@ -493,7 +544,14 @@ namespace Finn.ViewModels
             set
             {
                 if (SetProperty(ref _diffOverlayActive, value))
+                {
                     OnPropertyChanged(nameof(ShowDiffToggle));
+                    OnPropertyChanged(nameof(IsUserDualFileMode));
+                    OnPropertyChanged(nameof(CanToggleLayout));
+                    OnPropertyChanged(nameof(CanSearch));
+                    // Auto-close search when entering diff mode
+                    if (value && searchMode) SearchMode = false;
+                }
             }
         }
 
@@ -654,13 +712,9 @@ namespace Finn.ViewModels
             if (secondaryRenderer != null)
                 secondaryRenderer.IsVisible = false;
 
-            if (twopageMode)
-            {
-                twopageMode = false;
-                OnPropertyChanged(nameof(TwopageMode));
-            }
+            twopageMode = false;
             dualFileMode = false;
-            OnPropertyChanged(nameof(DualFileMode));
+            NotifyModeChanged();
 
             ClearDiffResults();
         }
@@ -968,8 +1022,7 @@ namespace Finn.ViewModels
                 Pagecount2 = secondaryFile!.Pages.Count;
                 dualFileMode = true;
                 linkedPageMode = true;
-                OnPropertyChanged(nameof(DualFileMode));
-                OnPropertyChanged(nameof(LinkedPageMode));
+                NotifyModeChanged();
 
                 var docToInit = secondaryFile!;
 
@@ -1004,7 +1057,7 @@ namespace Finn.ViewModels
             Interlocked.Increment(ref _secondaryCloseGen);
             DiffShowingOriginal = false;
             dualFileMode = false;
-            OnPropertyChanged(nameof(DualFileMode));
+            NotifyModeChanged();
             await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
         }
 
@@ -1106,15 +1159,10 @@ namespace Finn.ViewModels
                     if (!twopageMode)
                     {
                         twopageMode = true;
-                        OnPropertyChanged(nameof(TwopageMode));
                         _ = ToggleDualViewAsync();
                     }
                     linkedPageMode = true;
-                    OnPropertyChanged(nameof(DualFileMode));
-                    OnPropertyChanged(nameof(LinkedPageMode));
-                    OnPropertyChanged(nameof(SecondaryPagecount));
-                    OnPropertyChanged(nameof(ShowSecondaryControls));
-                    OnPropertyChanged(nameof(ShowLinkedPageButton));
+                    NotifyModeChanged();
                     // Make visible before Initialize — the removed XAML binding
                     // no longer does this automatically from TwopageMode.
                     if (secondaryRenderer != null)
@@ -1151,21 +1199,14 @@ namespace Finn.ViewModels
                     secondaryRenderer.IsVisible = false;
 
                 dualFileMode = false;
-                OnPropertyChanged(nameof(DualFileMode));
                 if (twopageMode)
                 {
-                    // Set backing field directly — skip ToggleDualViewAsync so it cannot
-                    // race with the incoming mode's renderer initialisation. Also bump the
-                    // dual-view generation so any already-running ToggleDualViewAsync bails.
                     twopageMode = false;
                     Interlocked.Increment(ref _dualViewGen);
-                    OnPropertyChanged(nameof(TwopageMode));
-                    OnPropertyChanged(nameof(ShowLinkedPageButton));
                 }
                 CurrentFile2 = null;
                 Pagecount2 = 0;
-                OnPropertyChanged(nameof(SecondaryPagecount));
-                OnPropertyChanged(nameof(ShowSecondaryControls));
+                NotifyModeChanged();
             }).GetTask().ConfigureAwait(false);
         }
 
@@ -1293,7 +1334,7 @@ namespace Finn.ViewModels
         #endregion
 
         #region File Operations
-        public async Task SetFileAsync(string? search = null, CancellationToken cancellationToken = default)
+        public async Task SetFileAsync(string? search = null, CancellationToken cancellationToken = default, bool preserveDualFile = false)
         {
             if (disposed || RequestFile?.Sökväg == null)
                 return;
@@ -1303,7 +1344,13 @@ namespace Finn.ViewModels
             // Close any active diff mode BEFORE disposing the document.
             // DisposeCurrentDocumentAsync skips the secondary renderer while
             // dualFileMode is true, so we must reset it synchronously first.
-            if (_diffOverlayActive || dualFileMode)
+            // When preserveDualFile is set (View Left in Dual-File mode),
+            // only close diff state — keep the dual-file layout intact.
+            if (_diffOverlayActive)
+            {
+                await Dispatcher.UIThread.InvokeAsync(CloseDiffModeSync).GetTask().ConfigureAwait(false);
+            }
+            else if (dualFileMode && !preserveDualFile)
             {
                 await Dispatcher.UIThread.InvokeAsync(CloseDiffModeSync).GetTask().ConfigureAwait(false);
             }
@@ -1937,21 +1984,6 @@ namespace Finn.ViewModels
             {
                 logger?.LogError(ex, "Error toggling dual view");
             }
-        }
-
-        public void ToggleDimmed() => DimmedBackground = !DimmedBackground;
-
-        public void SetDimmedMode()
-        {
-            var bg = DimmedBackground
-                ? new SolidColorBrush(Colors.AntiqueWhite)
-                : new SolidColorBrush(Colors.White);
-
-            if (mainRenderer != null) mainRenderer.PageBackground = bg;
-            if (secondaryRenderer != null) secondaryRenderer.PageBackground = bg;
-
-            _ = SetMainPageAsync();
-            if (TwopageMode) _ = SetSecondaryPageAsync();
         }
 
         public void ToggleLinkedMode()

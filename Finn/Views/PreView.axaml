@@ -92,6 +92,36 @@
 				</Grid>
 			</LayoutTransformControl>
 
+			<!-- Mode banner: Dual File (only for user-initiated, not diff side-by-side) -->
+			<Border Name="DualFileBanner" IsVisible="{Binding PreviewVM.IsUserDualFileMode}" IsHitTestVisible="True"
+					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"
+					Background="{DynamicResource TextControlBackground}" CornerRadius="6"
+					Padding="10,5" Opacity="0.92"
+					BoxShadow="0 1 4 0 #40000000">
+				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+					<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
+					<TextBlock Text="Dual File — use View Left / Right to set files" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
+					<Button Content="✕" FontSize="11" Padding="4,1" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Exit Dual File mode" Click="OnCloseDualFileMode"
+							Background="Transparent" BorderThickness="0"/>
+				</StackPanel>
+			</Border>
+
+			<!-- Mode banner: Diff Comparison -->
+			<Border Name="DiffModeBanner" IsVisible="{Binding PreviewVM.DiffOverlayActive}" IsHitTestVisible="True"
+					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"
+					Background="{DynamicResource TextControlBackground}" CornerRadius="6"
+					Padding="10,5" Opacity="0.92"
+					BoxShadow="0 1 4 0 #40000000">
+				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+					<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
+					<TextBlock Text="{Binding PreviewVM.DiffSummary}" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
+					<Button Content="✕" FontSize="11" Padding="4,1" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Close diff comparison" Click="OnCloseDiffMode"
+							Background="Transparent" BorderThickness="0"/>
+				</StackPanel>
+			</Border>
+
 			<!-- Annotation toolbar: floating overlay at top of preview, above the PDF -->
 			<Border Name="AnnotateToolbar" IsVisible="False" IsHitTestVisible="True"
 					HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0"
@@ -281,7 +311,6 @@
 								  IsChecked="{Binding PreviewVM.DiffShowingOriginal, Mode=TwoWay}"
 								  IsVisible="{Binding PreviewVM.ShowDiffToggle}"
 								  ToolTip.Tip="Toggle A/B (Ctrl+Shift+T)"
-								  HotKey="Ctrl+Shift+T"
 								  VerticalAlignment="Center" Margin="2,0">
 						<StackPanel Orientation="Horizontal" Spacing="4">
 							<ic:SymbolIcon Symbol="ArrowSwap" IconVariant="Regular" FontSize="14"/>
@@ -430,11 +459,11 @@
 						<Label Content="{Binding Pagecount}" VerticalAlignment="Center"/>
 					</StackPanel>
 
-					<Button ToolTip.Tip="Previous Page (Left)" HotKey="Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding PrevPage}" CommandParameter="false">
+					<Button ToolTip.Tip="Previous Page (Left)" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding PrevPage}" CommandParameter="false">
 						<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
 					</Button>
 
-					<Button ToolTip.Tip="Next Page (Right)" HotKey="Right" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding NextPage}" CommandParameter="false">
+					<Button ToolTip.Tip="Next Page (Right)" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Command="{Binding NextPage}" CommandParameter="false">
 							<ic:SymbolIcon Symbol="ArrowNext" IconVariant="Regular" FontSize="16"/>
 						</Button>
 
@@ -454,29 +483,29 @@
 							<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Dimmed Background (Ctrl+G)" HotKey="Ctrl+G" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
+						<ToggleButton ToolTip.Tip="Invert Colors (Ctrl+G)" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
 							<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Dual Page (Ctrl+D)" HotKey="Ctrl+D" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}" IsEnabled="{Binding !AnnotationActive}">
+						<ToggleButton ToolTip.Tip="Dual Page (Ctrl+D)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}" IsEnabled="{Binding CanToggleLayout}">
 							<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}" IsEnabled="{Binding !AnnotationActive}">
+						<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}" IsEnabled="{Binding CanToggleLayout}">
 							<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Linked Pages (Ctrl+L)" HotKey="Ctrl+L" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
+						<ToggleButton ToolTip.Tip="Linked Pages (Ctrl+L)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
 							<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-						<ToggleButton ToolTip.Tip="Search (Ctrl+F)" HotKey="Ctrl+F" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}">
+						<ToggleButton ToolTip.Tip="Search (Ctrl+F)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}" IsEnabled="{Binding CanSearch}">
 							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton Name="AnnotateToggle" ToolTip.Tip="Annotate (Esc to exit)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Click="OnToggleAnnotate">
+						<ToggleButton Name="AnnotateToggle" ToolTip.Tip="Annotate (Esc to exit)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Click="OnToggleAnnotate" IsEnabled="{Binding CanAnnotate}">
 							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 

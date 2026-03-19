@@ -29,7 +29,14 @@ namespace Finn.ViewModels
             {
                 foreach (var folder in folders)
                 {
-                    if (folder.IsProjectLevel)
+                    if (folder.Types == VERSIONS_TYPE)
+                    {
+                        // Remove all versions whose path falls under this version folder.
+                        RemoveVersionsUnderPath(folder.Path);
+                        CurrentProject.Folders.Remove(folder);
+                        MarkDirty();
+                    }
+                    else if (folder.IsProjectLevel)
                     {
                         CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && x.SyncFolder == folder.Path);
                         UpdateFilter();
@@ -79,6 +86,45 @@ namespace Finn.ViewModels
                 {
                     await SyncFolderAsync(folder, mainWindow);
                 }
+            }
+
+            /// <summary>
+            /// Builds an O(1) name→FileData lookup from all project files.
+            /// Includes both parent files and attached children so that version
+            /// matching works uniformly across drag-drop, sync folder, and version folder.
+            /// Parents take priority via the first pass so they are the preferred
+            /// version target when both a parent and child share a name.
+            /// </summary>
+            private Dictionary<string, FileData> BuildFileNameLookup()
+            {
+                var lookup = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
+                // Parents first — TryAdd keeps the first entry per name.
+                foreach (var f in CurrentProject.StoredFiles.Where(f => !f.IsAppendedFile))
+                    lookup.TryAdd(f.Namn, f);
+                // Children fill in names that don't have a parent match.
+                foreach (var f in CurrentProject.StoredFiles.Where(f => f.IsAppendedFile))
+                    lookup.TryAdd(f.Namn, f);
+                return lookup;
+            }
+
+            /// <summary>
+            /// Collects all paths already registered as current files, originals,
+            /// or versions for quick deduplication.
+            /// </summary>
+            private HashSet<string> BuildKnownPathSet()
+            {
+                var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in CurrentProject.StoredFiles)
+                {
+                    if (!string.IsNullOrEmpty(file.Sökväg))
+                        known.Add(file.Sökväg);
+                    if (!string.IsNullOrEmpty(file.OriginalPath))
+                        known.Add(file.OriginalPath);
+                    foreach (var v in file.Versions)
+                        if (!string.IsNullOrEmpty(v.Sökväg))
+                            known.Add(v.Sökväg);
+                }
+                return known;
             }
 
             public async Task SyncFileAsync()
@@ -164,14 +210,14 @@ namespace Finn.ViewModels
 
                     var actualAdds = new List<FileData>();
                     var versionCandidates = new List<VersionImportEntry>();
+                    var filesByName = BuildFileNameLookup();
 
                     foreach (FileData file in filesToAdd)
                     {
                         if (CurrentProject.StoredFiles.Any(x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase)))
                             continue;
 
-                        var existing = CurrentProject.StoredFiles.FirstOrDefault(x => !x.IsAppendedFile && x.Namn == file.Namn);
-                        if (existing != null)
+                        if (filesByName.TryGetValue(file.Namn, out var existing))
                         {
                             versionCandidates.Add(new VersionImportEntry
                             {
@@ -223,6 +269,49 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
+            /// Counts all versions across all project files whose path falls
+            /// under <paramref name="folderPath"/>. Used to display the total
+            /// synced version count regardless of when they were imported.
+            /// </summary>
+            private int CountVersionsUnderPath(string folderPath)
+            {
+                string root = folderPath.EndsWith(Path.DirectorySeparatorChar)
+                    ? folderPath
+                    : folderPath + Path.DirectorySeparatorChar;
+                int count = 0;
+                foreach (var f in CurrentProject.StoredFiles)
+                    foreach (var v in f.Versions)
+                        if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                            count++;
+                return count;
+            }
+
+            /// <summary>
+            /// Removes all versions whose path falls under <paramref name="folderPath"/>
+            /// from every project file. Cleans up OriginalPath when the last version is removed.
+            /// </summary>
+            private void RemoveVersionsUnderPath(string folderPath)
+            {
+                string root = folderPath.EndsWith(Path.DirectorySeparatorChar)
+                    ? folderPath
+                    : folderPath + Path.DirectorySeparatorChar;
+                foreach (var file in CurrentProject.StoredFiles)
+                {
+                    int before = file.Versions.Count;
+                    for (int i = file.Versions.Count - 1; i >= 0; i--)
+                    {
+                        if (file.Versions[i].Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                            file.Versions.RemoveAt(i);
+                    }
+                    if (before > 0 && file.Versions.Count == 0 && !string.IsNullOrEmpty(file.OriginalPath))
+                    {
+                        // Last version removed — clear the original path marker
+                        file.OriginalPath = null;
+                    }
+                }
+            }
+
+            /// <summary>
             /// Scans a folder and all subfolders for PDFs that match existing project files
             /// by name, then presents a delivery import dialog grouped by subfolder.
             /// Each delivery folder gets one label applied to all matched files.
@@ -237,25 +326,12 @@ namespace Finn.ViewModels
                     .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                // Build a lookup of existing files by name for O(1) matching
-                var filesByName = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
-                foreach (var file in CurrentProject.StoredFiles.Where(f => !f.IsAppendedFile))
-                    filesByName.TryAdd(file.Namn, file);
-
+                // Shared lookup: includes parents AND attached children
+                var filesByName = BuildFileNameLookup();
                 int totalProjectFiles = CurrentProject.StoredFiles.Count;
 
-                // Collect all paths already registered as versions for quick dedup
-                var knownPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var file in CurrentProject.StoredFiles)
-                {
-                    if (!string.IsNullOrEmpty(file.Sökväg))
-                        knownPaths.Add(file.Sökväg);
-                    if (!string.IsNullOrEmpty(file.OriginalPath))
-                        knownPaths.Add(file.OriginalPath);
-                    foreach (var v in file.Versions)
-                        if (!string.IsNullOrEmpty(v.Sökväg))
-                            knownPaths.Add(v.Sökväg);
-                }
+                // Shared dedup: all paths already registered as current, original, or version
+                var knownPaths = BuildKnownPathSet();
 
                 // Group matched PDFs by their parent subfolder
                 var matchesPerFolder = new Dictionary<string, List<(FileData File, string PdfPath)>>(StringComparer.OrdinalIgnoreCase);
@@ -278,7 +354,12 @@ namespace Finn.ViewModels
                     }
                 }
 
-                if (matchesPerFolder.Count == 0) { folder.SyncedFileCount = 0; return; }
+                if (matchesPerFolder.Count == 0)
+                {
+                    // No new files to import, but still reflect total synced versions.
+                    folder.SyncedFileCount = CountVersionsUnderPath(folder.Path);
+                    return;
+                }
 
                 // Build delivery entries — one row per subfolder, auto-label from date or letter.
                 // Multiple subfolders under the same date folder share the same label,
@@ -319,21 +400,8 @@ namespace Finn.ViewModels
                     }
                 }
 
-                // Count all versions across all project files whose path falls
-                // under this version folder, not just the ones imported this sync.
-                string root = folder.Path.EndsWith(System.IO.Path.DirectorySeparatorChar)
-                    ? folder.Path
-                    : folder.Path + System.IO.Path.DirectorySeparatorChar;
-                int totalVersions = 0;
-                foreach (var f in CurrentProject.StoredFiles)
-                {
-                    foreach (var v in f.Versions)
-                    {
-                        if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-                            totalVersions++;
-                    }
-                }
-                folder.SyncedFileCount = totalVersions;
+                // Count all versions under this folder, not just the ones imported this sync.
+                folder.SyncedFileCount = CountVersionsUnderPath(folder.Path);
             }
 
             /// <summary>
@@ -417,7 +485,7 @@ namespace Finn.ViewModels
                 {
                     foreach (string path in Directory.GetFiles(folder.Path))
                     {
-                        if (Path.GetExtension(path) == ".pdf")
+                        if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
                         {
                             files.Add(new FileData()
                             {
