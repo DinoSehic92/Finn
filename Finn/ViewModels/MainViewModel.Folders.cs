@@ -34,7 +34,6 @@ namespace Finn.ViewModels
                         // Remove all versions whose path falls under this version folder.
                         RemoveVersionsUnderPath(folder.Path);
                         CurrentProject.Folders.Remove(folder);
-                        MarkDirty();
                     }
                     else if (folder.IsProjectLevel)
                     {
@@ -78,6 +77,9 @@ namespace Finn.ViewModels
                         CurrentProject.Folders.Remove(folder);
                     }
                 }
+
+                if (folders.Count > 0)
+                    MarkDirty();
             }
 
             public async Task SyncFoldersAsync(List<FolderData> folders, Window? mainWindow = null)

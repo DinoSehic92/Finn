@@ -28,6 +28,8 @@ public partial class PreView
     private Button? _activeColorButton;
     private Button? _activeWidthButton;
     private Button? _activeDashButton;
+    private Button? _undoBtn;
+    private Button? _redoBtn;
     private double _normalStrokeWidth = 2;
     private Point? _textPlacementPdfPoint;
     private TextAnnotation? _editingTextAnnotation;
@@ -224,13 +226,7 @@ public partial class PreView
         // Close diff renderer modes at the view level FIRST so that renderer
         // opacity, column positions and display-area sync are fully restored
         // before we collapse the ViewModel modes below.
-        //
-        // A/B toggle: CloseDiffToggle() synchronously resets MuPDFRenderer.Opacity=1
-        // and fires CloseDiffToggleAsync which synchronously sets DualFileMode=false,
-        // so the DualFileMode check below will be a no-op.
-        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-        // SideBySide: stop the pan-sync subscription; ViewModel cleanup handled below.
-        if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
+        CloseDiffViews();
 
         // Annotation only works in single-page view. Collapse any remaining dual modes.
         if (pwr.TwopageMode)
@@ -259,6 +255,10 @@ public partial class PreView
 
         // Subscribe to annotation changes for badge + undo/redo button state
         MuPDFRenderer.AnnotationChanged += OnAnnotationChanged;
+
+        // Cache undo/redo buttons to avoid FindControl tree walks on every change
+        _undoBtn ??= this.FindControl<Button>("UndoBtn");
+        _redoBtn ??= this.FindControl<Button>("RedoBtn");
 
         // Highlight default tool/color/width buttons to match initial state
         HighlightInitialButtons();
@@ -640,23 +640,15 @@ public partial class PreView
         // Space+left-click: pan (Figma-style)
         if (_spaceHeld && point.Properties.IsLeftButtonPressed)
         {
-            _middlePanning = true;
-            _panStart = e.GetPosition(MuPDFRenderer);
-            _panStartDisplayArea = MuPDFRenderer.DisplayArea;
-            e.Pointer.Capture(MuPDFRenderer);
-            e.Handled = true;
+            BeginPan(MuPDFRenderer, e);
             return;
         }
 
         // Middle-mouse: pan even in annotation mode
         if (point.Properties.IsMiddleButtonPressed)
         {
-            _middlePanning = true;
-            _panStart = e.GetPosition(MuPDFRenderer);
-            _panStartDisplayArea = MuPDFRenderer.DisplayArea;
-            e.Pointer.Capture(MuPDFRenderer);
-            e.Handled = true;
-            MuPDFRenderer.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+            BeginPan(MuPDFRenderer, e);
+            MuPDFRenderer.Cursor = CursorHand;
             return;
         }
 
@@ -1121,15 +1113,7 @@ public partial class PreView
     {
         if (_middlePanning)
         {
-            e.Handled = true;
-            var current = e.GetPosition(MuPDFRenderer);
-            var da = _panStartDisplayArea;
-            var bounds = MuPDFRenderer.Bounds;
-            if (bounds.Width <= 0 || bounds.Height <= 0) return;
-
-            double dx = (_panStart.X - current.X) / bounds.Width  * da.Width;
-            double dy = (_panStart.Y - current.Y) / bounds.Height * da.Height;
-            MuPDFRenderer.SetDisplayAreaNow(new Rect(da.X + dx, da.Y + dy, da.Width, da.Height));
+            UpdatePan(e);
             return;
         }
 
@@ -1807,10 +1791,8 @@ public partial class PreView
     {
         bool canUndo = MuPDFRenderer.CanUndoCurrentPage;
         bool canRedo = MuPDFRenderer.CanRedoCurrentPage;
-        var undoBtn = this.FindControl<Button>("UndoBtn");
-        var redoBtn = this.FindControl<Button>("RedoBtn");
-        if (undoBtn != null) { undoBtn.Opacity = canUndo ? 1.0 : 0.35; undoBtn.IsEnabled = canUndo; }
-        if (redoBtn != null) { redoBtn.Opacity = canRedo ? 1.0 : 0.35; redoBtn.IsEnabled = canRedo; }
+        if (_undoBtn != null) { _undoBtn.Opacity = canUndo ? 1.0 : 0.35; _undoBtn.IsEnabled = canUndo; }
+        if (_redoBtn != null) { _redoBtn.Opacity = canRedo ? 1.0 : 0.35; _redoBtn.IsEnabled = canRedo; }
     }
 
     private void OnAnnotationChanged()
@@ -2155,8 +2137,7 @@ public partial class PreView
             if (_selectedAnnotation is TextAnnotation t)
                 ShowTextEdit(t, screenPos);
         };
-        editItem.IsVisible = _selectedAnnotation is TextAnnotation { IsStickyNote: false }
-                          || _selectedAnnotation is TextAnnotation { IsStickyNote: true };  // allow editing sticky notes too
+        editItem.IsVisible = _selectedAnnotation is TextAnnotation;
 
         var duplicateItem = new MenuItem { Header = "Duplicate           Ctrl+D" };
         duplicateItem.Click += (_, _) =>

@@ -8,13 +8,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.VisualTree;
-using iText.IO.Image;
-using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Annot;
-using iText.Kernel.Pdf.Canvas;
-using MuPDFCore;
 using MuPDFCore.MuPDFRenderer;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -43,14 +37,13 @@ public partial class PreView : UserControl
         this.AddHandler(LoadedEvent, InitSetup);
     }
 
-    public MainViewModel ctx = null;
-    public PreviewViewModel pwr = null;
-    public RotateTransform rotation = new RotateTransform(0);
-    private bool _rendererPointerDown = false;
+    private MainViewModel ctx = null!;
+    private PreviewViewModel pwr = null!;
+    private bool _suppressWheelPageChange = false;
     private bool ZoomMode = false;
     private PDFRenderer? _panRenderer;
 
-    public void InitSetup(object sender, RoutedEventArgs e)
+    private void InitSetup(object sender, RoutedEventArgs e)
     {
         ctx = (MainViewModel)this.DataContext;
         pwr = ctx.PreviewVM;
@@ -81,67 +74,61 @@ public partial class PreView : UserControl
         }
     }
 
-    public void OnBindingPwr(object sender, PropertyChangedEventArgs e)
+    private void OnBindingPwr(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == "SearchMode") { SetSearchFocus(); }
-
-        // Deactivate annotation mode on file switch. CurrentFile fires from
-        // a background thread (SetFileAsync after ConfigureAwait), so dispatch.
-        if (e.PropertyName == "CurrentFile" && !pwr.WhiteboardMode)
+        switch (e.PropertyName)
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                DeactivateAnnotateMode();
-                // Synchronously close diff mode — release secondary renderer
-                // and reset DualFileMode BEFORE the new file load proceeds.
-                if (pwr.DiffOverlayActive || _diffToggleOpen || _diffSideBySideOpen)
+            case "SearchMode":
+                SetSearchFocus();
+                break;
+
+            case "CurrentFile" when !pwr.WhiteboardMode:
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-                    if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
-                    pwr.CloseDiffModeSync();
-                }
-                // Always sync layers on file switch — CurrentPage1 may not
-                // change if both files share the same page number.
+                    DeactivateAnnotateMode();
+                    if (pwr.DiffOverlayActive || _diffToggleOpen || _diffSideBySideOpen)
+                    {
+                        CloseDiffViews();
+                        pwr.CloseDiffModeSync();
+                    }
+                    SyncLayers();
+                    SyncDiffOverlay();
+                });
+                break;
+
+            case "CurrentPage1":
+                DeselectAnnotation();
+                MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
                 SyncLayers();
                 SyncDiffOverlay();
-            });
-        }
+                if (_annotateMode) UpdateUndoRedoButtons();
+                break;
 
-        if (e.PropertyName == "CurrentPage1")
-        {
-            DeselectAnnotation();
-            MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
-            SyncLayers();
-            SyncDiffOverlay();
-            if (_annotateMode) UpdateUndoRedoButtons();
-        }
+            case "DiffOverlayActive":
+            case "DiffViewMode":
+                SyncDiffOverlay();
+                break;
 
-        if (e.PropertyName == "DiffOverlayActive" || e.PropertyName == "DiffViewMode")
-        {
-            SyncDiffOverlay();
-        }
+            case nameof(PreviewViewModel.DiffShowingOriginal) when _diffToggleOpen:
+                ShowToggleRenderer(pwr.DiffShowingOriginal);
+                DiffABLabel.Text = pwr.DiffShowingOriginal ? "A" : "B";
+                break;
 
-        if (e.PropertyName == nameof(PreviewViewModel.DiffShowingOriginal) && _diffToggleOpen)
-        {
-            ShowToggleRenderer(pwr.DiffShowingOriginal);
-            DiffABLabel.Text = pwr.DiffShowingOriginal ? "A" : "B";
-        }
-
-        if (e.PropertyName == "WhiteboardMode")
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                if (pwr.WhiteboardMode)
+            case "WhiteboardMode":
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    MuPDFRenderer.SetLayers(pwr.WhiteboardLayers);
-                    ActivateAnnotateMode();
-                }
-                else
-                {
-                    SyncLayers();
-                    DeactivateAnnotateMode();
-                }
-            });
+                    if (pwr.WhiteboardMode)
+                    {
+                        MuPDFRenderer.SetLayers(pwr.WhiteboardLayers);
+                        ActivateAnnotateMode();
+                    }
+                    else
+                    {
+                        SyncLayers();
+                        DeactivateAnnotateMode();
+                    }
+                });
+                break;
         }
     }
 
@@ -160,10 +147,29 @@ public partial class PreView : UserControl
     }
 
     /// <summary>
+    /// Closes any active diff view mode (Toggle or SideBySide) at the view layer.
+    /// Resets renderer state (opacity, column, display-area sync) so the next
+    /// mode transition starts from a clean slate.
+    /// When <paramref name="disposeSideBySide"/> is true, also disposes the
+    /// secondary document (used when leaving diff mode entirely).
+    /// </summary>
+    private void CloseDiffViews(bool disposeSideBySide = false)
+    {
+        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
+        if (_diffSideBySideOpen)
+        {
+            _diffSideBySideOpen = false;
+            StopDisplayAreaSync();
+            if (disposeSideBySide) _ = pwr.CloseDiffSideBySideAsync();
+        }
+    }
+
+    /// <summary>
     /// Updates the diff display on the renderer for the current page and view mode.
     /// Overlay: red diff highlights. Toggle: A/B document swap. SideBySide: dual-page.
+    /// Async so transitions can be awaited instead of fire-and-forget.
     /// </summary>
-    private void SyncDiffOverlay()
+    private async void SyncDiffOverlay()
     {
         if (pwr == null)
         {
@@ -174,13 +180,7 @@ public partial class PreView : UserControl
         if (!pwr.DiffOverlayActive)
         {
             MuPDFRenderer.ClearDiffOverlay();
-            if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-            if (_diffSideBySideOpen)
-            {
-                _diffSideBySideOpen = false;
-                StopDisplayAreaSync();
-                _ = pwr.CloseDiffSideBySideAsync();
-            }
+            CloseDiffViews(disposeSideBySide: true);
             return;
         }
 
@@ -188,17 +188,12 @@ public partial class PreView : UserControl
         switch (pwr.DiffViewMode)
         {
             case DiffViewMode.Overlay:
-                bool wasToggle = _diffToggleOpen;
-                bool wasSBS = _diffSideBySideOpen;
-                if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-                if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); _ = pwr.CloseDiffSideBySideAsync(); }
+                CloseDiffViews(disposeSideBySide: true);
                 var diffPath = pwr.GetDiffImagePath(page);
                 if (diffPath != null)
                     MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM);
                 else
                     MuPDFRenderer.ClearDiffOverlay();
-                // Always re-center when entering overlay — the layout may have
-                // changed from Toggle/SBS or this may be the first activation.
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain(), Avalonia.Threading.DispatcherPriority.Render);
                 break;
 
@@ -206,16 +201,14 @@ public partial class PreView : UserControl
                 MuPDFRenderer.ClearDiffOverlay();
                 if (_diffSideBySideOpen)
                 {
-                    _diffSideBySideOpen = false;
-                    StopDisplayAreaSync();
-                    _ = TransitionSbsToToggleAsync();
+                    CloseDiffViews();
+                    await TransitionSbsToToggleAsync();
                 }
                 else if (!_diffToggleOpen)
                 {
                     _diffToggleOpen = true;
-                    _ = OpenDiffToggleAsync().ContinueWith(_ =>
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain()),
-                        System.Threading.Tasks.TaskScheduler.Default);
+                    await OpenDiffToggleAsync();
+                    MuPDFRenderer.Contain();
                 }
                 break;
 
@@ -223,29 +216,17 @@ public partial class PreView : UserControl
                 MuPDFRenderer.ClearDiffOverlay();
                 if (_diffToggleOpen)
                 {
-                    _diffToggleOpen = false;
-                    StopDisplayAreaSync();
-                    pwr.DiffShowingOriginal = false;
-                    MuPDFRenderer.Opacity = 1;
-                    MuPDFRenderer.IsHitTestVisible = true;
-                    MuPDFRendererSecondary.Opacity = 1;
-                    MuPDFRendererSecondary.IsHitTestVisible = true;
-                    MuPDFRendererSecondary.IsVisible = false;
-                    Avalonia.Controls.Grid.SetColumn(MuPDFRendererSecondary, 2);
+                    CloseDiffViews();
                     pwr.CancelSecondaryOpen();
                 }
                 if (!_diffSideBySideOpen && (pwr.DiffOriginalPdfPath != null || pwr.HasDiffResults))
                 {
                     _diffSideBySideOpen = true;
-                    _ = pwr.OpenDiffSideBySideAsync().ContinueWith(_ =>
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            MuPDFRenderer.Contain();
-                            if (MuPDFRendererSecondary.IsVisible)
-                                MuPDFRendererSecondary.Contain();
-                            StartDisplayAreaSync();
-                        }),
-                        System.Threading.Tasks.TaskScheduler.Default);
+                    await pwr.OpenDiffSideBySideAsync();
+                    MuPDFRenderer.Contain();
+                    if (MuPDFRendererSecondary.IsVisible)
+                        MuPDFRendererSecondary.Contain();
+                    StartDisplayAreaSync();
                 }
                 break;
         }
@@ -537,21 +518,21 @@ public partial class PreView : UserControl
             MuPDFRendererSecondary.Contain();
     }
 
-    public void RotateRight(object sender, RoutedEventArgs e)
+    private void RotateRight(object sender, RoutedEventArgs e)
     {
         pwr.Rotation = pwr.Rotation + 90;
         MuPDFRenderer.UpdateLayout();
         MuPDFRenderer.Contain();
     }
 
-    public void RotateLeft(object sender, RoutedEventArgs e)
+    private void RotateLeft(object sender, RoutedEventArgs e)
     {
         pwr.Rotation = pwr.Rotation - 90;
         MuPDFRenderer.UpdateLayout();
         MuPDFRenderer.Contain();
     }
 
-    public void RotateNull()
+    private void RotateNull()
     {
         pwr.Rotation = 0;
         MuPDFRenderer.UpdateLayout();
@@ -572,7 +553,7 @@ public partial class PreView : UserControl
         if (ZoomMode)
             return;
 
-        if (!_rendererPointerDown && pwr.Pagecount > 0)
+        if (!_suppressWheelPageChange && pwr.Pagecount > 0)
         {
             PDFRenderer currentSender = (PDFRenderer)sender;
             bool secondPage = currentSender.Name?.ToString() == "MuPDFRendererSecondary";
@@ -582,40 +563,50 @@ public partial class PreView : UserControl
         }
     }
 
-    private void OnRendererPointerPressed(object? sender, PointerPressedEventArgs e)
+    /// <summary>Begins a middle-mouse pan on the specified renderer.</summary>
+    private void BeginPan(PDFRenderer renderer, PointerEventArgs e)
     {
-        _rendererPointerDown = true;
-        if (_annotateMode) return;
-
-        var point = e.GetCurrentPoint((Visual)sender!);
-        if (point.Properties.IsMiddleButtonPressed && sender is PDFRenderer renderer)
-        {
-            _middlePanning = true;
-            _panRenderer = renderer;
-            _panStart = e.GetPosition(renderer);
-            _panStartDisplayArea = renderer.DisplayArea;
-            e.Pointer.Capture(renderer);
-            e.Handled = true;
-        }
+        _middlePanning = true;
+        _panRenderer = renderer;
+        _panStart = e.GetPosition(renderer);
+        _panStartDisplayArea = renderer.DisplayArea;
+        e.Pointer.Capture(renderer);
+        e.Handled = true;
     }
 
-    private void OnRendererPointerMoved(object? sender, PointerEventArgs e)
+    /// <summary>Updates the pan position during a middle-mouse drag.</summary>
+    private void UpdatePan(PointerEventArgs e)
     {
-        if (!_middlePanning || _panRenderer == null) return;
+        if (_panRenderer == null) return;
         e.Handled = true;
         var current = e.GetPosition(_panRenderer);
         var da = _panStartDisplayArea;
         var bounds = _panRenderer.Bounds;
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
-
         double dx = (_panStart.X - current.X) / bounds.Width  * da.Width;
         double dy = (_panStart.Y - current.Y) / bounds.Height * da.Height;
         _panRenderer.SetDisplayAreaNow(new Rect(da.X + dx, da.Y + dy, da.Width, da.Height));
     }
 
+    private void OnRendererPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        _suppressWheelPageChange = true;
+        if (_annotateMode) return;
+
+        var point = e.GetCurrentPoint((Visual)sender!);
+        if (point.Properties.IsMiddleButtonPressed && sender is PDFRenderer renderer)
+            BeginPan(renderer, e);
+    }
+
+    private void OnRendererPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!_middlePanning || _panRenderer == null) return;
+        UpdatePan(e);
+    }
+
     private void OnRendererPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        _rendererPointerDown = false;
+        _suppressWheelPageChange = false;
         if (_middlePanning && !_annotateMode)
         {
             _middlePanning = false;
@@ -627,7 +618,7 @@ public partial class PreView : UserControl
 
     private void OnRendererPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
-        _rendererPointerDown = false;
+        _suppressWheelPageChange = false;
         if (_middlePanning && !_annotateMode)
         {
             _middlePanning = false;
@@ -668,8 +659,7 @@ public partial class PreView : UserControl
     private void OnCloseDiffMode(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
-        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-        if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
+        CloseDiffViews();
         pwr.CloseDiffModeSync();
         MuPDFRenderer.ClearDiffOverlay();
         MuPDFRenderer.Contain();
@@ -699,8 +689,7 @@ public partial class PreView : UserControl
             return;
         }
         // Close current diff mode views before re-running
-        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-        if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
+        CloseDiffViews();
         MuPDFRenderer.ClearDiffOverlay();
 
         await pwr.CompareSelectedPathsAsync();
@@ -771,8 +760,7 @@ public partial class PreView : UserControl
         pwr.DiffChoiceB = dialog.ChoiceB;
 
         // Close current diff mode views before re-running
-        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
-        if (_diffSideBySideOpen) { _diffSideBySideOpen = false; StopDisplayAreaSync(); }
+        CloseDiffViews();
         MuPDFRenderer.ClearDiffOverlay();
 
         // Store the source file so version data persists
