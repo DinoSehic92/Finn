@@ -80,7 +80,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static readonly DashStyle s_dashStyle5_4 = new([5, 4], 0);
     private static readonly DashStyle s_dashStyle3_3 = new([3, 3], 0);
 
-    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder }
+    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize }
     private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> _redoStack = new();
 
@@ -130,6 +130,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _rubberBandStart = null;
         _rubberBandEnd = null;
         _layers = layers ?? [];
+        _annotationGroups.Clear();
         foreach (var layer in _layers) layer.RecalculateCounts();
         _activeLayer = _layers.Count > 0 ? _layers[0] : null;
         _undoStack.Clear();
@@ -194,6 +195,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         set { _activeLayer = value; InvalidateVisual(); }
     }
 
+    /// <summary>True when the active layer is locked and should reject mutations.</summary>
+    public bool IsActiveLayerLocked => _activeLayer is { IsLocked: true };
+
     public Color StrokeColor { get; set; } = Color.FromRgb(214, 64, 69);
     public double StrokeWidth { get; set; } = 2;
     public double StrokeOpacity { get; set; } = 1.0;
@@ -214,6 +218,62 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // Selection highlight: the items currently selected with the Select tool
     private readonly HashSet<object> _selectHighlightItems = new();
+
+    // Annotation grouping: each set is a group of items that move/select together
+    private readonly List<HashSet<object>> _annotationGroups = new();
+
+    /// <summary>Creates a new group from the given annotations. Items are removed from any existing groups first.</summary>
+    public void GroupAnnotations(IEnumerable<object> items)
+    {
+        var itemSet = new HashSet<object>(items);
+        if (itemSet.Count < 2) return;
+        UngroupItems(itemSet);
+        _annotationGroups.Add(itemSet);
+        InvalidateVisual();
+    }
+
+    /// <summary>Removes the given annotations from their groups.</summary>
+    public void UngroupAnnotations(IEnumerable<object> items)
+    {
+        UngroupItems(new HashSet<object>(items));
+        InvalidateVisual();
+    }
+
+    private void UngroupItems(HashSet<object> items)
+    {
+        for (int i = _annotationGroups.Count - 1; i >= 0; i--)
+        {
+            var group = _annotationGroups[i];
+            if (group.Overlaps(items))
+            {
+                group.ExceptWith(items);
+                if (group.Count < 2)
+                    _annotationGroups.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>Returns the group containing the given item, or null if it's ungrouped.</summary>
+    public HashSet<object>? GetGroup(object item)
+    {
+        foreach (var group in _annotationGroups)
+        {
+            if (group.Contains(item))
+                return group;
+        }
+        return null;
+    }
+
+    /// <summary>Removes a deleted annotation from any group it belongs to.</summary>
+    private void RemoveFromGroups(object item)
+    {
+        for (int i = _annotationGroups.Count - 1; i >= 0; i--)
+        {
+            var group = _annotationGroups[i];
+            if (group.Remove(item) && group.Count < 2)
+                _annotationGroups.RemoveAt(i);
+        }
+    }
     // Hover highlight: the item under the cursor in Select mode (for outline preview)
     private object? _selectHoverItem;
 
@@ -547,6 +607,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginStroke(Point pdfPoint)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         _activeStroke = new InkStroke
         {
@@ -615,6 +676,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginPolyline(Point pdfPoint)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
@@ -745,6 +807,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginShape(Point pdfPoint)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeShape = new ShapeAnnotation
@@ -881,6 +944,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PlaceText(Point pdfPoint, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
 
@@ -915,6 +979,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PlaceStickyNote(Point pdfPoint, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
 
@@ -948,6 +1013,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PlaceArrowText(Point arrowOrigin, Point textPosition, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
 
@@ -983,6 +1049,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built shape annotation (used by paste).</summary>
     public void PlaceShape(ShapeAnnotation shape)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes))
@@ -1001,6 +1068,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built ink stroke (used by paste).</summary>
     public void PlaceStroke(InkStroke stroke)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes))
@@ -1019,6 +1087,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built measurement (used by paste).</summary>
     public void PlaceMeasurement(MeasurementAnnotation measurement)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms))
@@ -1101,6 +1170,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginMeasurement(Point pdfPoint)
     {
+        if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeMeasurement = new MeasurementAnnotation
@@ -1214,7 +1284,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public bool EraseAt(Point pdfPoint)
     {
-        if (ActiveLayer == null) return false;
+        if (ActiveLayer == null || IsActiveLayerLocked) return false;
 
         double threshold = StrokeWidth * 3;
 
@@ -1561,6 +1631,64 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    /// <summary>Snapshot of all position and size properties for a group resize undo.</summary>
+    public record GroupResizeSnapshot(object Item, Point[]? Points, Point? Position, Point? ArrowOrigin,
+        Point? ShapeStart, Point? ShapeEnd, double FontSize, double MaxWidth, double StrokeWidth, double InkWidth);
+
+    /// <summary>Captures position and size properties of an annotation for group resize undo.</summary>
+    internal static GroupResizeSnapshot CaptureGroupResizeSnapshot(object item) => item switch
+    {
+        TextAnnotation t => new GroupResizeSnapshot(t, null, t.Position, t.ArrowOrigin, null, null, t.FontSize, t.MaxWidth, 0, 0),
+        ShapeAnnotation s => new GroupResizeSnapshot(s, null, null, null, s.Start, s.End, 0, 0, s.StrokeWidth, 0),
+        MeasurementAnnotation m => new GroupResizeSnapshot(m, [.. m.Points], null, null, null, null, 0, 0, 0, 0),
+        InkStroke ink => new GroupResizeSnapshot(ink, [.. ink.Points], null, null, null, null, 0, 0, 0, ink.Width),
+        _ => new GroupResizeSnapshot(item, null, null, null, null, null, 0, 0, 0, 0)
+    };
+
+    /// <summary>Restores all position and size properties from a GroupResizeSnapshot.</summary>
+    internal static void RestoreGroupResizeSnapshot(GroupResizeSnapshot s)
+    {
+        switch (s.Item)
+        {
+            case TextAnnotation t:
+                if (s.Position.HasValue) t.Position = s.Position.Value;
+                t.ArrowOrigin = s.ArrowOrigin;
+                t.FontSize = s.FontSize;
+                t.MaxWidth = s.MaxWidth;
+                break;
+            case ShapeAnnotation sh:
+                if (s.ShapeStart.HasValue) sh.Start = s.ShapeStart.Value;
+                if (s.ShapeEnd.HasValue) sh.End = s.ShapeEnd.Value;
+                sh.StrokeWidth = s.StrokeWidth;
+                sh.InvalidatePen();
+                break;
+            case MeasurementAnnotation m:
+                if (s.Points != null)
+                    for (int i = 0; i < s.Points.Length && i < m.Points.Count; i++)
+                        m.Points[i] = s.Points[i];
+                break;
+            case InkStroke ink:
+                if (s.Points != null)
+                {
+                    ink.Points.Clear();
+                    ink.Points.AddRange(s.Points);
+                }
+                ink.Width = s.InkWidth;
+                ink.InvalidatePen();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Pushes a single group-resize undo entry that captures position + size for all items.
+    /// Call with the pre-resize snapshots; the method captures post-resize state internally.
+    /// </summary>
+    public void PushGroupResizeUndo(List<GroupResizeSnapshot> preStates)
+    {
+        _undoStack.Push((UndoType.GroupResize, _currentPage, preStates, ActiveLayer));
+        _redoStack.Clear();
+    }
+
     /// <summary>
     /// Computes snap-to-alignment for a dragged annotation's bounding-box center.
     /// Compares against all other annotations on the current page and returns a
@@ -1767,6 +1895,59 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InkStroke ink when ink.Points.Count > 0 => GetStrokeBounds(ink),
         _ => default
     };
+
+    /// <summary>Computes the combined PDF-space bounding box for a set of annotations.</summary>
+    internal static Rect GetCombinedBounds(IEnumerable<object> items)
+    {
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+        foreach (var item in items)
+        {
+            var b = GetAnnotationBounds(item);
+            if (b.Width <= 0 && b.Height <= 0) continue;
+            minX = Math.Min(minX, b.Left);
+            minY = Math.Min(minY, b.Top);
+            maxX = Math.Max(maxX, b.Right);
+            maxY = Math.Max(maxY, b.Bottom);
+        }
+        if (minX > maxX) return default;
+        return new Rect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    /// <summary>Scales an annotation around a given anchor point by the given factors.</summary>
+    internal static void ScaleAnnotation(object item, Point anchor, double sx, double sy)
+    {
+        static Point Scale(Point p, Point a, double sx, double sy) =>
+            new(a.X + (p.X - a.X) * sx, a.Y + (p.Y - a.Y) * sy);
+
+        switch (item)
+        {
+            case TextAnnotation t:
+                t.Position = Scale(t.Position, anchor, sx, sy);
+                if (t.ArrowOrigin.HasValue)
+                    t.ArrowOrigin = Scale(t.ArrowOrigin.Value, anchor, sx, sy);
+                t.FontSize = Math.Max(4, t.FontSize * Math.Max(sx, sy));
+                if (t.MaxWidth > 0)
+                    t.MaxWidth = Math.Max(20, t.MaxWidth * sx);
+                break;
+            case ShapeAnnotation s:
+                s.Start = Scale(s.Start, anchor, sx, sy);
+                s.End = Scale(s.End, anchor, sx, sy);
+                s.StrokeWidth = Math.Max(0.5, s.StrokeWidth * Math.Max(sx, sy));
+                s.InvalidatePen();
+                break;
+            case MeasurementAnnotation m:
+                for (int i = 0; i < m.Points.Count; i++)
+                    m.Points[i] = Scale(m.Points[i], anchor, sx, sy);
+                break;
+            case InkStroke ink:
+                for (int i = 0; i < ink.Points.Count; i++)
+                    ink.Points[i] = Scale(ink.Points[i], anchor, sx, sy);
+                ink.Width = Math.Max(0.5, ink.Width * Math.Max(sx, sy));
+                ink.InvalidatePen();
+                break;
+        }
+    }
 
     /// <summary>Compute bounding box for a text annotation, accounting for MaxWidth word wrap.</summary>
     internal static Rect GetTextBounds(TextAnnotation t)
@@ -2023,7 +2204,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Delete a specific annotation by reference from the active layer's current page.</summary>
     public bool DeleteAnnotation(object item)
     {
-        if (ActiveLayer == null) return false;
+        if (ActiveLayer == null || IsActiveLayerLocked) return false;
         bool removed = false;
         switch (item)
         {
@@ -2050,6 +2231,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             _redoStack.Clear();
             ActiveLayer.RefreshStatus();
             _selectHighlightItems.Remove(item);
+            RemoveFromGroups(item);
             InvalidateVisual();
             NotifyAnnotationChanged();
         }
@@ -2325,6 +2507,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     removed = true;
                 }
                 break;
+            case UndoType.GroupResize:
+                if (data is List<GroupResizeSnapshot> preStates)
+                {
+                    // Capture current (post-resize) state for redo
+                    var postStates = new List<GroupResizeSnapshot>(preStates.Count);
+                    foreach (var s in preStates)
+                        postStates.Add(CaptureGroupResizeSnapshot(s.Item));
+                    // Restore pre-resize state
+                    foreach (var s in preStates)
+                        RestoreGroupResizeSnapshot(s);
+                    item = postStates;
+                    removed = true;
+                }
+                break;
         }
 
         if (removed)
@@ -2523,6 +2719,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     var undoZ = CaptureZOrderSnapshot(zRedoSnap.Item);
                     RestoreZOrder(zRedoSnap);
                     _undoStack.Push((UndoType.ZOrder, page, undoZ!, entryLayer));
+                    layer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.GroupResize:
+                if (item is List<GroupResizeSnapshot> redoStates)
+                {
+                    // Capture current state for undo (so we can undo again)
+                    var undoStates = new List<GroupResizeSnapshot>(redoStates.Count);
+                    foreach (var s in redoStates)
+                        undoStates.Add(CaptureGroupResizeSnapshot(s.Item));
+                    // Restore the redo (post-resize) state
+                    foreach (var s in redoStates)
+                        RestoreGroupResizeSnapshot(s);
+                    _undoStack.Push((UndoType.GroupResize, page, undoStates, entryLayer));
                     layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -3095,6 +3308,39 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         context.DrawEllipse(s_vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
                     }
                 }
+            }
+        }
+
+        // Draw combined bounding box with resize handles for multi-selection
+        if (!single && _selectHighlightItems.Count >= 2)
+        {
+            var combinedPdf = GetCombinedBounds(_selectHighlightItems);
+            if (combinedPdf is { Width: > 0 } or { Height: > 0 })
+            {
+                var ctl = PdfToScreen(combinedPdf.TopLeft, da, boundsSize);
+                var cbr = PdfToScreen(combinedPdf.BottomRight, da, boundsSize);
+                var combinedScreen = new Rect(
+                    Math.Min(ctl.X, cbr.X), Math.Min(ctl.Y, cbr.Y),
+                    Math.Abs(cbr.X - ctl.X), Math.Abs(cbr.Y - ctl.Y))
+                    .Inflate(padSize + 3);
+                var groupPen = new Pen(s_selectPenBrush, 1.2,
+                    dashStyle: s_dashStyle5_4, lineCap: PenLineCap.Round);
+                context.DrawRectangle(null, groupPen, combinedScreen, 2, 2);
+
+                // Corner resize handles
+                const double resizeHandleSize = 4.0;
+                context.DrawRectangle(s_vertexBrush, vertexPen,
+                    new Rect(combinedScreen.TopLeft.X - resizeHandleSize, combinedScreen.TopLeft.Y - resizeHandleSize,
+                        resizeHandleSize * 2, resizeHandleSize * 2));
+                context.DrawRectangle(s_vertexBrush, vertexPen,
+                    new Rect(combinedScreen.TopRight.X - resizeHandleSize, combinedScreen.TopRight.Y - resizeHandleSize,
+                        resizeHandleSize * 2, resizeHandleSize * 2));
+                context.DrawRectangle(s_vertexBrush, vertexPen,
+                    new Rect(combinedScreen.BottomLeft.X - resizeHandleSize, combinedScreen.BottomLeft.Y - resizeHandleSize,
+                        resizeHandleSize * 2, resizeHandleSize * 2));
+                context.DrawRectangle(s_vertexBrush, vertexPen,
+                    new Rect(combinedScreen.BottomRight.X - resizeHandleSize, combinedScreen.BottomRight.Y - resizeHandleSize,
+                        resizeHandleSize * 2, resizeHandleSize * 2));
             }
         }
     }

@@ -12,6 +12,7 @@ public class AnnotationLayer : INotifyPropertyChanged
 {
     private string _name = "Layer";
     private bool _isVisible = true;
+    private bool _isLocked;
     private Color _color = Color.FromRgb(214, 64, 69);
 
     /// <summary>Strokes keyed by page number.</summary>
@@ -50,6 +51,13 @@ public class AnnotationLayer : INotifyPropertyChanged
         set { _isVisible = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
     }
 
+    [JsonProperty]
+    public bool IsLocked
+    {
+        get => _isLocked;
+        set { _isLocked = value; OnPropertyChanged(); OnPropertyChanged(nameof(StatusText)); }
+    }
+
     public Color Color
     {
         get => _color;
@@ -58,9 +66,16 @@ public class AnnotationLayer : INotifyPropertyChanged
 
     public int TotalCount => StrokeCount + ShapeCount + TextCount + MeasurementCount;
 
-    public string StatusText => IsVisible
-        ? $"{TotalCount} annotations"
-        : $"{TotalCount} annotations (hidden)";
+    public string StatusText
+    {
+        get
+        {
+            var suffix = "";
+            if (!IsVisible) suffix += " (hidden)";
+            if (IsLocked) suffix += " (locked)";
+            return $"{TotalCount} annotations{suffix}";
+        }
+    }
 
     public void RefreshStatus() => OnPropertyChanged(nameof(StatusText));
 

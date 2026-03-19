@@ -29,6 +29,7 @@ public partial class PreView : UserControl
         PreviewGrid.AddHandler(Grid.SizeChangedEvent, PreviewSizeChanged);
         TextInputBox.AddHandler(KeyDownEvent, OnTextInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, OnOpacitySliderChanged);
+        PropertyOpacitySlider.AddHandler(Slider.ValueChangedEvent, OnPropertyOpacityChanged);
 
         // Centralized keyboard shortcuts — replaces per-button HotKey attributes
         // so every shortcut respects CanExecute guards and mode state.
