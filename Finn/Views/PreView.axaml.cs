@@ -43,6 +43,11 @@ public partial class PreView : UserControl
     private bool ZoomMode = false;
     private PDFRenderer? _panRenderer;
 
+    // Pan state — shared between PreView.axaml.cs and PreView.Annotation.cs
+    private bool _middlePanning;
+    private Point _panStart;
+    private Rect _panStartDisplayArea;
+
     private void InitSetup(object sender, RoutedEventArgs e)
     {
         ctx = (MainViewModel)this.DataContext;
@@ -150,24 +155,46 @@ public partial class PreView : UserControl
     /// Closes any active diff view mode (Toggle or SideBySide) at the view layer.
     /// Resets renderer state (opacity, column, display-area sync) so the next
     /// mode transition starts from a clean slate.
-    /// When <paramref name="disposeSideBySide"/> is true, also disposes the
-    /// secondary document (used when leaving diff mode entirely).
+    /// Awaitable so callers can ensure cleanup finishes before opening a new mode.
     /// </summary>
-    private void CloseDiffViews(bool disposeSideBySide = false)
+    private async Task CloseDiffViewsAsync()
     {
-        if (_diffToggleOpen) { _diffToggleOpen = false; CloseDiffToggle(); }
+        if (_diffToggleOpen)
+        {
+            _diffToggleOpen = false;
+            await CloseDiffToggleAsync();
+        }
         if (_diffSideBySideOpen)
         {
             _diffSideBySideOpen = false;
             StopDisplayAreaSync();
-            if (disposeSideBySide) _ = pwr.CloseDiffSideBySideAsync();
+            await pwr.CloseDiffSideBySideAsync();
+        }
+    }
+
+    /// <summary>Synchronous overload — only use when the caller cannot await (e.g., PropertyChanged handler).
+    /// Fires disposal as fire-and-forget; prefer CloseDiffViewsAsync when possible.</summary>
+    private void CloseDiffViews()
+    {
+        if (_diffToggleOpen)
+        {
+            _diffToggleOpen = false;
+            CloseDiffToggleSync();
+            _ = pwr.CloseDiffToggleAsync();
+        }
+        if (_diffSideBySideOpen)
+        {
+            _diffSideBySideOpen = false;
+            StopDisplayAreaSync();
+            _ = pwr.CloseDiffSideBySideAsync();
         }
     }
 
     /// <summary>
     /// Updates the diff display on the renderer for the current page and view mode.
     /// Overlay: red diff highlights. Toggle: A/B document swap. SideBySide: dual-page.
-    /// Async so transitions can be awaited instead of fire-and-forget.
+    /// Optimised: Toggle↔SBS transitions reuse the already-loaded secondary document
+    /// via lightweight layout-only reconfiguration instead of dispose+recreate.
     /// </summary>
     private async void SyncDiffOverlay()
     {
@@ -180,7 +207,7 @@ public partial class PreView : UserControl
         if (!pwr.DiffOverlayActive)
         {
             MuPDFRenderer.ClearDiffOverlay();
-            CloseDiffViews(disposeSideBySide: true);
+            await CloseDiffViewsAsync();
             return;
         }
 
@@ -188,8 +215,8 @@ public partial class PreView : UserControl
         switch (pwr.DiffViewMode)
         {
             case DiffViewMode.Overlay:
-                CloseDiffViews(disposeSideBySide: true);
-                var diffPath = pwr.GetDiffImagePath(page);
+                await CloseDiffViewsAsync();
+                var diffPath = pwr.HasDiffResults ? pwr.GetDiffImagePath(page) : null;
                 if (diffPath != null)
                     MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM);
                 else
@@ -201,8 +228,14 @@ public partial class PreView : UserControl
                 MuPDFRenderer.ClearDiffOverlay();
                 if (_diffSideBySideOpen)
                 {
-                    CloseDiffViews();
-                    await TransitionSbsToToggleAsync();
+                    // Fast path: SBS→Toggle — secondary document already loaded,
+                    // just reconfigure layout without disposing the document.
+                    _diffSideBySideOpen = false;
+                    StopDisplayAreaSync();
+                    await pwr.CollapseSecondaryLayoutAsync();
+                    _diffToggleOpen = true;
+                    await OpenDiffToggleAsync();
+                    MuPDFRenderer.Contain();
                 }
                 else if (!_diffToggleOpen)
                 {
@@ -216,17 +249,24 @@ public partial class PreView : UserControl
                 MuPDFRenderer.ClearDiffOverlay();
                 if (_diffToggleOpen)
                 {
-                    CloseDiffViews();
-                    pwr.CancelSecondaryOpen();
+                    // Fast path: Toggle→SBS — secondary document already loaded,
+                    // just reconfigure layout without disposing the document.
+                    _diffToggleOpen = false;
+                    CloseDiffToggleSync();
+                    // Don't dispose — OpenDiffSideBySideAsync will reuse secondaryFile
                 }
-                if (!_diffSideBySideOpen && (pwr.DiffOriginalPdfPath != null || pwr.HasDiffResults))
+                if (!_diffSideBySideOpen && pwr.DiffOriginalPdfPath != null)
                 {
                     _diffSideBySideOpen = true;
-                    await pwr.OpenDiffSideBySideAsync();
-                    MuPDFRenderer.Contain();
-                    if (MuPDFRendererSecondary.IsVisible)
-                        MuPDFRendererSecondary.Contain();
-                    StartDisplayAreaSync();
+                    bool opened = await pwr.OpenDiffSideBySideAsync();
+                    if (opened)
+                    {
+                        MuPDFRenderer.Contain();
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Render);
+                        if (MuPDFRendererSecondary.IsVisible && MuPDFRendererSecondary.Bounds is { Width: > 0, Height: > 0 })
+                            MuPDFRendererSecondary.Contain();
+                        StartDisplayAreaSync();
+                    }
                 }
                 break;
         }
@@ -237,23 +277,6 @@ public partial class PreView : UserControl
     private bool _syncingDisplayArea; // re-entrancy guard for display area sync
     private IDisposable? _mainDisplayAreaSub;
     private IDisposable? _secondaryDisplayAreaSub;
-
-    /// <summary>
-    /// Collapses SBS layout then opens Toggle mode in a single async flow,
-    /// avoiding nested ContinueWith + Dispatcher.Post dispatch hops.
-    /// </summary>
-    private async Task TransitionSbsToToggleAsync()
-    {
-        await pwr.CollapseSecondaryLayoutAsync();
-
-        // Re-check on the UI thread — the user may have switched modes again
-        // while the collapse was running.
-        if (pwr.DiffViewMode != DiffViewMode.Toggle || _diffToggleOpen) return;
-
-        _diffToggleOpen = true;
-        await OpenDiffToggleAsync();
-        MuPDFRenderer.Contain();
-    }
 
     /// <summary>
     /// Subscribes to DisplayArea changes on both renderers so that pan/zoom
@@ -330,21 +353,24 @@ public partial class PreView : UserControl
         });
     }
 
-    /// <summary>Closes A/B toggle mode: restores renderer positions and visibility.</summary>
-    private void CloseDiffToggle()
+    /// <summary>Resets toggle renderer visuals (opacity, column, visibility) synchronously.</summary>
+    private void CloseDiffToggleSync()
     {
         StopDisplayAreaSync();
         pwr.DiffShowingOriginal = false;
-        // Restore both renderers to normal state (full opacity, interactive)
-        // so side-by-side or dual-page mode can use the secondary cleanly.
         MuPDFRenderer.Opacity = 1;
         MuPDFRenderer.IsHitTestVisible = true;
         MuPDFRendererSecondary.Opacity = 1;
         MuPDFRendererSecondary.IsHitTestVisible = true;
         MuPDFRendererSecondary.IsVisible = false;
-        // Move secondary back to its normal column for side-by-side mode
         Avalonia.Controls.Grid.SetColumn(MuPDFRendererSecondary, 2);
-        _ = pwr.CloseDiffToggleAsync();
+    }
+
+    /// <summary>Closes A/B toggle mode and awaits full secondary document disposal.</summary>
+    private async Task CloseDiffToggleAsync()
+    {
+        CloseDiffToggleSync();
+        await pwr.CloseDiffToggleAsync();
     }
 
     /// <summary>Swaps which renderer is visible using Opacity (both stay in layout).</summary>
@@ -656,13 +682,34 @@ public partial class PreView : UserControl
     }
 
     /// <summary>Close Diff comparison mode from the banner close button.</summary>
-    private void OnCloseDiffMode(object? sender, RoutedEventArgs e)
+    private async void OnCloseDiffMode(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
-        CloseDiffViews();
+        await CloseDiffViewsAsync();
         pwr.CloseDiffModeSync();
         MuPDFRenderer.ClearDiffOverlay();
         MuPDFRenderer.Contain();
+    }
+
+    // ── Diff mode radio-button Click handlers ────────────────────────
+    // OneWay bindings + Click ensures exactly one is always selected.
+    // Clicking the already-active button is a no-op (DiffViewMode doesn't change,
+    // OneWay binding keeps it checked).
+
+    private void OnDiffModeOverlay(object? sender, RoutedEventArgs e)
+    {
+        if (pwr is { HasDiffResults: true })
+            pwr.DiffViewMode = DiffViewMode.Overlay;
+    }
+
+    private void OnDiffModeToggle(object? sender, RoutedEventArgs e)
+    {
+        if (pwr != null) pwr.DiffViewMode = DiffViewMode.Toggle;
+    }
+
+    private void OnDiffModeSBS(object? sender, RoutedEventArgs e)
+    {
+        if (pwr != null) pwr.DiffViewMode = DiffViewMode.SideBySide;
     }
 
     private async void OnDiffRerun(object? sender, RoutedEventArgs e)
@@ -689,10 +736,35 @@ public partial class PreView : UserControl
             return;
         }
         // Close current diff mode views before re-running
-        CloseDiffViews();
+        await CloseDiffViewsAsync();
         MuPDFRenderer.ClearDiffOverlay();
 
         await pwr.CompareSelectedPathsAsync();
+        SyncDiffOverlay();
+    }
+
+    /// <summary>
+    /// Runs the slow pixel-level diff comparison from the toolbar button.
+    /// The user is already in dual view — this adds overlay results.
+    /// </summary>
+    private async void OnRunDiffComparison(object? sender, RoutedEventArgs e)
+    {
+        if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
+        if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
+        {
+            pwr.StatusMessage = "A and B are the same";
+            return;
+        }
+
+        // Remember current view mode — the comparison will reload diff state
+        var mode = pwr.DiffViewMode;
+        await CloseDiffViewsAsync();
+        MuPDFRenderer.ClearDiffOverlay();
+
+        await pwr.CompareSelectedPathsAsync();
+
+        // Restore the view mode the user had before (e.g. SideBySide)
+        pwr.DiffViewMode = mode;
         SyncDiffOverlay();
     }
 
@@ -759,15 +831,20 @@ public partial class PreView : UserControl
         pwr.DiffChoiceA = dialog.ChoiceA;
         pwr.DiffChoiceB = dialog.ChoiceB;
 
-        // Close current diff mode views before re-running
-        CloseDiffViews();
+        // Close current diff mode views before entering new comparison
+        await CloseDiffViewsAsync();
         MuPDFRenderer.ClearDiffOverlay();
 
         // Store the source file so version data persists
         if (mainVm?.CurrentFile != null)
             pwr.DiffSourceFile = mainVm.CurrentFile;
 
-        await pwr.CompareSelectedPathsAsync();
+        // Enter dual view immediately — Toggle or SideBySide work instantly.
+        // The user can run the slow pixel comparison later via the toolbar button.
+        // Default to SideBySide if not already in a diff view mode.
+        if (pwr.DiffViewMode == DiffViewMode.Overlay)
+            pwr.DiffViewMode = DiffViewMode.SideBySide;
+        pwr.EnterDiffView(dialog.ChoiceA.Path, dialog.ChoiceB.Path, pwr.DiffSourceFile);
         SyncDiffOverlay();
     }
 }

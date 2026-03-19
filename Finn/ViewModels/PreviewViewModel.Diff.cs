@@ -94,21 +94,10 @@ namespace Finn.ViewModels
         }
 
         // Bool properties for radio-style toggle buttons in the diff toolbar.
-        public bool IsOverlayMode
-        {
-            get => _diffViewMode == DiffViewMode.Overlay;
-            set { if (value) DiffViewMode = DiffViewMode.Overlay; else OnPropertyChanged(); }
-        }
-        public bool IsToggleMode
-        {
-            get => _diffViewMode == DiffViewMode.Toggle;
-            set { if (value) DiffViewMode = DiffViewMode.Toggle; else OnPropertyChanged(); }
-        }
-        public bool IsSideBySideMode
-        {
-            get => _diffViewMode == DiffViewMode.SideBySide;
-            set { if (value) DiffViewMode = DiffViewMode.SideBySide; else OnPropertyChanged(); }
-        }
+        // Bindings are OneWay — the View drives mode changes via Click handlers.
+        public bool IsOverlayMode => _diffViewMode == DiffViewMode.Overlay;
+        public bool IsToggleMode => _diffViewMode == DiffViewMode.Toggle;
+        public bool IsSideBySideMode => _diffViewMode == DiffViewMode.SideBySide;
 
         /// <summary>Whether the A/B toggle button should be visible.</summary>
         public bool ShowDiffToggle => _diffOverlayActive && _diffViewMode == DiffViewMode.Toggle;
@@ -145,7 +134,13 @@ namespace Finn.ViewModels
         {
             get
             {
-                if (_diffResults == null || _diffResults.Count == 0) return "";
+                if (_diffResults == null || _diffResults.Count == 0)
+                {
+                    // In dual view without pixel results yet
+                    if (_diffOverlayActive && _diffOriginalPdfPath != null)
+                        return "Viewing A / B";
+                    return "";
+                }
                 int changed = _diffResults.Count(r => r.HasDifferences);
                 return $"{changed}/{_diffResults.Count} pages differ";
             }
@@ -412,15 +407,29 @@ namespace Finn.ViewModels
             await RunDiffAsync(_diffChoiceA.Path, _diffChoiceB.Path, _diffChoiceA.Path, _diffSourceFile);
         }
 
+        /// <summary>
+        /// Enters diff dual-view mode immediately (Toggle or SideBySide) without
+        /// running the slow pixel comparison. Sets the A/B paths so the secondary
+        /// renderer can load the correct document. The user can run the pixel
+        /// comparison later via the toolbar button.
+        /// </summary>
+        public void EnterDiffView(string pathA, string pathB, FileData? sourceFile = null)
+        {
+            _diffOriginalPdfPath = pathA;
+            _diffRevisedPdfPath = pathB;
+            _diffSourceFile = sourceFile;
+            DiffOverlayActive = true;
+            OnPropertyChanged(nameof(HasDiffResults));
+            OnPropertyChanged(nameof(DiffSummary));
+            OnPropertyChanged(nameof(CanRerunDiff));
+            OnPropertyChanged(nameof(CanCompareVersions));
+            OnPropertyChanged(nameof(DiffOriginalPdfPath));
+        }
+
         private string? GetSecondaryDiffPath()
         {
-            string? mainPath = RequestFile?.Sökväg;
-            bool mainShowsOriginal = string.Equals(mainPath, _diffOriginalPdfPath, StringComparison.OrdinalIgnoreCase);
-            bool mainShowsRevised = string.Equals(mainPath, _diffRevisedPdfPath, StringComparison.OrdinalIgnoreCase);
-
-            if (mainShowsRevised) return _diffOriginalPdfPath;
-            if (mainShowsOriginal) return _diffRevisedPdfPath;
-            return _diffRevisedPdfPath ?? _diffOriginalPdfPath;
+            // The main renderer always shows A (original), secondary shows B (revised).
+            return _diffRevisedPdfPath;
         }
 
         public void CancelDiff() => _diffCts?.Cancel();
@@ -537,13 +546,14 @@ namespace Finn.ViewModels
             }
         }
 
-        public async Task CloseDiffToggleAsync()
+        public async Task CloseDiffToggleAsync(bool disposeDocument = true)
         {
             Interlocked.Increment(ref _secondaryCloseGen);
             DiffShowingOriginal = false;
             dualFileMode = false;
             NotifyModeChanged();
-            await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+            if (disposeDocument)
+                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
         }
 
         internal void CancelSecondaryOpen() => Interlocked.Increment(ref _secondaryCloseGen);
@@ -555,11 +565,14 @@ namespace Finn.ViewModels
                 return false;
             if (secondaryRenderer == null) return false;
 
+            int openStartGen = _secondaryCloseGen;
+
             try
             {
                 if (secondaryFile == null)
                 {
                     await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
+                    if (_secondaryCloseGen != openStartGen) return false;
 
                     MuPDFContext? newCtx = null;
                     MuPDFDocument? newDoc = null;
@@ -572,6 +585,12 @@ namespace Finn.ViewModels
 
                     if (newDoc == null || newCtx == null) return false;
 
+                    if (_secondaryCloseGen != openStartGen)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() => { newDoc.Dispose(); newCtx.Dispose(); }).GetTask().ConfigureAwait(false);
+                        return false;
+                    }
+
                     secondaryFile = newDoc;
                     secondaryContext = newCtx;
                     Pagecount2 = newDoc.Pages.Count;
@@ -580,13 +599,14 @@ namespace Finn.ViewModels
 
                 Pagecount2 = secondaryFile!.Pages.Count;
 
+                // Set up the dual layout on the UI thread
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     dualFileMode = true;
                     if (!twopageMode)
                     {
                         twopageMode = true;
-                        _ = ToggleDualViewAsync();
+                        Interlocked.Increment(ref _dualViewGen);
                     }
                     linkedPageMode = true;
                     NotifyModeChanged();
@@ -595,10 +615,36 @@ namespace Finn.ViewModels
                     requestPage2 = requestPage1;
                     OnPropertyChanged(nameof(RequestPage2));
                     CurrentPage2 = requestPage2;
-                    _ = SetSecondaryPageAsync();
-                    if (secondaryRenderer?.Bounds is { Width: > 0, Height: > 0 })
-                        secondaryRenderer.Contain();
                 }).GetTask().ConfigureAwait(false);
+
+                if (_secondaryCloseGen != openStartGen) return false;
+
+                // Wait for a layout pass so the secondary renderer gets valid bounds
+                await Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Render).GetTask().ConfigureAwait(false);
+
+                if (_secondaryCloseGen != openStartGen) return false;
+
+                // Now initialize the secondary renderer with valid bounds
+                await renderSemaphore.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (_secondaryCloseGen != openStartGen) return false;
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_secondaryCloseGen != openStartGen) return;
+                        if (secondaryFile == null || secondaryRenderer == null) return;
+                        int page = Math.Clamp(requestPage1, 0,
+                            Math.Max(0, secondaryFile.Pages.Count - 1));
+                        secondaryRenderer.ReleaseResources();
+                        if (secondaryRenderer.Bounds is { Width: > 0, Height: > 0 })
+                        {
+                            secondaryRenderer.Initialize(secondaryFile, 1, page, ZOOM_LEVEL);
+                            CurrentPage2 = page;
+                            requestPage2 = page;
+                        }
+                    }).GetTask().ConfigureAwait(false);
+                }
+                finally { renderSemaphore.Release(); }
 
                 return true;
             }
