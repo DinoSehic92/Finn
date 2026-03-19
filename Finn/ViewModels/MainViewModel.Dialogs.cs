@@ -216,15 +216,23 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
-            /// Runs a diff comparison directly in the previewer.
-            /// Ensures the preview is visible before starting.
+            /// Opens diff mode in the previewer with the two selected paths.
+            /// Enters dual view immediately (SideBySide) so the user can see
+            /// both files right away. The slow pixel comparison can be triggered
+            /// from the toolbar's Compare button.
             /// </summary>
-            public async Task RunDiffInPreviewer(string pathA, string pathB, FileData? sourceFile = null)
+            public void RunDiffInPreviewer(string pathA, string pathB, FileData? sourceFile = null)
             {
                 if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
                     UI.PreviewEmbeddedOpen = true;
 
-                await PreviewVM.RunDiffAsync(pathA, pathB, pathA, sourceFile ?? CurrentFile);
+                var src = sourceFile ?? CurrentFile;
+                PreviewVM.DiffChoiceA = new DiffPathChoice(Path.GetFileNameWithoutExtension(pathA), pathA);
+                PreviewVM.DiffChoiceB = new DiffPathChoice(Path.GetFileNameWithoutExtension(pathB), pathB);
+                PreviewVM.DiffSourceFile = src;
+                if (PreviewVM.DiffViewMode == DiffViewMode.Overlay)
+                    PreviewVM.DiffViewMode = DiffViewMode.SideBySide;
+                PreviewVM.EnterDiffView(pathA, pathB, src);
             }
         }
     }

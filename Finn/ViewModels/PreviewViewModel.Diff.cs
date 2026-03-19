@@ -68,8 +68,8 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(IsUserDualFileMode));
                     OnPropertyChanged(nameof(CanToggleLayout));
                     OnPropertyChanged(nameof(CanSearch));
-                    // Auto-close search when entering diff mode
-                    if (value && searchMode) SearchMode = false;
+                    // Auto-close text search when entering diff mode, but keep diff page list
+                    if (value && searchMode && !_diffPageListMode) SearchMode = false;
                 }
             }
         }
@@ -193,6 +193,7 @@ namespace Finn.ViewModels
                     ? $"{_diffResults.Count} pages — identical"
                     : $"{_diffResults.Count} pages — {diffCount} with differences";
                 OnPropertyChanged(nameof(DiffSummary));
+                PopulateDiffPageList();
             }
             catch (Exception ex)
             {
@@ -219,6 +220,36 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(DiffSummary));
             OnPropertyChanged(nameof(CanRerunDiff));
             OnPropertyChanged(nameof(CanCompareVersions));
+            PopulateDiffPageList();
+        }
+
+        /// <summary>
+        /// Populates the search panel with pages that have differences,
+        /// allowing the user to navigate between them with prev/next.
+        /// Opens the search panel in "diff results" mode (bypasses CanSearch guard).
+        /// </summary>
+        public void PopulateDiffPageList()
+        {
+            ClearSearch();
+            DiffPageListMode = false;
+
+            if (_diffResults == null || _diffResults.Count == 0) return;
+
+            foreach (var result in _diffResults)
+            {
+                if (!result.HasDifferences) continue;
+                SearchPages.Add(result.PageIndex);
+                SearchPagesText.Add($"Page {result.PageIndex + 1} — differs");
+            }
+
+            SearchItems = SearchPages.Count;
+            if (SearchItems > 0)
+            {
+                DiffPageListMode = true;
+                SearchPageIndex = 0;
+                // Open the panel — bypass the CanSearch guard since this is diff navigation
+                SetProperty(ref searchMode, true, nameof(SearchMode));
+            }
         }
 
         public void ClearDiffResults()
@@ -232,6 +263,13 @@ namespace Finn.ViewModels
             _diffChoiceA = null;
             _diffChoiceB = null;
             DiffOverlayActive = false;
+            // Close the diff page list if it was open
+            if (searchMode)
+            {
+                ClearSearch();
+                DiffPageListMode = false;
+                SetProperty(ref searchMode, false, nameof(SearchMode));
+            }
             OnPropertyChanged(nameof(HasDiffResults));
             OnPropertyChanged(nameof(CanRerunDiff));
             OnPropertyChanged(nameof(DiffSummary));

@@ -407,9 +407,11 @@
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
 			<Border Name="SearchGridBorder" Classes="shadow" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}">
-				<Grid RowDefinitions="10,40,30,*">
+				<Grid RowDefinitions="10,Auto,30,*">
 
-					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
+					<!-- Text search input (hidden during diff page list mode) -->
+					<Border Grid.Row="1" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight"
+							IsVisible="{Binding !PreviewVM.DiffPageListMode}">
 						<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">
 							<Border Grid.Column="0" Classes="shadow">
 								<TextBox Watermark="Search text..." Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
@@ -421,6 +423,14 @@
 								<ic:SymbolIcon Symbol="Dismiss" IconVariant="Regular" FontSize="16"/>
 							</Button>
 						</Grid>
+					</Border>
+
+					<!-- Diff page list header (shown during diff page list mode) -->
+					<Border Grid.Row="1" IsVisible="{Binding PreviewVM.DiffPageListMode}" Padding="8,6">
+						<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+							<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
+							<TextBlock Text="Changed Pages" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+						</StackPanel>
 					</Border>
 
 					<Border Grid.Row="2" BorderThickness="0 0 0 1" CornerRadius="0" BorderBrush="{DynamicResource DataGridGridLinesBrush}">

@@ -316,6 +316,17 @@ namespace Finn.ViewModels
         public bool CanSearch => !_diffOverlayActive && !dualFileMode;
 
         /// <summary>
+        /// True when the search panel is showing diff page results rather than
+        /// text search results. Controls header text and hides the search input.
+        /// </summary>
+        private bool _diffPageListMode;
+        public bool DiffPageListMode
+        {
+            get => _diffPageListMode;
+            set => SetProperty(ref _diffPageListMode, value);
+        }
+
+        /// <summary>
         /// True when annotation mode may be activated. Blocked in Dual-File mode
         /// where there are two independent documents and annotation targets are
         /// ambiguous.

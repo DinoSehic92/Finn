@@ -1144,7 +1144,7 @@ public partial class MainView : UserControl
         _ctx.LabelLastVersionOnSelected(label);
     }
 
-    private async void OnCompareVersionWithOriginal(object? sender, RoutedEventArgs e)
+    private void OnCompareVersionWithOriginal(object? sender, RoutedEventArgs e)
     {
         if (_ctx.CurrentFile is not { HasVersions: true } file) return;
         if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
@@ -1159,10 +1159,10 @@ public partial class MainView : UserControl
             || !File.Exists(pathA) || !File.Exists(pathB))
             return;
 
-        await _ctx.RunDiffInPreviewer(pathA, pathB);
+        _ctx.RunDiffInPreviewer(pathA, pathB);
     }
 
-    private async void OnCompareVersionWithPrevious(object? sender, RoutedEventArgs e)
+    private void OnCompareVersionWithPrevious(object? sender, RoutedEventArgs e)
     {
         if (_ctx.CurrentFile is not { HasVersions: true } file) return;
         if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
@@ -1192,7 +1192,7 @@ public partial class MainView : UserControl
             || !File.Exists(pathA) || !File.Exists(pathB))
             return;
 
-        await _ctx.RunDiffInPreviewer(pathA, pathB);
+        _ctx.RunDiffInPreviewer(pathA, pathB);
     }
 
     private void OnLabelFromFolderDate(object? sender, RoutedEventArgs e)

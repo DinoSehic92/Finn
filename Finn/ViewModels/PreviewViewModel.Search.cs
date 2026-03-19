@@ -122,13 +122,13 @@ namespace Finn.ViewModels
 
         public void NextSearchPage()
         {
-            if (regex != null && SearchPages != null && SearchPageIndex < SearchPages.Count - 1)
+            if (SearchPages != null && SearchPageIndex < SearchPages.Count - 1)
                 SearchPageIndex++;
         }
 
         public void PrevSearchPage()
         {
-            if (regex != null && SearchPages != null && SearchPageIndex > 0)
+            if (SearchPages != null && SearchPageIndex > 0)
                 SearchPageIndex--;
         }
 
@@ -181,6 +181,7 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(SearchPageIndex));
             SearchPagesText.Clear();
             SearchPages.Clear();
+            DiffPageListMode = false;
         }
         #endregion
     }
