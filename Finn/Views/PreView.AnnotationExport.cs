@@ -586,20 +586,6 @@ public partial class PreView
         return path;
     }
 
-    private void OnAnnotateSave(object sender, RoutedEventArgs e)
-    {
-        using var data = RenderAnnotatedPage();
-        if (data == null) return;
-
-        int page = pwr.CurrentPage1;
-        Directory.CreateDirectory(Path.Combine(MainViewModel.SavePath, "Annotations"));
-        string filePath = Path.Combine(MainViewModel.SavePath, "Annotations",
-            $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_page{page + 1}.png");
-        using var fs = File.OpenWrite(filePath);
-        data.SaveTo(fs);
-        pwr.StatusMessage = $"Saved to {Path.GetFileName(filePath)}";
-    }
-
     private async void OnAnnotateCopy(object sender, RoutedEventArgs e)
     {
         using var data = RenderAnnotatedPage();

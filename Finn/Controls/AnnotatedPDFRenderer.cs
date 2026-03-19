@@ -74,6 +74,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable();
     private static readonly IBrush s_selectHoverBrush =
         new SolidColorBrush(Color.FromArgb(90, 232, 125, 47)).ToImmutable();
+    private static readonly IBrush s_gridDotBrush =
+        new SolidColorBrush(Color.FromArgb(40, 120, 120, 120)).ToImmutable();
     private static readonly DashStyle s_dashStyle4_3 = new([4, 3], 0);
     private static readonly DashStyle s_dashStyle5_4 = new([5, 4], 0);
     private static readonly DashStyle s_dashStyle3_3 = new([3, 3], 0);
@@ -205,6 +207,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Dash pattern for new strokes and shapes.</summary>
     public LineDashPattern StrokeDashPattern { get; set; } = LineDashPattern.Solid;
 
+    /// <summary>When true, all placed/dragged points snap to the grid defined by <see cref="GridSpacing"/>.</summary>
+    public bool SnapToGrid { get; set; }
+    /// <summary>Grid cell size in PDF points (default 10 ≈ 3.5 mm).</summary>
+    public double GridSpacing { get; set; } = 10;
+
     // Selection highlight: the items currently selected with the Select tool
     private readonly HashSet<object> _selectHighlightItems = new();
     // Hover highlight: the item under the cursor in Select mode (for outline preview)
@@ -286,7 +293,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                   || _textPlacementPreviewPos != null
                                   || _snapGuideX != null || _snapGuideY != null
                                   || _selectHoverItem != null
-                                  || _rubberBandStart != null;
+                                  || _rubberBandStart != null
+                                  || SnapToGrid;
 
     public bool CanRedo => _redoStack.Count > 0;
 
@@ -452,6 +460,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     /// <summary>
+    /// When Shift is held on lines/arrows, constrain the endpoint so the line
+    /// snaps to the nearest 15° increment (0°, 15°, 30°, 45°, …).
+    /// </summary>
+    internal static Point ConstrainToFineAngle(Point origin, Point end)
+    {
+        double dx = end.X - origin.X;
+        double dy = end.Y - origin.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return end;
+
+        double angle = Math.Atan2(dy, dx);
+        double snapped = Math.Round(angle / (Math.PI / 12)) * (Math.PI / 12);
+        return new Point(
+            origin.X + len * Math.Cos(snapped),
+            origin.Y + len * Math.Sin(snapped));
+    }
+
+    /// <summary>
     /// Constrains a shape endpoint so rectangle/ellipse becomes square/circle.
     /// </summary>
     internal static Point ConstrainToSquare(Point origin, Point end)
@@ -476,7 +502,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (len < 3) return end;
 
         double angle = Math.Atan2(dy, dx);
-        double snapped = Math.Round(angle / (Math.PI / 4)) * (Math.PI / 4);
+        // Snap to nearest 15° increment for finer magnetic attraction
+        double snapped = Math.Round(angle / (Math.PI / 12)) * (Math.PI / 12);
         double diff = Math.Abs(angle - snapped);
         if (diff <= thresholdDeg * Math.PI / 180.0)
             return new Point(origin.X + len * Math.Cos(snapped), origin.Y + len * Math.Sin(snapped));
@@ -502,6 +529,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return new Point(
             (pdfPos.X - da.X) / da.Width  * boundsSize.Width,
             (pdfPos.Y - da.Y) / da.Height * boundsSize.Height);
+    }
+
+    /// <summary>Converts a screen-pixel distance to PDF-unit distance at the current zoom level.
+    /// Use for zoom-adaptive hit-test radii so handles stay a constant screen size.</summary>
+    public double ScreenToPdfDistance(double screenPixels)
+    {
+        var da = DisplayArea;
+        var bounds = Bounds;
+        if (bounds.Width <= 0 || da.Width <= 0) return screenPixels;
+        return screenPixels * da.Width / bounds.Width;
     }
 
     #endregion
@@ -731,7 +768,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             pdfPoint = _activeShape.ShapeType is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud
                 ? ConstrainToSquare(_activeShape.Start, pdfPoint)
-                : ConstrainToAxis(_activeShape.Start, pdfPoint);
+                : ConstrainToFineAngle(_activeShape.Start, pdfPoint);
         }
         else if (_activeShape.ShapeType is InlineAnnotationTool.Line or InlineAnnotationTool.Arrow)
         {
@@ -814,6 +851,33 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Default max width (PDF units) for new text annotations. 0 = no wrapping.</summary>
     public double TextMaxWidth { get; set; } = 150;
 
+    /// <summary>
+    /// Measures the text annotation content and auto-expands <see cref="TextAnnotation.MaxWidth"/>
+    /// if the text exceeds the current width, preventing unnecessary line wrapping.
+    /// </summary>
+    internal void AutoSizeTextWidth(TextAnnotation t)
+    {
+        if (t == null || string.IsNullOrWhiteSpace(t.Text)) return;
+        if (t.IsStickyNote || t.MaxWidth <= 0) return;
+
+        var typeface = GetCachedTypeface(t.FontFamily ?? "");
+        using var skFont = new SKFont(typeface, (float)t.FontSize);
+
+        double maxLineWidth = 0;
+        foreach (var paragraph in t.Text.Split('\n'))
+        {
+            if (string.IsNullOrEmpty(paragraph)) continue;
+            double lineW = skFont.MeasureText(paragraph);
+            if (lineW > maxLineWidth)
+                maxLineWidth = lineW;
+        }
+
+        const double padding = 4;
+        double needed = maxLineWidth + padding;
+        if (needed > t.MaxWidth)
+            t.MaxWidth = needed;
+    }
+
     public void PlaceText(Point pdfPoint, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
@@ -830,6 +894,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             FontFamily = TextFontFamily,
             MaxWidth = TextMaxWidth
         };
+        AutoSizeTextWidth(annotation);
 
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
         {
@@ -897,6 +962,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             ArrowOrigin = arrowOrigin,
             MaxWidth = TextMaxWidth
         };
+        AutoSizeTextWidth(annotation);
 
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
         {
@@ -1550,14 +1616,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
             foreach (var ink in strokes) { if (!ReferenceEquals(ink, dragging)) SnapAgainst(ink, dL, dCx, dR, dT, dCy, dB, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
     }
 
+    /// <summary>Rounds a point to the nearest grid intersection when <see cref="SnapToGrid"/> is active.</summary>
+    public Point SnapPointToGrid(Point pt)
+    {
+        if (!SnapToGrid || GridSpacing <= 0) return pt;
+        double g = GridSpacing;
+        return new Point(Math.Round(pt.X / g) * g, Math.Round(pt.Y / g) * g);
+    }
+
     /// <summary>
     /// Snap a single vertex position against other annotations' edges and centers.
+    /// Also snaps against the active polyline's own committed points (self-snap)
+    /// and applies grid-snap when <see cref="SnapToGrid"/> is enabled.
     /// Returns the snapped position. Sets _snapGuideX/_snapGuideY for guide rendering.
     /// </summary>
     public Point ComputeVertexSnap(object owner, Point vertex, double threshold = 5.0)
     {
         _snapGuideX = null;
         _snapGuideY = null;
+
+        // Grid snap takes priority — snap to grid first, then refine with alignment snap
+        if (SnapToGrid && GridSpacing > 0)
+        {
+            vertex = SnapPointToGrid(vertex);
+            _snapGuideX = vertex.X;
+            _snapGuideY = vertex.Y;
+            _snapVertexPos = vertex;
+            return vertex;
+        }
+
         double bestDistX = threshold, bestDistY = threshold;
         double snapX = vertex.X, snapY = vertex.Y;
 
@@ -1577,6 +1664,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 foreach (var ink in strokes)
                     if (!ReferenceEquals(ink, owner)) SnapVertexAgainst(ink, vertex.X, vertex.Y, ref snapX, ref snapY, ref bestDistX, ref bestDistY);
         }
+
+        // Polyline self-snap: snap against the polyline's own committed points
+        // (so users can close shapes or align to earlier vertices).
+        if (_activePolyline != null && _activePolyline.Points.Count >= 1)
+        {
+            for (int i = 0; i < _activePolyline.Points.Count; i++)
+            {
+                var pp = _activePolyline.Points[i];
+                double dx = Math.Abs(vertex.X - pp.X);
+                if (dx < bestDistX) { bestDistX = dx; snapX = pp.X; _snapGuideX = pp.X; }
+                double dy = Math.Abs(vertex.Y - pp.Y);
+                if (dy < bestDistY) { bestDistY = dy; snapY = pp.Y; _snapGuideY = pp.Y; }
+            }
+        }
+
         var result = new Point(snapX, snapY);
         _snapVertexPos = (_snapGuideX.HasValue || _snapGuideY.HasValue) ? result : null;
         return result;
@@ -2594,6 +2696,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double scaleY = boundsSize.Height / da.Height;
         double penScale = (scaleX + scaleY) * 0.5;
 
+        // Draw snap-to-grid dots (behind annotations, very subtle)
+        if (SnapToGrid && GridSpacing > 0)
+            RenderGridDots(context, da, boundsSize, scaleX, scaleY);
+
         // Collect text items for the SkiaSharp overlay pass (reuse pooled list)
         _textItemPool.Clear();
         var textItems = _textItemPool;
@@ -2791,7 +2897,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
             }
             if (hoverBounds is { } hb)
-                context.DrawRectangle(null, hoverPen, hb.Inflate(5 * penScale), 3, 3);
+                context.DrawRectangle(null, hoverPen, hb.Inflate(5), 3, 3);
         }
 
         // Pen cursor preview: colored circle showing pen size at cursor position
@@ -2873,12 +2979,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void RenderSelectionHighlight(DrawingContext context, Rect da, Size boundsSize,
                                           double scaleX, double scaleY, double penScale)
     {
+        // Selection UI uses constant screen-pixel sizes so handles don't
+        // balloon when zoomed in or shrink when zoomed out.
         var selectPen = new Pen(s_selectPenBrush,
-            1.0 * penScale, dashStyle: s_dashStyle5_4,
+            1.0, dashStyle: s_dashStyle5_4,
             lineCap: PenLineCap.Round);
         var vertexPen = new Pen(s_vertexPenBrush,
-            1.2 * penScale, lineCap: PenLineCap.Round);
+            1.2, lineCap: PenLineCap.Round);
         bool single = _selectHighlightItems.Count == 1;
+        const double vtxSize = 5.0;     // constant screen pixels
+        const double cornerSize = 2.0;  // constant screen pixels
+        const double padSize = 4.0;     // constant screen pixels
 
         foreach (var highlightItem in _selectHighlightItems)
         {
@@ -2939,12 +3050,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
             if (bounds is { } b)
             {
-                var inflated = b.Inflate(4 * penScale);
+                var inflated = b.Inflate(padSize);
                 context.DrawRectangle(null, selectPen, inflated);
 
                 if (single)
                 {
-                    double cornerSize = 2.0 * penScale;
                     context.DrawEllipse(s_cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
                     context.DrawEllipse(s_cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
                     context.DrawEllipse(s_cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
@@ -2953,14 +3063,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
                     {
                         var arrowScreen = PdfToScreen(ao, da, boundsSize);
-                        double vtxSize = 5 * penScale;
                         context.DrawEllipse(s_vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
                     }
                     if (highlightItem is ShapeAnnotation selShape)
                     {
                         var ss = PdfToScreen(selShape.Start, da, boundsSize);
                         var se = PdfToScreen(selShape.End, da, boundsSize);
-                        double vtxSize = 5 * penScale;
                         context.DrawEllipse(s_vertexBrush, vertexPen, ss, vtxSize, vtxSize);
                         context.DrawEllipse(s_vertexBrush, vertexPen, se, vtxSize, vtxSize);
                     }
@@ -2968,13 +3076,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     {
                         var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
                         var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
-                        double vtxSize = 5 * penScale;
                         context.DrawEllipse(s_vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
                         context.DrawEllipse(s_vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
                     }
                     if (highlightItem is InkStroke { IsPolyline: true } selPoly)
                     {
-                        double vtxSize = 5 * penScale;
                         foreach (var p in selPoly.Points)
                         {
                             var sp = PdfToScreen(p, da, boundsSize);
@@ -2984,12 +3090,44 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     // Text width resize handle: right-center edge
                     if (highlightItem is TextAnnotation { IsStickyNote: false } selTextResize && bounds is { } tb2)
                     {
-                        var midRight = new Point(tb2.Inflate(4 * penScale).Right,
-                            (tb2.Inflate(4 * penScale).Top + tb2.Inflate(4 * penScale).Bottom) / 2);
-                        double vtxSize = 5 * penScale;
+                        var inf2 = tb2.Inflate(padSize);
+                        var midRight = new Point(inf2.Right, (inf2.Top + inf2.Bottom) / 2);
                         context.DrawEllipse(s_vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Draws subtle dots at every grid intersection within the visible viewport.
+    /// Performance-capped: skips rendering when dots would be too dense or too numerous.
+    /// </summary>
+    private void RenderGridDots(DrawingContext context, Rect da, Size boundsSize,
+                                double scaleX, double scaleY)
+    {
+        double g = GridSpacing;
+        double stepPx = Math.Min(g * scaleX, g * scaleY);
+        if (stepPx < 8) return; // too dense to be useful
+
+        double startX = Math.Ceiling(da.X / g) * g;
+        double startY = Math.Ceiling(da.Y / g) * g;
+        double endX = da.X + da.Width;
+        double endY = da.Y + da.Height;
+
+        // Cap dot count to keep rendering fast
+        int countX = (int)Math.Ceiling((endX - startX) / g);
+        int countY = (int)Math.Ceiling((endY - startY) / g);
+        if (countX > 100 || countY > 100) return;
+
+        double dotRadius = 1.0;
+        for (double py = startY; py <= endY; py += g)
+        {
+            double sy = (py - da.Y) / da.Height * boundsSize.Height;
+            for (double px = startX; px <= endX; px += g)
+            {
+                double sx = (px - da.X) / da.Width * boundsSize.Width;
+                context.DrawEllipse(s_gridDotBrush, null, new Point(sx, sy), dotRadius, dotRadius);
             }
         }
     }

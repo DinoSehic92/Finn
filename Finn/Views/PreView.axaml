@@ -195,9 +195,6 @@
 						</Button>
 						<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
 						<!-- Export -->
-						<Button ToolTip.Tip="Save Image (Ctrl+S)" Width="26" Height="26" Padding="0" Click="OnAnnotateSave" BorderThickness="0">
-							<ic:SymbolIcon Symbol="Save" IconVariant="Regular" FontSize="14"/>
-						</Button>
 						<Button ToolTip.Tip="Copy (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Clipboard" IconVariant="Regular" FontSize="14"/>
 						</Button>
@@ -281,6 +278,9 @@
 						<Border Width="2" Background="#50888888" Margin="3,3" CornerRadius="1"/>
 						<Button ToolTip.Tip="Calibrate measurement scale" Width="22" Height="22" Padding="0" Click="OnMeasureCalibrate" BorderThickness="0">
 							<ic:SymbolIcon Symbol="Options" IconVariant="Regular" FontSize="12"/>
+						</Button>
+						<Button Name="GridToggleBtn" ToolTip.Tip="Snap to grid (G)" Width="22" Height="22" Padding="0" Click="OnToggleGrid" BorderThickness="0">
+							<ic:SymbolIcon Symbol="Grid" IconVariant="Regular" FontSize="12"/>
 						</Button>
 					</StackPanel>
 				</StackPanel>

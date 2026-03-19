@@ -18,11 +18,17 @@ public partial class PreView
 {
     #region Inline Annotation
 
-    // ── Hit-test thresholds (squared radii for distance checks) ──
-    private const double ArrowTipHitRadius = 8;
-    private const double HandleHitRadius = 10;
-    private const double HandleHitRadiusLarge = 12;
-    private const double ResizeHandleHitRadius = 14;
+    // ── Hit-test thresholds: target screen-pixel sizes ──
+    // These are converted to PDF units at the current zoom via HitRadius().
+    private const double ArrowTipHitScreenPx = 8;
+    private const double HandleHitScreenPx = 10;
+    private const double HandleHitScreenPxLarge = 12;
+    private const double ResizeHandleHitScreenPx = 14;
+
+    /// <summary>Converts a screen-pixel hit radius to PDF units at the current zoom,
+    /// so hit areas stay a constant screen size regardless of zoom level.</summary>
+    private double HitRadius(double screenPixels)
+        => MuPDFRenderer.ScreenToPdfDistance(screenPixels);
 
     private static double DistanceSq(Point a, Point b)
     {
@@ -438,6 +444,8 @@ public partial class PreView
         MuPDFRenderer.ClearSnapGuides();
         MuPDFRenderer.UpdateCursorPreview(null);
         MuPDFRenderer.ClearTextPlacementPreview();
+        MuPDFRenderer.SnapToGrid = false;
+        MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.Cursor = Avalonia.Input.Cursor.Default;
         MuPDFRenderer.PointerEventHandlersType = PDFRenderer.PointerEventHandlers.PanHighlight;
         MuPDFRenderer.ActiveTool = InlineAnnotationTool.Select;
@@ -542,11 +550,6 @@ public partial class PreView
         else if (e.Key == Key.A && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
             SelectAllOnPage();
-            e.Handled = true;
-        }
-        else if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Control))
-        {
-            OnAnnotateSave(this, e);
             e.Handled = true;
         }
         else if (e.Key == Key.Escape)
@@ -654,6 +657,14 @@ public partial class PreView
                     MuPDFRenderer.StrokeWidth = Math.Min(20, MuPDFRenderer.StrokeWidth + 1);
                     SyncWidthState();
                 }
+                e.Handled = true;
+            }
+            else if (e.Key == Key.G)
+            {
+                // G = toggle snap-to-grid
+                MuPDFRenderer.SnapToGrid = !MuPDFRenderer.SnapToGrid;
+                SyncGridToggleButton(MuPDFRenderer.SnapToGrid);
+                MuPDFRenderer.InvalidateVisual();
                 e.Handled = true;
             }
             else if (e.Key == Key.OemMinus)
@@ -930,7 +941,7 @@ public partial class PreView
                     return;
                 }
                 // Check if the click is specifically on the arrow origin (tip)
-                if (hitText.ArrowOrigin.HasValue && IsNear(pdfPoint.Value, hitText.ArrowOrigin.Value, ArrowTipHitRadius))
+                if (hitText.ArrowOrigin.HasValue && IsNear(pdfPoint.Value, hitText.ArrowOrigin.Value, HitRadius(ArrowTipHitScreenPx)))
                 {
                     _draggingArrowOrigin = hitText;
                     _dragStartPdf = pdfPoint.Value;
@@ -944,7 +955,7 @@ public partial class PreView
                 {
                     var rtb = AnnotatedPDFRenderer.GetTextBounds(hitText);
                     var handlePoint = new Point(rtb.Right, (rtb.Top + rtb.Bottom) / 2);
-                    if (IsNear(pdfPoint.Value, handlePoint, HandleHitRadiusLarge))
+                    if (IsNear(pdfPoint.Value, handlePoint, HitRadius(HandleHitScreenPxLarge)))
                     {
                         _resizingTextAnnotation = hitText;
                         _dragStartPdf = pdfPoint.Value;
@@ -968,7 +979,7 @@ public partial class PreView
             {
                 // Check if it's an ArrowText and the click is on the arrow tip
                 if (hitItem is TextAnnotation arrowHit && arrowHit.ArrowOrigin.HasValue
-                    && IsNear(pdfPoint.Value, arrowHit.ArrowOrigin.Value, ArrowTipHitRadius))
+                    && IsNear(pdfPoint.Value, arrowHit.ArrowOrigin.Value, HitRadius(ArrowTipHitScreenPx)))
                 {
                     _draggingArrowOrigin = arrowHit;
                     _dragStartPdf = pdfPoint.Value;
@@ -978,7 +989,7 @@ public partial class PreView
                     return;
                 }
                 // Vertex drag: check if click is near any vertex of the hit annotation
-                if (TryBeginVertexDrag(hitItem, pdfPoint.Value, HandleHitRadius))
+                if (TryBeginVertexDrag(hitItem, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
                 {
                     MuPDFRenderer.Cursor = CursorCross;
                     SelectAnnotation(hitItem);
@@ -1014,7 +1025,7 @@ public partial class PreView
             //  and for measurements/polylines whose endpoints may extend past the hit-test region)
             if (hitItem == null && _selectedAnnotation != null)
             {
-                if (TryBeginVertexDrag(_selectedAnnotation, pdfPoint.Value, HandleHitRadiusLarge))
+                if (TryBeginVertexDrag(_selectedAnnotation, pdfPoint.Value, HitRadius(HandleHitScreenPxLarge)))
                     return;
 
                 // Text right-edge resize handle (outside text body but near the handle dot)
@@ -1022,7 +1033,7 @@ public partial class PreView
                 {
                     var rtb = AnnotatedPDFRenderer.GetTextBounds(selText);
                     var handlePoint = new Point(rtb.Right, (rtb.Top + rtb.Bottom) / 2);
-                    if (IsNear(pdfPoint.Value, handlePoint, ResizeHandleHitRadius))
+                    if (IsNear(pdfPoint.Value, handlePoint, HitRadius(ResizeHandleHitScreenPx)))
                     {
                         _resizingTextAnnotation = selText;
                         _dragStartPdf = pdfPoint.Value;
@@ -1247,7 +1258,7 @@ public partial class PreView
                                      or InlineAnnotationTool.Ellipse
                                      or InlineAnnotationTool.RevisionCloud
                             ? AnnotatedPDFRenderer.ConstrainToSquare(anchor, target)
-                            : AnnotatedPDFRenderer.ConstrainToAxis(anchor, target);
+                            : AnnotatedPDFRenderer.ConstrainToFineAngle(anchor, target);
                     }
                     else
                     {
@@ -1280,9 +1291,13 @@ public partial class PreView
                     {
                         // Snap relative to the adjacent vertex
                         int adjIdx = _draggingVertexIndex > 0 ? _draggingVertexIndex - 1
-                                                               : (_draggingVertexIndex < pv.Points.Count - 1 ? _draggingVertexIndex + 1 : -1);
+                                                                : (_draggingVertexIndex < pv.Points.Count - 1 ? _draggingVertexIndex + 1 : -1);
                         if (adjIdx >= 0)
                             target = AnnotatedPDFRenderer.ConstrainToAxis(pv.Points[adjIdx], target);
+                    }
+                    else
+                    {
+                        target = MuPDFRenderer.ComputeVertexSnap(pv, target);
                     }
                     pv.Points[_draggingVertexIndex] = target;
                     pv.InvalidatePen();
@@ -1846,6 +1861,22 @@ public partial class PreView
         FillToggleBtn.BorderBrush = isFilled ? Brushes.White : null;
     }
 
+    private void OnToggleGrid(object sender, RoutedEventArgs e)
+    {
+        MuPDFRenderer.SnapToGrid = !MuPDFRenderer.SnapToGrid;
+        SyncGridToggleButton(MuPDFRenderer.SnapToGrid);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Syncs the grid toggle button visual state to the given value.</summary>
+    private void SyncGridToggleButton(bool active)
+    {
+        if (GridToggleBtn == null) return;
+        GridToggleBtn.BorderThickness = active ? new Thickness(2) : new Thickness(0);
+        GridToggleBtn.BorderBrush = active ? Brushes.White : null;
+    }
+
     private static void MoveAnnotation(object item, double dx, double dy)
     {
         switch (item)
@@ -1921,6 +1952,7 @@ public partial class PreView
             {
                 var snap = MuPDFRenderer.CapturePropertySnapshot(_editingTextAnnotation);
                 _editingTextAnnotation.Text = TextInputBox.Text;
+                MuPDFRenderer.AutoSizeTextWidth(_editingTextAnnotation);
                 if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
             }
             else if (_pendingStickyNote)
