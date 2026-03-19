@@ -1211,8 +1211,8 @@ public partial class MainView : UserControl
         // PropertyChanged may fire from a background thread (e.g. CurrentFile
         // is set after ConfigureAwait(false) in SetFileAsync), so dispatch
         // to the UI thread to avoid cross-thread access on LayerList.
-        if (e.PropertyName is "CurrentFile" or "WhiteboardMode")
-            Dispatcher.UIThread.Post(() => SyncLayerList());
+        if (e.PropertyName is "CurrentFile" or "WhiteboardMode" or "LayersChanged")
+            Dispatcher.UIThread.Post(() => SyncLayerList(), DispatcherPriority.Background);
     }
 
     private static readonly Avalonia.Media.Color[] LayerColors =

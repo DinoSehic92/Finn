@@ -114,6 +114,15 @@ public partial class PreView : UserControl
                 SyncDiffOverlay();
                 break;
 
+            case "DiffTolerance" when pwr.DiffOverlayActive && pwr.DiffViewMode == DiffViewMode.Overlay:
+                // Debounced recompute finished — refresh the overlay for the current page.
+                var diffPath2 = pwr.GetDiffImagePath(pwr.CurrentPage1);
+                if (diffPath2 != null)
+                    MuPDFRenderer.SetDiffOverlay(diffPath2, pwr.CurrentPage1, PdfDiffService.ZOOM, forceReload: true);
+                else
+                    MuPDFRenderer.ClearDiffOverlay();
+                break;
+
             case nameof(PreviewViewModel.DiffShowingOriginal) when _diffToggleOpen:
                 ShowToggleRenderer(pwr.DiffShowingOriginal);
                 DiffABLabel.Text = pwr.DiffShowingOriginal ? "A" : "B";
@@ -664,6 +673,7 @@ public partial class PreView : UserControl
             // Manually recount and activate the new layer so it renders.
             MuPDFRenderer.ActiveLayer = layer;
             MuPDFRenderer.NotifyLayersChanged();
+            UpdateActiveLayerLabel();
             pwr.StatusMessage = $"Diff saved as layer: {layer.Name}";
             ctx?.MarkDirty();
         }
@@ -704,12 +714,16 @@ public partial class PreView : UserControl
 
     private void OnDiffModeToggle(object? sender, RoutedEventArgs e)
     {
-        if (pwr != null) pwr.DiffViewMode = DiffViewMode.Toggle;
+        if (pwr == null) return;
+        DeactivateAnnotateMode();
+        pwr.DiffViewMode = DiffViewMode.Toggle;
     }
 
     private void OnDiffModeSBS(object? sender, RoutedEventArgs e)
     {
-        if (pwr != null) pwr.DiffViewMode = DiffViewMode.SideBySide;
+        if (pwr == null) return;
+        DeactivateAnnotateMode();
+        pwr.DiffViewMode = DiffViewMode.SideBySide;
     }
 
     private async void OnDiffRerun(object? sender, RoutedEventArgs e)
@@ -766,6 +780,48 @@ public partial class PreView : UserControl
         // Restore the view mode the user had before (e.g. SideBySide)
         pwr.DiffViewMode = mode;
         SyncDiffOverlay();
+    }
+
+    /// <summary>
+    /// Runs a word-level text diff from the toolbar button.
+    /// Produces DiffRegion results (no pixel images) that populate
+    /// the diff page list and can be saved as an annotation layer.
+    /// </summary>
+    private async void OnRunTextDiff(object? sender, RoutedEventArgs e)
+    {
+        if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
+        if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
+        {
+            pwr.StatusMessage = "A and B are the same";
+            return;
+        }
+
+        var mode = pwr.DiffViewMode;
+        await CloseDiffViewsAsync();
+        MuPDFRenderer.ClearDiffOverlay();
+
+        await pwr.RunTextDiffAsync(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, pwr.DiffSourceFile);
+
+        pwr.DiffViewMode = mode;
+        SyncDiffOverlay();
+    }
+
+    /// <summary>Sets the diff highlight color from a toolbar color button.</summary>
+    private void OnDiffColorPick(object? sender, RoutedEventArgs e)
+    {
+        if (pwr == null || sender is not Button btn || btn.Tag is not string tag) return;
+        var presets = PreviewViewModel.DiffColorPresets;
+        int index = tag switch
+        {
+            "Red" => 0,
+            "Blue" => 1,
+            "Green" => 2,
+            "Orange" => 3,
+            "Purple" => 4,
+            _ => -1
+        };
+        if (index >= 0 && index < presets.Count)
+            pwr.DiffHighlightColor = presets[index];
     }
 
     /// <summary>Opens the version comparison dialog.</summary>

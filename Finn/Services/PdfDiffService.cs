@@ -1,25 +1,22 @@
 using Finn.Model;
 using MuPDFCore;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using SysBitmap = System.Drawing.Bitmap;
-using SysColor = System.Drawing.Color;
-using SysGraphics = System.Drawing.Graphics;
-using SysImageFormat = System.Drawing.Imaging.ImageFormat;
-using SysImageLockMode = System.Drawing.Imaging.ImageLockMode;
-using SysPixelFormat = System.Drawing.Imaging.PixelFormat;
-using SysRectangle = System.Drawing.Rectangle;
 
 namespace Finn.Services
 {
     /// <summary>
     /// Renders two PDF files page-by-page and produces pixel-level diff images.
     /// Unchanged pixels are shown as dimmed grayscale; differences are highlighted in red.
-    /// All images are written to a temporary directory as files to keep memory bounded.
+    /// Uses SkiaSharp for cross-platform pixel operations and MuPDF's in-memory
+    /// <see cref="MuPDFDocument.Render"/> for zero-disk-IO source rendering.
+    /// Only diff result PNGs are written to a temp directory for overlay caching.
+    /// Source page PNGs are written for the A/B toggle and side-by-side views.
     /// </summary>
     public static class PdfDiffService
     {
@@ -32,7 +29,7 @@ namespace Finn.Services
         /// when sampling diff/slider bitmaps.
         /// </summary>
         public const float ZOOM = 2.0f;
-        private const int JPEG_QUALITY = 90;
+        private const int REGION_CELL_SIZE = 8;
 
         /// <summary>
         /// Compare two PDF files asynchronously, returning per-page diff results
@@ -42,18 +39,21 @@ namespace Finn.Services
             string pathA, string pathB,
             IProgress<int>? progress = null,
             CancellationToken ct = default,
-            int tolerance = DefaultTolerance)
+            int tolerance = DefaultTolerance,
+            byte highlightR = 230, byte highlightG = 60, byte highlightB = 60)
         {
-            return await Task.Run(() => Compare(pathA, pathB, progress, ct, tolerance), ct);
+            return await Task.Run(() => Compare(pathA, pathB, progress, ct, tolerance, highlightR, highlightG, highlightB), ct);
         }
 
         /// <summary>
         /// Recomputes only the diff images for already-rendered page pairs using a new tolerance.
         /// Much faster than a full compare since PDF rendering is skipped.
+        /// Reads source PNGs from disk and recomputes pixel diffs + regions.
         /// </summary>
         public static async Task RecomputeDiffsAsync(
             IList<DiffResultData> results,
             int tolerance,
+            byte highlightR = 230, byte highlightG = 60, byte highlightB = 60,
             CancellationToken ct = default)
         {
             await Task.Run(() =>
@@ -67,9 +67,13 @@ namespace Finn.Services
                     if (!File.Exists(result.OriginalPath) || !File.Exists(result.RevisedPath))
                         return;
 
-                    using var bmpA = new SysBitmap(result.OriginalPath);
-                    using var bmpB = new SysBitmap(result.RevisedPath);
-                    result.HasDifferences = ComputeAndSaveDiff(bmpA, bmpB, result.DiffPath, tolerance);
+                    using var bmpA = SKBitmap.Decode(result.OriginalPath);
+                    using var bmpB = SKBitmap.Decode(result.RevisedPath);
+                    if (bmpA == null || bmpB == null) return;
+
+                    var (hasDiff, regions) = ComputeAndSaveDiff(bmpA, bmpB, result.DiffPath, tolerance, highlightR, highlightG, highlightB);
+                    result.HasDifferences = hasDiff;
+                    result.Regions = regions;
                 });
             }, ct);
         }
@@ -78,13 +82,13 @@ namespace Finn.Services
             string pathA, string pathB,
             IProgress<int>? progress,
             CancellationToken ct,
-            int tolerance)
+            int tolerance,
+            byte highlightR, byte highlightG, byte highlightB)
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "FinnDiff_" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(tempDir);
             try
             {
-                // Use file-path constructor — avoids reading entire PDFs into managed memory.
                 using var ctxA = new MuPDFContext();
                 using var ctxB = new MuPDFContext();
                 using var docA = new MuPDFDocument(ctxA, pathA);
@@ -94,15 +98,19 @@ namespace Finn.Services
                 int pagesB = docB.Pages.Count;
                 int maxPages = Math.Max(pagesA, pagesB);
 
+                // In-memory rendered bitmaps — no disk I/O for source pages during diff.
+                SKBitmap?[] bitmapsA = new SKBitmap?[pagesA];
+                SKBitmap?[] bitmapsB = new SKBitmap?[pagesB];
+                // Paths for source PNGs (written after diff for toggle/SBS views).
                 string?[] filesA = new string?[pagesA];
                 string?[] filesB = new string?[pagesB];
 
-                // Phase 1 (0–50 %): render both documents concurrently.
-                // ctxA/docA and ctxB/docB are fully independent so this is thread-safe.
                 int renderedCount = 0;
                 int totalRenderPages = pagesA + pagesB;
                 progress?.Report(0);
 
+                // Phase 1 (0–50 %): render both documents to in-memory SKBitmaps.
+                // ctxA/docA and ctxB/docB are fully independent so this is thread-safe.
                 Parallel.Invoke(
                     new ParallelOptions { CancellationToken = ct },
                     () =>
@@ -110,8 +118,7 @@ namespace Finn.Services
                         for (int i = 0; i < pagesA; i++)
                         {
                             ct.ThrowIfCancellationRequested();
-                            filesA[i] = Path.Combine(tempDir, $"a_{i}.jpg");
-                            docA.SaveImageAsJPEG(i, ZOOM, filesA[i], JPEG_QUALITY);
+                            bitmapsA[i] = RenderPageToBitmap(docA, i);
                             progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
                         }
                     },
@@ -120,14 +127,13 @@ namespace Finn.Services
                         for (int i = 0; i < pagesB; i++)
                         {
                             ct.ThrowIfCancellationRequested();
-                            filesB[i] = Path.Combine(tempDir, $"b_{i}.jpg");
-                            docB.SaveImageAsJPEG(i, ZOOM, filesB[i], JPEG_QUALITY);
+                            bitmapsB[i] = RenderPageToBitmap(docB, i);
                             progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
                         }
                     }
                 );
 
-                // Phase 2 (50–100 %): compute diffs in parallel — each page pair is independent.
+                // Phase 2 (50–100 %): compute diffs in parallel and write images.
                 var results = new DiffResultData[maxPages];
                 int diffedCount = 0;
 
@@ -135,29 +141,48 @@ namespace Finn.Services
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string? fileA = i < pagesA ? filesA[i] : null;
-                    string? fileB = i < pagesB ? filesB[i] : null;
+                    var bmpA = i < pagesA ? bitmapsA[i] : null;
+                    var bmpB = i < pagesB ? bitmapsB[i] : null;
+                    string? fileA = null;
+                    string? fileB = null;
                     string? fileD = null;
                     bool hasDiff;
+                    List<DiffRegion>? regions = null;
 
-                    if (fileA != null && fileB != null)
+                    if (bmpA != null && bmpB != null)
                     {
-                        using var bmpA = new SysBitmap(fileA);
-                        using var bmpB = new SysBitmap(fileB);
                         fileD = Path.Combine(tempDir, $"d_{i}.png");
-                        hasDiff = ComputeAndSaveDiff(bmpA, bmpB, fileD, tolerance);
-                        // Clean up the diff image if pages were identical —
-                        // GetDiffImagePath returns null for !HasDifferences anyway.
+                        (hasDiff, regions) = ComputeAndSaveDiff(bmpA, bmpB, fileD, tolerance, highlightR, highlightG, highlightB);
+
                         if (!hasDiff && File.Exists(fileD))
                         {
                             try { File.Delete(fileD); } catch { }
                             fileD = null;
                         }
+
+                        // Save source PNGs for toggle/SBS views.
+                        fileA = Path.Combine(tempDir, $"a_{i}.png");
+                        fileB = Path.Combine(tempDir, $"b_{i}.png");
+                        SaveBitmapAsPng(bmpA, fileA);
+                        SaveBitmapAsPng(bmpB, fileB);
                     }
                     else
                     {
-                        hasDiff = fileA != null || fileB != null;
+                        hasDiff = bmpA != null || bmpB != null;
+                        if (bmpA != null)
+                        {
+                            fileA = Path.Combine(tempDir, $"a_{i}.png");
+                            SaveBitmapAsPng(bmpA, fileA);
+                        }
+                        if (bmpB != null)
+                        {
+                            fileB = Path.Combine(tempDir, $"b_{i}.png");
+                            SaveBitmapAsPng(bmpB, fileB);
+                        }
                     }
+
+                    filesA[i < pagesA ? i : 0] = fileA; // keep reference for cleanup
+                    filesB[i < pagesB ? i : 0] = fileB;
 
                     results[i] = new DiffResultData
                     {
@@ -165,11 +190,16 @@ namespace Finn.Services
                         OriginalPath = fileA,
                         RevisedPath = fileB,
                         DiffPath = fileD,
-                        HasDifferences = hasDiff
+                        HasDifferences = hasDiff,
+                        Regions = regions
                     };
 
                     progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, maxPages));
                 });
+
+                // Dispose in-memory bitmaps now that diffs are computed and PNGs are saved.
+                foreach (var bmp in bitmapsA) bmp?.Dispose();
+                foreach (var bmp in bitmapsB) bmp?.Dispose();
 
                 return (new List<DiffResultData>(results), tempDir);
             }
@@ -180,119 +210,213 @@ namespace Finn.Services
             }
         }
 
-        private static bool ComputeAndSaveDiff(SysBitmap a, SysBitmap b, string outputPath, int tolerance)
+        /// <summary>
+        /// Renders a single PDF page to an in-memory <see cref="SKBitmap"/> using
+        /// MuPDF's native <c>Render</c> method. Returns BGRA pixel data.
+        /// </summary>
+        private static SKBitmap RenderPageToBitmap(MuPDFDocument doc, int pageIndex)
+        {
+            // MuPDF Render returns a byte[] in the requested pixel format.
+            byte[] pixels = doc.Render(pageIndex, ZOOM, PixelFormats.BGRA);
+
+            // Compute dimensions from the page size and zoom.
+            var page = doc.Pages[pageIndex];
+            int width = (int)Math.Ceiling(page.Bounds.Width * ZOOM);
+            int height = (int)Math.Ceiling(page.Bounds.Height * ZOOM);
+
+            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            var bitmap = new SKBitmap(info);
+
+            // Copy rendered pixels into the SKBitmap. The Render byte count
+            // may differ slightly from width*height*4 due to rounding — copy
+            // the minimum of both to avoid overruns.
+            int bitmapBytes = info.RowBytes * height;
+            int copyLen = Math.Min(pixels.Length, bitmapBytes);
+            Marshal.Copy(pixels, 0, bitmap.GetPixels(), copyLen);
+
+            return bitmap;
+        }
+
+        /// <summary>
+        /// Computes a pixel-level diff between two bitmaps, saves the diff image as PNG,
+        /// and returns diff regions computed during the same pixel scan.
+        /// </summary>
+        private static (bool HasDifferences, List<DiffRegion>? Regions) ComputeAndSaveDiff(
+            SKBitmap a, SKBitmap b, string outputPath, int tolerance,
+            byte highlightR = 230, byte highlightG = 60, byte highlightB = 60)
         {
             int width = Math.Max(a.Width, b.Width);
             int height = Math.Max(a.Height, b.Height);
 
             using var padA = PadToSize(a, width, height);
             using var padB = PadToSize(b, width, height);
-            using var diff = new SysBitmap(width, height, SysPixelFormat.Format32bppArgb);
 
-            var rect = new SysRectangle(0, 0, width, height);
-            var dataA = padA.LockBits(rect, SysImageLockMode.ReadOnly, SysPixelFormat.Format32bppArgb);
-            var dataB = padB.LockBits(rect, SysImageLockMode.ReadOnly, SysPixelFormat.Format32bppArgb);
-            var dataD = diff.LockBits(rect, SysImageLockMode.WriteOnly, SysPixelFormat.Format32bppArgb);
+            var diffInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var diff = new SKBitmap(diffInfo);
 
             bool hasDifferences = false;
 
-            try
-            {
-                int stride = dataA.Stride;
-                int totalBytes = stride * height;
-                byte[] bufA = new byte[totalBytes];
-                byte[] bufB = new byte[totalBytes];
-                byte[] bufD = new byte[totalBytes];
+            // Grid for region extraction (computed during the same pixel scan).
+            int cols = (width + REGION_CELL_SIZE - 1) / REGION_CELL_SIZE;
+            int rows = (height + REGION_CELL_SIZE - 1) / REGION_CELL_SIZE;
+            var grid = new bool[rows, cols];
 
-                Marshal.Copy(dataA.Scan0, bufA, 0, totalBytes);
-                Marshal.Copy(dataB.Scan0, bufB, 0, totalBytes);
+            {
+                var spanA = padA.GetPixelSpan();
+                var spanB = padB.GetPixelSpan();
+                // GetPixelSpan is read-only; we need writable access for the diff bitmap.
+                // Copy into a managed buffer, write diffs, then copy back.
+                int diffBytes = diff.RowBytes * height;
+                byte[] bufD = new byte[diffBytes];
+                int strideA = padA.RowBytes;
+                int strideB = padB.RowBytes;
+                int strideD = diff.RowBytes;
 
                 for (int y = 0; y < height; y++)
                 {
-                    int rowOffset = y * stride;
+                    int rowOffA = y * strideA;
+                    int rowOffB = y * strideB;
+                    int rowOffD = y * strideD;
+
                     for (int x = 0; x < width; x++)
                     {
-                        int idx = rowOffset + x * 4;
+                        int offA = rowOffA + x * 4;
+                        int offB = rowOffB + x * 4;
+                        int offD = rowOffD + x * 4;
                         // BGRA format
-                        int db = Math.Abs(bufA[idx] - bufB[idx]);
-                        int dg = Math.Abs(bufA[idx + 1] - bufB[idx + 1]);
-                        int dr = Math.Abs(bufA[idx + 2] - bufB[idx + 2]);
+                        int db = Math.Abs(spanA[offA] - spanB[offB]);
+                        int dg = Math.Abs(spanA[offA + 1] - spanB[offB + 1]);
+                        int dr = Math.Abs(spanA[offA + 2] - spanB[offB + 2]);
 
                         if (dr + dg + db > tolerance)
                         {
                             hasDifferences = true;
-                            bufD[idx] = 60;       // B
-                            bufD[idx + 1] = 60;   // G
-                            bufD[idx + 2] = 230;  // R
-                            bufD[idx + 3] = 255;  // A
+                            // Blend 50 % highlight + 50 % original so page content
+                            // shows through the tint instead of solid dark patches.
+                            byte oB = spanA[offA], oG = spanA[offA + 1], oR = spanA[offA + 2];
+                            bufD[offD]     = (byte)((oB + highlightB) / 2); // B
+                            bufD[offD + 1] = (byte)((oG + highlightG) / 2); // G
+                            bufD[offD + 2] = (byte)((oR + highlightR) / 2); // R
+                            bufD[offD + 3] = 255;                           // A
+
+                            grid[y / REGION_CELL_SIZE, x / REGION_CELL_SIZE] = true;
                         }
                         else
                         {
-                            int gray = (bufA[idx] + bufA[idx + 1] + bufA[idx + 2]) / 3;
+                            int gray = (spanA[offA] + spanA[offA + 1] + spanA[offA + 2]) / 3;
                             byte dimmed = (byte)Math.Clamp(gray / 2 + 128, 0, 255);
-                            bufD[idx] = dimmed;
-                            bufD[idx + 1] = dimmed;
-                            bufD[idx + 2] = dimmed;
-                            bufD[idx + 3] = 255;
+                            bufD[offD] = dimmed;
+                            bufD[offD + 1] = dimmed;
+                            bufD[offD + 2] = dimmed;
+                            bufD[offD + 3] = 255;
                         }
                     }
                 }
 
-                Marshal.Copy(bufD, 0, dataD.Scan0, totalBytes);
-            }
-            finally
-            {
-                padA.UnlockBits(dataA);
-                padB.UnlockBits(dataB);
-                diff.UnlockBits(dataD);
+                Marshal.Copy(bufD, 0, diff.GetPixels(), diffBytes);
             }
 
-            diff.Save(outputPath, SysImageFormat.Png);
-            return hasDifferences;
+            // Save diff image as PNG.
+            using (var image = SKImage.FromBitmap(diff))
+            using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+            using (var stream = File.OpenWrite(outputPath))
+            {
+                data.SaveTo(stream);
+            }
+
+            // Extract regions from the grid computed during the pixel scan.
+            var regions = hasDifferences ? ExtractRegionsFromGrid(grid, rows, cols, ZOOM) : null;
+
+            return (hasDifferences, regions);
         }
 
-        private static SysBitmap PadToSize(SysBitmap source, int width, int height)
+        /// <summary>
+        /// Pads/copies a bitmap to the target size with consistent BGRA8888 format.
+        /// Always returns a NEW bitmap safe for the caller to dispose independently
+        /// of the source. Extra space (if any) is filled with white.
+        /// </summary>
+        private static SKBitmap PadToSize(SKBitmap source, int width, int height)
         {
-            // Skip the copy when the source already matches — avoids an allocation + blit.
-            if (source.Width == width && source.Height == height)
-            {
-                // Clone into 32bppArgb so LockBits always gets a consistent format.
-                return source.Clone(new SysRectangle(0, 0, width, height), SysPixelFormat.Format32bppArgb);
-            }
-            var padded = new SysBitmap(width, height, SysPixelFormat.Format32bppArgb);
-            using var g = SysGraphics.FromImage(padded);
-            g.Clear(SysColor.White);
-            g.DrawImage(source, 0, 0, source.Width, source.Height);
-            return padded;
+            var target = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+            using var canvas = new SKCanvas(target);
+            if (source.Width != width || source.Height != height)
+                canvas.Clear(SKColors.White);
+            canvas.DrawBitmap(source, 0, 0);
+            return target;
+        }
+
+        private static void SaveBitmapAsPng(SKBitmap bitmap, string path)
+        {
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            using var stream = File.OpenWrite(path);
+            data.SaveTo(stream);
+        }
+
+        /// <summary>
+        /// Greedy rectangle merge on a boolean grid. Returns bounding rectangles
+        /// in PDF-space coordinates (pixel coords divided by zoom).
+        /// </summary>
+        private static List<DiffRegion> ExtractRegionsFromGrid(bool[,] grid, int rows, int cols, float zoom)
+        {
+            var regions = new List<DiffRegion>();
+            var visited = new bool[rows, cols];
+
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < cols; c++)
+                {
+                    if (!grid[r, c] || visited[r, c]) continue;
+
+                    int c2 = c;
+                    while (c2 + 1 < cols && grid[r, c2 + 1] && !visited[r, c2 + 1]) c2++;
+
+                    int r2 = r;
+                    while (r2 + 1 < rows)
+                    {
+                        bool fullRow = true;
+                        for (int cc = c; cc <= c2; cc++)
+                            if (!grid[r2 + 1, cc] || visited[r2 + 1, cc]) { fullRow = false; break; }
+                        if (!fullRow) break;
+                        r2++;
+                    }
+
+                    for (int rr = r; rr <= r2; rr++)
+                        for (int cc = c; cc <= c2; cc++)
+                            visited[rr, cc] = true;
+
+                    regions.Add(new DiffRegion(
+                        c * REGION_CELL_SIZE / (double)zoom,
+                        r * REGION_CELL_SIZE / (double)zoom,
+                        (c2 - c + 1) * REGION_CELL_SIZE / (double)zoom,
+                        (r2 - r + 1) * REGION_CELL_SIZE / (double)zoom));
+                }
+
+            return regions;
         }
 
         /// <summary>
         /// Scans a diff image and returns bounding rectangles (in PDF-space coordinates)
-        /// for contiguous regions of changed pixels. The image was rendered at the given
-        /// <paramref name="zoom"/> factor, so pixel coordinates are divided by zoom to
-        /// convert back to PDF points.
+        /// for contiguous regions of changed pixels. Only used as a fallback when
+        /// <see cref="DiffResultData.Regions"/> is not populated.
         /// </summary>
-        public static List<(double X, double Y, double Width, double Height)> ExtractDiffRegions(
+        public static List<DiffRegion> ExtractDiffRegions(
             string diffImagePath, float zoom, int cellSize = 8)
         {
-            var regions = new List<(double X, double Y, double Width, double Height)>();
+            var regions = new List<DiffRegion>();
             if (!File.Exists(diffImagePath)) return regions;
 
-            using var bmp = new SysBitmap(diffImagePath);
+            using var bmp = SKBitmap.Decode(diffImagePath);
+            if (bmp == null) return regions;
+
             int w = bmp.Width, h = bmp.Height;
             int cols = (w + cellSize - 1) / cellSize;
             int rows = (h + cellSize - 1) / cellSize;
             var grid = new bool[rows, cols];
 
-            var rect = new SysRectangle(0, 0, w, h);
-            var data = bmp.LockBits(rect, SysImageLockMode.ReadOnly, SysPixelFormat.Format32bppArgb);
-            try
             {
-                int stride = data.Stride;
-                byte[] buf = new byte[stride * h];
-                Marshal.Copy(data.Scan0, buf, 0, buf.Length);
+                var pixels = bmp.GetPixelSpan();
+                int stride = bmp.RowBytes;
 
-                // Mark grid cells that contain diff-red pixels (R≥200, G<100, B<100)
                 for (int cy = 0; cy < rows; cy++)
                     for (int cx = 0; cx < cols; cx++)
                     {
@@ -303,46 +427,17 @@ namespace Finn.Services
                             for (int px = cx * cellSize; px < pxEnd && !found; px++)
                             {
                                 int idx = py * stride + px * 4; // BGRA
-                                if (buf[idx + 2] >= 200 && buf[idx + 1] < 100 && buf[idx] < 100)
-                                    found = true;
+                                    // Detect highlight pixels: unchanged pixels are dimmed grayscale
+                                    // (R==G==B), so any pixel where channels differ is a highlight.
+                                    byte pB = pixels[idx], pG = pixels[idx + 1], pR = pixels[idx + 2];
+                                    if (pR != pG || pG != pB)
+                                        found = true;
                             }
                         grid[cy, cx] = found;
                     }
             }
-            finally { bmp.UnlockBits(data); }
 
-            // Greedy rectangle merge: sweep marked cells into bounding rectangles
-            var visited = new bool[rows, cols];
-            for (int r = 0; r < rows; r++)
-                for (int c = 0; c < cols; c++)
-                {
-                    if (!grid[r, c] || visited[r, c]) continue;
-                    // Expand right
-                    int c2 = c;
-                    while (c2 + 1 < cols && grid[r, c2 + 1] && !visited[r, c2 + 1]) c2++;
-                    // Expand down while full row of cells is marked
-                    int r2 = r;
-                    while (r2 + 1 < rows)
-                    {
-                        bool fullRow = true;
-                        for (int cc = c; cc <= c2; cc++)
-                            if (!grid[r2 + 1, cc] || visited[r2 + 1, cc]) { fullRow = false; break; }
-                        if (!fullRow) break;
-                        r2++;
-                    }
-                    // Mark visited
-                    for (int rr = r; rr <= r2; rr++)
-                        for (int cc = c; cc <= c2; cc++)
-                            visited[rr, cc] = true;
-
-                    double px = c * cellSize / (double)zoom;
-                    double py = r * cellSize / (double)zoom;
-                    double pw = (c2 - c + 1) * cellSize / (double)zoom;
-                    double ph = (r2 - r + 1) * cellSize / (double)zoom;
-                    regions.Add((px, py, pw, ph));
-                }
-
-            return regions;
+            return ExtractRegionsFromGrid(grid, rows, cols, zoom);
         }
     }
 }

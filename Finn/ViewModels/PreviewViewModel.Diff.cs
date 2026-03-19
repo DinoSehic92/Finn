@@ -33,6 +33,10 @@ namespace Finn.ViewModels
         /// that has no version information.
         /// </summary>
         private FileData? _diffSourceFile;
+        /// <summary>Debounce timer for auto-recomputing diffs when tolerance changes.</summary>
+        private CancellationTokenSource? _toleranceDebounceCts;
+        /// <summary>Highlight color for diff pixels and annotation shapes.</summary>
+        private Avalonia.Media.Color _diffHighlightColor = Avalonia.Media.Color.FromRgb(230, 60, 60);
 
         /// <summary>Sets the source file for version lookups during diff comparisons.</summary>
         public FileData? DiffSourceFile
@@ -106,7 +110,11 @@ namespace Finn.ViewModels
         public int DiffTolerance
         {
             get => _diffTolerance;
-            set => SetProperty(ref _diffTolerance, Math.Clamp(value, 0, PdfDiffService.MaxTolerance));
+            set
+            {
+                if (SetProperty(ref _diffTolerance, Math.Clamp(value, 0, PdfDiffService.MaxTolerance)))
+                    DebouncedRecomputeAsync();
+            }
         }
 
         /// <summary>True while a tolerance re-run is in progress.</summary>
@@ -118,6 +126,30 @@ namespace Finn.ViewModels
 
         /// <summary>Whether re-running the diff is possible (results loaded, paths known).</summary>
         public bool CanRerunDiff => _diffResults is { Count: > 0 } && !_diffRerunBusy;
+
+        /// <summary>Predefined highlight colors the user can pick from.</summary>
+        public static IReadOnlyList<Avalonia.Media.Color> DiffColorPresets { get; } =
+        [
+            Avalonia.Media.Color.FromRgb(230, 60, 60),   // Red
+            Avalonia.Media.Color.FromRgb(59, 130, 217),  // Blue
+            Avalonia.Media.Color.FromRgb(61, 163, 95),   // Green
+            Avalonia.Media.Color.FromRgb(229, 168, 32),  // Orange
+            Avalonia.Media.Color.FromRgb(155, 95, 192),  // Purple
+        ];
+
+        /// <summary>Highlight color used for diff pixel images and annotation layer shapes.</summary>
+        public Avalonia.Media.Color DiffHighlightColor
+        {
+            get => _diffHighlightColor;
+            set
+            {
+                if (SetProperty(ref _diffHighlightColor, value))
+                {
+                    if (_diffResults is { Count: > 0 })
+                        DebouncedRecomputeAsync();
+                }
+            }
+        }
 
         /// <summary>Whether we are currently showing the original (A) document in A/B toggle mode.</summary>
         public bool DiffShowingOriginal
@@ -187,7 +219,8 @@ namespace Finn.ViewModels
             StatusMessage = "Recomputing diff…";
             try
             {
-                await PdfDiffService.RecomputeDiffsAsync(_diffResults, _diffTolerance);
+                await PdfDiffService.RecomputeDiffsAsync(_diffResults, _diffTolerance,
+                    _diffHighlightColor.R, _diffHighlightColor.G, _diffHighlightColor.B);
                 int diffCount = _diffResults.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{_diffResults.Count} pages — identical"
@@ -204,6 +237,31 @@ namespace Finn.ViewModels
                 DiffRerunBusy = false;
                 OnPropertyChanged(nameof(CanRerunDiff));
             }
+        }
+
+        /// <summary>
+        /// Debounces tolerance changes: waits 500 ms after the last change before
+        /// triggering a recompute. Cancels any previous pending recompute.
+        /// </summary>
+        private async void DebouncedRecomputeAsync()
+        {
+            if (_diffResults == null || _diffResults.Count == 0) return;
+
+            _toleranceDebounceCts?.Cancel();
+            _toleranceDebounceCts?.Dispose();
+            _toleranceDebounceCts = new CancellationTokenSource();
+            var ct = _toleranceDebounceCts.Token;
+
+            try
+            {
+                await Task.Delay(500, ct).ConfigureAwait(false);
+                if (ct.IsCancellationRequested) return;
+                await RerunDiffWithToleranceAsync().ConfigureAwait(false);
+                // Notify the view to refresh the overlay for the current page.
+                await Dispatcher.UIThread.InvokeAsync(() => OnPropertyChanged(nameof(DiffTolerance)))
+                    .GetTask().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { }
         }
 
         public void LoadDiffResults(List<DiffResultData> results, string tempDir, string? originalPdfPath = null, string? revisedPdfPath = null, FileData? sourceFile = null)
@@ -254,6 +312,9 @@ namespace Finn.ViewModels
 
         public void ClearDiffResults()
         {
+            _toleranceDebounceCts?.Cancel();
+            _toleranceDebounceCts?.Dispose();
+            _toleranceDebounceCts = null;
             CleanupDiffTempDir();
             _diffResults = null;
             _diffTempDir = null;
@@ -308,14 +369,17 @@ namespace Finn.ViewModels
             var layer = new AnnotationLayer
             {
                 Name = layerName,
-                Color = Avalonia.Media.Color.FromRgb(230, 60, 60)
+                Color = _diffHighlightColor
             };
 
             foreach (var result in _diffResults)
             {
-                if (!result.HasDifferences || result.DiffPath == null) continue;
-                var regions = PdfDiffService.ExtractDiffRegions(result.DiffPath, PdfDiffService.ZOOM);
-                if (regions.Count == 0) continue;
+                if (!result.HasDifferences) continue;
+
+                // Prefer pre-computed regions; fall back to re-reading the diff image.
+                var regions = result.Regions
+                    ?? (result.DiffPath != null ? PdfDiffService.ExtractDiffRegions(result.DiffPath, PdfDiffService.ZOOM) : null);
+                if (regions == null || regions.Count == 0) continue;
 
                 var shapes = new List<ShapeAnnotation>();
                 foreach (var r in regions)
@@ -325,7 +389,7 @@ namespace Finn.ViewModels
                         ShapeType = InlineAnnotationTool.Rectangle,
                         Start = new Avalonia.Point(r.X, r.Y),
                         End = new Avalonia.Point(r.X + r.Width, r.Y + r.Height),
-                        Color = Avalonia.Media.Color.FromRgb(230, 60, 60),
+                        Color = _diffHighlightColor,
                         StrokeWidth = 1.5,
                         Opacity = 0.35,
                         IsFilled = true
@@ -336,6 +400,7 @@ namespace Finn.ViewModels
 
             layer.RecalculateCounts();
             CurrentFile.AnnotationLayers.Add(layer);
+            OnPropertyChanged("LayersChanged");
             return layer;
         }
 
@@ -487,7 +552,8 @@ namespace Finn.ViewModels
             try
             {
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
-                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress, ct, _diffTolerance);
+                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress, ct, _diffTolerance,
+                    _diffHighlightColor.R, _diffHighlightColor.G, _diffHighlightColor.B);
                 LoadDiffResults(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
@@ -501,6 +567,52 @@ namespace Finn.ViewModels
             catch (Exception ex)
             {
                 StatusMessage = $"Diff failed: {ex.Message}";
+            }
+            finally
+            {
+                DiffBusy = false;
+                FileWorkerBusy = false;
+            }
+        }
+
+        /// <summary>
+        /// Runs a word-level text diff between two PDFs. Produces
+        /// <see cref="DiffResultData"/> entries with <see cref="DiffResultData.Regions"/>
+        /// but no pixel images. The user can save the results as an annotation layer or
+        /// navigate changed pages via the diff page list.
+        /// </summary>
+        public async Task RunTextDiffAsync(string pathA, string pathB, FileData? sourceFile = null)
+        {
+            if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)) return;
+
+            _diffCts?.Cancel();
+            _diffCts?.Dispose();
+            _diffCts = new CancellationTokenSource();
+            var ct = _diffCts.Token;
+
+            FileWorkerBusy = true;
+            DiffBusy = true;
+            StatusMessage = "Text comparing…";
+            try
+            {
+                var progress = new Progress<int>(p => StatusMessage = $"Text comparing… {p}%");
+                var results = await TextDiffService.CompareAsync(pathA, pathB, progress, ct);
+                // Text diff produces no images; create an empty temp dir for LoadDiffResults.
+                string tempDir = Path.Combine(Path.GetTempPath(), "FinnTextDiff_" + Guid.NewGuid().ToString("N")[..8]);
+                Directory.CreateDirectory(tempDir);
+                LoadDiffResults(results, tempDir, pathA, pathB, sourceFile);
+                int diffCount = results.Count(r => r.HasDifferences);
+                StatusMessage = diffCount == 0
+                    ? $"{results.Count} pages — text identical"
+                    : $"{results.Count} pages — {diffCount} with text differences";
+            }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = "Text comparison cancelled";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Text diff failed: {ex.Message}";
             }
             finally
             {
