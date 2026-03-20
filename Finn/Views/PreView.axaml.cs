@@ -771,15 +771,14 @@ public partial class PreView : UserControl
             return;
         }
 
-        // Remember current view mode — the comparison will reload diff state
-        var mode = pwr.DiffViewMode;
         await CloseDiffViewsAsync();
         MuPDFRenderer.ClearDiffOverlay();
 
         await pwr.CompareSelectedPathsAsync();
 
-        // Restore the view mode the user had before (e.g. SideBySide)
-        pwr.DiffViewMode = mode;
+        // Switch to Overlay so the diff highlights are immediately visible.
+        if (pwr.HasDiffResults)
+            pwr.DiffViewMode = DiffViewMode.Overlay;
         SyncDiffOverlay();
     }
 
@@ -803,8 +802,32 @@ public partial class PreView : UserControl
 
         await pwr.RunTextDiffAsync(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, pwr.DiffSourceFile);
 
-        pwr.DiffViewMode = mode;
-        SyncDiffOverlay();
+        // Text diff has no overlay images — stay in or switch to SBS so both
+        // documents are visible, then auto-create an annotation layer with the
+        // word-level diff regions so highlights are visible on the pages.
+        if (pwr.HasDiffResults)
+        {
+            if (mode == DiffViewMode.Overlay)
+                pwr.DiffViewMode = DiffViewMode.SideBySide;
+            else
+                pwr.DiffViewMode = mode;
+            SyncDiffOverlay();
+
+            var layer = pwr.CreateDiffAnnotationLayer(pwr.DiffOriginalPdfPath);
+            if (layer != null)
+            {
+                SyncLayers();
+                MuPDFRenderer.ActiveLayer = layer;
+                MuPDFRenderer.NotifyLayersChanged();
+                UpdateActiveLayerLabel();
+                ctx?.MarkDirty();
+            }
+        }
+        else
+        {
+            pwr.DiffViewMode = mode;
+            SyncDiffOverlay();
+        }
     }
 
     /// <summary>Sets the diff highlight color from a toolbar color button.</summary>

@@ -225,14 +225,24 @@ namespace Finn.Services
             int height = (int)Math.Ceiling(page.Bounds.Height * ZOOM);
 
             var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-            var bitmap = new SKBitmap(info);
+            using var raw = new SKBitmap(info);
 
-            // Copy rendered pixels into the SKBitmap. The Render byte count
-            // may differ slightly from width*height*4 due to rounding — copy
-            // the minimum of both to avoid overruns.
+            // Copy rendered pixels into the raw bitmap.
             int bitmapBytes = info.RowBytes * height;
             int copyLen = Math.Min(pixels.Length, bitmapBytes);
-            Marshal.Copy(pixels, 0, bitmap.GetPixels(), copyLen);
+            Marshal.Copy(pixels, 0, raw.GetPixels(), copyLen);
+
+            // MuPDF renders BGRA with a transparent background (A=0). With
+            // premultiplied alpha the RGB values of transparent pixels are all
+            // zero, making two different pages look identical in an RGB-only
+            // comparison. Flatten onto an opaque white background so the
+            // pixel comparison sees the same colors the user sees on screen.
+            var bitmap = new SKBitmap(info);
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Clear(SKColors.White);
+                canvas.DrawBitmap(raw, 0, 0);
+            }
 
             return bitmap;
         }
@@ -291,13 +301,13 @@ namespace Finn.Services
                         if (dr + dg + db > tolerance)
                         {
                             hasDifferences = true;
-                            // Blend 50 % highlight + 50 % original so page content
-                            // shows through the tint instead of solid dark patches.
+                            // Blend 80 % highlight + 20 % original for a strong,
+                            // clearly visible tint that still hints at content.
                             byte oB = spanA[offA], oG = spanA[offA + 1], oR = spanA[offA + 2];
-                            bufD[offD]     = (byte)((oB + highlightB) / 2); // B
-                            bufD[offD + 1] = (byte)((oG + highlightG) / 2); // G
-                            bufD[offD + 2] = (byte)((oR + highlightR) / 2); // R
-                            bufD[offD + 3] = 255;                           // A
+                            bufD[offD]     = (byte)(oB * 0.2 + highlightB * 0.8); // B
+                            bufD[offD + 1] = (byte)(oG * 0.2 + highlightG * 0.8); // G
+                            bufD[offD + 2] = (byte)(oR * 0.2 + highlightR * 0.8); // R
+                            bufD[offD + 3] = 255;                                 // A
 
                             grid[y / REGION_CELL_SIZE, x / REGION_CELL_SIZE] = true;
                         }
