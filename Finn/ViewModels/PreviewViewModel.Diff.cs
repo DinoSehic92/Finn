@@ -37,6 +37,8 @@ namespace Finn.ViewModels
         private CancellationTokenSource? _toleranceDebounceCts;
         /// <summary>Highlight color for diff pixels and annotation shapes.</summary>
         private Avalonia.Media.Color _diffHighlightColor = Avalonia.Media.Color.FromRgb(230, 60, 60);
+        /// <summary>Auto-created diff annotation layer, tracked so it can be removed on mode switch.</summary>
+        private AnnotationLayer? _diffAnnotationLayer;
 
         /// <summary>Sets the source file for version lookups during diff comparisons.</summary>
         public FileData? DiffSourceFile
@@ -297,7 +299,7 @@ namespace Finn.ViewModels
             {
                 if (!result.HasDifferences) continue;
                 SearchPages.Add(result.PageIndex);
-                SearchPagesText.Add($"Page {result.PageIndex + 1} — differs");
+                SearchPagesText.Add($"{result.Label} — differs");
             }
 
             SearchItems = SearchPages.Count;
@@ -315,6 +317,7 @@ namespace Finn.ViewModels
             _toleranceDebounceCts?.Cancel();
             _toleranceDebounceCts?.Dispose();
             _toleranceDebounceCts = null;
+            RemoveDiffAnnotationLayer();
             CleanupDiffTempDir();
             _diffResults = null;
             _diffTempDir = null;
@@ -362,6 +365,9 @@ namespace Finn.ViewModels
         {
             if (_diffResults == null || _diffResults.Count == 0 || CurrentFile == null) return null;
 
+            // Remove the previous auto-created diff layer to avoid stacking.
+            RemoveDiffAnnotationLayer();
+
             string layerName = string.IsNullOrEmpty(comparedFileName)
                 ? $"Diff {DateTime.Now:yyyy-MM-dd HH:mm}"
                 : $"Diff vs {Path.GetFileNameWithoutExtension(comparedFileName)}";
@@ -400,8 +406,23 @@ namespace Finn.ViewModels
 
             layer.RecalculateCounts();
             CurrentFile.AnnotationLayers.Add(layer);
+            _diffAnnotationLayer = layer;
             OnPropertyChanged("LayersChanged");
             return layer;
+        }
+
+        /// <summary>
+        /// Removes the auto-created diff annotation layer from the current file.
+        /// Called when switching diff modes or clearing diff results.
+        /// </summary>
+        public void RemoveDiffAnnotationLayer()
+        {
+            if (_diffAnnotationLayer != null && CurrentFile?.AnnotationLayers != null)
+            {
+                CurrentFile.AnnotationLayers.Remove(_diffAnnotationLayer);
+                _diffAnnotationLayer = null;
+                OnPropertyChanged("LayersChanged");
+            }
         }
 
         private void CleanupDiffTempDir()

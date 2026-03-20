@@ -20,8 +20,8 @@ namespace Finn.Services
     /// </summary>
     public static class PdfDiffService
     {
-        public const int DefaultTolerance = 250;
-        public const int MaxTolerance = 1000;
+        public const int DefaultTolerance = 30;
+        public const int MaxTolerance = 400;
         /// <summary>
         /// Zoom factor used when rendering PDF pages to images.
         /// At 2.0 the rendered bitmaps are 144 DPI (2× PDF points).
@@ -96,14 +96,9 @@ namespace Finn.Services
 
                 int pagesA = docA.Pages.Count;
                 int pagesB = docB.Pages.Count;
-                int maxPages = Math.Max(pagesA, pagesB);
-
                 // In-memory rendered bitmaps — no disk I/O for source pages during diff.
                 SKBitmap?[] bitmapsA = new SKBitmap?[pagesA];
                 SKBitmap?[] bitmapsB = new SKBitmap?[pagesB];
-                // Paths for source PNGs (written after diff for toggle/SBS views).
-                string?[] filesA = new string?[pagesA];
-                string?[] filesB = new string?[pagesB];
 
                 int renderedCount = 0;
                 int totalRenderPages = pagesA + pagesB;
@@ -133,16 +128,24 @@ namespace Finn.Services
                     }
                 );
 
-                // Phase 2 (50–100 %): compute diffs in parallel and write images.
-                var results = new DiffResultData[maxPages];
+                // Phase 2 (50–100 %): align pages to handle insertions/removals,
+                // then compute diffs in parallel and write images.
+                //
+                // Naive index-based matching (page 0↔0, 1↔1, …) breaks when one
+                // version has pages inserted or removed — every page after the
+                // insertion shows as "different."  Instead, compute a quick
+                // perceptual hash per page and use LCS to find the best alignment.
+                var alignment = AlignPages(bitmapsA, bitmapsB, pagesA, pagesB);
+                var results = new DiffResultData[alignment.Count];
                 int diffedCount = 0;
 
-                Parallel.For(0, maxPages, new ParallelOptions { CancellationToken = ct }, i =>
+                Parallel.For(0, alignment.Count, new ParallelOptions { CancellationToken = ct }, idx =>
                 {
                     ct.ThrowIfCancellationRequested();
+                    var (idxA, idxB) = alignment[idx];
 
-                    var bmpA = i < pagesA ? bitmapsA[i] : null;
-                    var bmpB = i < pagesB ? bitmapsB[i] : null;
+                    var bmpA = idxA >= 0 ? bitmapsA[idxA] : null;
+                    var bmpB = idxB >= 0 ? bitmapsB[idxB] : null;
                     string? fileA = null;
                     string? fileB = null;
                     string? fileD = null;
@@ -151,7 +154,7 @@ namespace Finn.Services
 
                     if (bmpA != null && bmpB != null)
                     {
-                        fileD = Path.Combine(tempDir, $"d_{i}.png");
+                        fileD = Path.Combine(tempDir, $"d_{idx}.png");
                         (hasDiff, regions) = ComputeAndSaveDiff(bmpA, bmpB, fileD, tolerance, highlightR, highlightG, highlightB);
 
                         if (!hasDiff && File.Exists(fileD))
@@ -161,8 +164,8 @@ namespace Finn.Services
                         }
 
                         // Save source PNGs for toggle/SBS views.
-                        fileA = Path.Combine(tempDir, $"a_{i}.png");
-                        fileB = Path.Combine(tempDir, $"b_{i}.png");
+                        fileA = Path.Combine(tempDir, $"a_{idx}.png");
+                        fileB = Path.Combine(tempDir, $"b_{idx}.png");
                         SaveBitmapAsPng(bmpA, fileA);
                         SaveBitmapAsPng(bmpB, fileB);
                     }
@@ -171,30 +174,34 @@ namespace Finn.Services
                         hasDiff = bmpA != null || bmpB != null;
                         if (bmpA != null)
                         {
-                            fileA = Path.Combine(tempDir, $"a_{i}.png");
+                            fileA = Path.Combine(tempDir, $"a_{idx}.png");
                             SaveBitmapAsPng(bmpA, fileA);
                         }
                         if (bmpB != null)
                         {
-                            fileB = Path.Combine(tempDir, $"b_{i}.png");
+                            fileB = Path.Combine(tempDir, $"b_{idx}.png");
                             SaveBitmapAsPng(bmpB, fileB);
                         }
                     }
 
-                    filesA[i < pagesA ? i : 0] = fileA; // keep reference for cleanup
-                    filesB[i < pagesB ? i : 0] = fileB;
+                    // Build label for the diff page list.
+                    string label = (idxA >= 0 && idxB >= 0)
+                        ? (idxA == idxB ? "" : $" (A:{idxA + 1}↔B:{idxB + 1})")
+                        : (idxA >= 0 ? $" (only in A, p{idxA + 1})" : $" (only in B, p{idxB + 1})");
 
-                    results[i] = new DiffResultData
+                    results[idx] = new DiffResultData
                     {
-                        PageIndex = i,
+                        PageIndex = idx,
                         OriginalPath = fileA,
                         RevisedPath = fileB,
                         DiffPath = fileD,
                         HasDifferences = hasDiff,
-                        Regions = regions
+                        Regions = regions,
+                        PageLabelA = idxA >= 0 ? idxA + 1 : null,
+                        PageLabelB = idxB >= 0 ? idxB + 1 : null
                     };
 
-                    progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, maxPages));
+                    progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, alignment.Count));
                 });
 
                 // Dispose in-memory bitmaps now that diffs are computed and PNGs are saved.
@@ -301,13 +308,10 @@ namespace Finn.Services
                         if (dr + dg + db > tolerance)
                         {
                             hasDifferences = true;
-                            // Blend 80 % highlight + 20 % original for a strong,
-                            // clearly visible tint that still hints at content.
-                            byte oB = spanA[offA], oG = spanA[offA + 1], oR = spanA[offA + 2];
-                            bufD[offD]     = (byte)(oB * 0.2 + highlightB * 0.8); // B
-                            bufD[offD + 1] = (byte)(oG * 0.2 + highlightG * 0.8); // G
-                            bufD[offD + 2] = (byte)(oR * 0.2 + highlightR * 0.8); // R
-                            bufD[offD + 3] = 255;                                 // A
+                            bufD[offD]     = highlightB; // B
+                            bufD[offD + 1] = highlightG; // G
+                            bufD[offD + 2] = highlightR; // R
+                            bufD[offD + 3] = 255;        // A
 
                             grid[y / REGION_CELL_SIZE, x / REGION_CELL_SIZE] = true;
                         }
@@ -449,5 +453,122 @@ namespace Finn.Services
 
             return ExtractRegionsFromGrid(grid, rows, cols, zoom);
         }
+
+        #region Page Alignment
+
+        /// <summary>
+        /// Aligns pages from documents A and B using perceptual hashing and
+        /// longest-common-subsequence (LCS). Returns a list of (indexA, indexB)
+        /// pairs where -1 means "no match" (inserted or removed page).
+        /// When both documents have the same page count and content hasn't
+        /// shifted, the result is simply (0,0), (1,1), … — zero overhead.
+        /// </summary>
+        private static List<(int A, int B)> AlignPages(
+            SKBitmap?[] bitmapsA, SKBitmap?[] bitmapsB, int countA, int countB)
+        {
+            // Fast path: same page count — skip alignment entirely.
+            if (countA == countB)
+            {
+                var simple = new List<(int, int)>(countA);
+                for (int i = 0; i < countA; i++) simple.Add((i, i));
+                return simple;
+            }
+
+            // Compute a perceptual hash for each page.
+            ulong[] hashA = new ulong[countA];
+            ulong[] hashB = new ulong[countB];
+            for (int i = 0; i < countA; i++)
+                hashA[i] = bitmapsA[i] != null ? ComputePageHash(bitmapsA[i]!) : 0;
+            for (int i = 0; i < countB; i++)
+                hashB[i] = bitmapsB[i] != null ? ComputePageHash(bitmapsB[i]!) : 0;
+
+            // LCS on the hash sequences to find matching pages.
+            int[,] dp = new int[countA + 1, countB + 1];
+            for (int i = 1; i <= countA; i++)
+                for (int j = 1; j <= countB; j++)
+                    dp[i, j] = hashA[i - 1] == hashB[j - 1]
+                        ? dp[i - 1, j - 1] + 1
+                        : Math.Max(dp[i - 1, j], dp[i, j - 1]);
+
+            // Back-trace to build aligned pairs.
+            var aligned = new List<(int, int)>();
+            int ia = countA, ib = countB;
+            var matchesReverse = new List<(int, int)>();
+            while (ia > 0 && ib > 0)
+            {
+                if (hashA[ia - 1] == hashB[ib - 1])
+                {
+                    matchesReverse.Add((ia - 1, ib - 1));
+                    ia--; ib--;
+                }
+                else if (dp[ia - 1, ib] >= dp[ia, ib - 1])
+                    ia--;
+                else
+                    ib--;
+            }
+            matchesReverse.Reverse();
+
+            // Merge matches with unmatched pages (insertions/removals).
+            int prevA = 0, prevB = 0;
+            foreach (var (ma, mb) in matchesReverse)
+            {
+                // Pages only in A (removed in B)
+                while (prevA < ma) { aligned.Add((prevA, -1)); prevA++; }
+                // Pages only in B (inserted)
+                while (prevB < mb) { aligned.Add((-1, prevB)); prevB++; }
+                // Matched pair
+                aligned.Add((ma, mb));
+                prevA = ma + 1;
+                prevB = mb + 1;
+            }
+            // Trailing unmatched pages
+            while (prevA < countA) { aligned.Add((prevA, -1)); prevA++; }
+            while (prevB < countB) { aligned.Add((-1, prevB)); prevB++; }
+
+            return aligned;
+        }
+
+        /// <summary>
+        /// Computes a 64-bit perceptual hash by downsampling the bitmap to
+        /// 8×8 grayscale and comparing each pixel to the mean.
+        /// Two pages with the same visual content produce the same hash even
+        /// if they're at different indices in their respective documents.
+        /// </summary>
+        private static ulong ComputePageHash(SKBitmap bitmap)
+        {
+            // Downsample to 8×8 using high-quality resize.
+            using var small = new SKBitmap(new SKImageInfo(8, 8, SKColorType.Bgra8888, SKAlphaType.Premul));
+            using (var canvas = new SKCanvas(small))
+            {
+                canvas.Clear(SKColors.White);
+                var dest = new SKRect(0, 0, 8, 8);
+                using var paint = new SKPaint { FilterQuality = SKFilterQuality.Medium };
+                canvas.DrawBitmap(bitmap, dest, paint);
+            }
+
+            // Convert to grayscale values.
+            var span = small.GetPixelSpan();
+            int stride = small.RowBytes;
+            double[] gray = new double[64];
+            double sum = 0;
+            for (int y = 0; y < 8; y++)
+                for (int x = 0; x < 8; x++)
+                {
+                    int off = y * stride + x * 4;
+                    double g = (span[off] + span[off + 1] + span[off + 2]) / 3.0;
+                    gray[y * 8 + x] = g;
+                    sum += g;
+                }
+
+            // Build hash: each bit = 1 if pixel > mean.
+            double mean = sum / 64.0;
+            ulong hash = 0;
+            for (int i = 0; i < 64; i++)
+                if (gray[i] > mean)
+                    hash |= 1UL << i;
+            return hash;
+        }
+
+        #endregion
     }
 }

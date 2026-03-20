@@ -774,6 +774,11 @@ public partial class PreView : UserControl
         await CloseDiffViewsAsync();
         MuPDFRenderer.ClearDiffOverlay();
 
+        // Remove any text-diff annotation layer before running pixel diff.
+        pwr.RemoveDiffAnnotationLayer();
+        SyncLayers();
+        MuPDFRenderer.NotifyLayersChanged();
+
         await pwr.CompareSelectedPathsAsync();
 
         // Switch to Overlay so the diff highlights are immediately visible.
@@ -796,21 +801,22 @@ public partial class PreView : UserControl
             return;
         }
 
-        var mode = pwr.DiffViewMode;
         await CloseDiffViewsAsync();
         MuPDFRenderer.ClearDiffOverlay();
 
+        // Remove any previous diff annotation layer before running new diff.
+        pwr.RemoveDiffAnnotationLayer();
+        SyncLayers();
+        MuPDFRenderer.NotifyLayersChanged();
+
         await pwr.RunTextDiffAsync(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, pwr.DiffSourceFile);
 
-        // Text diff has no overlay images — stay in or switch to SBS so both
+        // Text diff has no overlay images — always enter SBS so both
         // documents are visible, then auto-create an annotation layer with the
         // word-level diff regions so highlights are visible on the pages.
         if (pwr.HasDiffResults)
         {
-            if (mode == DiffViewMode.Overlay)
-                pwr.DiffViewMode = DiffViewMode.SideBySide;
-            else
-                pwr.DiffViewMode = mode;
+            pwr.DiffViewMode = DiffViewMode.SideBySide;
             SyncDiffOverlay();
 
             var layer = pwr.CreateDiffAnnotationLayer(pwr.DiffOriginalPdfPath);
@@ -825,7 +831,6 @@ public partial class PreView : UserControl
         }
         else
         {
-            pwr.DiffViewMode = mode;
             SyncDiffOverlay();
         }
     }
@@ -918,6 +923,19 @@ public partial class PreView : UserControl
         // Store the source file so version data persists
         if (mainVm?.CurrentFile != null)
             pwr.DiffSourceFile = mainVm.CurrentFile;
+
+        // Load Choice A into the main renderer so the user sees the same
+        // file pair that the comparison will use. Without this, the main
+        // renderer keeps showing whatever was loaded before (could be a
+        // different version), making the SBS misleading.
+        string choiceAPath = dialog.ChoiceA.Path;
+        if (mainVm != null && !string.Equals(pwr.CurrentFile?.Sökväg, choiceAPath, StringComparison.OrdinalIgnoreCase))
+        {
+            var stub = new FileData { Sökväg = choiceAPath, Namn = Path.GetFileNameWithoutExtension(choiceAPath) };
+            if (pwr.DiffSourceFile?.AnnotationLayers != null)
+                stub.AnnotationLayers = pwr.DiffSourceFile.AnnotationLayers;
+            await mainVm.RequestPreviewAsync(stub);
+        }
 
         // Enter dual view immediately — Toggle or SideBySide work instantly.
         // The user can run the slow pixel comparison later via the toolbar button.

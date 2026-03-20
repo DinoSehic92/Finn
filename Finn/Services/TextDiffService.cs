@@ -20,7 +20,7 @@ namespace Finn.Services
         /// <summary>
         /// A word extracted from a PDF page, with its text and bounding box in PDF coordinates.
         /// </summary>
-        private readonly record struct PageWord(string Text, double X, double Y, double Width, double Height);
+        private readonly record struct PageWord(string Text, string NormalizedText, double X, double Y, double Width, double Height);
 
         /// <summary>
         /// Compares two PDF files word-by-word for each page pair and returns
@@ -121,7 +121,8 @@ namespace Finn.Services
                         {
                             if (wordStart >= 0)
                             {
-                                words.Add(new PageWord(wordChars.ToString(), minX, minY, maxX - minX, maxY - minY));
+                                string raw = wordChars.ToString();
+                                words.Add(new PageWord(raw, NormalizeWord(raw), minX, minY, maxX - minX, maxY - minY));
                                 wordChars.Clear();
                                 wordStart = -1;
                                 minX = double.MaxValue; minY = double.MaxValue;
@@ -151,7 +152,10 @@ namespace Finn.Services
                     }
 
                     if (wordStart >= 0)
-                        words.Add(new PageWord(wordChars.ToString(), minX, minY, maxX - minX, maxY - minY));
+                    {
+                        string raw = wordChars.ToString();
+                        words.Add(new PageWord(raw, NormalizeWord(raw), minX, minY, maxX - minX, maxY - minY));
+                    }
                 }
             }
 
@@ -172,12 +176,12 @@ namespace Finn.Services
             if (m == 0 && n == 0)
                 return (false, null);
 
-            // Build LCS table.
+            // Build LCS table using normalized text to ignore font/encoding differences.
             int[,] dp = new int[m + 1, n + 1];
             for (int i = 1; i <= m; i++)
                 for (int j = 1; j <= n; j++)
                 {
-                    if (string.Equals(wordsA[i - 1].Text, wordsB[j - 1].Text, StringComparison.Ordinal))
+                    if (string.Equals(wordsA[i - 1].NormalizedText, wordsB[j - 1].NormalizedText, StringComparison.OrdinalIgnoreCase))
                         dp[i, j] = dp[i - 1, j - 1] + 1;
                     else
                         dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
@@ -189,7 +193,7 @@ namespace Finn.Services
             while (ia > 0 || ib > 0)
             {
                 if (ia > 0 && ib > 0 &&
-                    string.Equals(wordsA[ia - 1].Text, wordsB[ib - 1].Text, StringComparison.Ordinal))
+                    string.Equals(wordsA[ia - 1].NormalizedText, wordsB[ib - 1].NormalizedText, StringComparison.OrdinalIgnoreCase))
                 {
                     ia--; ib--;
                 }
@@ -214,6 +218,45 @@ namespace Finn.Services
 
             regions.Reverse();
             return (true, regions);
+        }
+
+        /// <summary>
+        /// Normalizes a word for comparison by resolving font-dependent differences:
+        /// - Unicode normalization (NFC) to merge composed/decomposed forms
+        /// - Expand common typographic ligatures (fi, fl, ff, ffi, ffl)
+        /// - Normalize dashes, quotes, and whitespace variants to ASCII equivalents
+        /// This ensures that the same visible text compares as equal regardless of
+        /// which font or encoding the PDF uses.
+        /// </summary>
+        private static string NormalizeWord(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+
+            // Unicode NFC normalization merges combining characters.
+            text = text.Normalize(System.Text.NormalizationForm.FormC);
+
+            // Expand common ligatures that fonts may encode as single glyphs,
+            // then strip everything except letters and digits. This makes the
+            // comparison immune to font-dependent punctuation, kerning, and
+            // glyph encoding differences — only actual word content matters.
+            var sb = new System.Text.StringBuilder(text.Length + 4);
+            foreach (char c in text)
+            {
+                switch (c)
+                {
+                    case '\uFB01': sb.Append("fi"); break;
+                    case '\uFB02': sb.Append("fl"); break;
+                    case '\uFB00': sb.Append("ff"); break;
+                    case '\uFB03': sb.Append("ffi"); break;
+                    case '\uFB04': sb.Append("ffl"); break;
+                    default:
+                        if (char.IsLetterOrDigit(c))
+                            sb.Append(c);
+                        break;
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }
