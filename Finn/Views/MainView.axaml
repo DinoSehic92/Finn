@@ -165,22 +165,35 @@
 		</DockPanel>
 
 		<!-- Center status message -->
-		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
-					Spacing="4">
-			<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemAccentColor}"
-					 IsVisible="{Binding IsDirty}" IsHitTestVisible="False"
-					 ToolTip.Tip="Unsaved changes"/>
-			<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
-			<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
-					   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
-		</StackPanel>
+			<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center"
+						Spacing="4">
+				<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemAccentColor}"
+						 IsVisible="{Binding IsDirty}" IsHitTestVisible="False"
+						 ToolTip.Tip="Unsaved changes"/>
+				<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
+				<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
+						   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
+				<ic:SymbolIcon Symbol="{Binding PreviewVM.CacheSourceIcon}" IconVariant="Regular"
+							   IsVisible="{Binding PreviewVM.CacheSourceIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+							   FontSize="13" Opacity="0.5"
+							   ToolTip.Tip="{Binding PreviewVM.CacheSourceTooltip}"/>
+			</StackPanel>
 
-		<!-- Progress bar -->
-		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6">
-			<ProgressBar Name="ProgressBar" Width="200" VerticalAlignment="Center" Value="0"
-					 Height="4" MinHeight="4" CornerRadius="2" IsVisible="False" />
-			<Label Name="ProgressStatus" Width="200" Height="35" VerticalContentAlignment="Center"
-				   IsHitTestVisible="False" FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="4,0"/>
+		<!-- Progress bar (shared: thumbnails, metadata, pre-caching, etc.) -->
+		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6"
+					IsVisible="{Binding PreviewVM.BackgroundTaskActive}">
+			<ProgressBar Width="200" VerticalAlignment="Center" Minimum="0" Maximum="100"
+						 Value="{Binding PreviewVM.BackgroundTaskProgress}"
+					 Height="4" MinHeight="4" CornerRadius="2"/>
+			<TextBlock Text="{Binding PreviewVM.BackgroundTaskMessage}" Width="200" Height="35"
+					   VerticalAlignment="Center" IsHitTestVisible="False"
+					   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="4,8"/>
+			<Button Width="20" Height="20" Padding="0" VerticalAlignment="Center"
+					Background="Transparent" BorderThickness="0" ToolTip.Tip="Cancel"
+					Click="OnCancelBackgroundTask"
+					IsVisible="{Binding PreviewVM.BackgroundTaskCancellable}">
+				<ic:SymbolIcon Symbol="Dismiss" FontSize="12" Opacity="0.5"/>
+			</Button>
 		</StackPanel>
 
 		<!-- ═══════════════════════════════════════════════ -->
@@ -483,6 +496,7 @@
 									<ic:SymbolIcon Symbol="Collections"	IsVisible="{Binding IsPartOfCollection}"	IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="History"		IsVisible="{Binding HasVersions}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Pen"			IsVisible="{Binding HasAnnotations}"		IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="ArrowSync"	IsVisible="{Binding IsCached}"				IconVariant="Regular" FontSize="14"/>
 								</StackPanel>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
@@ -733,6 +747,9 @@
 							</MenuItem>
 							<MenuItem Header="Replace" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Cache Locally" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 							</MenuItem>
 									<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsTopLevel}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>

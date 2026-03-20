@@ -11,6 +11,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Finn.ViewModels
@@ -60,6 +61,55 @@ namespace Finn.ViewModels
                     Storage = new ProjectStorage();
                     SetProjectlist();
                     SetDefaultSelection();
+                }
+            }
+
+            /// <summary>
+            /// Reconciles the local file cache against the currently loaded
+            /// projects. Removes cache entries for files that are no longer
+            /// marked <see cref="FileData.IsCached"/> (e.g. the user toggled
+            /// caching but never saved Projects.json).
+            /// Returns the set of valid cached paths for downstream use.
+            /// </summary>
+            public IReadOnlyList<string> ReconcileFileCache()
+            {
+                var validPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var project in Storage.StoredProjects)
+                {
+                    foreach (var file in project.StoredFiles)
+                    {
+                        if (!file.IsCached) continue;
+                        if (!string.IsNullOrEmpty(file.Sökväg))
+                            validPaths.Add(file.Sökväg);
+                        foreach (var ver in file.Versions)
+                        {
+                            if (!string.IsNullOrEmpty(ver.Sökväg))
+                                validPaths.Add(ver.Sökväg);
+                        }
+                    }
+                }
+
+                PreviewVM.ReconcileCache(validPaths);
+                return validPaths.ToList();
+            }
+
+            /// <summary>
+            /// Refreshes any stale cached files in the background.
+            /// Call after <see cref="ReconcileFileCache"/> at startup.
+            /// </summary>
+            public async Task RefreshStaleCacheAsync(IReadOnlyList<string> cachedPaths)
+            {
+                if (cachedPaths.Count == 0) return;
+                var cts = new CancellationTokenSource();
+                PreviewVM.SetBackgroundTaskCts(cts);
+                try
+                {
+                    await PreviewVM.RefreshStaleCachedFilesAsync(cachedPaths, cts.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    PreviewVM.SetBackgroundTaskCts(null);
+                    cts.Dispose();
                 }
             }
 

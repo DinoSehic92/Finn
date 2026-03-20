@@ -572,8 +572,12 @@ namespace Finn.ViewModels
             StatusMessage = "Comparing…";
             try
             {
+                // Resolve through local cache so diffs on cached files are fast
+                string resolvedA = await ResolveCachedPathAsync(pathA, ct).ConfigureAwait(false);
+                string resolvedB = await ResolveCachedPathAsync(pathB, ct).ConfigureAwait(false);
+
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
-                var (results, dir) = await PdfDiffService.CompareAsync(pathA, pathB, progress, ct, _diffTolerance,
+                var (results, dir) = await PdfDiffService.CompareAsync(resolvedA, resolvedB, progress, ct, _diffTolerance,
                     _diffHighlightColor.R, _diffHighlightColor.G, _diffHighlightColor.B);
                 LoadDiffResults(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
@@ -616,8 +620,12 @@ namespace Finn.ViewModels
             StatusMessage = "Text comparing…";
             try
             {
+                // Resolve through local cache so diffs on cached files are fast
+                string resolvedA = await ResolveCachedPathAsync(pathA, ct).ConfigureAwait(false);
+                string resolvedB = await ResolveCachedPathAsync(pathB, ct).ConfigureAwait(false);
+
                 var progress = new Progress<int>(p => StatusMessage = $"Text comparing… {p}%");
-                var results = await TextDiffService.CompareAsync(pathA, pathB, progress, ct);
+                var results = await TextDiffService.CompareAsync(resolvedA, resolvedB, progress, ct);
                 // Text diff produces no images; create an empty temp dir for LoadDiffResults.
                 string tempDir = Path.Combine(Path.GetTempPath(), "FinnTextDiff_" + Guid.NewGuid().ToString("N")[..8]);
                 Directory.CreateDirectory(tempDir);
@@ -663,7 +671,8 @@ namespace Finn.ViewModels
                     await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
                     if (_secondaryCloseGen != openStartGen) return;
 
-                    string path = secondaryPath;
+                    // Resolve through local cache
+                    string path = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
                     MuPDFContext? newCtx = null;
                     MuPDFDocument? newDoc = null;
 
@@ -745,13 +754,15 @@ namespace Finn.ViewModels
                     await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
                     if (_secondaryCloseGen != openStartGen) return false;
 
+                    // Resolve through local cache
+                    string resolvedPath = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
                     MuPDFContext? newCtx = null;
                     MuPDFDocument? newDoc = null;
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         newCtx = new MuPDFContext();
-                        newDoc = new MuPDFDocument(newCtx, secondaryPath);
+                        newDoc = new MuPDFDocument(newCtx, resolvedPath);
                     }).GetTask().ConfigureAwait(false);
 
                     if (newDoc == null || newCtx == null) return false;

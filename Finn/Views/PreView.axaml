@@ -593,8 +593,13 @@
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
 						<ToggleButton ToolTip.Tip="Fast Open" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
-							<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
-						</ToggleButton>
+								<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
+							</ToggleButton>
+
+							<Button ToolTip.Tip="Reload from server (bypass local cache)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0"
+									IsVisible="{Binding ShowForceServerRead}" Command="{Binding ForceServerRead}">
+								<ic:SymbolIcon Symbol="ArrowSync" IconVariant="Regular" FontSize="16"/>
+							</Button>
 
 						<ToggleButton ToolTip.Tip="Invert Colors (Ctrl+G)" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
 							<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>

@@ -42,6 +42,11 @@ namespace Finn.ViewModels
         private bool fastOpenMode; // Toggle for fast open (first pages only) vs full open
         private TaskCompletionSource? searchDone; // Signalled when SearchDocumentAsync finishes
         private CancellationTokenSource? _diffCts;
+        private CancellationTokenSource? _backgroundTaskCts;
+        private readonly LocalFileCache _fileCache = new(
+            Path.Combine(MainViewModel.SavePath, "Cache"));
+        private string? _mainPinnedCachePath;   // cached path held open by MuPDF (fast-open)
+        private string? _secondaryPinnedCachePath; // cached path held open by secondary doc
         #endregion
 
         #region Constructor
@@ -69,6 +74,122 @@ namespace Finn.ViewModels
             get => fastOpenMode;
             set => SetProperty(ref fastOpenMode, value);
         }
+
+        /// <summary>Visible in the toolbar when the current file is cached.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowForceServerRead => CurrentFile?.IsCached == true || RequestFile?.IsCached == true;
+
+        /// <summary>Number of files currently in the local cache.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public int CacheFileCount => _fileCache.CachedFileCount;
+
+        /// <summary>Total size in bytes of all cached files.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public long CacheTotalBytes => _fileCache.CachedTotalBytes;
+
+        /// <summary>Clears all cached files and removes the index.</summary>
+        public void ClearCache() => _fileCache.Clear();
+
+        /// <summary>
+        /// Removes cache entries whose server paths are not in the provided set.
+        /// Call once at startup after loading Projects.json.
+        /// </summary>
+        public void ReconcileCache(IReadOnlySet<string> validPaths) => _fileCache.Reconcile(validPaths);
+
+        /// <summary>
+        /// Checks all provided cached paths for staleness and refreshes any that
+        /// have changed on the server. Call after <see cref="ReconcileCache"/> at
+        /// startup. Only stale files are re-copied; fresh cache hits are free.
+        /// </summary>
+        public async Task RefreshStaleCachedFilesAsync(IReadOnlyList<string> paths, CancellationToken token = default)
+        {
+            if (paths.Count == 0) return;
+
+            int total = paths.Count;
+            int refreshed = 0;
+            BackgroundTaskActive = true;
+            BackgroundTaskMessage = "Checking cached files…";
+            BackgroundTaskProgress = 0;
+
+            for (int i = 0; i < total; i++)
+            {
+                if (token.IsCancellationRequested) break;
+                try
+                {
+                    var result = await _fileCache.GetLocalPathAsync(paths[i], token).ConfigureAwait(false);
+                    if (result.WasStale) refreshed++;
+                }
+                catch (OperationCanceledException) { break; }
+                catch { }
+                BackgroundTaskProgress = (int)(100.0 * (i + 1) / total);
+            }
+
+            if (token.IsCancellationRequested)
+            {
+                BackgroundTaskMessage = "Cache refresh cancelled";
+            }
+            else if (refreshed > 0)
+            {
+                BackgroundTaskMessage = $"Refreshed {refreshed} stale file(s)";
+            }
+            else
+            {
+                // All fresh — hide immediately
+                BackgroundTaskActive = false;
+                return;
+            }
+
+            BackgroundTaskProgress = 100;
+            await Task.Delay(2000, CancellationToken.None).ConfigureAwait(false);
+            BackgroundTaskActive = false;
+        }
+
+        /// <summary>
+        /// Pre-caches a single file in the background (no document open).
+        /// Used when the user marks files for caching.
+        /// </summary>
+        public async Task PreCacheFileAsync(string serverPath, CancellationToken token = default)
+        {
+            await _fileCache.GetLocalPathAsync(serverPath, token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Resolves a file path through the local cache when possible.
+        /// Returns the original path unchanged for non-network or local files.
+        /// Use this for any code path that reads a file (diff, export, etc.)
+        /// so it benefits from the local cache.
+        /// </summary>
+        public async Task<string> ResolveCachedPathAsync(string path, CancellationToken token = default)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
+            // Fast exit: local files don't need cache resolution
+            if (!LocalFileCache.IsNetworkPath(path))
+                return path;
+            var result = await _fileCache.GetLocalPathAsync(path, token).ConfigureAwait(false);
+            return result.Path;
+        }
+
+        /// <summary>
+        /// Immediately invalidates the local cache for the current file and
+        /// reloads it from the server.
+        /// </summary>
+        public async Task ForceServerRead()
+        {
+            var file = CurrentFile ?? RequestFile;
+            if (file?.Sökväg == null)
+            {
+                StatusMessage = "No file to reload";
+                return;
+            }
+
+            string target = file.Sökväg;
+            _fileCache.Invalidate(target);
+            StatusMessage = $"Reloading {Path.GetFileName(target)} from server…";
+
+            RequestFile = file;
+            await SetFileAsync().ConfigureAwait(false);
+        }
         public MuPDFDocument? MainPreviewFile
         {
             get => mainPreviewFile;
@@ -92,7 +213,10 @@ namespace Finn.ViewModels
             set
             {
                 if (SetProperty(ref currentFile, value))
+                {
                     OnPropertyChanged(nameof(CanCompareVersions));
+                    OnPropertyChanged(nameof(ShowForceServerRead));
+                }
             }
         }
 
@@ -479,12 +603,88 @@ namespace Finn.ViewModels
             set => SetProperty(ref statusMessage, value);
         }
 
+        private string? _cacheSourceIcon;
+        /// <summary>
+        /// FluentIcon symbol name indicating the source of the last file load.
+        /// "Database" when served from local cache, "Cloud" when read from
+        /// the network server, "ArrowSync" when a stale cache was refreshed,
+        /// null when caching is off or no file loaded.
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string? CacheSourceIcon
+        {
+            get => _cacheSourceIcon;
+            private set
+            {
+                if (SetProperty(ref _cacheSourceIcon, value))
+                    OnPropertyChanged(nameof(CacheSourceTooltip));
+            }
+        }
+
+        /// <summary>Human-readable tooltip for the cache source icon.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string? CacheSourceTooltip => _cacheSourceIcon switch
+        {
+            "Database" => "Loaded from local cache",
+            "Cloud" => "Read from server",
+            "ArrowSync" => "Cache updated — file changed on server",
+            _ => null,
+        };
+
         private int progress = 0;
         public int Progress
         {
             get => progress;
             set => SetProperty(ref progress, value);
         }
+
+        #region Background Task Progress
+        private bool _backgroundTaskActive;
+        /// <summary>True when a background task (pre-caching, etc.) is running.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool BackgroundTaskActive
+        {
+            get => _backgroundTaskActive;
+            set
+            {
+                if (SetProperty(ref _backgroundTaskActive, value))
+                    OnPropertyChanged(nameof(BackgroundTaskCancellable));
+            }
+        }
+
+        private string _backgroundTaskMessage = "";
+        /// <summary>Status text for the background task (e.g. "Pre-caching 3/10…").</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public string BackgroundTaskMessage
+        {
+            get => _backgroundTaskMessage;
+            set => SetProperty(ref _backgroundTaskMessage, value);
+        }
+
+        private int _backgroundTaskProgress;
+        /// <summary>Progress percentage (0–100) for the background task.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public int BackgroundTaskProgress
+        {
+            get => _backgroundTaskProgress;
+            set => SetProperty(ref _backgroundTaskProgress, value);
+        }
+
+        /// <summary>True when the active background task supports cancellation.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool BackgroundTaskCancellable => _backgroundTaskActive && _backgroundTaskCts != null;
+
+        /// <summary>
+        /// Sets the CTS for the current background task so the UI cancel button can stop it.
+        /// </summary>
+        public void SetBackgroundTaskCts(CancellationTokenSource? cts) => _backgroundTaskCts = cts;
+
+        /// <summary>Cancels the active background task if one is running.</summary>
+        public void CancelBackgroundTask()
+        {
+            _backgroundTaskCts?.Cancel();
+        }
+        #endregion
 
         private bool whiteboardMode;
         public bool WhiteboardMode
@@ -695,6 +895,26 @@ namespace Finn.ViewModels
 
                 string path = RequestFile.Sökväg;
 
+                // Resolve through local cache when the file is marked for caching.
+                bool cacheHit = false;
+                bool cachedLocally = false; // true when the file was resolved to a local cache path (pin needed)
+                bool wasStale = false;
+                string originalPath = path;
+                if (RequestFile.IsCached)
+                {
+                    StatusMessage = "Caching…";
+                    var result = await _fileCache.GetLocalPathAsync(path, token, p => Progress = p).ConfigureAwait(false);
+                    Progress = 0;
+                    cacheHit = result.WasCacheHit;
+                    wasStale = result.WasStale;
+                    cachedLocally = !string.Equals(result.Path, path, StringComparison.OrdinalIgnoreCase);
+                    path = result.Path;
+                }
+
+                CacheSourceIcon = RequestFile.IsCached
+                    ? (wasStale ? "ArrowSync" : (cacheHit ? "Database" : "Cloud"))
+                    : null;
+
                 if (FastOpenMode)
                 {
                     // FAST OPEN: open document by filepath rather than reading whole file into memory.
@@ -723,6 +943,15 @@ namespace Finn.ViewModels
                         return;
                     }
 
+                    // Pin the cached path so LRU eviction / Invalidate won't delete
+                    // the file while MuPDF holds a native handle.
+                    if (cachedLocally)
+                        _fileCache.Pin(path);
+
+                    // Unpin previous cached path before swapping
+                    UnpinMainCachePath();
+                    _mainPinnedCachePath = cachedLocally ? path : null;
+
                     // Swap fields atomically: capture old refs first
                     var prevDoc = MainPreviewFile;
                     var prevCtx = context;
@@ -749,7 +978,7 @@ namespace Finn.ViewModels
 
                     sw.Stop();
                     swTotal.Stop();
-                    StatusMessage = $"Opened (file) create {sw.ElapsedMilliseconds} ms, first-render {swTotal.ElapsedMilliseconds} ms";
+                    StatusMessage = $"Opened in {swTotal.ElapsedMilliseconds} ms";
 
                     // Fast-open path complete
                     return;
@@ -810,7 +1039,7 @@ namespace Finn.ViewModels
 
                 sw2.Stop();
                 swTotal.Stop();
-                StatusMessage = $"Opened (memory) create {sw2.ElapsedMilliseconds} ms, first-render {swTotal.ElapsedMilliseconds} ms";
+                StatusMessage = $"Opened in {swTotal.ElapsedMilliseconds} ms";
             }
             catch (OperationCanceledException)
             {
@@ -832,6 +1061,26 @@ namespace Finn.ViewModels
         /// </summary>
         private bool IsStale(int myGeneration)
             => Volatile.Read(ref fileGeneration) != myGeneration;
+
+        /// <summary>Unpins the main document's cached path (if any) so the cache can clean it up.</summary>
+        private void UnpinMainCachePath()
+        {
+            if (_mainPinnedCachePath != null)
+            {
+                _fileCache.Unpin(_mainPinnedCachePath);
+                _mainPinnedCachePath = null;
+            }
+        }
+
+        /// <summary>Unpins the secondary document's cached path (if any).</summary>
+        private void UnpinSecondaryCachePath()
+        {
+            if (_secondaryPinnedCachePath != null)
+            {
+                _fileCache.Unpin(_secondaryPinnedCachePath);
+                _secondaryPinnedCachePath = null;
+            }
+        }
 
         /// <summary>
         /// Shared post-open logic: sets the default page on the UI thread,
@@ -922,6 +1171,9 @@ namespace Finn.ViewModels
                 MainPreviewFile = null;
                 context = null;
                 bytes = null; // release memory early
+
+                // Unpin cached path now that the native handle is closed
+                UnpinMainCachePath();
             }
             finally
             {
@@ -952,6 +1204,9 @@ namespace Finn.ViewModels
 
                 secondaryFile = null;
                 secondaryContext = null;
+
+                // Unpin cached path now that the native handle is closed
+                UnpinSecondaryCachePath();
             }
             finally
             {
@@ -1045,6 +1300,16 @@ namespace Finn.ViewModels
 
                 if (IsStale2()) return;
 
+                // Resolve through local cache when the file is marked for caching.
+                string filePath = file.Sökväg;
+                bool secondaryCachedLocally = false;
+                if (file.IsCached)
+                {
+                    var result = await _fileCache.GetLocalPathAsync(filePath, token).ConfigureAwait(false);
+                    secondaryCachedLocally = !string.Equals(result.Path, filePath, StringComparison.OrdinalIgnoreCase);
+                    filePath = result.Path;
+                }
+
                 MuPDFContext newContext = null!;
                 MuPDFDocument newDoc = null!;
 
@@ -1052,7 +1317,7 @@ namespace Finn.ViewModels
                 {
                     if (token.IsCancellationRequested) return;
                     newContext = new MuPDFContext();
-                    newDoc = new MuPDFDocument(newContext, file.Sökväg);
+                    newDoc = new MuPDFDocument(newContext, filePath);
                 }).GetTask().ConfigureAwait(false);
 
                 if (IsStale2() || token.IsCancellationRequested)
@@ -1061,6 +1326,14 @@ namespace Finn.ViewModels
                     try { newContext?.Dispose(); } catch { }
                     return;
                 }
+
+                // Pin the cached path so LRU eviction won't delete it while
+                // MuPDF holds a native file handle.
+                if (secondaryCachedLocally)
+                    _fileCache.Pin(filePath);
+
+                UnpinSecondaryCachePath();
+                _secondaryPinnedCachePath = secondaryCachedLocally ? filePath : null;
 
                 secondaryFile = newDoc;
                 secondaryContext = newContext;
@@ -1510,11 +1783,14 @@ namespace Finn.ViewModels
                 await searchCts.CancelAsync().ConfigureAwait(false);
                 await secondaryCts.CancelAsync().ConfigureAwait(false);
                 _diffCts?.Cancel();
+                _backgroundTaskCts?.Cancel();
                 mainCts.Dispose();
                 searchCts.Dispose();
                 secondaryCts.Dispose();
                 _diffCts?.Dispose();
+                _backgroundTaskCts?.Dispose();
                 renderSemaphore.Dispose();
+                _fileCache.Dispose();
             }
             catch (Exception ex)
             {

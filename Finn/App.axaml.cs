@@ -78,6 +78,7 @@ public partial class App : Application
 
         // Apply theme and subscribe to UI changes to update theme live
         vm.UI.ApplyTheme();
+
         vm.UI.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")

@@ -2,9 +2,9 @@
 		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="620"
+		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="660"
 		Width="540" MinWidth="540" MaxWidth="540"
-		Height="620" MinHeight="620" MaxHeight="620"
+		Height="660" MinHeight="660" MaxHeight="660"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xColorDia"
 		Title="UI Settings"
@@ -167,12 +167,11 @@
 				</Grid>
 
 				<!-- PDF Preview -->
-				<TextBlock Classes="SectionHeader" Text="PDF Preview" HorizontalAlignment="Center"/>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-					<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
-				</Grid>
-
-				</StackPanel>
+					<TextBlock Classes="SectionHeader" Text="PDF Preview" HorizontalAlignment="Center"/>
+					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+						<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
+					</Grid>
+					</StackPanel>
 
 		</Grid>
 

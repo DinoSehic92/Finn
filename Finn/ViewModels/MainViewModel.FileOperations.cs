@@ -19,6 +19,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 
@@ -34,7 +35,82 @@ namespace Finn.ViewModels
             private ICommand? _checkProjectFilesCommand;
             public ICommand CheckProjectFilesCommand => _checkProjectFilesCommand ??= new AsyncRelayCommand(CheckProjectFiles);
 
+            private ICommand? _toggleCacheFilesCommand;
+            public ICommand ToggleCacheFilesCommand => _toggleCacheFilesCommand ??= new AsyncRelayCommand(ToggleCacheFiles);
+
             #endregion
+
+            /// <summary>
+            /// Toggles <see cref="FileData.IsCached"/> for all selected files.
+            /// Files that are newly marked for caching are pre-cached in the
+            /// background immediately so subsequent opens are instant.
+            /// </summary>
+            private async Task ToggleCacheFiles()
+            {
+                if (CurrentFiles == null || CurrentFiles.Count == 0) return;
+
+                var files = CurrentFiles.ToList();
+                // Determine new state: if any selected file is not cached, we cache all; otherwise uncache all.
+                bool newState = files.Any(f => !f.IsCached);
+
+                foreach (var file in files)
+                    file.IsCached = newState;
+
+                if (!newState) return;
+
+                // Collect all paths to pre-cache: main file + all version paths
+                var paths = new List<string>();
+                foreach (var file in files)
+                {
+                    if (!string.IsNullOrEmpty(file.Sökväg))
+                        paths.Add(file.Sökväg);
+                    foreach (var ver in file.Versions)
+                    {
+                        if (!string.IsNullOrEmpty(ver.Sökväg))
+                            paths.Add(ver.Sökväg);
+                    }
+                }
+
+                // Pre-cache in the background with cancellation support
+                int total = paths.Count;
+                int done = 0;
+                var cts = new CancellationTokenSource();
+                PreviewVM.SetBackgroundTaskCts(cts);
+                PreviewVM.BackgroundTaskActive = true;
+                PreviewVM.BackgroundTaskMessage = $"Pre-caching 0/{total}…";
+                PreviewVM.BackgroundTaskProgress = 0;
+
+                try
+                {
+                    foreach (var path in paths)
+                    {
+                        if (cts.Token.IsCancellationRequested) break;
+                        try
+                        {
+                            await PreviewVM.PreCacheFileAsync(path, cts.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) { break; }
+                        catch { }
+                        done++;
+                        PreviewVM.BackgroundTaskMessage = $"Pre-caching {done}/{total}…";
+                        PreviewVM.BackgroundTaskProgress = (int)(100.0 * done / total);
+                    }
+
+                    PreviewVM.BackgroundTaskMessage = cts.Token.IsCancellationRequested
+                        ? $"Cancelled — cached {done}/{total} file(s)"
+                        : $"Cached {done} file(s)";
+                    PreviewVM.BackgroundTaskProgress = 100;
+
+                    // Keep visible briefly so the user sees completion, then hide
+                    await Task.Delay(2000).ConfigureAwait(false);
+                }
+                finally
+                {
+                    PreviewVM.SetBackgroundTaskCts(null);
+                    PreviewVM.BackgroundTaskActive = false;
+                    cts.Dispose();
+                }
+            }
 
             public async Task AddFile(Avalonia.Visual window)
             {

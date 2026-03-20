@@ -132,6 +132,9 @@ public partial class MainView : UserControl
         try
         {
             _ctx.LoadFileAuto();
+            var cachedPaths = _ctx.ReconcileFileCache();
+            // Fire-and-forget: refresh stale cached files in background
+            _ = _ctx.RefreshStaleCacheAsync(cachedPaths);
             UpdateFont();
             // initialize calendar selected date on separate viewmodel
             _ctx.Calendar.SelectedDateTime = DateTime.Now;
@@ -968,16 +971,16 @@ public partial class MainView : UserControl
 
     private void OnFetchThumbnails(object? sender, RoutedEventArgs e)
     {
-        ProgressStatus.Content = "Generating Thumbnails";
-        ProgressBar.IsVisible = true;
+        _ctx.PreviewVM.BackgroundTaskMessage = "Generating Thumbnails";
+        _ctx.PreviewVM.BackgroundTaskActive = true;
         // Start thumbnail work on the background worker; it will call back into the shared progress handlers
         _metaWorker.RunWorkerAsync("thumbnails");
     }
 
     private void OnFetchIndex(object? sender, RoutedEventArgs e)
     {
-        ProgressStatus.Content = "Indexing Files";
-        ProgressBar.IsVisible = true;
+        _ctx.PreviewVM.BackgroundTaskMessage = "Indexing Files";
+        _ctx.PreviewVM.BackgroundTaskActive = true;
         // Start indexing work on the background worker; handled in the same worker loop
         _metaWorker.RunWorkerAsync("index");
     }
@@ -1020,14 +1023,14 @@ public partial class MainView : UserControl
     private void ThumbnailWorkerProgress(object? sender, ProgressChangedEventArgs e)
     {
         // Use same progress bar for meta/thumbnail work
-        ProgressBar.Value = e.ProgressPercentage;
+        _ctx.PreviewVM.BackgroundTaskProgress = e.ProgressPercentage;
     }
 
     private void ThumbnailWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
     {
-        ProgressStatus.Content = "";
-        ProgressBar.Value = 0;
-        ProgressBar.IsVisible = false;
+        _ctx.PreviewVM.BackgroundTaskMessage = "";
+        _ctx.PreviewVM.BackgroundTaskProgress = 0;
+        _ctx.PreviewVM.BackgroundTaskActive = false;
     }
 
     private void OnFetchSingleMeta(object? sender, RoutedEventArgs e) => RunMetaWorker(singleFile: true);
@@ -1035,9 +1038,9 @@ public partial class MainView : UserControl
 
     private void RunMetaWorker(bool singleFile)
     {
-        ProgressStatus.Content = "Fetching Metadata";
+        _ctx.PreviewVM.BackgroundTaskMessage = "Fetching Metadata";
         _ctx.Data.SelectFilesForMetaworker(singleFile);
-        ProgressBar.IsVisible = true;
+        _ctx.PreviewVM.BackgroundTaskActive = true;
         _metaWorker.RunWorkerAsync();
     }
 
@@ -1052,15 +1055,15 @@ public partial class MainView : UserControl
     }
 
     private void MetaWorkerProgress(object? sender, ProgressChangedEventArgs e) =>
-        ProgressBar.Value = e.ProgressPercentage;
+        _ctx.PreviewVM.BackgroundTaskProgress = e.ProgressPercentage;
 
     private void MetaWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
     {
         _ctx.Data.SetMeta();
         _ctx.MarkDirty();
-        ProgressStatus.Content = "";
-        ProgressBar.Value = 0;
-        ProgressBar.IsVisible = false;
+        _ctx.PreviewVM.BackgroundTaskMessage = "";
+        _ctx.PreviewVM.BackgroundTaskProgress = 0;
+        _ctx.PreviewVM.BackgroundTaskActive = false;
     }
 
     
@@ -1412,6 +1415,11 @@ public partial class MainView : UserControl
     {
         if (sender is Control ctl)
             FlyoutBase.ShowAttachedFlyout(ctl);
+    }
+
+    private void OnCancelBackgroundTask(object? sender, RoutedEventArgs e)
+    {
+        _pwr?.CancelBackgroundTask();
     }
 
     #endregion

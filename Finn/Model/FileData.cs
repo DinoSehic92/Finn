@@ -122,6 +122,7 @@ namespace Finn.Model
         private string _currentVersion = string.Empty;
         private string _originalPath = string.Empty;
         private string _parentNamn = string.Empty;
+        private bool _isCached;
 
         /// <summary>
         /// Name of the parent file this is attached to (serialized).
@@ -274,6 +275,16 @@ namespace Finn.Model
         /// Call after annotation counts change to update the HasAnnotations indicator.
         /// </summary>
         public void RefreshAnnotationStatus() => OnPropertyChanged(nameof(HasAnnotations));
+
+        /// <summary>
+        /// When true, this file is cached locally for fast access.
+        /// Persisted to Projects.json so the setting survives restarts.
+        /// </summary>
+        public bool IsCached
+        {
+            get => _isCached;
+            set => SetProperty(ref _isCached, value);
+        }
 
         public ObservableCollection<PageData> FavPages
         {

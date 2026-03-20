@@ -242,7 +242,7 @@ namespace Finn.ViewModels
                 ShowActionBar = this.ShowActionBar,
                 PreviewDarkMode = this.PreviewDarkMode,
                 TreeViewWidth = this.TreeViewWidth,
-                TrayWidth = this.TrayWidth
+                TrayWidth = this.TrayWidth,
             };
         }
 

@@ -71,6 +71,9 @@ namespace Finn.ViewModels
             // Point the stub at the version's own annotation layers so strokes
             // survive version switches instead of being lost with the stub.
             stub.AnnotationLayers = version.AnnotationLayers;
+            // Inherit cache flag from the parent file so versions use the local cache.
+            if (CurrentFile?.IsCached == true)
+                stub.IsCached = true;
             await RequestPreviewAsync(stub, searchText);
         }
 
