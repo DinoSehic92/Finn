@@ -20,10 +20,10 @@ public partial class PreView
 
     // ── Hit-test thresholds: target screen-pixel sizes ──
     // These are converted to PDF units at the current zoom via HitRadius().
-    private const double ArrowTipHitScreenPx = 8;
-    private const double HandleHitScreenPx = 10;
-    private const double HandleHitScreenPxLarge = 12;
-    private const double ResizeHandleHitScreenPx = 14;
+    private const double ArrowTipHitScreenPx = 10;
+    private const double HandleHitScreenPx = 14;
+    private const double HandleHitScreenPxLarge = 16;
+    private const double ResizeHandleHitScreenPx = 18;
 
     /// <summary>Converts a screen-pixel hit radius to PDF units at the current zoom,
     /// so hit areas stay a constant screen size regardless of zoom level.</summary>
@@ -580,6 +580,14 @@ public partial class PreView
             return;
         }
 
+        // Enter: close active polyline
+        if (e.Key == Key.Enter && MuPDFRenderer.HasActivePolyline)
+        {
+            MuPDFRenderer.EndPolyline(close: true);
+            e.Handled = true;
+            return;
+        }
+
         // Space: hold to temporarily pan (Figma-style)
         if (e.Key == Key.Space && !_spaceHeld)
         {
@@ -733,6 +741,7 @@ public partial class PreView
                 Key.D0 => InlineAnnotationTool.Eraser,
                 Key.V => InlineAnnotationTool.Select,
                 Key.P => InlineAnnotationTool.Polyline,
+                Key.D => InlineAnnotationTool.Dot,
                 _ => null
             };
             if (toolKey.HasValue)
@@ -810,6 +819,8 @@ public partial class PreView
     private static readonly Avalonia.Input.Cursor CursorSizeAll = new(Avalonia.Input.StandardCursorType.SizeAll);
     private static readonly Avalonia.Input.Cursor CursorArrow = new(Avalonia.Input.StandardCursorType.Arrow);
     private static readonly Avalonia.Input.Cursor CursorHand = new(Avalonia.Input.StandardCursorType.Hand);
+    private static readonly Avalonia.Input.Cursor CursorSizeNWSE = new(Avalonia.Input.StandardCursorType.BottomRightCorner);
+    private static readonly Avalonia.Input.Cursor CursorSizeNESW = new(Avalonia.Input.StandardCursorType.BottomLeftCorner);
 
     private static Avalonia.Input.Cursor GetToolCursor(InlineAnnotationTool tool) => tool switch
     {
@@ -820,6 +831,71 @@ public partial class PreView
         InlineAnnotationTool.Polyline => CursorCross,
         _ => CursorCross
     };
+
+    /// <summary>
+    /// Returns the appropriate cursor for hovering in Select mode, based on
+    /// whether the cursor is over a vertex handle, resize corner, text resize
+    /// handle, annotation body (move), or empty space.
+    /// </summary>
+    private Avalonia.Input.Cursor GetHoverCursor(Point pdfPoint, object? hoverHit)
+    {
+        // 1. Check group resize corners (combined bounding box) first
+        if (_selectedAnnotations.Count >= 2)
+        {
+            var combined = AnnotatedPDFRenderer.GetCombinedBounds(_selectedAnnotations);
+            if (combined is { Width: > 0 } or { Height: > 0 })
+            {
+                double hitR = HitRadius(ResizeHandleHitScreenPx);
+                if (IsNear(pdfPoint, combined.TopLeft, hitR) || IsNear(pdfPoint, combined.BottomRight, hitR))
+                    return CursorSizeNWSE;
+                if (IsNear(pdfPoint, combined.TopRight, hitR) || IsNear(pdfPoint, combined.BottomLeft, hitR))
+                    return CursorSizeNESW;
+            }
+        }
+
+        // 2. Check vertex handles of the current selection
+        if (_selectedAnnotation != null && MuPDFRenderer.GetGroup(_selectedAnnotation) == null)
+        {
+            double vr = HitRadius(HandleHitScreenPxLarge);
+            switch (_selectedAnnotation)
+            {
+                case ShapeAnnotation shape:
+                    if (IsNear(pdfPoint, shape.Start, vr) || IsNear(pdfPoint, shape.End, vr))
+                        return CursorCross;
+                    break;
+                case MeasurementAnnotation meas when meas.Points.Count >= 2:
+                    if (IsNear(pdfPoint, meas.Points[0], vr) || IsNear(pdfPoint, meas.Points[1], vr))
+                        return CursorCross;
+                    break;
+                case InkStroke { IsPolyline: true } poly:
+                    foreach (var p in poly.Points)
+                        if (IsNear(pdfPoint, p, vr))
+                            return CursorCross;
+                    break;
+            }
+
+            // Text right-edge resize handle
+            if (_selectedAnnotation is TextAnnotation { IsStickyNote: false, MaxWidth: > 0 } selText)
+            {
+                var rtb = AnnotatedPDFRenderer.GetTextBounds(selText);
+                var handlePoint = new Point(rtb.Right, (rtb.Top + rtb.Bottom) / 2);
+                if (IsNear(pdfPoint, handlePoint, HitRadius(ResizeHandleHitScreenPx)))
+                    return CursorSizeWE;
+            }
+        }
+
+        // 3. Arrow origin handle
+        if (hoverHit is TextAnnotation { ArrowOrigin: { } ao }
+            && IsNear(pdfPoint, ao, HitRadius(ArrowTipHitScreenPx)))
+            return CursorCross;
+
+        // 4. Annotation body — move
+        if (hoverHit != null)
+            return CursorSizeAll;
+
+        // 5. Empty space — default arrow
+        return CursorArrow;
+    }
 
     /// <summary>
     /// Core tool-switching logic shared by button clicks and keyboard shortcuts.
@@ -1119,11 +1195,33 @@ public partial class PreView
                     return;
                 }
                 // Vertex drag: check if click is near any vertex of the hit annotation
-                if (TryBeginVertexDrag(hitItem, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
+                // Skip vertex drag for grouped items — they should be treated as a single unit
+                if (MuPDFRenderer.GetGroup(hitItem) == null
+                    && TryBeginVertexDrag(hitItem, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
                 {
                     MuPDFRenderer.Cursor = CursorCross;
                     SelectAnnotation(hitItem);
                     return;
+                }
+
+                // If click is inside the bounding box of the selected annotation (not just on the edge), start move drag
+                if (_selectedAnnotations.Count > 0 && _selectedAnnotations.Contains(hitItem))
+                {
+                    var bounds = Finn.Controls.AnnotatedPDFRenderer.GetAnnotationBounds(hitItem);
+                    if (bounds.Contains(pdfPoint.Value))
+                    {
+                        _selectDragItem = hitItem;
+                        _dragStartPdf = pdfPoint.Value;
+                        _multiDragSnapshots = new List<object>();
+                        foreach (var sel in _selectedAnnotations)
+                        {
+                            var snap = MuPDFRenderer.CapturePreDragSnapshot(sel);
+                            if (snap != null) _multiDragSnapshots.Add(snap);
+                        }
+                        _inkDrawing = true;
+                        MuPDFRenderer.Cursor = CursorSizeAll;
+                        return;
+                    }
                 }
                 // Non-text annotation: select + start whole-drag
                 // If item is already in multi-selection, drag all; otherwise replace selection
@@ -1154,9 +1252,17 @@ public partial class PreView
             // No annotation body hit — but check if we clicked a vertex of the currently selected annotation
             // (needed for ellipses where Start/End are at bounding-box corners, outside the ellipse boundary,
             //  and for measurements/polylines whose endpoints may extend past the hit-test region)
+            // Multi-selection / group resize handles take priority over individual vertex drag.
+            if (hitItem == null && _selectedAnnotations.Count >= 2 && !MuPDFRenderer.IsActiveLayerLocked)
+            {
+                if (TryBeginGroupResize(pdfPoint.Value))
+                    return;
+            }
             if (hitItem == null && _selectedAnnotation != null)
             {
-                if (TryBeginVertexDrag(_selectedAnnotation, pdfPoint.Value, HitRadius(HandleHitScreenPxLarge)))
+                // Skip individual vertex drag for grouped items — they resize as a unit
+                if (MuPDFRenderer.GetGroup(_selectedAnnotation) == null
+                    && TryBeginVertexDrag(_selectedAnnotation, pdfPoint.Value, HitRadius(HandleHitScreenPxLarge)))
                     return;
 
                 // Text right-edge resize handle (outside text body but near the handle dot)
@@ -1274,6 +1380,11 @@ public partial class PreView
                 break;
             }
 
+            case InlineAnnotationTool.Dot:
+                MuPDFRenderer.PlaceDot(pdfPoint.Value);
+                e.Pointer.Capture(null);
+                break;
+
             default: // Draw, Highlight
                 _inkDrawing = true;
                 MuPDFRenderer.BeginStroke(pdfPoint.Value);
@@ -1293,6 +1404,10 @@ public partial class PreView
 
         if (!_inkDrawing)
         {
+            // In annotation mode, mark as handled so the PDFRenderer's internal
+            // Pan handler cannot override our cursor on every PointerMoved.
+            e.Handled = true;
+
             var hoverPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
 
             // Two-click shapes: live preview follows cursor without drag
@@ -1364,7 +1479,7 @@ public partial class PreView
                     var hoverHit = MuPDFRenderer.FindTopmostAt(hoverPdf.Value);
                     MuPDFRenderer.UpdateSelectHover(hoverHit);
                     if (at is InlineAnnotationTool.Select)
-                        MuPDFRenderer.Cursor = hoverHit != null ? CursorSizeAll : CursorArrow;
+                        MuPDFRenderer.Cursor = GetHoverCursor(hoverPdf.Value, hoverHit);
                 }
                 else
                 {
@@ -1774,6 +1889,34 @@ public partial class PreView
         }
     }
 
+    private Button? _activeCornerRadiusButton;
+
+    private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string radiusStr && double.TryParse(radiusStr, out double r))
+        {
+            MuPDFRenderer.ShapeCornerRadius = r;
+
+            // Apply to currently selected annotations
+            foreach (var selItem in _selectedAnnotations)
+            {
+                if (selItem is ShapeAnnotation sh && sh.ShapeType == InlineAnnotationTool.Rectangle)
+                {
+                    sh.CornerRadius = r;
+                    sh.InvalidatePen();
+                }
+                else if (selItem is InkStroke { IsPolyline: true } ink)
+                {
+                    ink.CornerRadius = r;
+                    ink.InvalidatePen();
+                }
+            }
+            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+
+            SetActiveButton(ref _activeCornerRadiusButton, btn);
+        }
+    }
+
     /// <summary>
     /// Highlights a toolbar button with a white border, clearing the previous one
     /// stored in the given field. Used for tool, color, width, and dash buttons.
@@ -2022,6 +2165,7 @@ public partial class PreView
             InlineAnnotationTool.RevisionCloud => "Cloud",
             InlineAnnotationTool.Eraser => "Eraser",
             InlineAnnotationTool.Select => "Select",
+            InlineAnnotationTool.Dot => "Dot",
             _ => tool.ToString()
         };
     }
@@ -2352,6 +2496,19 @@ public partial class PreView
                              or InlineAnnotationTool.Ellipse
                              or InlineAnnotationTool.RevisionCloud;
 
+        var closePolyItem = new MenuItem
+        {
+            Header = _selectedAnnotation is InkStroke { IsClosed: true } ? "Open Polyline" : "Close Polyline"
+        };
+        closePolyItem.Click += (_, _) =>
+        {
+            if (_selectedAnnotation is InkStroke { IsPolyline: true } poly)
+            {
+                MuPDFRenderer.TogglePolylineClosed(poly);
+            }
+        };
+        closePolyItem.IsVisible = _selectedAnnotation is InkStroke { IsPolyline: true, Points.Count: >= 3 };
+
         var bringFrontItem = new MenuItem { Header = "Bring to Front" };
         bringFrontItem.Click += (_, _) =>
         {
@@ -2418,6 +2575,7 @@ public partial class PreView
         menu.Items.Add(pasteItem);
         menu.Items.Add(sep1);
         menu.Items.Add(fillItem);
+        menu.Items.Add(closePolyItem);
         menu.Items.Add(groupItem);
         menu.Items.Add(ungroupItem);
         menu.Items.Add(bringFrontItem);
@@ -2533,8 +2691,11 @@ public partial class PreView
             && sf.ShapeType is InlineAnnotationTool.Rectangle
                             or InlineAnnotationTool.Ellipse
                             or InlineAnnotationTool.RevisionCloud;
+        bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
+            || item is InkStroke { IsPolyline: true };
         PropertyStrokeRow.IsVisible = hasStroke;
         PropertyFillBtn.IsVisible = hasFill;
+        PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
 
         if (hasFill)
         {
@@ -2636,6 +2797,26 @@ public partial class PreView
         PropertyFillBtn.BorderBrush = sh.IsFilled ? Brushes.White : null;
         MuPDFRenderer.IsFilledMode = sh.IsFilled;
         SyncFillToggleButton(sh.IsFilled);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyCornerRadius(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null) return;
+        if (sender is not Button btn || btn.Tag is not string radiusStr || !double.TryParse(radiusStr, out double r)) return;
+        foreach (var selItem in _selectedAnnotations)
+        {
+            switch (selItem)
+            {
+                case ShapeAnnotation sh when sh.ShapeType == InlineAnnotationTool.Rectangle:
+                    sh.CornerRadius = r; sh.InvalidatePen(); break;
+                case InkStroke { IsPolyline: true } ink:
+                    ink.CornerRadius = r; ink.InvalidatePen(); break;
+            }
+        }
+        MuPDFRenderer.ShapeCornerRadius = r;
+        SetActiveButton(ref _activeCornerRadiusButton, btn);
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
     }

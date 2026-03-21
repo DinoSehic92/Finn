@@ -22,7 +22,8 @@ public enum InlineAnnotationTool
     StickyNote,
     MeasureDistance,
     RevisionCloud,
-    Eraser
+    Eraser,
+    Dot
 }
 
 /// <summary>
@@ -52,6 +53,11 @@ public class ShapeAnnotation
     public bool IsFilled { get; set; }
     /// <summary>Dash pattern applied to the shape stroke.</summary>
     public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
+    /// <summary>
+    /// Corner radius in PDF points for Rectangle shapes.
+    /// 0 = sharp corners. Typical presets: 0, 2, 5, 10.
+    /// </summary>
+    public double CornerRadius { get; set; }
 
     public void InvalidatePen()
     {

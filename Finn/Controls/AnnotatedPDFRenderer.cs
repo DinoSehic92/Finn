@@ -210,6 +210,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public bool IsFilledMode { get; set; }
     /// <summary>Dash pattern for new strokes and shapes.</summary>
     public LineDashPattern StrokeDashPattern { get; set; } = LineDashPattern.Solid;
+    /// <summary>Corner radius in PDF points for new Rectangle shapes and Polyline vertices. 0 = sharp.</summary>
+    public double ShapeCornerRadius { get; set; }
 
     /// <summary>When true, all placed/dragged points snap to the grid defined by <see cref="GridSpacing"/>.</summary>
     public bool SnapToGrid { get; set; }
@@ -685,7 +687,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsPolyline = true,
-            DashPattern = StrokeDashPattern
+            DashPattern = StrokeDashPattern,
+            CornerRadius = ShapeCornerRadius
         };
         _activePolyline.Points.Add(pdfPoint);
         _polylinePreviewEnd = pdfPoint;
@@ -714,10 +717,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
-    public void EndPolyline()
+    public void EndPolyline(bool close = false)
     {
         if (_activePolyline != null && _activePolyline.Points.Count >= 2 && ActiveLayer != null)
         {
+            if (close && _activePolyline.Points.Count >= 3)
+            {
+                _activePolyline.IsClosed = true;
+                // Snap last point to first if they're not already the same
+                var first = _activePolyline.Points[0];
+                var last = _activePolyline.Points[^1];
+                if (Math.Abs(first.X - last.X) > 0.5 || Math.Abs(first.Y - last.Y) > 0.5)
+                    _activePolyline.Points.Add(first);
+                else
+                    _activePolyline.Points[^1] = first;
+            }
             if (!ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes))
             {
                 strokes = [];
@@ -738,6 +752,34 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _snapGuideY = null;
         _snapVertexPos = null;
         InvalidateVisual();
+    }
+
+    /// <summary>Toggles the IsClosed state of an existing polyline.</summary>
+    public void TogglePolylineClosed(InkStroke polyline)
+    {
+        if (!polyline.IsPolyline || polyline.Points.Count < 3) return;
+        if (polyline.IsClosed)
+        {
+            // Open: remove the duplicated closing point if last == first
+            var first = polyline.Points[0];
+            var last = polyline.Points[^1];
+            if (Math.Abs(first.X - last.X) < 0.5 && Math.Abs(first.Y - last.Y) < 0.5
+                && polyline.Points.Count > 3)
+                polyline.Points.RemoveAt(polyline.Points.Count - 1);
+            polyline.IsClosed = false;
+        }
+        else
+        {
+            // Close: add first point as last
+            var first = polyline.Points[0];
+            var last = polyline.Points[^1];
+            if (Math.Abs(first.X - last.X) > 0.5 || Math.Abs(first.Y - last.Y) > 0.5)
+                polyline.Points.Add(first);
+            polyline.IsClosed = true;
+        }
+        polyline.InvalidatePen();
+        InvalidateVisual();
+        NotifyAnnotationChanged();
     }
 
     public void CancelPolyline()
@@ -819,7 +861,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             StrokeWidth = StrokeWidth,
             Opacity = StrokeOpacity,
             IsFilled = IsFilledMode,
-            DashPattern = StrokeDashPattern
+            DashPattern = StrokeDashPattern,
+            CornerRadius = ShapeCornerRadius
         };
         InvalidateVisual();
     }
@@ -878,9 +921,46 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
-    #endregion
+    /// <summary>
+    /// Places a filled dot (circle) at the given PDF-space point.
+    /// Stored as a ShapeAnnotation with ShapeType == Dot and Start == End.
+    /// </summary>
+    public void PlaceDot(Point pdfPoint)
+    {
+        if (IsActiveLayerLocked) return;
+        EnsureDefaultLayer();
+        if (ActiveLayer == null) return;
+        pdfPoint = ComputeVertexSnap(null!, pdfPoint);
+        var dot = new ShapeAnnotation
+        {
+            ShapeType = InlineAnnotationTool.Dot,
+            Start = pdfPoint,
+            End = pdfPoint,
+            Color = StrokeColor,
+            StrokeWidth = StrokeWidth,
+            Opacity = StrokeOpacity,
+            IsFilled = true
+        };
+        if (!ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes))
+        {
+            shapes = [];
+            ActiveLayer.PageShapes[_currentPage] = shapes;
+        }
+        shapes.Add(dot);
+        ActiveLayer.ShapeCount++;
+        _totalShapeCount++;
+        _undoStack.Push((UndoType.Shape, _currentPage, null, ActiveLayer));
+        _redoStack.Clear();
+        LastPlacedAnnotation = dot;
+        ActiveLayer.RefreshStatus();
+        NotifyAnnotationChanged();
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
+        InvalidateVisual();
+    }
 
-    #region Text API
+    #endregion
 
     /// <summary>
     /// Preview state: when set, draws an arrow from this anchor to the cursor
@@ -1163,8 +1243,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         return null;
     }
-
-    #endregion
 
     #region Measurement API
 
@@ -1890,6 +1968,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     internal static Rect GetAnnotationBounds(object item) => item switch
     {
         TextAnnotation t => GetTextBounds(t),
+        ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot } dot =>
+            new Rect(dot.Start.X - dot.StrokeWidth, dot.Start.Y - dot.StrokeWidth,
+                     dot.StrokeWidth * 2, dot.StrokeWidth * 2),
         ShapeAnnotation s => NormalizedRect(s.Start, s.End),
         MeasurementAnnotation m when m.Points.Count >= 2 => NormalizedRect(m.Points[0], m.Points[1]),
         InkStroke ink when ink.Points.Count > 0 => GetStrokeBounds(ink),
@@ -1904,7 +1985,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         foreach (var item in items)
         {
             var b = GetAnnotationBounds(item);
-            if (b.Width <= 0 && b.Height <= 0) continue;
+            if (b == default) continue;
             minX = Math.Min(minX, b.Left);
             minY = Math.Min(minY, b.Top);
             maxX = Math.Max(maxX, b.Right);
@@ -2269,6 +2350,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Polylines have sparse points with straight segments — test segment proximity
         if (stroke.IsPolyline && stroke.Points.Count >= 2)
         {
+            // Closed polylines: also hit inside the polygon bounding box
+            if (stroke.IsClosed && stroke.Points.Count >= 3)
+            {
+                var bounds = GetStrokeBounds(stroke);
+                if (bounds.Contains(pt)) return true;
+            }
             for (int i = 0; i < stroke.Points.Count - 1; i++)
                 if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= threshold)
                     return true;
@@ -2296,7 +2383,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case InlineAnnotationTool.Rectangle:
             {
                 var r = NormalizedRect(shape.Start, shape.End);
-                // Hit if near any of the 4 edges
+                // Hit inside the bounding box or near any of the 4 edges
+                if (r.Contains(pt)) return true;
                 return DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
                     || DistanceToSegment(pt, r.TopRight, r.BottomRight) <= threshold
                     || DistanceToSegment(pt, r.BottomRight, r.BottomLeft) <= threshold
@@ -2310,22 +2398,29 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double rx = r.Width / 2;
                 double ry = r.Height / 2;
                 if (rx < 1 || ry < 1) return false;
-                // Normalized distance from center on the ellipse boundary
                 double ndx = (pt.X - cx) / rx;
                 double ndy = (pt.Y - cy) / ry;
                 double dist = Math.Sqrt(ndx * ndx + ndy * ndy);
-                // Near boundary means dist ≈ 1.0
+                // Hit if inside the ellipse or near the boundary
+                if (dist <= 1.0) return true;
                 double normThreshold = threshold / Math.Min(rx, ry);
                 return Math.Abs(dist - 1.0) <= normThreshold;
             }
             case InlineAnnotationTool.RevisionCloud:
             {
-                // Same hit-test as rectangle (cloud follows the bounding box edges)
                 var r = NormalizedRect(shape.Start, shape.End);
+                if (r.Contains(pt)) return true;
                 return DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
                     || DistanceToSegment(pt, r.TopRight, r.BottomRight) <= threshold
                     || DistanceToSegment(pt, r.BottomRight, r.BottomLeft) <= threshold
                     || DistanceToSegment(pt, r.BottomLeft, r.TopLeft) <= threshold;
+            }
+            case InlineAnnotationTool.Dot:
+            {
+                double dx = pt.X - shape.Start.X;
+                double dy = pt.Y - shape.Start.Y;
+                double hitR = Math.Max(shape.StrokeWidth * 2, threshold);
+                return dx * dx + dy * dy <= hitR * hitR;
             }
         }
         return false;
@@ -3127,7 +3222,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             && ActiveTool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse
                 or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
                 or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.MeasureDistance
-                or InlineAnnotationTool.Polyline)
+                or InlineAnnotationTool.Polyline or InlineAnnotationTool.Dot)
         {
             var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
             double arm = 8;
@@ -3200,119 +3295,139 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var vertexPen = new Pen(s_vertexPenBrush,
             1.2, lineCap: PenLineCap.Round);
         bool single = _selectHighlightItems.Count == 1;
-        const double vtxSize = 5.0;     // constant screen pixels
-        const double cornerSize = 2.0;  // constant screen pixels
+        const double vtxSize = 7.0;     // constant screen pixels
+        const double cornerSize = 3.0;  // constant screen pixels
         const double padSize = 4.0;     // constant screen pixels
 
-        foreach (var highlightItem in _selectHighlightItems)
+        // Determine if ALL highlighted items belong to a single group.
+        // If so, we render only the combined bounding box (not per-item boxes).
+        bool isGroupSelection = false;
+        if (_selectHighlightItems.Count >= 2)
         {
-            Rect? bounds = null;
-            switch (highlightItem)
+            HashSet<object>? firstGroup = null;
+            isGroupSelection = true;
+            foreach (var item in _selectHighlightItems)
             {
-                case InkStroke stroke:
-                {
-                    if (stroke.Points.Count == 0) break;
-                    double minX = double.MaxValue, minY = double.MaxValue;
-                    double maxX = double.MinValue, maxY = double.MinValue;
-                    foreach (var p in stroke.Points)
-                    {
-                        var sp = PdfToScreen(p, da, boundsSize);
-                        minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
-                        maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
-                    }
-                    bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
-                    break;
-                }
-                case ShapeAnnotation shape:
-                {
-                    var s = PdfToScreen(shape.Start, da, boundsSize);
-                    var e = PdfToScreen(shape.End, da, boundsSize);
-                    bounds = new Rect(
-                        Math.Min(s.X, e.X), Math.Min(s.Y, e.Y),
-                        Math.Abs(e.X - s.X), Math.Abs(e.Y - s.Y));
-                    break;
-                }
-                case TextAnnotation t:
-                {
-                    var sp = PdfToScreen(t.Position, da, boundsSize);
-                    if (t.IsStickyNote)
-                    {
-                        double sz = 13.0 * penScale;
-                        bounds = new Rect(sp.X, sp.Y, sz, sz);
-                    }
-                    else
-                    {
-                        var tb = GetTextBounds(t);
-                        bounds = new Rect(sp.X, sp.Y, tb.Width * penScale, tb.Height * penScale);
-                    }
-                    break;
-                }
-                case MeasurementAnnotation m:
-                {
-                    if (m.Points.Count >= 2)
-                    {
-                        var s0 = PdfToScreen(m.Points[0], da, boundsSize);
-                        var s1 = PdfToScreen(m.Points[1], da, boundsSize);
-                        bounds = new Rect(
-                            Math.Min(s0.X, s1.X), Math.Min(s0.Y, s1.Y),
-                            Math.Abs(s1.X - s0.X), Math.Abs(s1.Y - s0.Y));
-                    }
-                    break;
-                }
-            }
-
-            if (bounds is { } b)
-            {
-                var inflated = b.Inflate(padSize);
-                context.DrawRectangle(null, selectPen, inflated);
-
-                if (single)
-                {
-                    context.DrawEllipse(s_cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
-                    context.DrawEllipse(s_cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
-                    context.DrawEllipse(s_cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
-                    context.DrawEllipse(s_cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
-
-                    if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
-                    {
-                        var arrowScreen = PdfToScreen(ao, da, boundsSize);
-                        context.DrawEllipse(s_vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
-                    }
-                    if (highlightItem is ShapeAnnotation selShape)
-                    {
-                        var ss = PdfToScreen(selShape.Start, da, boundsSize);
-                        var se = PdfToScreen(selShape.End, da, boundsSize);
-                        context.DrawEllipse(s_vertexBrush, vertexPen, ss, vtxSize, vtxSize);
-                        context.DrawEllipse(s_vertexBrush, vertexPen, se, vtxSize, vtxSize);
-                    }
-                    if (highlightItem is MeasurementAnnotation selMeas && selMeas.Points.Count >= 2)
-                    {
-                        var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
-                        var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
-                        context.DrawEllipse(s_vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
-                        context.DrawEllipse(s_vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
-                    }
-                    if (highlightItem is InkStroke { IsPolyline: true } selPoly)
-                    {
-                        foreach (var p in selPoly.Points)
-                        {
-                            var sp = PdfToScreen(p, da, boundsSize);
-                            context.DrawEllipse(s_vertexBrush, vertexPen, sp, vtxSize, vtxSize);
-                        }
-                    }
-                    // Text width resize handle: right-center edge
-                    if (highlightItem is TextAnnotation { IsStickyNote: false } selTextResize && bounds is { } tb2)
-                    {
-                        var inf2 = tb2.Inflate(padSize);
-                        var midRight = new Point(inf2.Right, (inf2.Top + inf2.Bottom) / 2);
-                        context.DrawEllipse(s_vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
-                    }
-                }
+                var g = GetGroup(item);
+                if (g == null) { isGroupSelection = false; break; }
+                firstGroup ??= g;
+                if (!ReferenceEquals(g, firstGroup)) { isGroupSelection = false; break; }
             }
         }
 
-        // Draw combined bounding box with resize handles for multi-selection
-        if (!single && _selectHighlightItems.Count >= 2)
+        // For grouped items, skip individual bounding boxes
+        if (!isGroupSelection)
+        {
+            foreach (var highlightItem in _selectHighlightItems)
+            {
+                Rect? bounds = null;
+                switch (highlightItem)
+                {
+                    case InkStroke stroke:
+                    {
+                        if (stroke.Points.Count == 0) break;
+                        double minX = double.MaxValue, minY = double.MaxValue;
+                        double maxX = double.MinValue, maxY = double.MinValue;
+                        foreach (var p in stroke.Points)
+                        {
+                            var sp = PdfToScreen(p, da, boundsSize);
+                            minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
+                            maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                        }
+                        bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
+                        break;
+                    }
+                    case ShapeAnnotation shape:
+                    {
+                        var s = PdfToScreen(shape.Start, da, boundsSize);
+                        var e = PdfToScreen(shape.End, da, boundsSize);
+                        bounds = new Rect(
+                            Math.Min(s.X, e.X), Math.Min(s.Y, e.Y),
+                            Math.Abs(e.X - s.X), Math.Abs(e.Y - s.Y));
+                        break;
+                    }
+                    case TextAnnotation t:
+                    {
+                        var sp = PdfToScreen(t.Position, da, boundsSize);
+                        if (t.IsStickyNote)
+                        {
+                            double sz = 13.0 * penScale;
+                            bounds = new Rect(sp.X, sp.Y, sz, sz);
+                        }
+                        else
+                        {
+                            var tb = GetTextBounds(t);
+                            bounds = new Rect(sp.X, sp.Y, tb.Width * penScale, tb.Height * penScale);
+                        }
+                        break;
+                    }
+                    case MeasurementAnnotation m:
+                    {
+                        if (m.Points.Count >= 2)
+                        {
+                            var s0 = PdfToScreen(m.Points[0], da, boundsSize);
+                            var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+                            bounds = new Rect(
+                                Math.Min(s0.X, s1.X), Math.Min(s0.Y, s1.Y),
+                                Math.Abs(s1.X - s0.X), Math.Abs(s1.Y - s0.Y));
+                        }
+                        break;
+                    }
+                }
+
+                if (bounds is { } b)
+                {
+                    var inflated = b.Inflate(padSize);
+                    context.DrawRectangle(null, selectPen, inflated);
+
+                    if (single)
+                    {
+                        context.DrawEllipse(s_cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
+                        context.DrawEllipse(s_cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
+                        context.DrawEllipse(s_cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
+                        context.DrawEllipse(s_cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
+
+                        if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
+                        {
+                            var arrowScreen = PdfToScreen(ao, da, boundsSize);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
+                        }
+                        if (highlightItem is ShapeAnnotation selShape)
+                        {
+                            var ss = PdfToScreen(selShape.Start, da, boundsSize);
+                            var se = PdfToScreen(selShape.End, da, boundsSize);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, ss, vtxSize, vtxSize);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, se, vtxSize, vtxSize);
+                        }
+                        if (highlightItem is MeasurementAnnotation selMeas && selMeas.Points.Count >= 2)
+                        {
+                            var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
+                            var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
+                        }
+                        if (highlightItem is InkStroke { IsPolyline: true } selPoly)
+                        {
+                            foreach (var p in selPoly.Points)
+                            {
+                                var sp = PdfToScreen(p, da, boundsSize);
+                                context.DrawEllipse(s_vertexBrush, vertexPen, sp, vtxSize, vtxSize);
+                            }
+                        }
+                        // Text width resize handle: right-center edge
+                        if (highlightItem is TextAnnotation { IsStickyNote: false } selTextResize && bounds is { } tb2)
+                        {
+                            var inf2 = tb2.Inflate(padSize);
+                            var midRight = new Point(inf2.Right, (inf2.Top + inf2.Bottom) / 2);
+                            context.DrawEllipse(s_vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
+                        }
+                    }
+                }
+            }
+        } // end if (!isGroupSelection)
+
+        // Draw combined bounding box with resize handles for multi-selection or group selection
+        if (_selectHighlightItems.Count >= 2)
         {
             var combinedPdf = GetCombinedBounds(_selectHighlightItems);
             if (combinedPdf is { Width: > 0 } or { Height: > 0 })
@@ -3328,7 +3443,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 context.DrawRectangle(null, groupPen, combinedScreen, 2, 2);
 
                 // Corner resize handles
-                const double resizeHandleSize = 4.0;
+                const double resizeHandleSize = 5.0;
                 context.DrawRectangle(s_vertexBrush, vertexPen,
                     new Rect(combinedScreen.TopLeft.X - resizeHandleSize, combinedScreen.TopLeft.Y - resizeHandleSize,
                         resizeHandleSize * 2, resizeHandleSize * 2));
@@ -3436,19 +3551,96 @@ public class AnnotatedPDFRenderer : PDFRenderer
         for (int i = 0; i < n; i++)
             sp[i] = PdfToScreen(pts[i], da, boundsSize);
 
+        bool closed = stroke.IsClosed && stroke.IsPolyline && n >= 3;
+
         var geometry = new StreamGeometry();
         using (var ctx = geometry.Open())
         {
-            ctx.BeginFigure(sp[0], false);
-
             if (n == 2 || stroke.IsPolyline)
             {
-                // Straight line segments (2-point strokes or polylines)
-                for (int i = 1; i < n; i++)
-                    ctx.LineTo(sp[i]);
+                double cr = stroke.CornerRadius * penScale;
+                if (cr > 0.5 && stroke.IsPolyline && n >= 3)
+                {
+                    // Determine effective point count: for closed shapes where
+                    // last == first, skip the duplicated closing point.
+                    int vn = n;
+                    if (closed)
+                    {
+                        var f = sp[0]; var l = sp[n - 1];
+                        if (Math.Abs(f.X - l.X) < 1 && Math.Abs(f.Y - l.Y) < 1)
+                            vn = n - 1;
+                    }
+
+                    // Build the rounded-corner figure.
+                    // For closed: round all vertices, start figure at the arc-start of vertex 0.
+                    // For open: start at sp[0], round interior vertices, end at sp[n-1].
+
+                    Point figureStart;
+                    if (closed && vn >= 3)
+                    {
+                        var prev0 = sp[(vn - 1) % vn];
+                        var curr0 = sp[0];
+                        var next0 = sp[1];
+                        double r0 = ComputeArcRadius(prev0, curr0, next0, cr);
+                        if (r0 >= 0.5)
+                        {
+                            double dxIn0 = curr0.X - prev0.X, dyIn0 = curr0.Y - prev0.Y;
+                            double lenIn0 = Math.Sqrt(dxIn0 * dxIn0 + dyIn0 * dyIn0);
+                            double dxOut0 = next0.X - curr0.X, dyOut0 = next0.Y - curr0.Y;
+                            double lenOut0 = Math.Sqrt(dxOut0 * dxOut0 + dyOut0 * dyOut0);
+                            figureStart = new Point(curr0.X - dxIn0 / lenIn0 * r0, curr0.Y - dyIn0 / lenIn0 * r0);
+                            ctx.BeginFigure(figureStart, false);
+                            var arcEnd0 = new Point(curr0.X + dxOut0 / lenOut0 * r0, curr0.Y + dyOut0 / lenOut0 * r0);
+                            ctx.QuadraticBezierTo(curr0, arcEnd0);
+                        }
+                        else
+                        {
+                            ctx.BeginFigure(curr0, false);
+                        }
+                    }
+                    else
+                    {
+                        ctx.BeginFigure(sp[0], false);
+                    }
+
+                    // Interior vertices (or all vertices for closed)
+                    int loopStart = 1;
+                    int loopEnd = closed ? vn : n - 1;
+                    for (int i = loopStart; i < loopEnd; i++)
+                    {
+                        var prev = sp[(i - 1 + vn) % vn];
+                        var curr = sp[i % vn];
+                        var next = sp[(i + 1) % vn];
+
+                        double r = ComputeArcRadius(prev, curr, next, cr);
+                        if (r < 0.5)
+                        {
+                            ctx.LineTo(curr);
+                            continue;
+                        }
+                        double dxIn = curr.X - prev.X, dyIn = curr.Y - prev.Y;
+                        double lenIn = Math.Sqrt(dxIn * dxIn + dyIn * dyIn);
+                        double dxOut = next.X - curr.X, dyOut = next.Y - curr.Y;
+                        double lenOut = Math.Sqrt(dxOut * dxOut + dyOut * dyOut);
+                        var arcStart = new Point(curr.X - dxIn / lenIn * r, curr.Y - dyIn / lenIn * r);
+                        var arcEnd = new Point(curr.X + dxOut / lenOut * r, curr.Y + dyOut / lenOut * r);
+                        ctx.LineTo(arcStart);
+                        ctx.QuadraticBezierTo(curr, arcEnd);
+                    }
+
+                    if (!closed)
+                        ctx.LineTo(sp[n - 1]);
+                }
+                else
+                {
+                    ctx.BeginFigure(sp[0], false);
+                    for (int i = 1; i < n; i++)
+                        ctx.LineTo(sp[i]);
+                }
             }
             else
             {
+                ctx.BeginFigure(sp[0], false);
                 // Catmull-Rom spline → cubic Bézier on pre-transformed points
                 for (int i = 0; i < n - 1; i++)
                 {
@@ -3465,10 +3657,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         pi1);
                 }
             }
-            ctx.EndFigure(false);
+            ctx.EndFigure(closed);
         }
 
-        context.DrawGeometry(null, pen, geometry);
+        // For closed polylines with fill, draw a translucent fill
+        IBrush? fillBrush = null;
+        if (closed && overridePen == null)
+        {
+            var fillColor = Color.FromArgb(40, stroke.Color.R, stroke.Color.G, stroke.Color.B);
+            fillBrush = new SolidColorBrush(fillColor).ToImmutable();
+        }
+        context.DrawGeometry(fillBrush, pen, geometry);
+    }
+
+    /// <summary>Computes the effective arc radius for a polyline vertex, clamped to half the shorter adjacent segment.</summary>
+    private static double ComputeArcRadius(Point prev, Point curr, Point next, double cr)
+    {
+        double dxIn = curr.X - prev.X, dyIn = curr.Y - prev.Y;
+        double lenIn = Math.Sqrt(dxIn * dxIn + dyIn * dyIn);
+        double dxOut = next.X - curr.X, dyOut = next.Y - curr.Y;
+        double lenOut = Math.Sqrt(dxOut * dxOut + dyOut * dyOut);
+        if (lenIn < 1 || lenOut < 1) return 0;
+        return Math.Min(cr, Math.Min(lenIn, lenOut) * 0.5);
     }
 
     private void RenderShape(DrawingContext context, ShapeAnnotation shape,
@@ -3506,7 +3716,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double y = Math.Min(screenStart.Y, screenEnd.Y);
                 double w = Math.Abs(screenEnd.X - screenStart.X);
                 double h = Math.Abs(screenEnd.Y - screenStart.Y);
-                context.DrawRectangle(fillBrush, pen, new Rect(x, y, w, h));
+                double cr = shape.CornerRadius * penScale;
+                context.DrawRectangle(fillBrush, pen, new Rect(x, y, w, h), cr, cr);
                 break;
             }
             case InlineAnnotationTool.Ellipse:
@@ -3523,6 +3734,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 var cloudGeometry = CreateCloudPath(screenStart, screenEnd, penScale);
                 context.DrawGeometry(fillBrush, pen, cloudGeometry);
+                break;
+            }
+            case InlineAnnotationTool.Dot:
+            {
+                // Dot radius is based on StrokeWidth (diameter = StrokeWidth * 2 screen units)
+                double r = shape.StrokeWidth * penScale;
+                var dotBrush = new SolidColorBrush(
+                    shape.Opacity < 1.0
+                        ? Color.FromArgb((byte)(shape.Opacity * 255), shape.Color.R, shape.Color.G, shape.Color.B)
+                        : shape.Color).ToImmutable();
+                context.DrawEllipse(dotBrush, pen, screenStart, r, r);
                 break;
             }
         }
@@ -4252,8 +4474,15 @@ public class InkStroke
     public bool IsHighlighter { get; set; }
     /// <summary>When true, points are connected with straight line segments instead of spline curves.</summary>
     public bool IsPolyline { get; set; }
+    /// <summary>When true, the polyline forms a closed shape (last point connects back to first).</summary>
+    public bool IsClosed { get; set; }
     /// <summary>Dash pattern applied to the stroke.</summary>
     public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
+    /// <summary>
+    /// Corner radius in PDF points for polyline vertices.
+    /// 0 = sharp corners. Typical presets: 0, 2, 5, 10.
+    /// </summary>
+    public double CornerRadius { get; set; }
 
     // Cached pen to avoid per-frame allocation during rendering.
     private IPen? _cachedPen;

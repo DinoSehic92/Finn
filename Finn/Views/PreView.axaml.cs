@@ -947,4 +947,94 @@ public partial class PreView : UserControl
         pwr.EnterDiffView(dialog.ChoiceA.Path, dialog.ChoiceB.Path, pwr.DiffSourceFile);
         SyncDiffOverlay();
     }
+
+    /// <summary>
+    /// Saves the current whiteboard sketch under the currently selected project.
+    /// All sketches share a single blank PDF canvas file — the annotation layers
+    /// are what make each sketch unique and are persisted in Projects.json.
+    /// </summary>
+    private void OnSaveSketch(object? sender, RoutedEventArgs e)
+    {
+        if (pwr == null || !pwr.WhiteboardMode) return;
+
+        var mainVm = this.DataContext as MainViewModel;
+        var project = mainVm?.CurrentProject;
+        if (project == null || project.Category == "Search")
+        {
+            pwr.StatusMessage = "Select a project first";
+            return;
+        }
+
+        bool hasContent = pwr.WhiteboardLayers.Any(l => l.TotalCount > 0);
+        if (!hasContent)
+        {
+            pwr.StatusMessage = "Nothing to save — sketch is empty";
+            return;
+        }
+
+        string sketchName = $"Sketch {DateTime.Now:yyyy-MM-dd HH.mm}";
+
+        // All sketches point to the same shared blank PDF.
+        // The annotation layers are what differentiate each sketch.
+        string pdfPath = EnsureSharedBlankPdf();
+
+        var fileData = new FileData
+        {
+            Namn = sketchName,
+            Sökväg = pdfPath,
+        };
+
+        foreach (var srcLayer in pwr.WhiteboardLayers)
+        {
+            var destLayer = new AnnotationLayer
+            {
+                Name = srcLayer.Name,
+                Color = srcLayer.Color,
+                IsVisible = srcLayer.IsVisible,
+                IsLocked = srcLayer.IsLocked
+            };
+
+            foreach (var (page, strokes) in srcLayer.PageStrokes)
+                destLayer.PageStrokes[page] = new List<InkStroke>(strokes);
+            foreach (var (page, shapes) in srcLayer.PageShapes)
+                destLayer.PageShapes[page] = new List<ShapeAnnotation>(shapes);
+            foreach (var (page, texts) in srcLayer.PageTexts)
+                destLayer.PageTexts[page] = new List<TextAnnotation>(texts);
+            foreach (var (page, measurements) in srcLayer.PageMeasurements)
+                destLayer.PageMeasurements[page] = new List<MeasurementAnnotation>(measurements);
+
+            destLayer.RecalculateCounts();
+            fileData.AnnotationLayers.Add(destLayer);
+        }
+
+        project.StoredFiles.Add(fileData);
+        mainVm.MarkDirty();
+
+        pwr.StatusMessage = $"Sketch saved to {project.Namn}: {sketchName}";
+    }
+
+    /// <summary>
+    /// Returns the path to a single shared blank A4 landscape PDF.
+    /// Creates the file once; all sketches reference this same canvas.
+    /// </summary>
+    private static string EnsureSharedBlankPdf()
+    {
+        string dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Finn");
+        Directory.CreateDirectory(dir);
+        string path = Path.Combine(dir, "blank_whiteboard.pdf");
+        if (!File.Exists(path))
+        {
+            byte[] pdf = System.Text.Encoding.ASCII.GetBytes(
+                "%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+                "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+                "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 842 595]>>endobj\n" +
+                "xref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n" +
+                "0000000058 00000 n \n0000000115 00000 n \n" +
+                "trailer<</Size 4/Root 1 0 R>>\nstartxref\n190\n%%EOF");
+            File.WriteAllBytes(path, pdf);
+        }
+        return path;
+    }
 }
