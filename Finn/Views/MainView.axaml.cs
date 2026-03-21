@@ -55,6 +55,8 @@ public partial class MainView : UserControl
         OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
 
         FolderGrid.AddHandler(DataGrid.DoubleTappedEvent, OnFolderDoubleClick);
+        if (FolderGrid.Parent is Control folderDropTarget)
+            folderDropTarget.AddHandler(DragDrop.DropEvent, OnDropVersionFolder);
 
         RecentGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectRecent);
 
@@ -258,6 +260,7 @@ public partial class MainView : UserControl
 
     private async void OnDrop(object? sender, DragEventArgs e)
     {
+        SetDropHintActive(DropOverlay, false);
         var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         if (files.Count > 0)
@@ -273,6 +276,23 @@ public partial class MainView : UserControl
         var (files, folders) = ExtractDroppedFilesAndFolders(e);
         await _ctx.AddDroppedOtherFilesAsync(files, folders);
         UpdateOtherFilesEmptyState();
+    }
+
+    private async void OnDropVersionFolder(object? sender, DragEventArgs e)
+    {
+        SetDropHintActive(FolderDropOverlay, false);
+        var (_, folders) = ExtractDroppedFilesAndFolders(e);
+        if (folders.Count == 0) return;
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        foreach (string path in folders)
+        {
+            _ctx.NewVersionFolder(path);
+            var folder = _ctx.CurrentProject.Folders.LastOrDefault();
+            if (folder != null)
+                await _ctx.SyncVersionFolderAsync(folder, window);
+        }
+        UpdateFolderEmptyState();
     }
 
     /// <summary>
@@ -326,10 +346,12 @@ public partial class MainView : UserControl
             }
         }
 
-        // FileGrid accepts PDFs and folders
+        // FileGrid accepts PDFs and folders (→ Sync Folder)
         SetDropHintActive(DropOverlay, hasPdf || hasFolder);
-        // OtherFiles accepts any file
+        // OtherFiles accepts any file or folder (→ Other Files Folder)
         SetDropHintActive(OtherFilesDropOverlay, hasAnyFile || hasFolder);
+        // Folder grid accepts folders only (→ Version Delivery Folder)
+        SetDropHintActive(FolderDropOverlay, hasFolder);
     }
 
     private void OnDragLeave(object? sender, DragEventArgs e)
@@ -346,6 +368,7 @@ public partial class MainView : UserControl
     {
         SetDropHintActive(DropOverlay, false);
         SetDropHintActive(OtherFilesDropOverlay, false);
+        SetDropHintActive(FolderDropOverlay, false);
     }
 
     private static void SetDropHintActive(Avalonia.Controls.Border overlay, bool active)
@@ -742,27 +765,6 @@ public partial class MainView : UserControl
         await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
     }
 
-    private async void OnAddVersionFolder(object? sender, RoutedEventArgs e)
-    {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        var picker = await window.StorageProvider.OpenFolderPickerAsync(
-            new Avalonia.Platform.Storage.FolderPickerOpenOptions
-            {
-                Title = "Select Version Delivery Folder",
-                AllowMultiple = false
-            });
-
-        if (picker.Count > 0)
-        {
-            string path = picker[0].Path.LocalPath;
-            _ctx.NewVersionFolder(path);
-            var folder = _ctx.CurrentProject.Folders.LastOrDefault();
-            if (folder != null)
-                await _ctx.SyncVersionFolderAsync(folder, window);
-            UpdateFolderEmptyState();
-        }
-    }
-
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)
     {
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
@@ -777,6 +779,68 @@ public partial class MainView : UserControl
             _ctx.MarkDirty();
             UpdateFolderEmptyState();
         }
+    }
+
+    private void OnFolderTypesInfo(object? sender, RoutedEventArgs e)
+    {
+        var window = TopLevel.GetTopLevel(this) as Window;
+        if (window == null) return;
+
+        var dialog = new Window
+        {
+            Title = "Folder Types",
+            Width = 460,
+            Height = 340,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ExtendClientAreaToDecorationsHint = true,
+            RequestedThemeVariant = window.ActualThemeVariant,
+            Content = BuildFolderTypesInfoContent()
+        };
+        dialog.ShowDialog(window);
+    }
+
+    private static StackPanel BuildFolderTypesInfoContent()
+    {
+        var panel = new StackPanel { Margin = new Thickness(20, 36, 20, 20), Spacing = 14 };
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Sync Folder Types",
+            FontSize = 18,
+            FontWeight = FontWeight.SemiBold
+        });
+
+        AddFolderTypeEntry(panel,
+            "Sync",
+            "Watches a folder for PDFs and adds them to the project file list.",
+            "Drop a folder onto the file grid.");
+
+        AddFolderTypeEntry(panel,
+            "Attached",
+            "Watches a folder for PDFs and attaches them as children of a specific file.",
+            "Drop a folder in the Attach Files dialog.");
+
+        AddFolderTypeEntry(panel,
+            "Other Files",
+            "Watches a folder for non-PDF files and links them as attachments.",
+            "Drop a folder onto the Other Files panel.");
+
+        AddFolderTypeEntry(panel,
+            "Versions",
+            "Scans subfolders for PDFs that match existing files by name and imports them as versions.",
+            "Drop a folder onto the folder grid.");
+
+        return panel;
+    }
+
+    private static void AddFolderTypeEntry(StackPanel parent, string title, string description, string howToAdd)
+    {
+        var entry = new StackPanel { Spacing = 2 };
+        entry.Children.Add(new TextBlock { Text = title, FontWeight = FontWeight.SemiBold, FontSize = 14 });
+        entry.Children.Add(new TextBlock { Text = description, FontSize = 12.5, TextWrapping = TextWrapping.Wrap, Opacity = 0.8 });
+        entry.Children.Add(new TextBlock { Text = $"→  {howToAdd}", FontSize = 12, FontStyle = FontStyle.Italic, Opacity = 0.6 });
+        parent.Children.Add(entry);
     }
 
     #endregion

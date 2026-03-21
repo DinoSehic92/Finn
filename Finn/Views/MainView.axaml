@@ -26,6 +26,7 @@
 		<converter:ByteArrayToBitmapConverter x:Key="ByteArrayToBitmapConverter" />
 		<converter:GridDefConverter x:Key="GridDefConverter" />
 		<converter:RowDefConverter x:Key="RowDefConverter" />
+		<converter:FolderModeIconConverter x:Key="FolderModeIconConverter" />
 
 		<FontFamily x:Key="Barlow">avares://Finn/Assets/Fonts#Barlow</FontFamily>
 		<FontFamily x:Key="Fira Sans">avares://Finn/Assets/Fonts#Fira Sans</FontFamily>
@@ -781,6 +782,7 @@
 					<ic:SymbolIcon Symbol="DocumentAdd" FontSize="36" HorizontalAlignment="Center"/>
 					<TextBlock Text="No files loaded" FontSize="16" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,8,0,2"/>
 					<TextBlock Text="Drop PDF files or folders here, or use File → Load" FontSize="13" HorizontalAlignment="Center"/>
+					<TextBlock Text="Folders will be watched for new PDFs automatically" FontSize="11" HorizontalAlignment="Center" Opacity="0.7" Margin="0,2,0,0"/>
 				</StackPanel>
 
 				<!-- Drag-and-drop hint overlay -->
@@ -790,52 +792,72 @@
 						IsVisible="False">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" HorizontalAlignment="Center"/>
-						<TextBlock Text="Drop files or folders" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
+						<TextBlock Text="Drop PDFs or folders to add to project" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 					</StackPanel>
 				</Border>
 			</Panel>
 
 			<!-- Folder sync grid -->
-			<Panel Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}">
-			<DataGrid Name="FolderGrid"
-					  ItemsSource="{Binding CurrentProject.Folders}"
-					  SelectionMode="Extended" IsReadOnly="True">
-				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"            Width="Auto"  FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Name}"			Header="Folder"             Width="2*"   FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Path}"               Header="Path"             Width="5*"   FontSize="14" FontStyle="Italic" IsVisible="false"/>
-					<DataGridTextColumn Binding="{Binding AttachToFile}"        Header="Attached to:" Width="2*"   FontSize="14"/>
-					<DataGridTextColumn Binding="{Binding Types}"              Header="Types"            Width="Auto" FontSize="14"/>
-				</DataGrid.Columns>
-				<DataGrid.ContextMenu>
-					<ContextMenu>
-						<MenuItem Header="Open Folder" Click="OnOpenFolderPath">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
-						</MenuItem>
-						<Separator/>
-						<MenuItem Header="Add Version Folder" Click="OnAddVersionFolder">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
-						</MenuItem>
-						<Separator/>
-						<MenuItem Header="Sync Selected" Click="OnSyncSelectedFolders">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
-						</MenuItem>
-						<MenuItem Header="Sync All" Click="OnSyncAllFolders">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
-						</MenuItem>
-						<MenuItem Header="Delete" Click="OnRemoveFolder">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-						</MenuItem>
-					</ContextMenu>
-				</DataGrid.ContextMenu>
-			</DataGrid>
-				<StackPanel Name="FolderEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-					<ic:SymbolIcon Symbol="Folder" FontSize="30" HorizontalAlignment="Center"/>
-					<TextBlock Text="No synced folders" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
-					<TextBlock Text="Synced folders linked to this project will be listed here" FontSize="12" HorizontalAlignment="Center"/>
-				</StackPanel>
-			</Panel>
+					<Panel Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}" DragDrop.AllowDrop="True">
+						<DataGrid Name="FolderGrid"
+								  ItemsSource="{Binding CurrentProject.Folders}"
+								  SelectionMode="Extended" IsReadOnly="True">
+						<DataGrid.Columns>
+							<DataGridTemplateColumn Header="Type" Width="110">
+								<DataGridTemplateColumn.CellTemplate>
+									<DataTemplate>
+										<StackPanel Orientation="Horizontal" Spacing="5" Margin="6,0" VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
+											<ic:SymbolIcon Symbol="{Binding Mode, Converter={StaticResource FolderModeIconConverter}}" FontSize="14"/>
+											<TextBlock Text="{Binding DisplayType}" FontSize="14" VerticalAlignment="Center"/>
+										</StackPanel>
+									</DataTemplate>
+								</DataGridTemplateColumn.CellTemplate>
+							</DataGridTemplateColumn>
+							<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="3*"   FontSize="14"/>
+							<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="14" Foreground="Gray"/>
+							<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"             Width="60"   FontSize="14"/>
+							<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="14" FontStyle="Italic" IsVisible="false"/>
+						</DataGrid.Columns>
+						<DataGrid.ContextMenu>
+							<ContextMenu>
+								<MenuItem Header="Open Folder" Click="OnOpenFolderPath">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+								</MenuItem>
+								<Separator/>
+								<MenuItem Header="Sync Selected" Click="OnSyncSelectedFolders">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Sync All" Click="OnSyncAllFolders">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+								</MenuItem>
+								<Separator/>
+								<MenuItem Header="Delete" Click="OnRemoveFolder">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+								</MenuItem>
+								<Separator/>
+								<MenuItem Header="About Folder Types" Click="OnFolderTypesInfo">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Info"/></MenuItem.Icon>
+								</MenuItem>
+							</ContextMenu>
+						</DataGrid.ContextMenu>
+					</DataGrid>
+						<StackPanel Name="FolderEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+									IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+							<ic:SymbolIcon Symbol="Folder" FontSize="30" HorizontalAlignment="Center"/>
+							<TextBlock Text="No synced folders" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
+							<TextBlock Text="Drag a folder onto any grid to start syncing" FontSize="12" HorizontalAlignment="Center"/>
+							<TextBlock Text="Drop here for version delivery" FontSize="11" HorizontalAlignment="Center" Opacity="0.7" Margin="0,2,0,0"/>
+						</StackPanel>
+						<!-- Drop hint for version delivery folders -->
+						<Border Name="FolderDropOverlay" Classes="DropHint"
+								Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+								BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}">
+							<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
+								<ic:SymbolIcon Symbol="History" FontSize="22" HorizontalAlignment="Center"/>
+								<TextBlock Text="Drop to create Version Delivery folder" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+							</StackPanel>
+						</Border>
+				</Panel>
 		</Grid>
 
 		<!-- Preview splitter -->
@@ -1139,6 +1161,7 @@
 							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
 					<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
 					<TextBlock Text="No other files" FontSize="12" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+					<TextBlock Text="Drop files or folders here to attach" FontSize="11" HorizontalAlignment="Center" Opacity="0.7" Margin="0,2,0,0"/>
 				</StackPanel>
 				<!-- Drop hint for other files -->
 				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
@@ -1146,22 +1169,22 @@
 						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
-						<TextBlock Text="Drop files here" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+						<TextBlock Text="Drop files or folders to attach" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 					</StackPanel>
 				</Border>
 			</Panel>
 
 			<!-- File versions panel -->
-						<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
-							<!-- Toolbar -->
-							<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
-								<Border Classes="shadow">
-									<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
-								</Border>
-								<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
-								<Button Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
-							</StackPanel>
-							<DataGrid Grid.Row="1" Name="VersionsGrid"
+								<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
+										<!-- Toolbar -->
+										<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
+											<Border Classes="shadow">
+												<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
+											</Border>
+											<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
+											<Button Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
+										</StackPanel>
+										<DataGrid Grid.Row="1" Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
 									<DataGrid.Styles>

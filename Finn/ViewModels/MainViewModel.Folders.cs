@@ -12,11 +12,6 @@ namespace Finn.ViewModels
     {
         public partial class MainViewModel
         {
-            public void NewFolder()
-            {
-                CurrentProject.Folders.Add(new FolderData() { Name = "New Folder" });
-            }
-
             public void NewFileFolder()
             {
                 if (CurrentFile != null)
