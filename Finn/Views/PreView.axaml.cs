@@ -668,6 +668,8 @@ public partial class PreView : UserControl
         var layer = pwr.CreateDiffAnnotationLayer(pwr.DiffOriginalPdfPath);
         if (layer != null)
         {
+            // Detach so closing diff mode won't auto-remove the saved layer
+            pwr.DetachDiffAnnotationLayer();
             SyncLayers();
             // The layer was added to the same collection the renderer already
             // holds, so SyncLayers (reference check) won't call SetLayers.
@@ -675,6 +677,8 @@ public partial class PreView : UserControl
             MuPDFRenderer.ActiveLayer = layer;
             MuPDFRenderer.NotifyLayersChanged();
             UpdateActiveLayerLabel();
+            // Mark file as having annotations so the grid icon updates
+            pwr.CurrentFile?.RefreshAnnotationStatus();
             pwr.StatusMessage = $"Diff saved as layer: {layer.Name}";
             ctx?.MarkDirty();
         }
@@ -685,6 +689,8 @@ public partial class PreView : UserControl
     }
 
     private void OnCancelDiff(object? sender, RoutedEventArgs e) => pwr?.CancelDiff();
+
+    private void OnToggleDiffPageList(object? sender, RoutedEventArgs e) => pwr?.ToggleDiffPageList();
 
     /// <summary>Close Dual File mode from the banner close button.</summary>
     private void OnCloseDualFileMode(object? sender, RoutedEventArgs e)
@@ -750,12 +756,7 @@ public partial class PreView : UserControl
             pwr.StatusMessage = "A and B are the same — select different versions";
             return;
         }
-        // Close current diff mode views before re-running
-        await CloseDiffViewsAsync();
-        MuPDFRenderer.ClearDiffOverlay();
-
-        await pwr.CompareSelectedPathsAsync();
-        SyncDiffOverlay();
+        await RerunDiffCoreAsync(DiffRunKind.Pixel);
     }
 
     /// <summary>
@@ -770,21 +771,7 @@ public partial class PreView : UserControl
             pwr.StatusMessage = "A and B are the same";
             return;
         }
-
-        await CloseDiffViewsAsync();
-        MuPDFRenderer.ClearDiffOverlay();
-
-        // Remove any text-diff annotation layer before running pixel diff.
-        pwr.RemoveDiffAnnotationLayer();
-        SyncLayers();
-        MuPDFRenderer.NotifyLayersChanged();
-
-        await pwr.CompareSelectedPathsAsync();
-
-        // Switch to Overlay so the diff highlights are immediately visible.
-        if (pwr.HasDiffResults)
-            pwr.DiffViewMode = DiffViewMode.Overlay;
-        SyncDiffOverlay();
+        await RerunDiffCoreAsync(DiffRunKind.Pixel);
     }
 
     /// <summary>
@@ -800,25 +787,46 @@ public partial class PreView : UserControl
             pwr.StatusMessage = "A and B are the same";
             return;
         }
+        await RerunDiffCoreAsync(DiffRunKind.Text);
+    }
 
+    private enum DiffRunKind { Pixel, Text }
+
+    /// <summary>
+    /// Shared logic for re-running a diff comparison (pixel or text) from the
+    /// toolbar. Captures current choices, performs a full close, restores
+    /// choices, runs the comparison, and syncs the overlay.
+    /// </summary>
+    private async Task RerunDiffCoreAsync(DiffRunKind kind)
+    {
+        // Capture choices before full close clears them
+        var choiceA = pwr.DiffChoiceA!;
+        var choiceB = pwr.DiffChoiceB!;
+        var sourceFile = pwr.DiffSourceFile;
+
+        // Full close ensures clean state; DiffBusy keeps the toolbar visible
         await CloseDiffViewsAsync();
+        pwr.CloseDiffModeSync();
         MuPDFRenderer.ClearDiffOverlay();
 
-        // Remove any previous diff annotation layer before running new diff.
-        pwr.RemoveDiffAnnotationLayer();
-        SyncLayers();
-        MuPDFRenderer.NotifyLayersChanged();
+        // Restore choices and path list so combo boxes reflect current A/B
+        pwr.RestoreDiffChoices(choiceA, choiceB, sourceFile);
+        pwr.DiffViewMode = DiffViewMode.Overlay;
 
-        await pwr.RunTextDiffAsync(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, pwr.DiffSourceFile);
-
-        // Text diff has no overlay images — always enter SBS so both
-        // documents are visible, then auto-create an annotation layer with the
-        // word-level diff regions so highlights are visible on the pages.
-        if (pwr.HasDiffResults)
+        if (kind == DiffRunKind.Pixel)
         {
-            pwr.DiffViewMode = DiffViewMode.SideBySide;
-            SyncDiffOverlay();
+            await pwr.CompareSelectedPathsAsync();
+        }
+        else
+        {
+            await pwr.RunTextDiffAsync(choiceA.Path, choiceB.Path, sourceFile);
+        }
 
+        SyncDiffOverlay();
+
+        // Text diff: auto-create an annotation layer with word-level highlights
+        if (kind == DiffRunKind.Text && pwr.HasDiffResults)
+        {
             var layer = pwr.CreateDiffAnnotationLayer(pwr.DiffOriginalPdfPath);
             if (layer != null)
             {
@@ -826,12 +834,9 @@ public partial class PreView : UserControl
                 MuPDFRenderer.ActiveLayer = layer;
                 MuPDFRenderer.NotifyLayersChanged();
                 UpdateActiveLayerLabel();
+                pwr.CurrentFile?.RefreshAnnotationStatus();
                 ctx?.MarkDirty();
             }
-        }
-        else
-        {
-            SyncDiffOverlay();
         }
     }
 
@@ -850,7 +855,11 @@ public partial class PreView : UserControl
             _ => -1
         };
         if (index >= 0 && index < presets.Count)
+        {
             pwr.DiffHighlightColor = presets[index];
+            // Repaint the annotation layer immediately so the color change is visible
+            MuPDFRenderer.NotifyLayersChanged();
+        }
     }
 
     /// <summary>Opens the version comparison dialog.</summary>
@@ -865,19 +874,14 @@ public partial class PreView : UserControl
         IEnumerable<FileData>? appendedFiles = null;
 
         // Only include sibling/child attached files as comparison options when
-        // the file itself has no version history. When versions exist, they
-        // are the natural comparison targets and showing 50+ siblings would
-        // overwhelm the dialog.
+        // the file itself has no version history AND is not an appended child.
+        // Appended files without versions shouldn't show the parent's siblings
+        // as comparison targets — that's misleading.
         if (currentFile != null && !currentFile.HasVersions
+            && !currentFile.IsAppendedFile
             && mainVm?.CurrentProject?.StoredFiles != null)
         {
-            if (currentFile.IsAppendedFile && currentFile.ParentFile != null)
-            {
-                var parent = currentFile.ParentFile;
-                appendedFiles = mainVm.CurrentProject.StoredFiles
-                    .Where(f => f != currentFile && (f == parent || f.ParentNamn == parent.Namn));
-            }
-            else if (currentFile.HasChildren)
+            if (currentFile.HasChildren)
             {
                 appendedFiles = mainVm.CurrentProject.StoredFiles
                     .Where(f => f.ParentNamn == currentFile.Namn);
@@ -913,16 +917,14 @@ public partial class PreView : UserControl
 
         if (!dialog.Confirmed || dialog.ChoiceA == null || dialog.ChoiceB == null) return;
 
-        pwr.DiffChoiceA = dialog.ChoiceA;
-        pwr.DiffChoiceB = dialog.ChoiceB;
-
-        // Close current diff mode views before entering new comparison
+        // Full close ensures clean state for re-entering diff
         await CloseDiffViewsAsync();
+        pwr.CloseDiffModeSync();
         MuPDFRenderer.ClearDiffOverlay();
 
-        // Store the source file so version data persists
-        if (mainVm?.CurrentFile != null)
-            pwr.DiffSourceFile = mainVm.CurrentFile;
+        // Restore choices and path list so combo boxes reflect current A/B
+        var sourceFile = mainVm?.CurrentFile;
+        pwr.RestoreDiffChoices(dialog.ChoiceA, dialog.ChoiceB, sourceFile);
 
         // Load Choice A into the main renderer so the user sees the same
         // file pair that the comparison will use. Without this, the main

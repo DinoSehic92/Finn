@@ -185,7 +185,7 @@
 			<ProgressBar Width="200" VerticalAlignment="Center" Minimum="0" Maximum="100"
 						 Value="{Binding PreviewVM.BackgroundTaskProgress}"
 					 Height="4" MinHeight="4" CornerRadius="2"/>
-			<TextBlock Text="{Binding PreviewVM.BackgroundTaskMessage}" Width="200" Height="35"
+			<TextBlock Text="{Binding PreviewVM.BackgroundTaskMessage}" Height="35"
 					   VerticalAlignment="Center" IsHitTestVisible="False"
 					   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="4,8"/>
 			<Button Width="20" Height="20" Padding="0" VerticalAlignment="Center"

@@ -593,7 +593,11 @@ namespace Finn.ViewModels
         public bool DiffBusy
         {
             get => diffBusy;
-            set => SetProperty(ref diffBusy, value);
+            set
+            {
+                if (SetProperty(ref diffBusy, value))
+                    OnPropertyChanged(nameof(ShowDiffToolbar));
+            }
         }
 
         private string statusMessage;

@@ -70,6 +70,7 @@ namespace Finn.ViewModels
             {
                 if (SetProperty(ref _diffOverlayActive, value))
                 {
+                    OnPropertyChanged(nameof(ShowDiffToolbar));
                     OnPropertyChanged(nameof(ShowDiffToggle));
                     OnPropertyChanged(nameof(IsUserDualFileMode));
                     OnPropertyChanged(nameof(CanToggleLayout));
@@ -79,6 +80,13 @@ namespace Finn.ViewModels
                 }
             }
         }
+
+        /// <summary>
+        /// True when the diff toolbar should be visible: either diff mode is active
+        /// OR a comparison is running (so the toolbar doesn't flash away and back).
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowDiffToolbar => _diffOverlayActive || diffBusy;
 
         /// <summary>Whether diff results are loaded (controls toggle button visibility).</summary>
         public bool HasDiffResults => _diffResults != null && _diffResults.Count > 0;
@@ -147,6 +155,7 @@ namespace Finn.ViewModels
             {
                 if (SetProperty(ref _diffHighlightColor, value))
                 {
+                    UpdateDiffAnnotationLayerColor();
                     if (_diffResults is { Count: > 0 })
                         DebouncedRecomputeAsync();
                 }
@@ -190,7 +199,8 @@ namespace Finn.ViewModels
                 var file = _diffSourceFile ?? currentFile;
                 if (file is { HasVersions: true }) return true;
                 if (file is { HasChildren: true }) return true;
-                if (file is { IsAppendedFile: true }) return true;
+                // Appended files only show compare if they have their own versions
+                // (not inherited from parent).
                 return !string.IsNullOrEmpty(_diffOriginalPdfPath) && !string.IsNullOrEmpty(_diffRevisedPdfPath);
             }
         }
@@ -266,7 +276,7 @@ namespace Finn.ViewModels
             catch (OperationCanceledException) { }
         }
 
-        public void LoadDiffResults(List<DiffResultData> results, string tempDir, string? originalPdfPath = null, string? revisedPdfPath = null, FileData? sourceFile = null)
+        public async Task LoadDiffResultsAsync(List<DiffResultData> results, string tempDir, string? originalPdfPath = null, string? revisedPdfPath = null, FileData? sourceFile = null)
         {
             CleanupDiffTempDir();
             _diffResults = results;
@@ -274,6 +284,18 @@ namespace Finn.ViewModels
             _diffOriginalPdfPath = originalPdfPath;
             _diffRevisedPdfPath = revisedPdfPath;
             _diffSourceFile = sourceFile;
+
+            // Property notifications and search-panel updates must run on the
+            // UI thread. This method may be called from a background thread
+            // after ConfigureAwait(false) in RunDiffAsync / RunTextDiffAsync.
+            if (Dispatcher.UIThread.CheckAccess())
+                NotifyDiffResultsLoaded(results);
+            else
+                await Dispatcher.UIThread.InvokeAsync(() => NotifyDiffResultsLoaded(results)).GetTask().ConfigureAwait(false);
+        }
+
+        private void NotifyDiffResultsLoaded(List<DiffResultData> results)
+        {
             RefreshDiffPathChoices();
             DiffOverlayActive = results.Count > 0;
             OnPropertyChanged(nameof(HasDiffResults));
@@ -342,6 +364,26 @@ namespace Finn.ViewModels
             DiffPathChoices = [];
             OnPropertyChanged(nameof(DiffPathChoices));
             OnPropertyChanged(nameof(HasDiffPathChoices));
+        }
+
+        /// <summary>
+        /// Toggles the diff page list panel (search panel in diff mode).
+        /// </summary>
+        public void ToggleDiffPageList()
+        {
+            if (searchMode && _diffPageListMode)
+            {
+                // Close the panel
+                SetProperty(ref searchMode, false, nameof(SearchMode));
+            }
+            else if (HasDiffResults)
+            {
+                // Re-open with existing results
+                if (!_diffPageListMode)
+                    PopulateDiffPageList();
+                else
+                    SetProperty(ref searchMode, true, nameof(SearchMode));
+            }
         }
 
         public void CloseDiffModeSync()
@@ -423,6 +465,32 @@ namespace Finn.ViewModels
                 _diffAnnotationLayer = null;
                 OnPropertyChanged("LayersChanged");
             }
+        }
+
+        /// <summary>
+        /// Detaches the tracked diff annotation layer so it won't be auto-removed
+        /// when diff mode is closed. Call after the user explicitly saves the layer.
+        /// </summary>
+        public void DetachDiffAnnotationLayer()
+        {
+            _diffAnnotationLayer = null;
+        }
+
+        /// <summary>
+        /// Updates the color of all shapes in the diff annotation layer to match
+        /// the current <see cref="DiffHighlightColor"/>. Also updates the layer's
+        /// own color property so the tray dot reflects the change.
+        /// </summary>
+        private void UpdateDiffAnnotationLayerColor()
+        {
+            if (_diffAnnotationLayer == null) return;
+            _diffAnnotationLayer.Color = _diffHighlightColor;
+            foreach (var shapes in _diffAnnotationLayer.PageShapes.Values)
+            {
+                foreach (var shape in shapes)
+                    shape.Color = _diffHighlightColor;
+            }
+            OnPropertyChanged("LayersChanged");
         }
 
         private void CleanupDiffTempDir()
@@ -524,6 +592,27 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(DiffChoiceB));
         }
 
+        /// <summary>
+        /// Restores choices and source file after a full close, rebuilding
+        /// the path choices list so combo boxes show the current A/B selection.
+        /// </summary>
+        public void RestoreDiffChoices(DiffPathChoice choiceA, DiffPathChoice choiceB, FileData? sourceFile)
+        {
+            _diffSourceFile = sourceFile;
+            _diffOriginalPdfPath = choiceA.Path;
+            _diffRevisedPdfPath = choiceB.Path;
+            RefreshDiffPathChoices();
+            // RefreshDiffPathChoices matches by path — override with the exact
+            // objects so the caller's references stay consistent.
+            _diffChoiceA = DiffPathChoices.FirstOrDefault(c =>
+                string.Equals(c.Path, choiceA.Path, StringComparison.OrdinalIgnoreCase)) ?? choiceA;
+            _diffChoiceB = DiffPathChoices.FirstOrDefault(c =>
+                string.Equals(c.Path, choiceB.Path, StringComparison.OrdinalIgnoreCase)) ?? choiceB;
+            OnPropertyChanged(nameof(DiffChoiceA));
+            OnPropertyChanged(nameof(DiffChoiceB));
+            OnPropertyChanged(nameof(CanCompareVersions));
+        }
+
         public async Task CompareSelectedPathsAsync()
         {
             if (_diffChoiceA == null || _diffChoiceB == null) return;
@@ -579,7 +668,7 @@ namespace Finn.ViewModels
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
                 var (results, dir) = await PdfDiffService.CompareAsync(resolvedA, resolvedB, progress, ct, _diffTolerance,
                     _diffHighlightColor.R, _diffHighlightColor.G, _diffHighlightColor.B);
-                LoadDiffResults(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
+                await LoadDiffResultsAsync(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — identical"
@@ -626,10 +715,10 @@ namespace Finn.ViewModels
 
                 var progress = new Progress<int>(p => StatusMessage = $"Text comparing… {p}%");
                 var results = await TextDiffService.CompareAsync(resolvedA, resolvedB, progress, ct);
-                // Text diff produces no images; create an empty temp dir for LoadDiffResults.
+                // Text diff produces no images; create an empty temp dir for LoadDiffResultsAsync.
                 string tempDir = Path.Combine(Path.GetTempPath(), "FinnTextDiff_" + Guid.NewGuid().ToString("N")[..8]);
                 Directory.CreateDirectory(tempDir);
-                LoadDiffResults(results, tempDir, pathA, pathB, sourceFile);
+                await LoadDiffResultsAsync(results, tempDir, pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — text identical"
