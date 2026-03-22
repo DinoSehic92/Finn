@@ -37,8 +37,10 @@ namespace Finn.ViewModels
         private CancellationTokenSource? _toleranceDebounceCts;
         /// <summary>Highlight color for diff pixels and annotation shapes.</summary>
         private Avalonia.Media.Color _diffHighlightColor = Avalonia.Media.Color.FromRgb(230, 60, 60);
-        /// <summary>Auto-created diff annotation layer, tracked so it can be removed on mode switch.</summary>
+        /// <summary>Auto-created diff annotation layer for A-side regions, tracked for auto-removal.</summary>
         private AnnotationLayer? _diffAnnotationLayer;
+        /// <summary>Auto-created diff annotation layer for B-side regions (revised document).</summary>
+        private AnnotationLayer? _diffAnnotationLayerB;
 
         /// <summary>Sets the source file for version lookups during diff comparisons.</summary>
         public FileData? DiffSourceFile
@@ -51,7 +53,7 @@ namespace Finn.ViewModels
             }
         }
         private bool _diffOverlayActive;
-        private DiffViewMode _diffViewMode = DiffViewMode.Overlay;
+        private DiffViewMode _diffViewMode = DiffViewMode.Toggle;
         private int _diffTolerance = PdfDiffService.DefaultTolerance;
         private bool _diffRerunBusy;
 
@@ -185,6 +187,10 @@ namespace Finn.ViewModels
                     return "";
                 }
                 int changed = _diffResults.Count(r => r.HasDifferences);
+                int totalChanged = _diffResults.Sum(r => r.ChangedWords);
+                int totalWords = _diffResults.Sum(r => r.TotalWords);
+                if (totalWords > 0 && totalChanged > 0)
+                    return $"{changed}/{_diffResults.Count} pages — {totalChanged} words ({100.0 * totalChanged / totalWords:F0}%)";
                 return $"{changed}/{_diffResults.Count} pages differ";
             }
         }
@@ -321,7 +327,10 @@ namespace Finn.ViewModels
             {
                 if (!result.HasDifferences) continue;
                 SearchPages.Add(result.PageIndex);
-                SearchPagesText.Add($"{result.Label} — differs");
+                string detail = result.TotalWords > 0
+                    ? $"{result.Label} — {result.ChangedWords}/{result.TotalWords} words"
+                    : $"{result.Label} — differs";
+                SearchPagesText.Add(detail);
             }
 
             SearchItems = SearchPages.Count;
@@ -403,55 +412,136 @@ namespace Finn.ViewModels
             ClearDiffResults();
         }
 
+        /// <summary>
+        /// Default color for A-side (removed) highlights — warm red.
+        /// </summary>
+        private static readonly Avalonia.Media.Color DiffColorA = Avalonia.Media.Color.FromRgb(220, 75, 75);
+        /// <summary>
+        /// Default color for B-side (added) highlights — cool blue.
+        /// </summary>
+        private static readonly Avalonia.Media.Color DiffColorB = Avalonia.Media.Color.FromRgb(60, 145, 220);
+
+        /// <summary>
+        /// Creates up to two annotation layers from the diff results:
+        /// <list type="bullet">
+        ///   <item><b>A-layer</b> (warm red) — regions of words removed from the original (A).</item>
+        ///   <item><b>B-layer</b> (cool blue) — regions of words added in the revised (B).</item>
+        /// </list>
+        /// Pixel-diff regions (<see cref="DiffSide.Both"/>) go into both layers.
+        /// The layers are added to <see cref="PreviewViewModel.CurrentFile"/> so the
+        /// renderer draws them. Returns the A-layer (or the combined layer for pixel diffs).
+        /// </summary>
         public AnnotationLayer? CreateDiffAnnotationLayer(string? comparedFileName = null)
         {
             if (_diffResults == null || _diffResults.Count == 0 || CurrentFile == null) return null;
 
-            // Remove the previous auto-created diff layer to avoid stacking.
+            // Remove previous auto-created layers to avoid stacking.
             RemoveDiffAnnotationLayer();
 
-            string layerName = string.IsNullOrEmpty(comparedFileName)
+            string baseName = string.IsNullOrEmpty(comparedFileName)
                 ? $"Diff {DateTime.Now:yyyy-MM-dd HH:mm}"
                 : $"Diff vs {Path.GetFileNameWithoutExtension(comparedFileName)}";
 
-            var layer = new AnnotationLayer
+            // Determine whether we have side-tagged regions (text diff) or
+            // untagged regions (pixel diff). Text diff gets A + B annotation
+            // layers; pixel diff uses overlay images instead (different colors
+            // on each renderer, handled by SyncDiffOverlay).
+            bool hasTextSides = false;
+            foreach (var result in _diffResults)
             {
-                Name = layerName,
-                Color = _diffHighlightColor
+                if (result.Regions == null) continue;
+                foreach (var r in result.Regions)
+                    if (r.Side != DiffSide.Both) { hasTextSides = true; break; }
+                if (hasTextSides) break;
+            }
+
+            // Pixel diff: no annotation shapes — the overlay images handle it.
+            if (!hasTextSides) return null;
+
+            var layerA = new AnnotationLayer
+            {
+                Name = $"{baseName} — Removed (A)",
+                Color = DiffColorA
+            };
+            var layerB = new AnnotationLayer
+            {
+                Name = $"{baseName} — Added (B)",
+                Color = DiffColorB
             };
 
             foreach (var result in _diffResults)
             {
                 if (!result.HasDifferences) continue;
 
-                // Prefer pre-computed regions; fall back to re-reading the diff image.
                 var regions = result.Regions
                     ?? (result.DiffPath != null ? PdfDiffService.ExtractDiffRegions(result.DiffPath, PdfDiffService.ZOOM) : null);
                 if (regions == null || regions.Count == 0) continue;
 
-                var shapes = new List<ShapeAnnotation>();
+                // Actual 0-based page numbers in each document.
+                // PageLabel is 1-based, so subtract 1. Use alignment index as fallback.
+                int pageA = result.PageLabelA.HasValue ? result.PageLabelA.Value - 1 : result.PageIndex;
+                int pageB = result.PageLabelB.HasValue ? result.PageLabelB.Value - 1 : result.PageIndex;
+
                 foreach (var r in regions)
                 {
-                    shapes.Add(new ShapeAnnotation
+                    switch (r.Side)
                     {
-                        ShapeType = InlineAnnotationTool.Rectangle,
-                        Start = new Avalonia.Point(r.X, r.Y),
-                        End = new Avalonia.Point(r.X + r.Width, r.Y + r.Height),
-                        Color = _diffHighlightColor,
-                        StrokeWidth = 1.5,
-                        Opacity = 0.35,
-                        IsFilled = true
-                    });
+                        case DiffSide.RemovedFromA:
+                        {
+                            if (pageA < 0) break;
+                            var shape = MakeShape(r, DiffColorA);
+                            if (!layerA.PageShapes.TryGetValue(pageA, out var list))
+                                layerA.PageShapes[pageA] = list = [];
+                            list.Add(shape);
+                            break;
+                        }
+                        case DiffSide.AddedToB:
+                        {
+                            if (pageB < 0) break;
+                            var shape = MakeShape(r, DiffColorB);
+                            if (!layerB.PageShapes.TryGetValue(pageB, out var list))
+                                layerB.PageShapes[pageB] = list = [];
+                            list.Add(shape);
+                            break;
+                        }
+                    }
                 }
-                layer.PageShapes[result.PageIndex] = shapes;
             }
 
-            layer.RecalculateCounts();
-            CurrentFile.AnnotationLayers.Add(layer);
-            _diffAnnotationLayer = layer;
+            layerA.RecalculateCounts();
+            CurrentFile.AnnotationLayers.Add(layerA);
+            _diffAnnotationLayer = layerA;
+
+            layerB.RecalculateCounts();
+
+            // Place the B-layer on the secondary renderer (right side).
+            // Create a lightweight stub if CurrentFile2 doesn't exist yet.
+            if (CurrentFile2 == null)
+                CurrentFile2 = new FileData
+                {
+                    Namn = "Diff B",
+                    Sökväg = _diffRevisedPdfPath ?? ""
+                };
+            CurrentFile2.AnnotationLayers.Add(layerB);
+            _diffAnnotationLayerB = layerB;
+
             OnPropertyChanged("LayersChanged");
-            return layer;
+            // Notify the view so the secondary renderer picks up the new layers.
+            OnPropertyChanged(nameof(CurrentFile2));
+            return layerA;
         }
+
+        /// <summary>Creates a filled rectangle shape annotation from a diff region.</summary>
+        private static ShapeAnnotation MakeShape(DiffRegion r, Avalonia.Media.Color color) => new()
+        {
+            ShapeType = InlineAnnotationTool.Rectangle,
+            Start = new Avalonia.Point(r.X, r.Y),
+            End = new Avalonia.Point(r.X + r.Width, r.Y + r.Height),
+            StrokeWidth = 1.5,
+            Opacity = 0.15 + 0.30 * r.Confidence,
+            IsFilled = true,
+            Color = color
+        };
 
         /// <summary>
         /// Removes the auto-created diff annotation layer from the current file.
@@ -459,12 +549,21 @@ namespace Finn.ViewModels
         /// </summary>
         public void RemoveDiffAnnotationLayer()
         {
+            bool removed = false;
             if (_diffAnnotationLayer != null && CurrentFile?.AnnotationLayers != null)
             {
                 CurrentFile.AnnotationLayers.Remove(_diffAnnotationLayer);
                 _diffAnnotationLayer = null;
-                OnPropertyChanged("LayersChanged");
+                removed = true;
             }
+            if (_diffAnnotationLayerB != null && CurrentFile2?.AnnotationLayers != null)
+            {
+                CurrentFile2.AnnotationLayers.Remove(_diffAnnotationLayerB);
+                _diffAnnotationLayerB = null;
+                removed = true;
+            }
+            if (removed)
+                OnPropertyChanged("LayersChanged");
         }
 
         /// <summary>
@@ -474,21 +573,48 @@ namespace Finn.ViewModels
         public void DetachDiffAnnotationLayer()
         {
             _diffAnnotationLayer = null;
+            _diffAnnotationLayerB = null;
         }
 
         /// <summary>
-        /// Updates the color of all shapes in the diff annotation layer to match
-        /// the current <see cref="DiffHighlightColor"/>. Also updates the layer's
-        /// own color property so the tray dot reflects the change.
+        /// Ensures the B-side diff annotation layer is attached to
+        /// <see cref="CurrentFile2"/>. The secondary document open/close flow
+        /// resets <c>CurrentFile2 = null</c>, so this must be called each time
+        /// the view needs to sync layers to the secondary renderer.
+        /// </summary>
+        public void EnsureDiffBLayerOnSecondary()
+        {
+            if (_diffAnnotationLayerB == null) return;
+            if (CurrentFile2 == null)
+                CurrentFile2 = new FileData
+                {
+                    Namn = "Diff B",
+                    Sökväg = _diffRevisedPdfPath ?? ""
+                };
+            if (!CurrentFile2.AnnotationLayers.Contains(_diffAnnotationLayerB))
+                CurrentFile2.AnnotationLayers.Add(_diffAnnotationLayerB);
+        }
+
+        /// <summary>
+        /// Updates the color of all shapes in the diff annotation layers.
+        /// Only applies to text diff layers (A = red, B = blue).
+        /// Pixel diff uses overlay images, not annotation shapes.
         /// </summary>
         private void UpdateDiffAnnotationLayerColor()
         {
-            if (_diffAnnotationLayer == null) return;
-            _diffAnnotationLayer.Color = _diffHighlightColor;
-            foreach (var shapes in _diffAnnotationLayer.PageShapes.Values)
+            if (_diffAnnotationLayer != null)
             {
-                foreach (var shape in shapes)
-                    shape.Color = _diffHighlightColor;
+                _diffAnnotationLayer.Color = DiffColorA;
+                foreach (var shapes in _diffAnnotationLayer.PageShapes.Values)
+                    foreach (var shape in shapes)
+                        shape.Color = DiffColorA;
+            }
+            if (_diffAnnotationLayerB != null)
+            {
+                _diffAnnotationLayerB.Color = DiffColorB;
+                foreach (var shapes in _diffAnnotationLayerB.PageShapes.Values)
+                    foreach (var shape in shapes)
+                        shape.Color = DiffColorB;
             }
             OnPropertyChanged("LayersChanged");
         }
@@ -506,6 +632,12 @@ namespace Finn.ViewModels
         {
             var result = GetDiffResult(page);
             return result?.HasDifferences == true ? result.DiffPath : null;
+        }
+
+        public string? GetDiffImagePathB(int page)
+        {
+            var result = GetDiffResult(page);
+            return result?.HasDifferences == true ? result.DiffPathB : null;
         }
 
         public string? GetOriginalImagePath(int page)

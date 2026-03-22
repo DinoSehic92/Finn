@@ -105,6 +105,19 @@ public partial class PreView : UserControl
             case "CurrentPage1":
                 DeselectAnnotation();
                 MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
+                if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)
+                {
+                    sec.SetStrokePage(pwr.CurrentPage1);
+                    // Refresh secondary pixel diff overlay for the new page.
+                    if ((_diffSideBySideOpen || _diffToggleOpen) && pwr.HasDiffResults)
+                    {
+                        var diffB = pwr.GetDiffImagePathB(pwr.CurrentPage1);
+                        if (diffB != null)
+                            sec.SetDiffOverlay(diffB, pwr.CurrentPage1, PdfDiffService.ZOOM);
+                        else
+                            sec.ClearDiffOverlay();
+                    }
+                }
                 SyncLayers();
                 SyncDiffOverlay();
                 if (_annotateMode) UpdateUndoRedoButtons();
@@ -115,13 +128,21 @@ public partial class PreView : UserControl
                 SyncDiffOverlay();
                 break;
 
-            case "DiffTolerance" when pwr.DiffOverlayActive && pwr.DiffViewMode == DiffViewMode.Overlay:
-                // Debounced recompute finished — refresh the overlay for the current page.
-                var diffPath2 = pwr.GetDiffImagePath(pwr.CurrentPage1);
-                if (diffPath2 != null)
-                    MuPDFRenderer.SetDiffOverlay(diffPath2, pwr.CurrentPage1, PdfDiffService.ZOOM, forceReload: true);
+            case "DiffTolerance" when pwr.DiffOverlayActive && (pwr.DiffViewMode == DiffViewMode.Toggle || pwr.DiffViewMode == DiffViewMode.SideBySide):
+                // Refresh both A and B overlays after tolerance recompute.
+                var diffA3 = pwr.GetDiffImagePath(pwr.CurrentPage1);
+                if (diffA3 != null)
+                    MuPDFRenderer.SetDiffOverlay(diffA3, pwr.CurrentPage1, PdfDiffService.ZOOM, forceReload: true);
                 else
                     MuPDFRenderer.ClearDiffOverlay();
+                if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secTol)
+                {
+                    var diffB3 = pwr.GetDiffImagePathB(pwr.CurrentPage1);
+                    if (diffB3 != null)
+                        secTol.SetDiffOverlay(diffB3, pwr.CurrentPage1, PdfDiffService.ZOOM, forceReload: true);
+                    else
+                        secTol.ClearDiffOverlay();
+                }
                 break;
 
             case nameof(PreviewViewModel.DiffShowingOriginal) when _diffToggleOpen:
@@ -159,6 +180,25 @@ public partial class PreView : UserControl
         var layers = pwr.CurrentFile?.AnnotationLayers;
         if (layers != MuPDFRenderer.Layers)
             MuPDFRenderer.SetLayers(layers);
+    }
+
+    /// <summary>
+    /// Points the secondary renderer at the diff B-layer so blue highlights
+    /// render on the right pane. Re-attaches the layer to CurrentFile2 first,
+    /// since the secondary document open/close flow resets it to null.
+    /// Also sets the stroke page so annotations draw on the correct page.
+    /// </summary>
+    private void SyncSecondaryLayers()
+    {
+        if (pwr == null) return;
+        if (MuPDFRendererSecondary is not Finn.Controls.AnnotatedPDFRenderer annotated) return;
+        pwr.EnsureDiffBLayerOnSecondary();
+        var layers = pwr.CurrentFile2?.AnnotationLayers;
+        if (layers != null && layers != annotated.Layers)
+            annotated.SetLayers(layers);
+        // Ensure the secondary renderer knows the current page so it draws
+        // the correct page's shapes (SetLayers does not update the page).
+        annotated.SetStrokePage(pwr.CurrentPage1);
     }
 
     /// <summary>
@@ -217,6 +257,8 @@ public partial class PreView : UserControl
         if (!pwr.DiffOverlayActive)
         {
             MuPDFRenderer.ClearDiffOverlay();
+            if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClear)
+                secClear.ClearDiffOverlay();
             await CloseDiffViewsAsync();
             return;
         }
@@ -225,14 +267,9 @@ public partial class PreView : UserControl
         switch (pwr.DiffViewMode)
         {
             case DiffViewMode.Overlay:
-                await CloseDiffViewsAsync();
-                var diffPath = pwr.HasDiffResults ? pwr.GetDiffImagePath(page) : null;
-                if (diffPath != null)
-                    MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM);
-                else
-                    MuPDFRenderer.ClearDiffOverlay();
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => MuPDFRenderer.Contain(), Avalonia.Threading.DispatcherPriority.Render);
-                break;
+                // Legacy: treat as Toggle if persisted state has Overlay.
+                pwr.DiffViewMode = DiffViewMode.Toggle;
+                return; // DiffViewMode change will re-trigger SyncDiffOverlay
 
             case DiffViewMode.Toggle:
                 MuPDFRenderer.ClearDiffOverlay();
@@ -271,6 +308,17 @@ public partial class PreView : UserControl
                     bool opened = await pwr.OpenDiffSideBySideAsync();
                     if (opened)
                     {
+                        SyncSecondaryLayers();
+                        // Show pixel diff overlays on both renderers: red on A, blue on B.
+                        if (pwr.HasDiffResults)
+                        {
+                            var diffA = pwr.GetDiffImagePath(page);
+                            if (diffA != null)
+                                MuPDFRenderer.SetDiffOverlay(diffA, page, PdfDiffService.ZOOM);
+                            var diffB = pwr.GetDiffImagePathB(page);
+                            if (diffB != null && MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secRdr)
+                                secRdr.SetDiffOverlay(diffB, page, PdfDiffService.ZOOM);
+                        }
                         MuPDFRenderer.Contain();
                         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Render);
                         if (MuPDFRendererSecondary.IsVisible && MuPDFRendererSecondary.Bounds is { Width: > 0, Height: > 0 })
@@ -356,6 +404,18 @@ public partial class PreView : UserControl
         // After the document is loaded, ensure correct state (show B first).
         await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
         {
+            SyncSecondaryLayers();
+            // Show pixel diff overlays: red on A (primary), blue on B (secondary).
+            if (pwr.HasDiffResults)
+            {
+                int pg = pwr.CurrentPage1;
+                var diffA = pwr.GetDiffImagePath(pg);
+                if (diffA != null)
+                    MuPDFRenderer.SetDiffOverlay(diffA, pg, PdfDiffService.ZOOM);
+                var diffB = pwr.GetDiffImagePathB(pg);
+                if (diffB != null && MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secToggle)
+                    secToggle.SetDiffOverlay(diffB, pg, PdfDiffService.ZOOM);
+            }
             pwr.DiffShowingOriginal = false;
             ShowToggleRenderer(showOriginal: false);
             MuPDFRendererSecondary.Contain();
@@ -713,12 +773,6 @@ public partial class PreView : UserControl
     // Clicking the already-active button is a no-op (DiffViewMode doesn't change,
     // OneWay binding keeps it checked).
 
-    private void OnDiffModeOverlay(object? sender, RoutedEventArgs e)
-    {
-        if (pwr is { HasDiffResults: true })
-            pwr.DiffViewMode = DiffViewMode.Overlay;
-    }
-
     private void OnDiffModeToggle(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
@@ -811,7 +865,7 @@ public partial class PreView : UserControl
 
         // Restore choices and path list so combo boxes reflect current A/B
         pwr.RestoreDiffChoices(choiceA, choiceB, sourceFile);
-        pwr.DiffViewMode = DiffViewMode.Overlay;
+        pwr.DiffViewMode = DiffViewMode.SideBySide;
 
         if (kind == DiffRunKind.Pixel)
         {
@@ -824,7 +878,8 @@ public partial class PreView : UserControl
 
         SyncDiffOverlay();
 
-        // Text diff: auto-create an annotation layer with word-level highlights
+        // Text diff: auto-create annotation layers with word-level highlights.
+        // Pixel diff uses overlay images instead (handled by SyncDiffOverlay).
         if (kind == DiffRunKind.Text && pwr.HasDiffResults)
         {
             var layer = pwr.CreateDiffAnnotationLayer(pwr.DiffOriginalPdfPath);
@@ -941,9 +996,6 @@ public partial class PreView : UserControl
 
         // Enter dual view immediately — Toggle or SideBySide work instantly.
         // The user can run the slow pixel comparison later via the toolbar button.
-        // Default to SideBySide if not already in a diff view mode.
-        if (pwr.DiffViewMode == DiffViewMode.Overlay)
-            pwr.DiffViewMode = DiffViewMode.SideBySide;
         pwr.EnterDiffView(dialog.ChoiceA.Path, dialog.ChoiceB.Path, pwr.DiffSourceFile);
         SyncDiffOverlay();
     }

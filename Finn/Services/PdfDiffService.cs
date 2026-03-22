@@ -31,6 +31,9 @@ namespace Finn.Services
         public const float ZOOM = 2.0f;
         private const int REGION_CELL_SIZE = 8;
 
+        /// <summary>Default B-side highlight color — cool blue.</summary>
+        public const byte DefaultHighlightB_R = 60, DefaultHighlightB_G = 145, DefaultHighlightB_B = 220;
+
         /// <summary>
         /// Compare two PDF files asynchronously, returning per-page diff results
         /// and the path to the temporary directory holding rendered images.
@@ -74,6 +77,10 @@ namespace Finn.Services
                     var (hasDiff, regions) = ComputeAndSaveDiff(bmpA, bmpB, result.DiffPath, tolerance, highlightR, highlightG, highlightB);
                     result.HasDifferences = hasDiff;
                     result.Regions = regions;
+
+                    // Regenerate B-side diff image with the alternate color.
+                    if (hasDiff && result.DiffPathB != null)
+                        RecolorDiffImage(result.DiffPath, result.DiffPathB, DefaultHighlightB_R, DefaultHighlightB_G, DefaultHighlightB_B);
                 });
             }, ct);
         }
@@ -152,6 +159,7 @@ namespace Finn.Services
                     bool hasDiff;
                     List<DiffRegion>? regions = null;
 
+                    string? fileDiffB = null;
                     if (bmpA != null && bmpB != null)
                     {
                         fileD = Path.Combine(tempDir, $"d_{idx}.png");
@@ -161,6 +169,12 @@ namespace Finn.Services
                         {
                             try { File.Delete(fileD); } catch { }
                             fileD = null;
+                        }
+                        else if (hasDiff)
+                        {
+                            // Generate B-side diff image with the alternate color.
+                            fileDiffB = Path.Combine(tempDir, $"d_{idx}_b.png");
+                            RecolorDiffImage(fileD, fileDiffB, DefaultHighlightB_R, DefaultHighlightB_G, DefaultHighlightB_B);
                         }
 
                         // Save source PNGs for toggle/SBS views.
@@ -195,6 +209,7 @@ namespace Finn.Services
                         OriginalPath = fileA,
                         RevisedPath = fileB,
                         DiffPath = fileD,
+                        DiffPathB = fileDiffB,
                         HasDifferences = hasDiff,
                         Regions = regions,
                         PageLabelA = idxA >= 0 ? idxA + 1 : null,
@@ -452,6 +467,52 @@ namespace Finn.Services
             }
 
             return ExtractRegionsFromGrid(grid, rows, cols, zoom);
+        }
+
+        /// <summary>
+        /// Reads a diff image and replaces all highlight pixels (non-grayscale)
+        /// with a new color. Grayscale (unchanged) pixels are kept as-is.
+        /// Used to produce the B-side overlay with a different highlight color.
+        /// </summary>
+        public static void RecolorDiffImage(string sourcePath, string destPath,
+            byte newR, byte newG, byte newB)
+        {
+            using var bmp = SKBitmap.Decode(sourcePath);
+            if (bmp == null) return;
+
+            int w = bmp.Width, h = bmp.Height;
+            var span = bmp.GetPixelSpan();
+            int stride = bmp.RowBytes;
+            int totalBytes = stride * h;
+            byte[] buf = new byte[totalBytes];
+            span.CopyTo(buf);
+
+            for (int y = 0; y < h; y++)
+            {
+                int rowOff = y * stride;
+                for (int x = 0; x < w; x++)
+                {
+                    int off = rowOff + x * 4; // BGRA
+                    byte pB = buf[off], pG = buf[off + 1], pR = buf[off + 2];
+                    // Highlight pixels have channels that differ; grayscale has R==G==B.
+                    if (pR != pG || pG != pB)
+                    {
+                        buf[off]     = newB;
+                        buf[off + 1] = newG;
+                        buf[off + 2] = newR;
+                        // Alpha stays the same.
+                    }
+                }
+            }
+
+            var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var outBmp = new SKBitmap(info);
+            Marshal.Copy(buf, 0, outBmp.GetPixels(), totalBytes);
+
+            using var image = SKImage.FromBitmap(outBmp);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            using var stream = File.OpenWrite(destPath);
+            data.SaveTo(stream);
         }
 
         #region Page Alignment

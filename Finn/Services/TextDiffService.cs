@@ -12,20 +12,88 @@ namespace Finn.Services
     /// Word-level diff engine for PDF files. Extracts text from each page using
     /// MuPDF's structured text API, compares word sequences using a longest-common-
     /// subsequence algorithm, and returns bounding rectangles for changed/added/removed words.
+    /// <para>
+    /// Uses a cross-page document-stream comparison:
+    /// 1. <b>Page alignment</b> — Jaccard similarity LCS handles inserted/removed pages.
+    /// 2. <b>Segment-based stream comparison</b> — consecutive aligned pages are merged
+    ///    into segments spanning page boundaries, so text that reflows between pages
+    ///    is matched correctly instead of being flagged as removed-then-added.
+    /// 3. <b>Confidence-based regions</b> — each diff region carries a confidence value
+    ///    reflecting the alignment quality, rendered as opacity in the annotation layer.
+    /// </para>
     /// Separate from <see cref="PdfDiffService"/> (pixel-based) — both engines can be
     /// used independently or combined.
     /// </summary>
     public static class TextDiffService
     {
+        #region Types
+
         /// <summary>
         /// A word extracted from a PDF page, with its text and bounding box in PDF coordinates.
         /// </summary>
         private readonly record struct PageWord(string Text, string NormalizedText, double X, double Y, double Width, double Height);
 
         /// <summary>
-        /// Compares two PDF files word-by-word for each page pair and returns
-        /// <see cref="DiffResultData"/> entries with populated <see cref="DiffResultData.Regions"/>.
-        /// No images are produced — this is a text-only comparison.
+        /// A word in the flat document stream with its source page index for
+        /// mapping diff results back to per-page output.
+        /// </summary>
+        private readonly record struct DocumentWord(string NormalizedText, double X, double Y, double Width, double Height, int PageIndex);
+
+        /// <summary>
+        /// A paragraph/block of words extracted from a PDF page.
+        /// Groups words that belong to the same structural text block.
+        /// The <see cref="WordSet"/> is used for page-level Jaccard similarity.
+        /// </summary>
+        private sealed class TextBlock
+        {
+            public List<PageWord> Words { get; } = [];
+            public HashSet<string> WordSet { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+            public void AddWord(PageWord word)
+            {
+                Words.Add(word);
+                if (!string.IsNullOrEmpty(word.NormalizedText))
+                    WordSet.Add(word.NormalizedText);
+            }
+        }
+
+        /// <summary>
+        /// An aligned page pair with a confidence score indicating alignment quality.
+        /// </summary>
+        private readonly record struct AlignedPair(int PageA, int PageB, double Confidence);
+
+        #endregion
+
+        #region Constants
+
+        /// <summary>
+        /// Minimum Jaccard similarity for two pages to be considered a "same page"
+        /// match during page alignment.
+        /// </summary>
+        private const double PageMatchThreshold = 0.4;
+
+        /// <summary>
+        /// Maximum gap size (words per side) for standard LCS within the
+        /// recursive patience diff. Gaps smaller than this use full-matrix LCS;
+        /// larger gaps recurse with patience anchoring first.
+        /// </summary>
+        private const int MaxLcsGap = 400;
+
+        /// <summary>
+        /// Maximum recursion depth for the patience diff. At each level,
+        /// locally-unique words become anchors, producing smaller gaps.
+        /// Three levels handles virtually all real documents.
+        /// </summary>
+        private const int MaxPatienceDepth = 3;
+
+        #endregion
+
+        #region Public API
+
+        /// <summary>
+        /// Compares two PDF files word-by-word using cross-page stream comparison
+        /// and returns <see cref="DiffResultData"/> entries with populated
+        /// <see cref="DiffResultData.Regions"/>. No images are produced.
         /// </summary>
         public static async Task<List<DiffResultData>> CompareAsync(
             string pathA, string pathB,
@@ -34,6 +102,10 @@ namespace Finn.Services
         {
             return await Task.Run(() => Compare(pathA, pathB, progress, ct), ct);
         }
+
+        #endregion
+
+        #region Core Comparison
 
         private static List<DiffResultData> Compare(
             string pathA, string pathB,
@@ -47,61 +119,113 @@ namespace Finn.Services
 
             int pagesA = docA.Pages.Count;
             int pagesB = docB.Pages.Count;
-            int maxPages = Math.Max(pagesA, pagesB);
 
-            // Extract words from all pages first.
-            var wordsA = new List<PageWord>[pagesA];
-            var wordsB = new List<PageWord>[pagesB];
+            // Phase 1 (0–30 %): extract text from all pages.
+            var blocksA = new List<TextBlock>[pagesA];
+            var blocksB = new List<TextBlock>[pagesB];
 
             for (int i = 0; i < pagesA; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                wordsA[i] = ExtractWords(docA, i);
-                progress?.Report(i * 40 / Math.Max(1, pagesA + pagesB));
+                blocksA[i] = ExtractBlocks(docA, i);
+                progress?.Report(i * 30 / Math.Max(1, pagesA + pagesB));
             }
             for (int i = 0; i < pagesB; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                wordsB[i] = ExtractWords(docB, i);
-                progress?.Report((pagesA + i) * 40 / Math.Max(1, pagesA + pagesB));
+                blocksB[i] = ExtractBlocks(docB, i);
+                progress?.Report((pagesA + i) * 30 / Math.Max(1, pagesA + pagesB));
             }
 
-            // Compare page pairs.
-            var results = new List<DiffResultData>(maxPages);
-            for (int i = 0; i < maxPages; i++)
+            // Phase 2 (30–40 %): align pages using Jaccard similarity.
+            var alignment = AlignPages(blocksA, blocksB, pagesA, pagesB);
+            progress?.Report(40);
+
+            // Phase 3 (40–50 %): build flat document word streams.
+            var streamA = BuildDocumentStream(blocksA, pagesA);
+            var streamB = BuildDocumentStream(blocksB, pagesB);
+            var rangesA = BuildPageWordRanges(streamA, pagesA);
+            var rangesB = BuildPageWordRanges(streamB, pagesB);
+            progress?.Report(50);
+
+            // Phase 4 (50–90 %): recursive patience diff on the full streams.
+            // No segmentation — the entire document is compared as one stream.
+            // Patience anchoring ensures paragraphs that reflow across pages
+            // are matched correctly regardless of position.
+            var changedA = new bool[streamA.Count];
+            var changedB = new bool[streamB.Count];
+            PatienceDiffMark(streamA, 0, streamA.Count, streamB, 0, streamB.Count,
+                             changedA, changedB, MaxPatienceDepth, ct);
+            progress?.Report(90);
+
+            // Phase 5 (90–100 %): map changed words to per-page results.
+            var results = new List<DiffResultData>(alignment.Count);
+            for (int idx = 0; idx < alignment.Count; idx++)
             {
-                ct.ThrowIfCancellationRequested();
+                var pair = alignment[idx];
+                var regions = new List<DiffRegion>();
+                int totalWords = 0;
 
-                var wA = i < pagesA ? wordsA[i] : [];
-                var wB = i < pagesB ? wordsB[i] : [];
+                if (pair.PageA >= 0)
+                {
+                    var (start, end) = rangesA[pair.PageA];
+                    totalWords += end - start;
+                    for (int i = start; i < end; i++)
+                        if (changedA[i])
+                        {
+                            var w = streamA[i];
+                            regions.Add(new DiffRegion(w.X, w.Y, w.Width, w.Height, pair.Confidence, DiffSide.RemovedFromA));
+                        }
+                }
 
-                var (hasDiff, regions) = DiffWords(wA, wB);
+                if (pair.PageB >= 0)
+                {
+                    var (start, end) = rangesB[pair.PageB];
+                    totalWords += end - start;
+                    for (int i = start; i < end; i++)
+                        if (changedB[i])
+                        {
+                            var w = streamB[i];
+                            regions.Add(new DiffRegion(w.X, w.Y, w.Width, w.Height, pair.Confidence, DiffSide.AddedToB));
+                        }
+                }
 
                 results.Add(new DiffResultData
                 {
-                    PageIndex = i,
-                    HasDifferences = hasDiff,
-                    Regions = regions
+                    PageIndex = idx,
+                    HasDifferences = regions.Count > 0,
+                    Regions = regions.Count > 0 ? regions : null,
+                    PageLabelA = pair.PageA >= 0 ? pair.PageA + 1 : null,
+                    PageLabelB = pair.PageB >= 0 ? pair.PageB + 1 : null,
+                    TotalWords = totalWords,
+                    ChangedWords = regions.Count
                 });
 
-                progress?.Report(40 + (i + 1) * 60 / Math.Max(1, maxPages));
+                progress?.Report(90 + (idx + 1) * 10 / Math.Max(1, alignment.Count));
             }
 
             return results;
         }
 
+        #endregion
+
+        #region Text Extraction
+
         /// <summary>
-        /// Extracts all words from a page along with their bounding boxes.
-        /// Words are derived from the structured text characters, split on whitespace.
+        /// Extracts text from a page as a list of <see cref="TextBlock"/>s,
+        /// preserving the structural block boundaries from the PDF.
+        /// Each block contains its words with bounding boxes.
         /// </summary>
-        private static List<PageWord> ExtractWords(MuPDFDocument doc, int pageIndex)
+        private static List<TextBlock> ExtractBlocks(MuPDFDocument doc, int pageIndex)
         {
-            var words = new List<PageWord>();
+            var blocks = new List<TextBlock>();
             using var disposable = doc.GetStructuredTextPage(pageIndex);
             var page = (MuPDFStructuredTextPage)disposable;
 
             foreach (var block in page)
             {
+                var tb = new TextBlock();
+
                 foreach (var line in block)
                 {
                     var chars = line.Characters;
@@ -122,7 +246,7 @@ namespace Finn.Services
                             if (wordStart >= 0)
                             {
                                 string raw = wordChars.ToString();
-                                words.Add(new PageWord(raw, NormalizeWord(raw), minX, minY, maxX - minX, maxY - minY));
+                                tb.AddWord(new PageWord(raw, NormalizeWord(raw), minX, minY, maxX - minX, maxY - minY));
                                 wordChars.Clear();
                                 wordStart = -1;
                                 minX = double.MaxValue; minY = double.MaxValue;
@@ -154,91 +278,428 @@ namespace Finn.Services
                     if (wordStart >= 0)
                     {
                         string raw = wordChars.ToString();
-                        words.Add(new PageWord(raw, NormalizeWord(raw), minX, minY, maxX - minX, maxY - minY));
+                        tb.AddWord(new PageWord(raw, NormalizeWord(raw), minX, minY, maxX - minX, maxY - minY));
                     }
                 }
+
+                if (tb.Words.Count > 0)
+                    blocks.Add(tb);
             }
 
-            return words;
+            return blocks;
         }
 
+        #endregion
+
+        #region Page Alignment
+
         /// <summary>
-        /// Computes a word-level diff between two word lists using the LCS algorithm.
-        /// Returns bounding rectangles for words that differ (present in A but not B,
-        /// present in B but not A, or changed between the two).
+        /// Aligns pages from documents A and B using Jaccard word-set similarity
+        /// and LCS. Returns <see cref="AlignedPair"/>s with confidence scores.
         /// </summary>
-        private static (bool HasDifferences, List<DiffRegion>? Regions) DiffWords(
-            List<PageWord> wordsA, List<PageWord> wordsB)
+        private static List<AlignedPair> AlignPages(
+            List<TextBlock>[] blocksA, List<TextBlock>[] blocksB,
+            int countA, int countB)
         {
-            int m = wordsA.Count;
-            int n = wordsB.Count;
+            var pageSetsA = new HashSet<string>[countA];
+            var pageSetsB = new HashSet<string>[countB];
+            for (int i = 0; i < countA; i++)
+                pageSetsA[i] = BuildPageWordSet(blocksA[i]);
+            for (int i = 0; i < countB; i++)
+                pageSetsB[i] = BuildPageWordSet(blocksB[i]);
 
-            if (m == 0 && n == 0)
-                return (false, null);
+            var sim = new double[countA, countB];
+            for (int i = 0; i < countA; i++)
+                for (int j = 0; j < countB; j++)
+                    sim[i, j] = JaccardSimilarity(pageSetsA[i], pageSetsB[j]);
 
-            // Build LCS table using normalized text to ignore font/encoding differences.
-            int[,] dp = new int[m + 1, n + 1];
-            for (int i = 1; i <= m; i++)
-                for (int j = 1; j <= n; j++)
+            int[,] dp = new int[countA + 1, countB + 1];
+            for (int i = 1; i <= countA; i++)
+                for (int j = 1; j <= countB; j++)
                 {
-                    if (string.Equals(wordsA[i - 1].NormalizedText, wordsB[j - 1].NormalizedText, StringComparison.OrdinalIgnoreCase))
+                    if (sim[i - 1, j - 1] >= PageMatchThreshold)
                         dp[i, j] = dp[i - 1, j - 1] + 1;
                     else
                         dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
                 }
 
-            // Backtrack to find non-matching words.
-            var regions = new List<DiffRegion>();
+            var matchesReverse = new List<(int, int)>();
+            int ia = countA, ib = countB;
+            while (ia > 0 && ib > 0)
+            {
+                if (sim[ia - 1, ib - 1] >= PageMatchThreshold
+                    && dp[ia, ib] == dp[ia - 1, ib - 1] + 1)
+                {
+                    matchesReverse.Add((ia - 1, ib - 1));
+                    ia--; ib--;
+                }
+                else if (dp[ia - 1, ib] >= dp[ia, ib - 1])
+                    ia--;
+                else
+                    ib--;
+            }
+            matchesReverse.Reverse();
+
+            var aligned = new List<AlignedPair>();
+            int prevA = 0, prevB = 0;
+            foreach (var (ma, mb) in matchesReverse)
+            {
+                PairGap(aligned, prevA, ma, prevB, mb);
+                aligned.Add(new AlignedPair(ma, mb, 1.0));
+                prevA = ma + 1;
+                prevB = mb + 1;
+            }
+            PairGap(aligned, prevA, countA, prevB, countB);
+
+            return aligned;
+        }
+
+        /// <summary>
+        /// Pairs unmatched pages in a gap by position with reduced confidence.
+        /// Paired pages (both sides present) get 0.7; one-sided pages get 0.4.
+        /// </summary>
+        private static void PairGap(List<AlignedPair> aligned,
+            int startA, int endA, int startB, int endB)
+        {
+            int gapA = endA - startA;
+            int gapB = endB - startB;
+            int paired = Math.Min(gapA, gapB);
+            for (int k = 0; k < paired; k++)
+                aligned.Add(new AlignedPair(startA + k, startB + k, 0.7));
+            for (int k = paired; k < gapA; k++)
+                aligned.Add(new AlignedPair(startA + k, -1, 0.4));
+            for (int k = paired; k < gapB; k++)
+                aligned.Add(new AlignedPair(-1, startB + k, 0.4));
+        }
+
+        private static HashSet<string> BuildPageWordSet(List<TextBlock> blocks)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var block in blocks)
+                foreach (var word in block.WordSet)
+                    set.Add(word);
+            return set;
+        }
+
+        #endregion
+
+        #region Document Stream
+
+        /// <summary>
+        /// Flattens all pages into a single word stream in reading order.
+        /// Each word carries its source page index for mapping results back.
+        /// </summary>
+        private static List<DocumentWord> BuildDocumentStream(List<TextBlock>[] allBlocks, int pageCount)
+        {
+            var stream = new List<DocumentWord>();
+            for (int p = 0; p < pageCount; p++)
+                foreach (var block in allBlocks[p])
+                    foreach (var word in block.Words)
+                    {
+                        // Skip words that normalize to empty (punctuation-only).
+                        // These all compare as equal in the LCS, causing the
+                        // alignment to drift and producing cascading false positives
+                        // deeper into the document.
+                        if (!string.IsNullOrEmpty(word.NormalizedText))
+                            stream.Add(new DocumentWord(word.NormalizedText, word.X, word.Y, word.Width, word.Height, p));
+                    }
+            return stream;
+        }
+
+        /// <summary>
+        /// Builds a start/end index pair for each page's words within the flat stream.
+        /// </summary>
+        private static (int Start, int End)[] BuildPageWordRanges(List<DocumentWord> stream, int pageCount)
+        {
+            var ranges = new (int, int)[pageCount];
+            if (stream.Count == 0) return ranges;
+
+            int currentPage = -1;
+            int rangeStart = 0;
+
+            for (int i = 0; i < stream.Count; i++)
+            {
+                if (stream[i].PageIndex != currentPage)
+                {
+                    if (currentPage >= 0 && currentPage < pageCount)
+                        ranges[currentPage] = (rangeStart, i);
+                    currentPage = stream[i].PageIndex;
+                    rangeStart = i;
+                }
+            }
+            if (currentPage >= 0 && currentPage < pageCount)
+                ranges[currentPage] = (rangeStart, stream.Count);
+
+            return ranges;
+        }
+
+        #endregion
+
+        #region Recursive Patience Diff
+
+        /// <summary>
+        /// Recursive patience diff: finds words unique within the current range
+        /// in both streams, uses them as unambiguous anchors, then fills gaps
+        /// between anchors. Large gaps recurse (finding new locally-unique
+        /// anchors in the narrower context); small gaps use standard LCS.
+        /// <para>
+        /// This eliminates segmentation entirely — the full document is compared
+        /// as one stream. Cross-page reflow is handled naturally because there
+        /// are no artificial boundaries where words could be split between
+        /// comparison windows.
+        /// </para>
+        /// </summary>
+        private static void PatienceDiffMark(
+            List<DocumentWord> streamA, int startA, int endA,
+            List<DocumentWord> streamB, int startB, int endB,
+            bool[] changedA, bool[] changedB,
+            int depth, CancellationToken ct)
+        {
+            int m = endA - startA;
+            int n = endB - startB;
+
+            if (m == 0 && n == 0) return;
+            if (m == 0) { for (int i = startB; i < endB; i++) changedB[i] = true; return; }
+            if (n == 0) { for (int i = startA; i < endA; i++) changedA[i] = true; return; }
+
+            // Small enough for standard LCS — no anchoring needed.
+            if (m <= MaxLcsGap && n <= MaxLcsGap)
+            {
+                StandardLcsMark(streamA, startA, endA, streamB, startB, endB, changedA, changedB);
+                return;
+            }
+
+            ct.ThrowIfCancellationRequested();
+
+            // ── Find patience anchors: words unique within this sub-range ──
+            var anchors = FindLocalAnchors(streamA, startA, endA, streamB, startB, endB);
+
+            if (anchors.Count > 0)
+            {
+                // Process each gap between consecutive anchors.
+                int prevA = startA, prevB = startB;
+                foreach (var (ancA, ancB) in anchors)
+                {
+                    int gapA = ancA - prevA;
+                    int gapB = ancB - prevB;
+
+                    if (gapA > 0 || gapB > 0)
+                    {
+                        if (depth > 0 && (gapA > MaxLcsGap || gapB > MaxLcsGap))
+                            PatienceDiffMark(streamA, prevA, ancA, streamB, prevB, ancB,
+                                             changedA, changedB, depth - 1, ct);
+                        else
+                            StandardLcsMark(streamA, prevA, ancA, streamB, prevB, ancB,
+                                           changedA, changedB);
+                    }
+
+                    // Anchor word itself is a match — not changed.
+                    prevA = ancA + 1;
+                    prevB = ancB + 1;
+                }
+
+                // Trailing gap after last anchor.
+                int tailA = endA - prevA;
+                int tailB = endB - prevB;
+                if (tailA > 0 || tailB > 0)
+                {
+                    if (depth > 0 && (tailA > MaxLcsGap || tailB > MaxLcsGap))
+                        PatienceDiffMark(streamA, prevA, endA, streamB, prevB, endB,
+                                         changedA, changedB, depth - 1, ct);
+                    else
+                        StandardLcsMark(streamA, prevA, endA, streamB, prevB, endB,
+                                       changedA, changedB);
+                }
+                return;
+            }
+
+            // No local anchors found — fall back to standard LCS.
+            // Cap at MaxLcsGap to avoid huge matrices; mark excess as changed.
+            if (m > MaxLcsGap || n > MaxLcsGap)
+            {
+                // Best-effort: LCS on what we can, mark the rest.
+                int capA = Math.Min(m, MaxLcsGap);
+                int capB = Math.Min(n, MaxLcsGap);
+                StandardLcsMark(streamA, startA, startA + capA, streamB, startB, startB + capB,
+                               changedA, changedB);
+                for (int i = startA + capA; i < endA; i++) changedA[i] = true;
+                for (int i = startB + capB; i < endB; i++) changedB[i] = true;
+            }
+            else
+            {
+                StandardLcsMark(streamA, startA, endA, streamB, startB, endB, changedA, changedB);
+            }
+        }
+
+        /// <summary>
+        /// Finds words that appear exactly once in each sub-range, then runs
+        /// LCS on those positions to produce ordered anchor pairs.
+        /// </summary>
+        private static List<(int A, int B)> FindLocalAnchors(
+            List<DocumentWord> streamA, int startA, int endA,
+            List<DocumentWord> streamB, int startB, int endB)
+        {
+            // Count frequencies within the sub-range.
+            var freqA = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var freqB = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = startA; i < endA; i++)
+            {
+                var t = streamA[i].NormalizedText;
+                if (t.Length > 0)
+                    freqA[t] = freqA.TryGetValue(t, out int c) ? c + 1 : 1;
+            }
+            for (int i = startB; i < endB; i++)
+            {
+                var t = streamB[i].NormalizedText;
+                if (t.Length > 0)
+                    freqB[t] = freqB.TryGetValue(t, out int c) ? c + 1 : 1;
+            }
+
+            // Patience words: unique in both sub-ranges.
+            var patience = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kvp in freqA)
+                if (kvp.Value == 1 && freqB.TryGetValue(kvp.Key, out int bc) && bc == 1)
+                    patience.Add(kvp.Key);
+
+            if (patience.Count == 0) return [];
+
+            // Collect positions of patience words.
+            var pIdxA = new List<int>();
+            var pIdxB = new List<int>();
+            for (int i = startA; i < endA; i++)
+                if (patience.Contains(streamA[i].NormalizedText))
+                    pIdxA.Add(i);
+            for (int i = startB; i < endB; i++)
+                if (patience.Contains(streamB[i].NormalizedText))
+                    pIdxB.Add(i);
+
+            if (pIdxA.Count == 0 || pIdxB.Count == 0) return [];
+
+            // LCS on patience word sequences — matching is unambiguous.
+            int m = pIdxA.Count, n = pIdxB.Count;
+            int[,] dp = new int[m + 1, n + 1];
+            for (int i = 1; i <= m; i++)
+                for (int j = 1; j <= n; j++)
+                {
+                    if (string.Equals(streamA[pIdxA[i - 1]].NormalizedText,
+                                      streamB[pIdxB[j - 1]].NormalizedText,
+                                      StringComparison.OrdinalIgnoreCase))
+                        dp[i, j] = dp[i - 1, j - 1] + 1;
+                    else
+                        dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
+                }
+
+            var anchors = new List<(int, int)>();
+            int ia = m, ib = n;
+            while (ia > 0 && ib > 0)
+            {
+                if (string.Equals(streamA[pIdxA[ia - 1]].NormalizedText,
+                                  streamB[pIdxB[ib - 1]].NormalizedText,
+                                  StringComparison.OrdinalIgnoreCase))
+                {
+                    anchors.Add((pIdxA[ia - 1], pIdxB[ib - 1]));
+                    ia--; ib--;
+                }
+                else if (dp[ia, ib - 1] >= dp[ia - 1, ib])
+                    ib--;
+                else
+                    ia--;
+            }
+
+            anchors.Reverse();
+            return anchors;
+        }
+
+        /// <summary>
+        /// Standard word-level LCS on a small sub-range. Used to fill gaps
+        /// between patience-diff anchors. Gaps are bounded by
+        /// <see cref="MaxLcsGap"/> so the matrix stays small.
+        /// </summary>
+        private static void StandardLcsMark(
+            List<DocumentWord> streamA, int startA, int endA,
+            List<DocumentWord> streamB, int startB, int endB,
+            bool[] changedA, bool[] changedB)
+        {
+            int m = endA - startA;
+            int n = endB - startB;
+
+            if (m == 0 && n == 0) return;
+            if (m == 0) { for (int i = startB; i < endB; i++) changedB[i] = true; return; }
+            if (n == 0) { for (int i = startA; i < endA; i++) changedA[i] = true; return; }
+
+            int[,] dp = new int[m + 1, n + 1];
+            for (int i = 1; i <= m; i++)
+                for (int j = 1; j <= n; j++)
+                {
+                    var textA = streamA[startA + i - 1].NormalizedText;
+                    var textB = streamB[startB + j - 1].NormalizedText;
+                    if (textA.Length > 0 && string.Equals(textA, textB, StringComparison.OrdinalIgnoreCase))
+                        dp[i, j] = dp[i - 1, j - 1] + 1;
+                    else
+                        dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
+                }
+
             int ia = m, ib = n;
             while (ia > 0 || ib > 0)
             {
-                if (ia > 0 && ib > 0 &&
-                    string.Equals(wordsA[ia - 1].NormalizedText, wordsB[ib - 1].NormalizedText, StringComparison.OrdinalIgnoreCase))
+                var btA = ia > 0 ? streamA[startA + ia - 1].NormalizedText : "";
+                var btB = ib > 0 ? streamB[startB + ib - 1].NormalizedText : "";
+                if (ia > 0 && ib > 0 && btA.Length > 0 &&
+                    string.Equals(btA, btB, StringComparison.OrdinalIgnoreCase))
                 {
                     ia--; ib--;
                 }
                 else if (ib > 0 && (ia == 0 || dp[ia, ib - 1] >= dp[ia - 1, ib]))
                 {
-                    // Word added in B — highlight at B's position.
-                    var w = wordsB[ib - 1];
-                    regions.Add(new DiffRegion(w.X, w.Y, w.Width, w.Height));
+                    changedB[startB + ib - 1] = true;
                     ib--;
                 }
                 else
                 {
-                    // Word removed from A — highlight at A's position.
-                    var w = wordsA[ia - 1];
-                    regions.Add(new DiffRegion(w.X, w.Y, w.Width, w.Height));
+                    changedA[startA + ia - 1] = true;
                     ia--;
                 }
             }
-
-            if (regions.Count == 0)
-                return (false, null);
-
-            regions.Reverse();
-            return (true, regions);
         }
+
+        #endregion
+
+        #region Utilities
+
+        /// <summary>
+        /// Computes Jaccard similarity between two word sets: |intersection| / |union|.
+        /// </summary>
+        private static double JaccardSimilarity(HashSet<string> setA, HashSet<string> setB)
+        {
+            if (setA.Count == 0 && setB.Count == 0) return 1.0;
+            if (setA.Count == 0 || setB.Count == 0) return 0.0;
+
+            int intersection = 0;
+            var (smaller, larger) = setA.Count <= setB.Count ? (setA, setB) : (setB, setA);
+            foreach (var word in smaller)
+                if (larger.Contains(word))
+                    intersection++;
+
+            int union = setA.Count + setB.Count - intersection;
+            return union == 0 ? 1.0 : (double)intersection / union;
+        }
+
+        #endregion
+
+        #region Normalization
 
         /// <summary>
         /// Normalizes a word for comparison by resolving font-dependent differences:
         /// - Unicode normalization (NFC) to merge composed/decomposed forms
         /// - Expand common typographic ligatures (fi, fl, ff, ffi, ffl)
-        /// - Normalize dashes, quotes, and whitespace variants to ASCII equivalents
-        /// This ensures that the same visible text compares as equal regardless of
-        /// which font or encoding the PDF uses.
+        /// - Strip everything except letters and digits
         /// </summary>
         private static string NormalizeWord(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
 
-            // Unicode NFC normalization merges combining characters.
             text = text.Normalize(System.Text.NormalizationForm.FormC);
 
-            // Expand common ligatures that fonts may encode as single glyphs,
-            // then strip everything except letters and digits. This makes the
-            // comparison immune to font-dependent punctuation, kerning, and
-            // glyph encoding differences — only actual word content matters.
             var sb = new System.Text.StringBuilder(text.Length + 4);
             foreach (char c in text)
             {
@@ -258,5 +719,7 @@ namespace Finn.Services
 
             return sb.ToString();
         }
+
+        #endregion
     }
 }
