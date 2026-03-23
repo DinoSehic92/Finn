@@ -357,6 +357,7 @@ namespace Finn.ViewModels
             _diffSourceFile = null;
             _diffChoiceA = null;
             _diffChoiceB = null;
+            _diffShowingOriginal = false;
             DiffOverlayActive = false;
             // Detach the secondary file so stale B-side annotation layers
             // cannot be re-attached by SyncSecondaryLayers / EnsureDiffBLayerOnSecondary.
@@ -372,6 +373,8 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(CanRerunDiff));
             OnPropertyChanged(nameof(CanCompareVersions));
             OnPropertyChanged(nameof(ShowDiffToolbar));
+            OnPropertyChanged(nameof(ShowDiffToggle));
+            OnPropertyChanged(nameof(DiffShowingOriginal));
             OnPropertyChanged(nameof(DiffSummary));
             OnPropertyChanged(nameof(DiffChoiceA));
             OnPropertyChanged(nameof(DiffChoiceB));
@@ -407,9 +410,9 @@ namespace Finn.ViewModels
             // document that was just loaded by a new diff session.
             if (!_diffOverlayActive && !dualFileMode) return;
 
-            _diffShowingOriginal = false;
-
-            secondaryRenderer?.ReleaseResources();
+            // Hide the secondary renderer but don't ReleaseResources here —
+            // the caller (OnCloseDiffMode / CloseDiffViews) is responsible
+            // for disposing the secondary document to avoid double-dispose.
             if (secondaryRenderer != null)
                 secondaryRenderer.IsVisible = false;
 

@@ -92,24 +92,26 @@ public partial class PreView : UserControl
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     DeactivateAnnotateMode();
-                    // Close any open diff views (toggle / side-by-side layout).
-                    CloseDiffViews();
-                    // If diff mode is NOT actively being entered right now,
-                    // do a full cleanup so stale HasDiffResults / layers don't
-                    // persist after the user changes to a different file.
-                    // When diff IS active (e.g. Compare Versions just set it up
-                    // and the file change is part of that flow), keep the state
-                    // and let SyncDiffOverlay re-establish the views.
-                    if (!pwr.DiffOverlayActive)
+                    if (pwr.DiffOverlayActive)
                     {
+                        // Diff mode is intentionally active (e.g. Compare Versions
+                        // just set it up). Don't tear it down — just let
+                        // SyncDiffOverlay re-establish the views for the new file.
+                        SyncLayers();
+                        SyncDiffOverlay();
+                    }
+                    else
+                    {
+                        // Diff is NOT active — clean up any stale state so
+                        // HasDiffResults / layers don't persist after file change.
+                        CloseDiffViews();
                         pwr.CloseDiffModeSync();
                         MuPDFRenderer.ClearDiffOverlay();
                         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secFile)
                             secFile.ClearDiffOverlay();
+                        SyncLayers();
+                        MuPDFRenderer.NotifyLayersChanged();
                     }
-                    SyncLayers();
-                    MuPDFRenderer.NotifyLayersChanged();
-                    SyncDiffOverlay();
                 });
                 break;
 
@@ -854,17 +856,6 @@ public partial class PreView : UserControl
     {
         if (pwr == null || !pwr.CanRerunDiff) return;
         await pwr.RerunDiffWithToleranceAsync();
-    }
-
-    private async void OnDiffCompareVersions(object? sender, RoutedEventArgs e)
-    {
-        if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
-        if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
-        {
-            pwr.StatusMessage = "A and B are the same — select different versions";
-            return;
-        }
-        await RerunDiffCoreAsync(DiffRunKind.Pixel);
     }
 
     /// <summary>

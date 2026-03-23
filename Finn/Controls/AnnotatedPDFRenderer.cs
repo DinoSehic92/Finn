@@ -1549,25 +1549,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (_activeLayer.PageStrokes.TryGetValue(page, out var strokes))
         {
             foreach (var s in strokes)
-                if (GetAnnotationBounds(s) is { Width: > 0 } b && pdfRect.Intersects(b))
+                if (GetAnnotationBounds(s) is { Width: > 0 } b && pdfRect.Contains(b))
                     results.Add(s);
         }
         if (_activeLayer.PageShapes.TryGetValue(page, out var shapes))
         {
             foreach (var s in shapes)
-                if (GetAnnotationBounds(s) is var b && pdfRect.Intersects(b))
+                if (GetAnnotationBounds(s) is var b && b != default && pdfRect.Contains(b))
                     results.Add(s);
         }
         if (_activeLayer.PageTexts.TryGetValue(page, out var texts))
         {
             foreach (var t in texts)
-                if (GetAnnotationBounds(t) is var b && pdfRect.Intersects(b))
+                if (GetAnnotationBounds(t) is var b && b != default && pdfRect.Contains(b))
                     results.Add(t);
         }
         if (_activeLayer.PageMeasurements.TryGetValue(page, out var measurements))
         {
             foreach (var m in measurements)
-                if (GetAnnotationBounds(m) is var b && pdfRect.Intersects(b))
+                if (GetAnnotationBounds(m) is var b && b != default && pdfRect.Contains(b))
                     results.Add(m);
         }
         return results;
@@ -1779,6 +1779,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (ActiveLayer == null) return (rawDx, rawDy);
 
         var db = GetAnnotationBounds(dragging);
+
+        // Grid snap: snap the top-left corner of the moved item to the grid
+        if (SnapToGrid && GridSpacing > 0)
+        {
+            double g = GridSpacing;
+            double newL = db.Left + rawDx;
+            double newT = db.Top + rawDy;
+            double snappedL = Math.Round(newL / g) * g;
+            double snappedT = Math.Round(newT / g) * g;
+            double dx = snappedL - db.Left;
+            double dy = snappedT - db.Top;
+            _snapGuideX = snappedL;
+            _snapGuideY = snappedT;
+            return (dx, dy);
+        }
+
         double dL = db.Left + rawDx, dR = db.Right + rawDx, dCx = (db.Left + db.Right) / 2 + rawDx;
         double dT = db.Top + rawDy, dB = db.Bottom + rawDy, dCy = (db.Top + db.Bottom) / 2 + rawDy;
 

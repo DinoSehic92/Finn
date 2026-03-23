@@ -373,12 +373,25 @@ public partial class PreView
         MuPDFRenderer.Focus();
     }
 
-    /// <summary>Paste a copy of the clipboard annotation with a small offset.</summary>
+    /// <summary>Paste a copy of the clipboard annotation(s) with a small offset.</summary>
     private void PasteAnnotation()
     {
         if (_annotationClipboard == null) return;
+        if (_annotationClipboard is List<object> multiClipboard)
+        {
+            foreach (var item in multiClipboard)
+                PasteSingleAnnotation(item);
+        }
+        else
+        {
+            PasteSingleAnnotation(_annotationClipboard);
+        }
+    }
+
+    private void PasteSingleAnnotation(object source)
+    {
         const double offset = 15;
-        switch (_annotationClipboard)
+        switch (source)
         {
             case TextAnnotation src:
             {
@@ -410,7 +423,8 @@ public partial class PreView
                     End = new Point(src.End.X + offset, src.End.Y + offset),
                     Color = src.Color, StrokeWidth = src.StrokeWidth,
                     Opacity = src.Opacity, IsFilled = src.IsFilled,
-                    DashPattern = src.DashPattern
+                    DashPattern = src.DashPattern,
+                    CornerRadius = src.CornerRadius
                 };
                 MuPDFRenderer.PlaceShape(copy);
                 break;
@@ -422,7 +436,9 @@ public partial class PreView
                     Color = src.Color, Width = src.Width,
                     Opacity = src.Opacity, IsHighlighter = src.IsHighlighter,
                     IsPolyline = src.IsPolyline,
-                    DashPattern = src.DashPattern
+                    IsClosed = src.IsClosed,
+                    DashPattern = src.DashPattern,
+                    CornerRadius = src.CornerRadius
                 };
                 foreach (var p in src.Points)
                     copy.Points.Add(new Point(p.X + offset, p.Y + offset));
@@ -611,8 +627,10 @@ public partial class PreView
         }
         else if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            // Ctrl+C: copy selected annotation, else copy page image
-            if (_selectedAnnotation != null)
+            // Ctrl+C: copy all selected annotations, else copy page image
+            if (_selectedAnnotations.Count > 1)
+            { _annotationClipboard = _selectedAnnotations.ToList(); e.Handled = true; }
+            else if (_selectedAnnotation != null)
             { _annotationClipboard = _selectedAnnotation; e.Handled = true; }
             else
             { OnAnnotateCopy(this, e); e.Handled = true; }
@@ -627,8 +645,14 @@ public partial class PreView
         }
         else if (e.Key == Key.D && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            // Ctrl+D: duplicate selected annotation in place
-            if (_selectedAnnotation != null && !MuPDFRenderer.IsActiveLayerLocked)
+            // Ctrl+D: duplicate selected annotations in place
+            if (_selectedAnnotations.Count > 1 && !MuPDFRenderer.IsActiveLayerLocked)
+            {
+                _annotationClipboard = _selectedAnnotations.ToList();
+                PasteAnnotation();
+                e.Handled = true;
+            }
+            else if (_selectedAnnotation != null && !MuPDFRenderer.IsActiveLayerLocked)
             {
                 _annotationClipboard = _selectedAnnotation;
                 PasteAnnotation();
