@@ -62,6 +62,14 @@ public class TextAnnotation
     /// </summary>
     public bool IsStickyNote { get; set; }
 
+    /// <summary>
+    /// When true, this annotation is rendered as a simple label (plain text with
+    /// a subtle background pill, no textbox frame). Used for diff version labels.
+    /// Label text is centered at <see cref="Position"/> and uses a fixed screen-space
+    /// font size so it doesn't grow/shrink with zoom.
+    /// </summary>
+    public bool IsLabel { get; set; }
+
     // ── Cached measured bounds (set by renderer, used for accurate hit-testing) ──
 
     /// <summary>

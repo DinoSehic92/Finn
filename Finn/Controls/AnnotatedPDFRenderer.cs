@@ -3040,6 +3040,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     if (t.IsStickyNote)
                         CollectStickyNoteIcon(t, da, boundsSize, penScale, textItems, isExpanded: false);
+                    else if (t.IsLabel)
+                        CollectLabelAnnotation(t, da, boundsSize, penScale, textItems);
                     else
                     {
                         CollectTextAnnotation(t, da, boundsSize, penScale, textItems);
@@ -4074,6 +4076,43 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             t.MeasuredWidth = measuredMaxW / penScale;
             t.MeasuredHeight = lines.Count * t.FontSize * 1.3;
+        }
+    }
+
+    /// <summary>
+    /// Collects a label-style text annotation. Uses a fixed screen-space font
+    /// size (doesn't grow with zoom) and centres the text at the annotation's
+    /// PDF position. Rendered with a subtle rounded background pill, no textbox
+    /// frame. Used for diff version labels.
+    /// </summary>
+    private void CollectLabelAnnotation(TextAnnotation t, Rect da, Size boundsSize,
+                                        double penScale, List<TextOverlayDrawOp.TextItem> items)
+    {
+        var screenPos = PdfToScreen(t.Position, da, boundsSize);
+        // Fixed screen-space font size so the label stays readable at any zoom.
+        float fontSize = (float)t.FontSize;
+        byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
+        var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
+        string fontFamily = t.FontFamily ?? "";
+
+        var typeface = GetCachedTypeface(fontFamily);
+        using var skFont = new SKFont(typeface, fontSize);
+        float textWidth = skFont.MeasureText(t.Text);
+
+        // Centre the text horizontally at the annotation position.
+        float x = (float)screenPos.X - textWidth * 0.5f;
+        float y = (float)screenPos.Y + fontSize;
+
+        items.Add(new TextOverlayDrawOp.TextItem(
+            x, y, t.Text, fontSize, color,
+            HasBackground: true, HasBorder: false, IsTextAnnotation: false,
+            FontFamily: fontFamily));
+
+        // Update cached bounds for hit-testing (in PDF units).
+        if (penScale > 0.001)
+        {
+            t.MeasuredWidth = textWidth / penScale;
+            t.MeasuredHeight = t.FontSize * 1.3;
         }
     }
 

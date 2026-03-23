@@ -59,9 +59,15 @@
             </StackPanel>
         </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,12,0,4">
-            <Button Content="Cancel" Width="90" Padding="16,6" Classes="normal" Click="OnCancel" HotKey="Escape"/>
-            <Button Name="CompareBtn" Content="Compare" Width="100" Padding="16,6" Click="OnCompare" Classes="accent" HotKey="Enter"/>
+        <StackPanel Grid.Row="3" Orientation="Vertical" Spacing="8" Margin="0,12,0,4">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                <Button Content="Cancel" Width="90" Padding="16,6" Classes="normal" Click="OnCancel" HotKey="Escape"/>
+                <Button Name="CompareBtn" Content="Compare" Width="100" Padding="16,6" Click="OnCompare" Classes="accent" HotKey="Enter"/>
+            </StackPanel>
+            <Button Name="DiagnoseBtn" Content="🔍 Run Stripping Diagnostics on A" Width="280" Padding="8,4"
+                    Classes="normal" Click="OnDiagnose"
+                    FontSize="12" Opacity="0.7" IsVisible="False"
+                    ToolTip.Tip="Dumps header/footer zone words, fingerprints and per-page strip results to a temp file"/>
         </StackPanel>
     </Grid>
 </Window>

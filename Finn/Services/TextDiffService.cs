@@ -13,13 +13,16 @@ namespace Finn.Services
     /// MuPDF's structured text API, compares word sequences using a longest-common-
     /// subsequence algorithm, and returns bounding rectangles for changed/added/removed words.
     /// <para>
-    /// Uses a cross-page document-stream comparison:
+    /// Pipeline:
     /// 1. <b>Page alignment</b> — Jaccard similarity LCS handles inserted/removed pages.
-    /// 2. <b>Segment-based stream comparison</b> — consecutive aligned pages are merged
-    ///    into segments spanning page boundaries, so text that reflows between pages
-    ///    is matched correctly instead of being flagged as removed-then-added.
-    /// 3. <b>Confidence-based regions</b> — each diff region carries a confidence value
-    ///    reflecting the alignment quality, rendered as opacity in the annotation layer.
+    /// 2. <b>Header/footer stripping</b> — user-specified zone heights remove page
+    ///    chrome (page numbers, URLs, section titles) that would create LCS ambiguity.
+    ///    Heights of 0 disable stripping (include everything).
+    /// 3. <b>Full-stream patience diff</b> — the entire document is compared as one
+    ///    word stream so content that reflows across page boundaries is matched
+    ///    correctly instead of flagged as removed-then-added.
+    /// 4. <b>Reflow suppression</b> — per-page-pair post-processing catches residual
+    ///    false positives from any repeated content that wasn't stripped.
     /// </para>
     /// Separate from <see cref="PdfDiffService"/> (pixel-based) — both engines can be
     /// used independently or combined.
@@ -73,18 +76,6 @@ namespace Finn.Services
         private const double PageMatchThreshold = 0.4;
 
         /// <summary>
-        /// Minimum fraction of pages a word sequence must appear on to be
-        /// classified as a header or footer (removed before comparison).
-        /// </summary>
-        private const double HeaderFooterPageFraction = 0.5;
-
-        /// <summary>
-        /// Maximum number of words at the top/bottom of each page to consider
-        /// as potential header/footer content.
-        /// </summary>
-        private const int HeaderFooterMaxWords = 25;
-
-        /// <summary>
         /// Maximum gap size (words per side) for standard LCS within the
         /// recursive patience diff. Gaps smaller than this use full-matrix LCS;
         /// larger gaps recurse with patience anchoring first.
@@ -107,12 +98,16 @@ namespace Finn.Services
         /// and returns <see cref="DiffResultData"/> entries with populated
         /// <see cref="DiffResultData.Regions"/>. No images are produced.
         /// </summary>
+        /// <param name="headerHeight">Height in PDF points of the header zone to strip. 0 = no stripping.</param>
+        /// <param name="footerHeight">Height in PDF points of the footer zone to strip. 0 = no stripping.</param>
         public static async Task<List<DiffResultData>> CompareAsync(
             string pathA, string pathB,
             IProgress<int>? progress = null,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            int headerHeight = 0,
+            int footerHeight = 0)
         {
-            return await Task.Run(() => Compare(pathA, pathB, progress, ct), ct);
+            return await Task.Run(() => Compare(pathA, pathB, progress, ct, headerHeight, footerHeight), ct);
         }
 
         #endregion
@@ -122,7 +117,9 @@ namespace Finn.Services
         private static List<DiffResultData> Compare(
             string pathA, string pathB,
             IProgress<int>? progress,
-            CancellationToken ct)
+            CancellationToken ct,
+            int headerHeight,
+            int footerHeight)
         {
             using var ctxA = new MuPDFContext();
             using var ctxB = new MuPDFContext();
@@ -150,8 +147,13 @@ namespace Finn.Services
             }
 
             // Phase 2 (30–35 %): strip repeated headers and footers.
-            StripHeadersAndFooters(blocksA, pagesA);
-            StripHeadersAndFooters(blocksB, pagesB);
+            // Use page bounds from MuPDF so the zone calculation is based on
+            // fixed page dimensions, not content. Figures/diagrams that extend
+            // below the footer can't skew the zone boundaries.
+            var pageBoundsA = ExtractPageBounds(docA, pagesA);
+            var pageBoundsB = ExtractPageBounds(docB, pagesB);
+            StripHeadersAndFooters(blocksA, pagesA, pageBoundsA, headerHeight, footerHeight);
+            StripHeadersAndFooters(blocksB, pagesB, pageBoundsB, headerHeight, footerHeight);
             progress?.Report(35);
 
             // Phase 3 (35–40 %): align pages using Jaccard similarity.
@@ -165,20 +167,19 @@ namespace Finn.Services
             var rangesB = BuildPageWordRanges(streamB, pagesB);
             progress?.Report(50);
 
-            // Phase 5 (50–90 %): recursive patience diff on the full streams.
-            // No segmentation — the entire document is compared as one stream.
-            // Patience anchoring ensures paragraphs that reflow across pages
-            // are matched correctly regardless of position.
+            // Phase 5 (50–90 %): recursive patience diff on the full document
+            // streams. Comparing as one stream handles content that reflows
+            // across page boundaries (e.g. an edit on page 3 pushes text to
+            // page 4). Header/footer stripping in Phase 2 removes the main
+            // source of cross-page ambiguity from repeated content.
             var changedA = new bool[streamA.Count];
             var changedB = new bool[streamB.Count];
             PatienceDiffMark(streamA, 0, streamA.Count, streamB, 0, streamB.Count,
                              changedA, changedB, MaxPatienceDepth, ct);
 
-            // Phase 5b: suppress reflow false positives. When pages shift
-            // (e.g. a page inserted in B), repeated text like section headers
-            // can be misaligned by the LCS. If the same word is flagged as
-            // "removed from A" AND "added to B" within the same aligned page
-            // pair, it's a reflow artifact, not a real change.
+            // Phase 5b: suppress reflow false positives — per-page word
+            // matching within a ±1 alignment window. Catches residual
+            // misalignment from any repeated content that wasn't stripped.
             SuppressReflowFalsePositives(streamA, streamB, changedA, changedB,
                                           rangesA, rangesB, alignment);
             progress?.Report(90);
@@ -235,6 +236,21 @@ namespace Finn.Services
         #endregion
 
         #region Text Extraction
+
+        /// <summary>
+        /// Extracts page Y-bounds (top/bottom) from MuPDF page rectangles.
+        /// These are fixed page dimensions at 72 DPI, independent of content.
+        /// </summary>
+        private static (double MinY, double MaxY)[] ExtractPageBounds(MuPDFDocument doc, int pageCount)
+        {
+            var bounds = new (double MinY, double MaxY)[pageCount];
+            for (int i = 0; i < pageCount; i++)
+            {
+                var b = doc.Pages[i].Bounds;
+                bounds[i] = (Math.Min(b.Y0, b.Y1), Math.Max(b.Y0, b.Y1));
+            }
+            return bounds;
+        }
 
         /// <summary>
         /// Extracts text from a page as a list of <see cref="TextBlock"/>s,
@@ -411,162 +427,44 @@ namespace Finn.Services
         #region Document Stream
 
         /// <summary>
-        /// Detects repeated header/footer word sequences that appear on a majority
-        /// of pages, and removes them from the block lists in-place. This prevents
-        /// the LCS from misaligning when pages are inserted/removed, since these
-        /// repeated sequences would produce many ambiguous matches.
+        /// Strips header/footer content from all pages based on user-specified
+        /// zone heights. Words whose vertical centre falls within the header zone
+        /// (top of page) or footer zone (bottom of page) are removed before
+        /// comparison. Heights are in PDF points. 0 = no stripping (include
+        /// everything).
         /// </summary>
-        private static void StripHeadersAndFooters(List<TextBlock>[] allBlocks, int pageCount)
+        private static void StripHeadersAndFooters(
+            List<TextBlock>[] allBlocks, int pageCount,
+            (double MinY, double MaxY)[] pageBounds,
+            int headerHeight, int footerHeight)
         {
-            if (pageCount < 3) return; // Need enough pages to detect repetition.
-
-            int threshold = Math.Max(2, (int)(pageCount * HeaderFooterPageFraction));
-
-            // Build a fingerprint for the first N and last N words of each page.
-            // A fingerprint is the concatenation of normalized words, joined by '\0'.
-            var headerFingerprints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var footerFingerprints = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (headerHeight <= 0 && footerHeight <= 0) return;
 
             for (int p = 0; p < pageCount; p++)
             {
                 var blocks = allBlocks[p];
-                var pageWords = FlattenBlockWords(blocks);
-                if (pageWords.Count == 0) continue;
+                double pageMinY = pageBounds[p].MinY;
+                double pageMaxY = pageBounds[p].MaxY;
 
-                // Try header fingerprints of decreasing length.
-                int headerMax = Math.Min(HeaderFooterMaxWords, pageWords.Count);
-                for (int len = headerMax; len >= 2; len--)
-                {
-                    string fp = BuildFingerprint(pageWords, 0, len);
-                    headerFingerprints[fp] = headerFingerprints.GetValueOrDefault(fp) + 1;
-                }
+                double headerCutoff = headerHeight > 0 ? pageMinY + headerHeight : -1;
+                double footerCutoff = footerHeight > 0 ? pageMaxY - footerHeight : double.MaxValue;
 
-                // Try footer fingerprints of decreasing length.
-                int footerMax = Math.Min(HeaderFooterMaxWords, pageWords.Count);
-                for (int len = footerMax; len >= 2; len--)
-                {
-                    string fp = BuildFingerprint(pageWords, pageWords.Count - len, len);
-                    footerFingerprints[fp] = footerFingerprints.GetValueOrDefault(fp) + 1;
-                }
-            }
-
-            // Find the longest header fingerprint that meets the threshold.
-            string? bestHeader = FindLongestFrequentFingerprint(headerFingerprints, threshold);
-            string? bestFooter = FindLongestFrequentFingerprint(footerFingerprints, threshold);
-
-            if (bestHeader == null && bestFooter == null) return;
-
-            int headerWordCount = bestHeader?.Split('\0').Length ?? 0;
-            int footerWordCount = bestFooter?.Split('\0').Length ?? 0;
-
-            // Strip matching words from each page's blocks.
-            for (int p = 0; p < pageCount; p++)
-            {
-                var blocks = allBlocks[p];
-                var pageWords = FlattenBlockWords(blocks);
-                if (pageWords.Count == 0) continue;
-
-                // Mark header word indices for removal.
-                var removeIndices = new HashSet<int>();
-                if (bestHeader != null && pageWords.Count >= headerWordCount)
-                {
-                    string fp = BuildFingerprint(pageWords, 0, headerWordCount);
-                    if (string.Equals(fp, bestHeader, StringComparison.OrdinalIgnoreCase))
-                        for (int i = 0; i < headerWordCount; i++)
-                            removeIndices.Add(i);
-                }
-                if (bestFooter != null && pageWords.Count >= footerWordCount)
-                {
-                    string fp = BuildFingerprint(pageWords, pageWords.Count - footerWordCount, footerWordCount);
-                    if (string.Equals(fp, bestFooter, StringComparison.OrdinalIgnoreCase))
-                        for (int i = pageWords.Count - footerWordCount; i < pageWords.Count; i++)
-                            removeIndices.Add(i);
-                }
-
-                if (removeIndices.Count == 0) continue;
-
-                // Rebuild blocks without the removed words.
-                int globalIdx = 0;
                 for (int bi = 0; bi < blocks.Count; bi++)
                 {
                     var oldBlock = blocks[bi];
                     var newBlock = new TextBlock();
                     foreach (var word in oldBlock.Words)
                     {
-                        if (!removeIndices.Contains(globalIdx))
+                        double cy = word.Y + word.Height * 0.5;
+                        bool inHeader = headerCutoff > 0 && cy <= headerCutoff;
+                        bool inFooter = footerCutoff < double.MaxValue && cy >= footerCutoff;
+                        if (!inHeader && !inFooter)
                             newBlock.AddWord(word);
-                        globalIdx++;
                     }
                     blocks[bi] = newBlock;
                 }
-                // Remove empty blocks.
                 blocks.RemoveAll(b => b.Words.Count == 0);
             }
-        }
-
-        /// <summary>Flattens all words across all blocks on a page into a single list.</summary>
-        private static List<PageWord> FlattenBlockWords(List<TextBlock> blocks)
-        {
-            var words = new List<PageWord>();
-            foreach (var block in blocks)
-                words.AddRange(block.Words);
-            return words;
-        }
-
-        /// <summary>
-        /// Builds a '\0'-separated fingerprint from a slice of words.
-        /// Digit-only tokens are replaced with "#" so that varying page numbers
-        /// in headers/footers (e.g. "Page 5" vs "Page 6") still match.
-        /// Digits embedded in longer tokens (e.g. URL fragments) are stripped
-        /// so "url4900019" and "url4900020" produce the same fingerprint.
-        /// </summary>
-        private static string BuildFingerprint(List<PageWord> words, int start, int count)
-        {
-            var sb = new System.Text.StringBuilder();
-            for (int i = start; i < start + count; i++)
-            {
-                if (sb.Length > 0) sb.Append('\0');
-                string normalized = words[i].NormalizedText;
-                if (string.IsNullOrEmpty(normalized))
-                {
-                    sb.Append('#');
-                    continue;
-                }
-                bool allDigits = true;
-                foreach (char c in normalized)
-                    if (!char.IsDigit(c)) { allDigits = false; break; }
-                if (allDigits)
-                {
-                    sb.Append('#');
-                }
-                else
-                {
-                    // Strip digits from mixed tokens so embedded page numbers
-                    // (e.g. in URLs) don't break matching.
-                    foreach (char c in normalized)
-                        if (!char.IsDigit(c))
-                            sb.Append(c);
-                }
-            }
-            return sb.ToString();
-        }
-
-        /// <summary>Finds the longest fingerprint that appears at least <paramref name="threshold"/> times.</summary>
-        private static string? FindLongestFrequentFingerprint(Dictionary<string, int> fingerprints, int threshold)
-        {
-            string? best = null;
-            int bestLen = 0;
-            foreach (var (fp, count) in fingerprints)
-            {
-                if (count < threshold) continue;
-                int len = fp.Split('\0').Length;
-                if (len > bestLen)
-                {
-                    bestLen = len;
-                    best = fp;
-                }
-            }
-            return best;
         }
 
         /// <summary>
@@ -619,15 +517,11 @@ namespace Finn.Services
 
         /// <summary>
         /// Post-processing pass that suppresses reflow false positives.
-        /// When content shifts between pages (e.g. a page inserted in B),
-        /// the LCS can misalign repeated text like section headers, flagging
-        /// identical words as "removed from A" AND "added to B".
-        /// <para>
-        /// For each aligned page pair, words that appear as changed on BOTH
-        /// sides with the same normalized text are unmarked. This is safe
-        /// because a word genuinely removed from A would not appear as added
-        /// to B with the same text — the diff would flag it only on one side.
-        /// </para>
+        /// For each aligned page pair (and its ±1 neighbours), words flagged
+        /// as changed on BOTH sides with the same normalized text are unmarked.
+        /// This catches residual misalignment from repeated content that the
+        /// header/footer stripping didn't remove (e.g. section headers that
+        /// appear on a subset of pages).
         /// </summary>
         private static void SuppressReflowFalsePositives(
             List<DocumentWord> streamA, List<DocumentWord> streamB,
@@ -635,29 +529,35 @@ namespace Finn.Services
             (int Start, int End)[] rangesA, (int Start, int End)[] rangesB,
             List<AlignedPair> alignment)
         {
-            foreach (var pair in alignment)
+            for (int ai = 0; ai < alignment.Count; ai++)
             {
-                if (pair.PageA < 0 || pair.PageB < 0) continue;
+                var pair = alignment[ai];
+                if (pair.PageA < 0) continue;
 
                 var (sA, eA) = rangesA[pair.PageA];
-                var (sB, eB) = rangesB[pair.PageB];
 
-                // Build a multiset of changed words on B's page.
+                // Collect changed B words from this pair AND its ±2 neighbours.
+                // When a page is inserted in B, the insertion adds an alignment
+                // entry, so the matching content is 2 indices away, not 1.
                 var bBag = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
-                for (int i = sB; i < eB; i++)
+                for (int ni = Math.Max(0, ai - 2); ni <= Math.Min(alignment.Count - 1, ai + 2); ni++)
                 {
-                    if (!changedB[i]) continue;
-                    string text = streamB[i].NormalizedText;
-                    if (string.IsNullOrEmpty(text)) continue;
-                    if (!bBag.TryGetValue(text, out var list))
-                        bBag[text] = list = [];
-                    list.Add(i);
+                    int bPage = alignment[ni].PageB;
+                    if (bPage < 0) continue;
+                    var (sB, eB) = rangesB[bPage];
+                    for (int i = sB; i < eB; i++)
+                    {
+                        if (!changedB[i]) continue;
+                        string text = streamB[i].NormalizedText;
+                        if (string.IsNullOrEmpty(text)) continue;
+                        if (!bBag.TryGetValue(text, out var list))
+                            bBag[text] = list = [];
+                        list.Add(i);
+                    }
                 }
 
                 if (bBag.Count == 0) continue;
 
-                // For each changed word in A, if the same word is changed in B
-                // within this page pair, unmark both — it's a reflow artifact.
                 for (int i = sA; i < eA; i++)
                 {
                     if (!changedA[i]) continue;
@@ -667,7 +567,7 @@ namespace Finn.Services
                         continue;
 
                     changedA[i] = false;
-                    int bIdx = bList[^1]; // Take from end for O(1) removal
+                    int bIdx = bList[^1];
                     changedB[bIdx] = false;
                     bList.RemoveAt(bList.Count - 1);
                 }
@@ -696,6 +596,23 @@ namespace Finn.Services
             bool[] changedA, bool[] changedB,
             int depth, CancellationToken ct)
         {
+            // ── Strip common prefix and suffix before any work ──
+            // Equal boundary words are guaranteed matches. Stripping them
+            // reduces the search space for anchors, prevents boundary words
+            // from being consumed as anchors (leaving better ones for the
+            // changed interior), and shrinks the no-anchors fallback range.
+            while (startA < endA && startB < endB &&
+                   string.Equals(streamA[startA].NormalizedText,
+                                 streamB[startB].NormalizedText,
+                                 StringComparison.OrdinalIgnoreCase))
+            { startA++; startB++; }
+
+            while (endA > startA && endB > startB &&
+                   string.Equals(streamA[endA - 1].NormalizedText,
+                                 streamB[endB - 1].NormalizedText,
+                                 StringComparison.OrdinalIgnoreCase))
+            { endA--; endB--; }
+
             int m = endA - startA;
             int n = endB - startB;
 
@@ -755,16 +672,18 @@ namespace Finn.Services
             }
 
             // No local anchors found — fall back to standard LCS.
-            // Cap at MaxLcsGap to avoid huge matrices; mark excess as changed.
+            // StandardLcsMark strips prefix/suffix internally, so even an
+            // oversized gap may shrink enough to fit in MaxLcsGap. If it
+            // still doesn't fit, split in half and process each half to
+            // salvage matches at both ends instead of only at the start.
             if (m > MaxLcsGap || n > MaxLcsGap)
             {
-                // Best-effort: LCS on what we can, mark the rest.
-                int capA = Math.Min(m, MaxLcsGap);
-                int capB = Math.Min(n, MaxLcsGap);
-                StandardLcsMark(streamA, startA, startA + capA, streamB, startB, startB + capB,
+                int midA = startA + m / 2;
+                int midB = startB + n / 2;
+                StandardLcsMark(streamA, startA, midA, streamB, startB, midB,
                                changedA, changedB);
-                for (int i = startA + capA; i < endA; i++) changedA[i] = true;
-                for (int i = startB + capB; i < endB; i++) changedB[i] = true;
+                StandardLcsMark(streamA, midA, endA, streamB, midB, endB,
+                               changedA, changedB);
             }
             else
             {
@@ -836,7 +755,8 @@ namespace Finn.Services
             {
                 if (string.Equals(streamA[pIdxA[ia - 1]].NormalizedText,
                                   streamB[pIdxB[ib - 1]].NormalizedText,
-                                  StringComparison.OrdinalIgnoreCase))
+                                  StringComparison.OrdinalIgnoreCase)
+                    && dp[ia, ib] == dp[ia - 1, ib - 1] + 1)
                 {
                     anchors.Add((pIdxA[ia - 1], pIdxB[ib - 1]));
                     ia--; ib--;
@@ -861,6 +781,21 @@ namespace Finn.Services
             List<DocumentWord> streamB, int startB, int endB,
             bool[] changedA, bool[] changedB)
         {
+            // ── Strip common prefix and suffix ──
+            // Equal words at the boundaries are guaranteed matches. Skipping
+            // them reduces the LCS matrix and prevents boundary misalignment.
+            while (startA < endA && startB < endB &&
+                   string.Equals(streamA[startA].NormalizedText,
+                                 streamB[startB].NormalizedText,
+                                 StringComparison.OrdinalIgnoreCase))
+            { startA++; startB++; }
+
+            while (endA > startA && endB > startB &&
+                   string.Equals(streamA[endA - 1].NormalizedText,
+                                 streamB[endB - 1].NormalizedText,
+                                 StringComparison.OrdinalIgnoreCase))
+            { endA--; endB--; }
+
             int m = endA - startA;
             int n = endB - startB;
 
@@ -886,8 +821,10 @@ namespace Finn.Services
                 var btA = ia > 0 ? streamA[startA + ia - 1].NormalizedText : "";
                 var btB = ib > 0 ? streamB[startB + ib - 1].NormalizedText : "";
                 if (ia > 0 && ib > 0 && btA.Length > 0 &&
-                    string.Equals(btA, btB, StringComparison.OrdinalIgnoreCase))
+                    string.Equals(btA, btB, StringComparison.OrdinalIgnoreCase) &&
+                    dp[ia, ib] == dp[ia - 1, ib - 1] + 1)
                 {
+                    // Diagonal step — this word is part of the LCS (matched).
                     ia--; ib--;
                 }
                 else if (ib > 0 && (ia == 0 || dp[ia, ib - 1] >= dp[ia - 1, ib]))

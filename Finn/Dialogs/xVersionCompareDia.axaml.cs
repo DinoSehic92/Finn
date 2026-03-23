@@ -124,4 +124,63 @@ public partial class xVersionCompareDia : Window
         Confirmed = false;
         Close();
     }
+
+    private async void OnDiagnose(object? sender, RoutedEventArgs e)
+    {
+        string? path = _choiceA?.Path;
+        if (string.IsNullOrEmpty(path))
+        {
+            DiagnoseBtn.Content = "⚠ Select an A version first";
+            return;
+        }
+
+        DiagnoseBtn.Content = "Running…";
+        DiagnoseBtn.IsEnabled = false;
+
+        string outPath;
+        try
+        {
+            outPath = await System.Threading.Tasks.Task.Run(
+                () => Finn.Services.TextDiffDiagnostics.RunDiagnostics(path));
+        }
+        catch (System.Exception ex)
+        {
+            DiagnoseBtn.Content = "🔍 Run Stripping Diagnostics on A";
+            DiagnoseBtn.IsEnabled = true;
+            ShowInfo($"Diagnostics failed: {ex.Message}");
+            return;
+        }
+
+        DiagnoseBtn.Content = "🔍 Run Stripping Diagnostics on A";
+        DiagnoseBtn.IsEnabled = true;
+
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(outPath) { UseShellExecute = true }); }
+        catch { }
+
+        ShowInfo($"Diagnostics written to:\n{outPath}");
+    }
+
+    private void ShowInfo(string message)
+    {
+        var win = new Window
+        {
+            Title = "Diagnostics",
+            Width = 480,
+            Height = 140,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new Avalonia.Controls.StackPanel
+            {
+                Margin = new Avalonia.Thickness(16),
+                Spacing = 12,
+                Children =
+                {
+                    new Avalonia.Controls.TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                    new Button { Content = "OK", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center, Width = 80 }
+                }
+            }
+        };
+        ((Button)((Avalonia.Controls.StackPanel)win.Content!).Children[1]).Click += (_, _) => win.Close();
+        win.ShowDialog(this);
+    }
 }

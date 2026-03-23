@@ -107,15 +107,23 @@ public partial class PreView : UserControl
                 MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)
                 {
-                    sec.SetStrokePage(pwr.CurrentPage1);
-                    // Refresh secondary pixel diff overlay for the new page.
-                    if ((_diffSideBySideOpen || _diffToggleOpen) && pwr.HasDiffResults)
+                    // Only update the secondary renderer's stroke page from
+                    // CurrentPage1 when pages are linked or in toggle mode.
+                    // In SBS with unlinked pages, the B side has its own page
+                    // controlled by CurrentPage2.
+                    bool syncSecondary = !_diffSideBySideOpen || pwr.LinkedPageMode;
+                    if (syncSecondary)
                     {
-                        var diffB = pwr.GetDiffImagePathB(pwr.CurrentPage1);
-                        if (diffB != null)
-                            sec.SetDiffOverlay(diffB, pwr.CurrentPage1, PdfDiffService.ZOOM);
-                        else
-                            sec.ClearDiffOverlay();
+                        sec.SetStrokePage(pwr.CurrentPage1);
+                        // Refresh secondary pixel diff overlay for the new page.
+                        if ((_diffSideBySideOpen || _diffToggleOpen) && pwr.HasDiffResults)
+                        {
+                            var diffB = pwr.GetDiffImagePathB(pwr.CurrentPage1);
+                            if (diffB != null)
+                                sec.SetDiffOverlay(diffB, pwr.CurrentPage1, PdfDiffService.ZOOM);
+                            else
+                                sec.ClearDiffOverlay();
+                        }
                     }
                 }
                 SyncLayers();
@@ -123,9 +131,37 @@ public partial class PreView : UserControl
                 if (_annotateMode) UpdateUndoRedoButtons();
                 break;
 
+            case "CurrentPage2" when _diffSideBySideOpen:
+                // When navigating the B file independently in SBS mode,
+                // update the secondary renderer's stroke page so annotations
+                // (diff highlights, labels) draw on the correct page.
+                if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec2)
+                {
+                    sec2.SetStrokePage(pwr.CurrentPage2);
+                    if (pwr.HasDiffResults)
+                    {
+                        var diffB2 = pwr.GetDiffImagePathB(pwr.CurrentPage2);
+                        if (diffB2 != null)
+                            sec2.SetDiffOverlay(diffB2, pwr.CurrentPage2, PdfDiffService.ZOOM);
+                        else
+                            sec2.ClearDiffOverlay();
+                    }
+                }
+                break;
+
             case "DiffOverlayActive":
             case "DiffViewMode":
                 SyncDiffOverlay();
+                break;
+
+            case "LayersChanged":
+                // Refresh both renderers when annotation layers change
+                // (e.g. diff layers removed). NotifyLayersChanged recalculates
+                // counts and invalidates visuals so stale diff annotations
+                // don't persist.
+                MuPDFRenderer.NotifyLayersChanged();
+                if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secLc)
+                    secLc.NotifyLayersChanged();
                 break;
 
             case "DiffTolerance" when pwr.DiffOverlayActive && (pwr.DiffViewMode == DiffViewMode.Toggle || pwr.DiffViewMode == DiffViewMode.SideBySide):
@@ -137,9 +173,11 @@ public partial class PreView : UserControl
                     MuPDFRenderer.ClearDiffOverlay();
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secTol)
                 {
-                    var diffB3 = pwr.GetDiffImagePathB(pwr.CurrentPage1);
+                    // Use CurrentPage2 when pages are unlinked in SBS mode.
+                    int secPage = (_diffSideBySideOpen && !pwr.LinkedPageMode) ? pwr.CurrentPage2 : pwr.CurrentPage1;
+                    var diffB3 = pwr.GetDiffImagePathB(secPage);
                     if (diffB3 != null)
-                        secTol.SetDiffOverlay(diffB3, pwr.CurrentPage1, PdfDiffService.ZOOM, forceReload: true);
+                        secTol.SetDiffOverlay(diffB3, secPage, PdfDiffService.ZOOM, forceReload: true);
                     else
                         secTol.ClearDiffOverlay();
                 }
@@ -220,6 +258,9 @@ public partial class PreView : UserControl
             StopDisplayAreaSync();
             await pwr.CloseDiffSideBySideAsync();
         }
+        // Clear secondary layers to prevent stale diff annotations.
+        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secCl)
+            secCl.SetLayers(null);
     }
 
     /// <summary>Synchronous overload — only use when the caller cannot await (e.g., PropertyChanged handler).
@@ -238,6 +279,9 @@ public partial class PreView : UserControl
             StopDisplayAreaSync();
             _ = pwr.CloseDiffSideBySideAsync();
         }
+        // Clear secondary layers to prevent stale diff annotations.
+        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secCl)
+            secCl.SetLayers(null);
     }
 
     /// <summary>
@@ -766,7 +810,12 @@ public partial class PreView : UserControl
         pwr.CloseDiffModeSync();
         MuPDFRenderer.ClearDiffOverlay();
         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClose)
+        {
             secClose.ClearDiffOverlay();
+            // Clear the secondary renderer's layers to prevent stale diff
+            // annotations from persisting after diff mode is closed.
+            secClose.SetLayers(null);
+        }
         SyncLayers();
         MuPDFRenderer.NotifyLayersChanged();
         MuPDFRenderer.Contain();
@@ -852,6 +901,14 @@ public partial class PreView : UserControl
         var choiceA = pwr.DiffChoiceA!;
         var choiceB = pwr.DiffChoiceB!;
         var sourceFile = pwr.DiffSourceFile;
+
+        // Remove previous diff annotation layers before closing views.
+        // Without this, stale layers can linger on the renderers when
+        // re-running a diff without explicitly closing first.
+        pwr.RemoveDiffAnnotationLayer();
+        MuPDFRenderer.NotifyLayersChanged();
+        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secRerun)
+            secRerun.NotifyLayersChanged();
 
         // Full close ensures clean state; DiffBusy keeps the toolbar visible
         await CloseDiffViewsAsync();

@@ -37,8 +37,13 @@ namespace Finn.ViewModels
         private CancellationTokenSource? _toleranceDebounceCts;
         /// <summary>Auto-created diff annotation layer for A-side regions, tracked for auto-removal.</summary>
         private AnnotationLayer? _diffAnnotationLayer;
+        /// <summary>The FileData that <see cref="_diffAnnotationLayer"/> was added to. Tracked so cleanup
+        /// removes from the correct file even if <see cref="CurrentFile"/> has changed since.</summary>
+        private FileData? _diffAnnotationLayerOwner;
         /// <summary>Auto-created diff annotation layer for B-side regions (revised document).</summary>
         private AnnotationLayer? _diffAnnotationLayerB;
+        /// <summary>The FileData that <see cref="_diffAnnotationLayerB"/> was added to.</summary>
+        private FileData? _diffAnnotationLayerBOwner;
 
         /// <summary>Sets the source file for version lookups during diff comparisons.</summary>
         public FileData? DiffSourceFile
@@ -54,6 +59,8 @@ namespace Finn.ViewModels
         private DiffViewMode _diffViewMode = DiffViewMode.Toggle;
         private int _diffTolerance = PdfDiffService.DefaultTolerance;
         private bool _diffRerunBusy;
+        private int _diffHeaderHeight = 0;
+        private int _diffFooterHeight = 0;
 
         // ── A/B Toggle (renderer visibility swap) ──────────────────────
         private bool _diffShowingOriginal;
@@ -130,6 +137,28 @@ namespace Finn.ViewModels
         {
             get => _diffRerunBusy;
             set => SetProperty(ref _diffRerunBusy, value);
+        }
+
+        /// <summary>
+        /// Height in PDF points of the header zone to ignore during text diff.
+        /// Words in this zone are stripped before comparison to avoid false
+        /// positives from page numbers, section titles, etc. 0 = include
+        /// everything (no stripping). Standard A4 page is 842pt tall.
+        /// </summary>
+        public int DiffHeaderHeight
+        {
+            get => _diffHeaderHeight;
+            set => SetProperty(ref _diffHeaderHeight, Math.Clamp(value, 0, 400));
+        }
+
+        /// <summary>
+        /// Height in PDF points of the footer zone to ignore during text diff.
+        /// 0 = include everything (no stripping). Standard A4 page is 842pt tall.
+        /// </summary>
+        public int DiffFooterHeight
+        {
+            get => _diffFooterHeight;
+            set => SetProperty(ref _diffFooterHeight, Math.Clamp(value, 0, 400));
         }
 
         /// <summary>Whether re-running the diff is possible (results loaded, paths known).</summary>
@@ -409,6 +438,8 @@ namespace Finn.ViewModels
             // Remove previous auto-created layers to avoid stacking.
             RemoveDiffAnnotationLayer();
 
+            string labelA = _diffChoiceA?.Label ?? "A";
+            string labelB = _diffChoiceB?.Label ?? "B";
             string baseName = string.IsNullOrEmpty(comparedFileName)
                 ? $"Diff {DateTime.Now:yyyy-MM-dd HH:mm}"
                 : $"Diff vs {Path.GetFileNameWithoutExtension(comparedFileName)}";
@@ -442,16 +473,23 @@ namespace Finn.ViewModels
 
             foreach (var result in _diffResults)
             {
+                // Actual 0-based page numbers in each document.
+                // PageLabel is 1-based, so subtract 1. Use alignment index as fallback.
+                int pageA = result.PageLabelA.HasValue ? result.PageLabelA.Value - 1 : result.PageIndex;
+                int pageB = result.PageLabelB.HasValue ? result.PageLabelB.Value - 1 : result.PageIndex;
+
+                // Add version label on EVERY aligned page so each page is
+                // clearly identified, not just pages with differences.
+                if (pageA >= 0)
+                    AddPageLabel(layerA, pageA, $"A: {labelA}  (p.{result.PageLabelA ?? pageA + 1})", DiffColorA);
+                if (pageB >= 0)
+                    AddPageLabel(layerB, pageB, $"B: {labelB}  (p.{result.PageLabelB ?? pageB + 1})", DiffColorB);
+
                 if (!result.HasDifferences) continue;
 
                 var regions = result.Regions
                     ?? (result.DiffPath != null ? PdfDiffService.ExtractDiffRegions(result.DiffPath, PdfDiffService.ZOOM) : null);
                 if (regions == null || regions.Count == 0) continue;
-
-                // Actual 0-based page numbers in each document.
-                // PageLabel is 1-based, so subtract 1. Use alignment index as fallback.
-                int pageA = result.PageLabelA.HasValue ? result.PageLabelA.Value - 1 : result.PageIndex;
-                int pageB = result.PageLabelB.HasValue ? result.PageLabelB.Value - 1 : result.PageIndex;
 
                 foreach (var r in regions)
                 {
@@ -479,9 +517,17 @@ namespace Finn.ViewModels
                 }
             }
 
+            // Add gray zone indicators for ignored header/footer areas.
+            if (_diffHeaderHeight > 0 || _diffFooterHeight > 0)
+            {
+                AddZoneIndicators(layerA, _diffResults, true, _diffHeaderHeight, _diffFooterHeight);
+                AddZoneIndicators(layerB, _diffResults, false, _diffHeaderHeight, _diffFooterHeight);
+            }
+
             layerA.RecalculateCounts();
             CurrentFile.AnnotationLayers.Add(layerA);
             _diffAnnotationLayer = layerA;
+            _diffAnnotationLayerOwner = CurrentFile;
 
             layerB.RecalculateCounts();
 
@@ -495,6 +541,7 @@ namespace Finn.ViewModels
                 };
             CurrentFile2.AnnotationLayers.Add(layerB);
             _diffAnnotationLayerB = layerB;
+            _diffAnnotationLayerBOwner = CurrentFile2;
 
             OnPropertyChanged("LayersChanged");
             // Notify the view so the secondary renderer picks up the new layers.
@@ -515,22 +562,112 @@ namespace Finn.ViewModels
         };
 
         /// <summary>
+        /// Adds a version label at the top-centre of the specified page.
+        /// Uses <see cref="TextAnnotation.IsLabel"/> so the renderer draws it as
+        /// a simple text pill rather than a full textbox frame.
+        /// </summary>
+        private static void AddPageLabel(AnnotationLayer layer, int page, string text, Avalonia.Media.Color color)
+        {
+            var label = new TextAnnotation
+            {
+                Position = new Avalonia.Point(297, 6),
+                Text = text,
+                FontSize = 10,
+                Color = color,
+                Opacity = 0.9,
+                IsLabel = true
+            };
+            if (!layer.PageTexts.TryGetValue(page, out var list))
+                layer.PageTexts[page] = list = [];
+            list.Add(label);
+        }
+
+        /// <summary>Gray color used for zone exclusion indicators.</summary>
+        private static readonly Avalonia.Media.Color ZoneIndicatorColor = Avalonia.Media.Color.FromRgb(128, 128, 128);
+
+        /// <summary>
+        /// Adds semi-transparent gray rectangles on every page to visually
+        /// indicate the header/footer zones that were excluded from comparison.
+        /// </summary>
+        private void AddZoneIndicators(
+            AnnotationLayer layer, List<DiffResultData> results,
+            bool isASide, int headerHeight, int footerHeight)
+        {
+            // Use the primary doc for A, secondary for B. Fall back to primary.
+            var doc = isASide ? MainPreviewFile : (secondaryFile ?? MainPreviewFile);
+            if (doc == null) return;
+
+            var visited = new HashSet<int>();
+            foreach (var result in results)
+            {
+                int page = isASide
+                    ? (result.PageLabelA.HasValue ? result.PageLabelA.Value - 1 : result.PageIndex)
+                    : (result.PageLabelB.HasValue ? result.PageLabelB.Value - 1 : result.PageIndex);
+                if (page < 0 || !visited.Add(page)) continue;
+
+                double pageWidth = 595.0, pageHeight = 842.0;
+                if (page < doc.Pages.Count)
+                {
+                    var b = doc.Pages[page].Bounds;
+                    pageWidth = Math.Abs(b.X1 - b.X0);
+                    pageHeight = Math.Abs(b.Y1 - b.Y0);
+                }
+
+                if (!layer.PageShapes.TryGetValue(page, out var shapes))
+                    layer.PageShapes[page] = shapes = [];
+
+                if (headerHeight > 0)
+                {
+                    shapes.Add(new ShapeAnnotation
+                    {
+                        ShapeType = InlineAnnotationTool.Rectangle,
+                        Start = new Avalonia.Point(0, 0),
+                        End = new Avalonia.Point(pageWidth, headerHeight),
+                        StrokeWidth = 0,
+                        Opacity = 0.08,
+                        IsFilled = true,
+                        Color = ZoneIndicatorColor
+                    });
+                }
+                if (footerHeight > 0)
+                {
+                    shapes.Add(new ShapeAnnotation
+                    {
+                        ShapeType = InlineAnnotationTool.Rectangle,
+                        Start = new Avalonia.Point(0, pageHeight - footerHeight),
+                        End = new Avalonia.Point(pageWidth, pageHeight),
+                        StrokeWidth = 0,
+                        Opacity = 0.08,
+                        IsFilled = true,
+                        Color = ZoneIndicatorColor
+                    });
+                }
+            }
+        }
+
+        /// <summary>
         /// Removes the auto-created diff annotation layer from the current file.
         /// Called when switching diff modes or clearing diff results.
         /// </summary>
         public void RemoveDiffAnnotationLayer()
         {
             bool removed = false;
-            if (_diffAnnotationLayer != null && CurrentFile?.AnnotationLayers != null)
+            if (_diffAnnotationLayer != null)
             {
-                CurrentFile.AnnotationLayers.Remove(_diffAnnotationLayer);
+                // Remove from the file it was actually added to, not CurrentFile
+                // which may have changed since the diff was created.
+                var owner = _diffAnnotationLayerOwner ?? CurrentFile;
+                owner?.AnnotationLayers?.Remove(_diffAnnotationLayer);
                 _diffAnnotationLayer = null;
+                _diffAnnotationLayerOwner = null;
                 removed = true;
             }
-            if (_diffAnnotationLayerB != null && CurrentFile2?.AnnotationLayers != null)
+            if (_diffAnnotationLayerB != null)
             {
-                CurrentFile2.AnnotationLayers.Remove(_diffAnnotationLayerB);
+                var owner = _diffAnnotationLayerBOwner ?? CurrentFile2;
+                owner?.AnnotationLayers?.Remove(_diffAnnotationLayerB);
                 _diffAnnotationLayerB = null;
+                _diffAnnotationLayerBOwner = null;
                 removed = true;
             }
             if (removed)
@@ -544,7 +681,9 @@ namespace Finn.ViewModels
         public void DetachDiffAnnotationLayer()
         {
             _diffAnnotationLayer = null;
+            _diffAnnotationLayerOwner = null;
             _diffAnnotationLayerB = null;
+            _diffAnnotationLayerBOwner = null;
         }
 
         /// <summary>
@@ -564,6 +703,9 @@ namespace Finn.ViewModels
                 };
             if (!CurrentFile2.AnnotationLayers.Contains(_diffAnnotationLayerB))
                 CurrentFile2.AnnotationLayers.Add(_diffAnnotationLayerB);
+            // Keep the owner reference in sync so RemoveDiffAnnotationLayer
+            // always removes from the correct FileData instance.
+            _diffAnnotationLayerBOwner = CurrentFile2;
         }
 
         private void CleanupDiffTempDir()
@@ -793,7 +935,8 @@ namespace Finn.ViewModels
                 string resolvedB = await ResolveCachedPathAsync(pathB, ct).ConfigureAwait(false);
 
                 var progress = new Progress<int>(p => StatusMessage = $"Text comparing… {p}%");
-                var results = await TextDiffService.CompareAsync(resolvedA, resolvedB, progress, ct);
+                var results = await TextDiffService.CompareAsync(resolvedA, resolvedB, progress, ct,
+                    _diffHeaderHeight, _diffFooterHeight);
                 // Text diff produces no images; create an empty temp dir for LoadDiffResultsAsync.
                 string tempDir = Path.Combine(Path.GetTempPath(), "FinnTextDiff_" + Guid.NewGuid().ToString("N")[..8]);
                 Directory.CreateDirectory(tempDir);
