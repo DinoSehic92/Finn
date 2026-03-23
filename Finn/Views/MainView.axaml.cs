@@ -472,6 +472,16 @@ public partial class MainView : UserControl
 
         if (e.Key is Key.Up or Key.Down)
         {
+            // When the diff page list is open, Up/Down navigate diff results
+            // instead of changing the selected file in the grid.
+            if (_pwr is { DiffPageListMode: true, SearchMode: true })
+            {
+                if (e.Key == Key.Up) _pwr.PrevSearchPage();
+                else _pwr.NextSearchPage();
+                e.Handled = true;
+                return;
+            }
+
             if (FileGrid.ItemsSource is not System.Collections.IList items || items.Count == 0) return;
             int current = FileGrid.SelectedItem != null ? items.IndexOf(FileGrid.SelectedItem) : -1;
             int next = e.Key == Key.Up ? current - 1 : current + 1;

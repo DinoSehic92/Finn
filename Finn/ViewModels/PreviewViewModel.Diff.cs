@@ -367,6 +367,8 @@ namespace Finn.ViewModels
             }
             OnPropertyChanged(nameof(HasDiffResults));
             OnPropertyChanged(nameof(CanRerunDiff));
+            OnPropertyChanged(nameof(CanCompareVersions));
+            OnPropertyChanged(nameof(ShowDiffToolbar));
             OnPropertyChanged(nameof(DiffSummary));
             OnPropertyChanged(nameof(DiffChoiceA));
             OnPropertyChanged(nameof(DiffChoiceB));
@@ -397,17 +399,18 @@ namespace Finn.ViewModels
 
         public void CloseDiffModeSync()
         {
-            if (!_diffOverlayActive && !dualFileMode) return;
-
             _diffShowingOriginal = false;
 
             secondaryRenderer?.ReleaseResources();
             if (secondaryRenderer != null)
                 secondaryRenderer.IsVisible = false;
 
-            twopageMode = false;
-            dualFileMode = false;
-            NotifyModeChanged();
+            if (twopageMode || dualFileMode)
+            {
+                twopageMode = false;
+                dualFileMode = false;
+                NotifyModeChanged();
+            }
 
             ClearDiffResults();
         }

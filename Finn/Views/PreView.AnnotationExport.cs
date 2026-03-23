@@ -91,25 +91,50 @@ public partial class PreView
                 Style = SKPaintStyle.Stroke,
                 StrokeCap = stroke.IsHighlighter ? SKStrokeCap.Square : SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round,
-                IsAntialias = true
+                IsAntialias = true,
+                PathEffect = CreateDashEffect(stroke.DashPattern, (float)(stroke.Width * renderZoom))
             };
 
             var pts = stroke.Points;
             var path = new SKPath();
-            path.MoveTo((float)(pts[0].X * renderZoom), (float)(pts[0].Y * renderZoom));
+            float z = (float)renderZoom;
 
             if (pts.Count == 2)
             {
-                path.LineTo((float)(pts[1].X * renderZoom), (float)(pts[1].Y * renderZoom));
+                path.MoveTo((float)(pts[0].X * z), (float)(pts[0].Y * z));
+                path.LineTo((float)(pts[1].X * z), (float)(pts[1].Y * z));
             }
             else if (stroke.IsPolyline)
             {
-                // Straight line segments for polylines
-                for (int i = 1; i < pts.Count; i++)
-                    path.LineTo((float)(pts[i].X * renderZoom), (float)(pts[i].Y * renderZoom));
+                float cr = (float)(stroke.CornerRadius * z);
+                bool closed = stroke.IsClosed && pts.Count >= 3;
+                // Remove duplicated closing point if present
+                int n = pts.Count;
+                if (closed && n >= 3)
+                {
+                    var f = pts[0]; var l = pts[n - 1];
+                    if (Math.Abs(f.X - l.X) < 0.5 && Math.Abs(f.Y - l.Y) < 0.5)
+                        n--;
+                }
+
+                // Pre-transform to screen space
+                var sp = new SKPoint[n];
+                for (int i = 0; i < n; i++)
+                    sp[i] = new SKPoint((float)(pts[i].X * z), (float)(pts[i].Y * z));
+
+                if (cr > 0.5f && n >= 3)
+                    BuildRoundedPolylinePath(path, sp, n, cr, closed);
+                else
+                {
+                    path.MoveTo(sp[0]);
+                    for (int i = 1; i < n; i++)
+                        path.LineTo(sp[i]);
+                    if (closed) path.Close();
+                }
             }
             else
             {
+                path.MoveTo((float)(pts[0].X * z), (float)(pts[0].Y * z));
                 for (int i = 0; i < pts.Count - 1; i++)
                 {
                     var pm1 = pts[Math.Max(i - 1, 0)];
@@ -117,17 +142,18 @@ public partial class PreView
                     var pi1 = pts[i + 1];
                     var pi2 = pts[Math.Min(i + 2, pts.Count - 1)];
 
-                    float cp1x = (float)((pi.X + (pi1.X - pm1.X) / 6.0) * renderZoom);
-                    float cp1y = (float)((pi.Y + (pi1.Y - pm1.Y) / 6.0) * renderZoom);
-                    float cp2x = (float)((pi1.X - (pi2.X - pi.X) / 6.0) * renderZoom);
-                    float cp2y = (float)((pi1.Y - (pi2.Y - pi.Y) / 6.0) * renderZoom);
-                    float ex   = (float)(pi1.X * renderZoom);
-                    float ey   = (float)(pi1.Y * renderZoom);
+                    float cp1x = (float)((pi.X + (pi1.X - pm1.X) / 6.0) * z);
+                    float cp1y = (float)((pi.Y + (pi1.Y - pm1.Y) / 6.0) * z);
+                    float cp2x = (float)((pi1.X - (pi2.X - pi.X) / 6.0) * z);
+                    float cp2y = (float)((pi1.Y - (pi2.Y - pi.Y) / 6.0) * z);
+                    float ex   = (float)(pi1.X * z);
+                    float ey   = (float)(pi1.Y * z);
 
                     path.CubicTo(cp1x, cp1y, cp2x, cp2y, ex, ey);
                 }
             }
             canvas.DrawPath(path, paint);
+            paint.PathEffect?.Dispose();
         }
 
         // Render shapes
@@ -143,7 +169,8 @@ public partial class PreView
                 Style = SKPaintStyle.Stroke,
                 StrokeCap = SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round,
-                IsAntialias = true
+                IsAntialias = true,
+                PathEffect = CreateDashEffect(shape.DashPattern, (float)(shape.StrokeWidth * renderZoom))
             };
 
             SKPaint? fillPaint = null;
@@ -185,12 +212,24 @@ public partial class PreView
                 }
 
                 case InlineAnnotationTool.Rectangle:
-                    if (fillPaint != null)
-                        canvas.DrawRect(Math.Min(sx, ex), Math.Min(sy, ey),
-                                        Math.Abs(ex - sx), Math.Abs(ey - sy), fillPaint);
-                    canvas.DrawRect(Math.Min(sx, ex), Math.Min(sy, ey),
-                                    Math.Abs(ex - sx), Math.Abs(ey - sy), paint);
+                {
+                    float cr = (float)(shape.CornerRadius * renderZoom);
+                    var rect = new SKRect(Math.Min(sx, ex), Math.Min(sy, ey),
+                                          Math.Max(sx, ex), Math.Max(sy, ey));
+                    if (cr > 0.5f)
+                    {
+                        if (fillPaint != null)
+                            canvas.DrawRoundRect(rect, cr, cr, fillPaint);
+                        canvas.DrawRoundRect(rect, cr, cr, paint);
+                    }
+                    else
+                    {
+                        if (fillPaint != null)
+                            canvas.DrawRect(rect, fillPaint);
+                        canvas.DrawRect(rect, paint);
+                    }
                     break;
+                }
 
                 case InlineAnnotationTool.Ellipse:
                 {
@@ -210,7 +249,23 @@ public partial class PreView
                     canvas.DrawPath(cloudPath, paint);
                     break;
                 }
+
+                case InlineAnnotationTool.Dot:
+                {
+                    float r = (float)(shape.StrokeWidth * renderZoom);
+                    byte dotAlpha = shape.Opacity < 1.0 ? (byte)(shape.Opacity * 255) : (byte)255;
+                    using var dotPaint = new SKPaint
+                    {
+                        Color = new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, dotAlpha),
+                        Style = SKPaintStyle.Fill,
+                        IsAntialias = true
+                    };
+                    canvas.DrawCircle(sx, sy, r, dotPaint);
+                    canvas.DrawCircle(sx, sy, r, paint);
+                    break;
+                }
             }
+            paint.PathEffect?.Dispose();
             fillPaint?.Dispose();
         }
 
@@ -224,6 +279,13 @@ public partial class PreView
             if (t.IsStickyNote)
             {
                 RenderSkiaStickyNoteIcon(canvas, t, renderZoom);
+                continue;
+            }
+
+            // Labels: simple centred text with pill background (fixed font size, no textbox frame)
+            if (t.IsLabel)
+            {
+                RenderSkiaLabel(canvas, t, renderZoom);
                 continue;
             }
 
@@ -584,6 +646,151 @@ public partial class PreView
         }
         path.Close();
         return path;
+    }
+
+    /// <summary>
+    /// Creates an SKPathEffect for dash patterns matching the in-app Avalonia renderer.
+    /// Dash intervals in Avalonia DashStyle are in stroke-width multiples; SkiaSharp
+    /// PathEffect.CreateDash expects pixel values, so we multiply by strokeWidth.
+    /// </summary>
+    private static SKPathEffect? CreateDashEffect(LineDashPattern pattern, float strokeWidth)
+    {
+        float[]? intervals = pattern switch
+        {
+            LineDashPattern.Dashed => [4 * strokeWidth, 3 * strokeWidth],
+            LineDashPattern.Dotted => [1 * strokeWidth, 2 * strokeWidth],
+            LineDashPattern.DashDot => [4 * strokeWidth, 2 * strokeWidth, 1 * strokeWidth, 2 * strokeWidth],
+            _ => null
+        };
+        return intervals != null ? SKPathEffect.CreateDash(intervals, 0) : null;
+    }
+
+    /// <summary>
+    /// Renders a label-style text annotation: centred text with a subtle pill background.
+    /// Uses a fixed font size (doesn't scale with zoom) matching the in-app renderer.
+    /// </summary>
+    private static void RenderSkiaLabel(SKCanvas canvas, TextAnnotation t, double renderZoom)
+    {
+        float fontSize = (float)t.FontSize;
+        byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
+        var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
+
+        var typeface = !string.IsNullOrEmpty(t.FontFamily)
+            ? (SKTypeface.FromFamilyName(t.FontFamily) ?? SKTypeface.Default)
+            : SKTypeface.Default;
+        using var font = new SKFont(typeface, fontSize);
+        float textWidth = font.MeasureText(t.Text, out var textBounds);
+
+        float cx = (float)(t.Position.X * renderZoom);
+        float cy = (float)(t.Position.Y * renderZoom);
+        float x = cx - textWidth * 0.5f;
+        float y = cy + fontSize;
+
+        // Pill background
+        using var bgPaint = new SKPaint { Color = new SKColor(255, 255, 255, 200), Style = SKPaintStyle.Fill, IsAntialias = true };
+        canvas.DrawRoundRect(x + textBounds.Left - 3, y + textBounds.Top - 2,
+            textBounds.Width + 6, textBounds.Height + 4, 3, 3, bgPaint);
+
+        using var textPaint = new SKPaint { Color = color, IsAntialias = true };
+        canvas.DrawText(t.Text, x, y, font, textPaint);
+    }
+
+    /// <summary>
+    /// Builds a SkiaSharp path for a polyline with rounded corners using quadratic
+    /// Bézier curves at each vertex. Matches the in-app Avalonia renderer's
+    /// ComputeArcRadius + QuadraticBezierTo logic.
+    /// </summary>
+    private static void BuildRoundedPolylinePath(SKPath path, SKPoint[] pts, int n, float cr, bool closed)
+    {
+        static float Dist(SKPoint a, SKPoint b)
+        {
+            float dx = b.X - a.X, dy = b.Y - a.Y;
+            return MathF.Sqrt(dx * dx + dy * dy);
+        }
+
+        static float ArcRadius(SKPoint prev, SKPoint curr, SKPoint next, float maxR)
+        {
+            float dIn = Dist(prev, curr);
+            float dOut = Dist(curr, next);
+            float halfMin = MathF.Min(dIn, dOut) * 0.45f;
+            return MathF.Min(maxR, halfMin);
+        }
+
+        if (closed && n >= 3)
+        {
+            // Start at arc-start of vertex 0
+            var prev0 = pts[(n - 1) % n];
+            var curr0 = pts[0];
+            var next0 = pts[1];
+            float r0 = ArcRadius(prev0, curr0, next0, cr);
+            if (r0 >= 0.5f)
+            {
+                float dIn = Dist(prev0, curr0);
+                float dOut = Dist(curr0, next0);
+                var arcStart = new SKPoint(curr0.X - (curr0.X - prev0.X) / dIn * r0,
+                                           curr0.Y - (curr0.Y - prev0.Y) / dIn * r0);
+                path.MoveTo(arcStart);
+                var arcEnd = new SKPoint(curr0.X + (next0.X - curr0.X) / dOut * r0,
+                                         curr0.Y + (next0.Y - curr0.Y) / dOut * r0);
+                path.QuadTo(curr0, arcEnd);
+            }
+            else
+            {
+                path.MoveTo(curr0);
+            }
+
+            for (int i = 1; i < n; i++)
+            {
+                var prev = pts[(i - 1 + n) % n];
+                var curr = pts[i % n];
+                var next = pts[(i + 1) % n];
+                float r = ArcRadius(prev, curr, next, cr);
+                if (r >= 0.5f)
+                {
+                    float dIn = Dist(prev, curr);
+                    float dOut = Dist(curr, next);
+                    var arcStart = new SKPoint(curr.X - (curr.X - prev.X) / dIn * r,
+                                               curr.Y - (curr.Y - prev.Y) / dIn * r);
+                    path.LineTo(arcStart);
+                    var arcEnd = new SKPoint(curr.X + (next.X - curr.X) / dOut * r,
+                                             curr.Y + (next.Y - curr.Y) / dOut * r);
+                    path.QuadTo(curr, arcEnd);
+                }
+                else
+                {
+                    path.LineTo(curr);
+                }
+            }
+            path.Close();
+        }
+        else
+        {
+            // Open polyline: first and last points are endpoints, round interior vertices
+            path.MoveTo(pts[0]);
+            for (int i = 1; i < n - 1; i++)
+            {
+                var prev = pts[i - 1];
+                var curr = pts[i];
+                var next = pts[i + 1];
+                float r = ArcRadius(prev, curr, next, cr);
+                if (r >= 0.5f)
+                {
+                    float dIn = Dist(prev, curr);
+                    float dOut = Dist(curr, next);
+                    var arcStart = new SKPoint(curr.X - (curr.X - prev.X) / dIn * r,
+                                               curr.Y - (curr.Y - prev.Y) / dIn * r);
+                    path.LineTo(arcStart);
+                    var arcEnd = new SKPoint(curr.X + (next.X - curr.X) / dOut * r,
+                                             curr.Y + (next.Y - curr.Y) / dOut * r);
+                    path.QuadTo(curr, arcEnd);
+                }
+                else
+                {
+                    path.LineTo(curr);
+                }
+            }
+            path.LineTo(pts[n - 1]);
+        }
     }
 
     private async void OnAnnotateCopy(object sender, RoutedEventArgs e)

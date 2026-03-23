@@ -92,13 +92,16 @@ public partial class PreView : UserControl
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     DeactivateAnnotateMode();
-                    if (pwr.DiffOverlayActive || _diffToggleOpen || _diffSideBySideOpen)
-                    {
-                        CloseDiffViews();
-                        pwr.CloseDiffModeSync();
-                    }
+                    // Always fully close diff state when changing files.
+                    // Without this, HasDiffResults and the overlay toggle
+                    // persist even after the viewed file changes.
+                    CloseDiffViews();
+                    pwr.CloseDiffModeSync();
+                    MuPDFRenderer.ClearDiffOverlay();
+                    if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secFile)
+                        secFile.ClearDiffOverlay();
                     SyncLayers();
-                    SyncDiffOverlay();
+                    MuPDFRenderer.NotifyLayersChanged();
                 });
                 break;
 
