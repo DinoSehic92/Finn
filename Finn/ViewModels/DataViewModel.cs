@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Finn.ViewModels
@@ -151,9 +152,11 @@ namespace Finn.ViewModels
 
         #region Content Indexing
 
-        public async Task GetContentAsync(IProgress<int>? progress = null)
+        public async Task GetContentAsync(IProgress<int>? progress = null, IProgress<string>? statusProgress = null, CancellationToken cancellationToken = default)
         {
             string indexPath = Path.Combine(_savePath, "Content.json");
+
+            statusProgress?.Report("Loading index…");
 
             if (File.Exists(indexPath))
             {
@@ -162,76 +165,121 @@ namespace Finn.ViewModels
 
             TextContent ??= new ObservableCollection<ContentData>();
 
+            // Build a set of already-indexed paths so we can skip them
+            var alreadyIndexed = new HashSet<string>(
+                TextContent.Where(c => !string.IsNullOrEmpty(c.PlainText)).Select(c => c.Filepath),
+                StringComparer.OrdinalIgnoreCase);
+
             var files = CurrentFiles?.ToList() ?? new List<FileData>();
             var results = new List<ContentData>();
 
+            // ── Main extraction loop (background thread) ──
             await Task.Run(() =>
             {
                 int total = files.Count;
+
+                // Use the default store size (256 MiB) so MuPDF can cache fonts
+                // and CMaps across documents. The previous store of 1 byte meant
+                // every cache operation triggered a full eviction scan of all
+                // tracked objects — by file 8-9 this scan dominated runtime.
+                using var ctx = new MuPDFContext();
+
                 for (int i = 0; i < total; i++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var file = files[i];
-                    foreach (var path in file.AllPdfPaths())
+                    statusProgress?.Report($"{file.Namn}  ({i + 1}/{total})");
+
+                    // Use checkExists: false to avoid costly File.Exists() calls
+                    // on network paths (SMB timeout can block 30s per unreachable path).
+                    // The alreadyIndexed check and the catch block handle missing files.
+                    foreach (var path in file.AllPdfPaths(checkExists: false))
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        // Skip files that are already indexed
+                        if (alreadyIndexed.Contains(path))
+                            continue;
+
                         try
                         {
-                            byte[] bytes = File.ReadAllBytes(path);
-                            using var ctx = new MuPDFContext(1);
-                            using var fileDocument = new MuPDFDocument(ctx, bytes, InputFileTypes.PDF);
+                            // Open the file by path so MuPDF uses native file I/O
+                            // (memory-mapping) instead of reading the entire PDF
+                            // into a managed byte[] and pinning it.
+                            using var fileDocument = new MuPDFDocument(ctx, path);
                             var content = new ContentData
                             {
                                 Name = file.Namn,
                                 Filepath = path,
-                                PlainText = fileDocument.ExtractText()
+                                // includeAnnotations: false — we only need document
+                                // text, not annotation text. Skipping annotations
+                                // avoids building annotation display lists which are
+                                // very expensive for reviewed engineering PDFs.
+                                PlainText = fileDocument.ExtractText(includeAnnotations: false)
                             };
 
-                            lock (results)
-                            {
-                                results.Add(content);
-                            }
+                            results.Add(content);
+
+                            // Free display lists for all pages now that text has
+                            // been extracted. Without this, every page's display
+                            // list stays alive until Dispose and the context store
+                            // grows unboundedly across documents.
+                            fileDocument.ClearCache();
                         }
+                        catch (OperationCanceledException) { throw; }
                         catch (Exception)
                         {
-                            // Ignore individual failures and continue indexing other files
+                            // Ignore individual failures (missing files, corrupt PDFs, etc.)
                         }
                     }
 
                     int percent = (i + 1) * 100 / Math.Max(1, total);
                     progress?.Report(percent);
                 }
-            });
+            }, cancellationToken);
 
-            // Update UI-bound collections on the calling (UI) thread after background processing
-            foreach (ContentData content in results)
+            cancellationToken.ThrowIfCancellationRequested();
+            statusProgress?.Report("Saving index…");
+
+            // ── Post-processing (background thread to avoid blocking UI) ──
+            await Task.Run(() =>
             {
-                if (content.PlainText != null && content.PlainText != string.Empty)
+                // Build the final content set in a dictionary keyed by path.
+                // This replaces individual Remove(O(n)) + Add + notification
+                // calls on the ObservableCollection with a single bulk swap.
+                var merged = new Dictionary<string, ContentData>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var c in TextContent)
                 {
-                    ContentData? existing = TextContent.FirstOrDefault(x => x.Filepath == content.Filepath);
-                    if (existing != null)
+                    if (!string.IsNullOrEmpty(c.PlainText))
+                        merged[c.Filepath] = c;
+                }
+
+                foreach (var content in results)
+                {
+                    if (!string.IsNullOrEmpty(content.PlainText))
+                        merged[content.Filepath] = content;
+                }
+
+                // Single assignment – one CollectionChanged notification
+                TextContent = new ObservableCollection<ContentData>(merged.Values);
+
+                // Sync HasPlainText flag on every file
+                var indexedPaths = new HashSet<string>(merged.Keys, StringComparer.OrdinalIgnoreCase);
+
+                foreach (ProjectData project in Storage.StoredProjects)
+                {
+                    foreach (FileData file in project.StoredFiles)
                     {
-                        TextContent.Remove(existing);
+                        var paths = file.AllPdfPaths(checkExists: false);
+                        file.HasPlainText = paths.Any(indexedPaths.Contains);
                     }
-                    TextContent.Add(content);
                 }
-            }
 
-            // Remove any indexed entries that ended up with no extractable content
-            foreach (ContentData empty in TextContent.Where(x => string.IsNullOrEmpty(x.PlainText)).ToList())
-            {
-                TextContent.Remove(empty);
-            }
+                SaveIndexFile(indexPath);
+            }, cancellationToken);
 
-            // Sync HasPlainText for every file: true if content was extracted for any version
-            foreach (ProjectData project in Storage.StoredProjects)
-            {
-                foreach (FileData file in project.StoredFiles)
-                {
-                    var paths = file.AllPdfPaths();
-                    file.HasPlainText = TextContent.Any(x => paths.Contains(x.Filepath));
-                }
-            }
-
-            SaveIndexFile(indexPath);
             _markDirty?.Invoke();
         }
 
@@ -266,9 +314,11 @@ namespace Finn.ViewModels
             {
                 try
                 {
-                    using StreamReader reader = new(indexPath);
-                    string json = reader.ReadToEnd();
-                    var content = JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(json);
+                    using var stream = File.OpenRead(indexPath);
+                    using var reader = new StreamReader(stream);
+                    using var jsonReader = new JsonTextReader(reader);
+                    var serializer = JsonSerializer.CreateDefault();
+                    var content = serializer.Deserialize<ObservableCollection<ContentData>>(jsonReader);
                     if (content != null)
                     {
                         TextContent = content;
@@ -293,23 +343,36 @@ namespace Finn.ViewModels
 
         public async Task LoadIndexFileAsync(string indexPath)
         {
-            string fileContent = await File.ReadAllTextAsync(indexPath);
+            // Stream-deserialize so the raw JSON string is never held in memory.
             var content = await Task.Run(() =>
-                JsonConvert.DeserializeObject<ObservableCollection<ContentData>>(fileContent));
+            {
+                using var stream = File.OpenRead(indexPath);
+                using var reader = new StreamReader(stream);
+                using var jsonReader = new JsonTextReader(reader);
+                var serializer = JsonSerializer.CreateDefault();
+                return serializer.Deserialize<ObservableCollection<ContentData>>(jsonReader);
+            });
+
             TextContent = content;
 
+            // Sync HasPlainText flags on a background thread to avoid blocking UI
+            // with File.Exists calls inside AllPdfPaths
             var indexedFiles = new HashSet<string>(
                 TextContent!.Select(c => c.Filepath),
                 StringComparer.OrdinalIgnoreCase);
 
-            foreach (ProjectData project in Storage.StoredProjects)
+            var storage = Storage;
+            await Task.Run(() =>
             {
-                foreach (FileData file in project.StoredFiles)
+                foreach (ProjectData project in storage.StoredProjects)
                 {
-                    var paths = file.AllPdfPaths(checkExists: false);
-                    file.HasPlainText = paths.Any(indexedFiles.Contains);
+                    foreach (FileData file in project.StoredFiles)
+                    {
+                        var paths = file.AllPdfPaths(checkExists: false);
+                        file.HasPlainText = paths.Any(indexedFiles.Contains);
+                    }
                 }
-            }
+            });
         }
 
         private void SaveIndexFile(string indexPath)
@@ -319,9 +382,12 @@ namespace Finn.ViewModels
                 Directory.CreateDirectory(_savePath);
             }
 
-            using StreamWriter streamWriter = new(indexPath);
-            var data = JsonConvert.SerializeObject(TextContent);
-            streamWriter.WriteLine(data);
+            // Stream-serialize directly to disk so the entire JSON is never
+            // materialised as a single managed string (can be 100s of MB).
+            using var streamWriter = new StreamWriter(indexPath);
+            using var jsonWriter = new JsonTextWriter(streamWriter);
+            var serializer = JsonSerializer.CreateDefault();
+            serializer.Serialize(jsonWriter, TextContent);
         }
 
         #endregion

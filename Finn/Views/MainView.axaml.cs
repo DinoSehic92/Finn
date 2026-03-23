@@ -41,7 +41,9 @@ public partial class MainView : UserControl
 
         // Global arrow-key navigation: Up/Down = file selection, Left/Right = page.
         // Uses Bubble so annotation Tunnel handlers (nudging) get first priority.
-        this.AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Bubble);
+        // handledEventsToo: TextBox marks Up/Down as handled — we still need them
+        // for search-result navigation when the search tray is active.
+        this.AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
 
         // Drag-and-drop visual hints
         MainGrid.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
@@ -443,24 +445,33 @@ public partial class MainView : UserControl
     /// </summary>
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
-        // Already consumed by annotation nudging or another handler
-        if (e.Handled) return;
         if (e.Key is not (Key.Up or Key.Down or Key.Left or Key.Right)) return;
-        // Not yet initialized
         if (_ctx == null || _pwr == null) return;
+        if (_pwr?.AnnotationActive == true) return;
 
-        // Don't intercept when typing in a TextBox, Slider, etc.
+        bool previewOpen = _ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen;
+
+        // Search-result navigation runs first and ignores e.Handled because
+        // the TextBox (main search field / preview SearchRegex) marks Up/Down
+        // as handled during its own Bubble processing.
+        if (e.Key is Key.Up or Key.Down
+            && previewOpen && _pwr is { SearchMode: true, SearchItems: > 0 })
+        {
+            if (e.Key == Key.Up) _pwr.PrevSearchPage();
+            else _pwr.NextSearchPage();
+            e.Handled = true;
+            return;
+        }
+
+        // Everything below respects prior handling
+        if (e.Handled) return;
+
+        // Don't intercept when typing in a TextBox or adjusting a Slider.
         if (TopLevel.GetTopLevel(this) is { } top)
         {
             var focused = top.FocusManager?.GetFocusedElement();
             if (focused is TextBox or Slider) return;
         }
-
-        // Don't change pages/files while in annotation mode
-        if (_pwr?.AnnotationActive == true) return;
-
-        // Preview must be open for page navigation
-        bool previewOpen = _ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen;
 
         if (e.Key is Key.Left or Key.Right && previewOpen && _pwr != null && _pwr.Pagecount > 0)
         {
@@ -472,16 +483,6 @@ public partial class MainView : UserControl
 
         if (e.Key is Key.Up or Key.Down)
         {
-            // When the diff page list is open, Up/Down navigate diff results
-            // instead of changing the selected file in the grid.
-            if (_pwr is { DiffPageListMode: true, SearchMode: true })
-            {
-                if (e.Key == Key.Up) _pwr.PrevSearchPage();
-                else _pwr.NextSearchPage();
-                e.Handled = true;
-                return;
-            }
-
             if (FileGrid.ItemsSource is not System.Collections.IList items || items.Count == 0) return;
             int current = FileGrid.SelectedItem != null ? items.IndexOf(FileGrid.SelectedItem) : -1;
             int next = e.Key == Key.Up ? current - 1 : current + 1;
@@ -1051,12 +1052,41 @@ public partial class MainView : UserControl
         _metaWorker.RunWorkerAsync("thumbnails");
     }
 
-    private void OnFetchIndex(object? sender, RoutedEventArgs e)
+    private async void OnFetchIndex(object? sender, RoutedEventArgs e)
     {
+        if (_ctx.PreviewVM.BackgroundTaskActive) return;
+
+        var cts = new CancellationTokenSource();
+        _ctx.PreviewVM.SetBackgroundTaskCts(cts);
         _ctx.PreviewVM.BackgroundTaskMessage = "Indexing Files";
         _ctx.PreviewVM.BackgroundTaskActive = true;
-        // Start indexing work on the background worker; handled in the same worker loop
-        _metaWorker.RunWorkerAsync("index");
+        _ctx.PreviewVM.BackgroundTaskProgress = 0;
+
+        try
+        {
+            var progress = new Progress<int>(p =>
+                _ctx.PreviewVM.BackgroundTaskProgress = p);
+            var statusProgress = new Progress<string>(name =>
+                _ctx.PreviewVM.BackgroundTaskMessage = $"Indexing: {name}");
+
+            await _ctx.Data.GetContentAsync(progress, statusProgress, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _ctx.PreviewVM.BackgroundTaskMessage = "Indexing cancelled";
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+        finally
+        {
+            _ctx.PreviewVM.SetBackgroundTaskCts(null);
+            _ctx.PreviewVM.BackgroundTaskMessage = "";
+            _ctx.PreviewVM.BackgroundTaskProgress = 0;
+            _ctx.PreviewVM.BackgroundTaskActive = false;
+            cts.Dispose();
+        }
     }
 
     private void ThumbnailWorkerDoWork(object? sender, DoWorkEventArgs e)
@@ -1074,21 +1104,6 @@ public partial class MainView : UserControl
                     var file = vm.CurrentFiles[i];
                     vm.Data.GenerateThumbnail(file, thumbnailPath);
                     _metaWorker.ReportProgress((i + 1) * 100 / Math.Max(1, total));
-                }
-            }
-            else if (arg == "index")
-            {
-                // Run indexing using the async method, report progress back to background worker
-                try
-                {
-                    // Pass a progress reporter that forwards to the background worker
-                    var progress = new Progress<int>(p => _metaWorker.ReportProgress(p));
-                    // Call the async indexing and wait for completion on this background thread
-                    _ctx.Data.GetContentAsync(progress).GetAwaiter().GetResult();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex);
                 }
             }
         }

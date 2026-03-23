@@ -582,7 +582,7 @@
 						</StackPanel>
 					</Border>
 
-					<ListBox Grid.Row="3" ItemsSource="{Binding PreviewVM.SearchPagesText}" Background="Transparent" SelectedIndex="{Binding PreviewVM.SearchPageIndex}" FontSize="13">
+					<ListBox Name="SearchResultList" Grid.Row="3" ItemsSource="{Binding PreviewVM.SearchPagesText}" Background="Transparent" SelectedIndex="{Binding PreviewVM.SearchPageIndex}" FontSize="13">
 						<ListBox.Styles>
 							<Style Selector="ListBoxItem">
 								<Setter Property="Height" Value="25"/>

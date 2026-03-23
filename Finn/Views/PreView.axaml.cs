@@ -88,6 +88,13 @@ public partial class PreView : UserControl
                 SetSearchFocus();
                 break;
 
+            case nameof(pwr.SearchItems):
+                // Once results populate, give the ListBox focus so Up/Down
+                // navigation works immediately without needing a click.
+                if (pwr.SearchMode && pwr.SearchItems > 0)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => SearchResultList.Focus());
+                break;
+
             case "CurrentFile" when !pwr.WhiteboardMode:
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -608,6 +615,14 @@ public partial class PreView : UserControl
 
     private void SetSearchFocus()
     {
+        // When search is triggered automatically (e.g. indexed content search
+        // during file open), don't steal focus from the FileGrid — the user
+        // needs Up/Down arrows to keep navigating files.
+        if (pwr.SuppressSearchFocus)
+        {
+            pwr.SuppressSearchFocus = false;
+            return;
+        }
         SearchRegex.Clear();
         SearchRegex.Focus();
     }

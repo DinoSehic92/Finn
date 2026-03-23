@@ -573,6 +573,13 @@ namespace Finn.ViewModels
             }
         }
 
+        /// <summary>
+        /// When true, the view should not steal focus to the search TextBox.
+        /// Set before activating SearchMode from automatic (indexed) searches
+        /// so the FileGrid keeps focus for arrow-key navigation.
+        /// </summary>
+        internal bool SuppressSearchFocus { get; set; }
+
         private bool searchBusy = false;
         public bool SearchBusy
         {
@@ -1115,7 +1122,10 @@ namespace Finn.ViewModels
                 currentPage1 = -1;
                 Rotation = 0;
                 if (!string.IsNullOrEmpty(search))
+                {
+                    SuppressSearchFocus = true;
                     SearchMode = true;
+                }
             }).GetTask().ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(search))
