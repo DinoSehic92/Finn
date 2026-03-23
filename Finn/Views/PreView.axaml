@@ -664,10 +664,6 @@
 							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton Name="DiffOverlayToggle" ToolTip.Tip="Show Diff Overlay" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DiffOverlayActive}" IsVisible="{Binding HasDiffResults}">
-							<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="16"/>
-						</ToggleButton>
-
 						<Button Name="CompareVersionsBtn" ToolTip.Tip="Compare Versions" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OnOpenVersionCompareDialog" IsVisible="{Binding CanCompareVersions}">
 							<ic:SymbolIcon Symbol="ArrowSwap" IconVariant="Regular" FontSize="16"/>
 						</Button>

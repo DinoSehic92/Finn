@@ -92,16 +92,24 @@ public partial class PreView : UserControl
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     DeactivateAnnotateMode();
-                    // Always fully close diff state when changing files.
-                    // Without this, HasDiffResults and the overlay toggle
-                    // persist even after the viewed file changes.
+                    // Close any open diff views (toggle / side-by-side layout).
                     CloseDiffViews();
-                    pwr.CloseDiffModeSync();
-                    MuPDFRenderer.ClearDiffOverlay();
-                    if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secFile)
-                        secFile.ClearDiffOverlay();
+                    // If diff mode is NOT actively being entered right now,
+                    // do a full cleanup so stale HasDiffResults / layers don't
+                    // persist after the user changes to a different file.
+                    // When diff IS active (e.g. Compare Versions just set it up
+                    // and the file change is part of that flow), keep the state
+                    // and let SyncDiffOverlay re-establish the views.
+                    if (!pwr.DiffOverlayActive)
+                    {
+                        pwr.CloseDiffModeSync();
+                        MuPDFRenderer.ClearDiffOverlay();
+                        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secFile)
+                            secFile.ClearDiffOverlay();
+                    }
                     SyncLayers();
                     MuPDFRenderer.NotifyLayersChanged();
+                    SyncDiffOverlay();
                 });
                 break;
 
@@ -306,7 +314,6 @@ public partial class PreView : UserControl
             MuPDFRenderer.ClearDiffOverlay();
             if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClear)
                 secClear.ClearDiffOverlay();
-            await CloseDiffViewsAsync();
             return;
         }
 

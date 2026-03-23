@@ -358,6 +358,9 @@ namespace Finn.ViewModels
             _diffChoiceA = null;
             _diffChoiceB = null;
             DiffOverlayActive = false;
+            // Detach the secondary file so stale B-side annotation layers
+            // cannot be re-attached by SyncSecondaryLayers / EnsureDiffBLayerOnSecondary.
+            CurrentFile2 = null;
             // Close the diff page list if it was open
             if (searchMode)
             {
@@ -399,6 +402,11 @@ namespace Finn.ViewModels
 
         public void CloseDiffModeSync()
         {
+            // Guard: nothing to clean up if diff isn't active.
+            // Prevents redundant calls from releasing an active secondary
+            // document that was just loaded by a new diff session.
+            if (!_diffOverlayActive && !dualFileMode) return;
+
             _diffShowingOriginal = false;
 
             secondaryRenderer?.ReleaseResources();
