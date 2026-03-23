@@ -35,8 +35,6 @@ namespace Finn.ViewModels
         private FileData? _diffSourceFile;
         /// <summary>Debounce timer for auto-recomputing diffs when tolerance changes.</summary>
         private CancellationTokenSource? _toleranceDebounceCts;
-        /// <summary>Highlight color for diff pixels and annotation shapes.</summary>
-        private Avalonia.Media.Color _diffHighlightColor = Avalonia.Media.Color.FromRgb(230, 60, 60);
         /// <summary>Auto-created diff annotation layer for A-side regions, tracked for auto-removal.</summary>
         private AnnotationLayer? _diffAnnotationLayer;
         /// <summary>Auto-created diff annotation layer for B-side regions (revised document).</summary>
@@ -102,7 +100,6 @@ namespace Finn.ViewModels
                 if (SetProperty(ref _diffViewMode, value))
                 {
                     OnPropertyChanged(nameof(ShowDiffToggle));
-                    OnPropertyChanged(nameof(IsOverlayMode));
                     OnPropertyChanged(nameof(IsToggleMode));
                     OnPropertyChanged(nameof(IsSideBySideMode));
                 }
@@ -111,7 +108,6 @@ namespace Finn.ViewModels
 
         // Bool properties for radio-style toggle buttons in the diff toolbar.
         // Bindings are OneWay — the View drives mode changes via Click handlers.
-        public bool IsOverlayMode => _diffViewMode == DiffViewMode.Overlay;
         public bool IsToggleMode => _diffViewMode == DiffViewMode.Toggle;
         public bool IsSideBySideMode => _diffViewMode == DiffViewMode.SideBySide;
 
@@ -138,31 +134,6 @@ namespace Finn.ViewModels
 
         /// <summary>Whether re-running the diff is possible (results loaded, paths known).</summary>
         public bool CanRerunDiff => _diffResults is { Count: > 0 } && !_diffRerunBusy;
-
-        /// <summary>Predefined highlight colors the user can pick from.</summary>
-        public static IReadOnlyList<Avalonia.Media.Color> DiffColorPresets { get; } =
-        [
-            Avalonia.Media.Color.FromRgb(230, 60, 60),   // Red
-            Avalonia.Media.Color.FromRgb(59, 130, 217),  // Blue
-            Avalonia.Media.Color.FromRgb(61, 163, 95),   // Green
-            Avalonia.Media.Color.FromRgb(229, 168, 32),  // Orange
-            Avalonia.Media.Color.FromRgb(155, 95, 192),  // Purple
-        ];
-
-        /// <summary>Highlight color used for diff pixel images and annotation layer shapes.</summary>
-        public Avalonia.Media.Color DiffHighlightColor
-        {
-            get => _diffHighlightColor;
-            set
-            {
-                if (SetProperty(ref _diffHighlightColor, value))
-                {
-                    UpdateDiffAnnotationLayerColor();
-                    if (_diffResults is { Count: > 0 })
-                        DebouncedRecomputeAsync();
-                }
-            }
-        }
 
         /// <summary>Whether we are currently showing the original (A) document in A/B toggle mode.</summary>
         public bool DiffShowingOriginal
@@ -238,7 +209,7 @@ namespace Finn.ViewModels
             try
             {
                 await PdfDiffService.RecomputeDiffsAsync(_diffResults, _diffTolerance,
-                    _diffHighlightColor.R, _diffHighlightColor.G, _diffHighlightColor.B);
+                    DiffColorA.R, DiffColorA.G, DiffColorA.B);
                 int diffCount = _diffResults.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{_diffResults.Count} pages — identical"
@@ -595,30 +566,6 @@ namespace Finn.ViewModels
                 CurrentFile2.AnnotationLayers.Add(_diffAnnotationLayerB);
         }
 
-        /// <summary>
-        /// Updates the color of all shapes in the diff annotation layers.
-        /// Only applies to text diff layers (A = red, B = blue).
-        /// Pixel diff uses overlay images, not annotation shapes.
-        /// </summary>
-        private void UpdateDiffAnnotationLayerColor()
-        {
-            if (_diffAnnotationLayer != null)
-            {
-                _diffAnnotationLayer.Color = DiffColorA;
-                foreach (var shapes in _diffAnnotationLayer.PageShapes.Values)
-                    foreach (var shape in shapes)
-                        shape.Color = DiffColorA;
-            }
-            if (_diffAnnotationLayerB != null)
-            {
-                _diffAnnotationLayerB.Color = DiffColorB;
-                foreach (var shapes in _diffAnnotationLayerB.PageShapes.Values)
-                    foreach (var shape in shapes)
-                        shape.Color = DiffColorB;
-            }
-            OnPropertyChanged("LayersChanged");
-        }
-
         private void CleanupDiffTempDir()
         {
             if (!string.IsNullOrEmpty(_diffTempDir) && Directory.Exists(_diffTempDir))
@@ -799,7 +746,7 @@ namespace Finn.ViewModels
 
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
                 var (results, dir) = await PdfDiffService.CompareAsync(resolvedA, resolvedB, progress, ct, _diffTolerance,
-                    _diffHighlightColor.R, _diffHighlightColor.G, _diffHighlightColor.B);
+                    DiffColorA.R, DiffColorA.G, DiffColorA.B);
                 await LoadDiffResultsAsync(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0

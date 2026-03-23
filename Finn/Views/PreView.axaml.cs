@@ -765,6 +765,10 @@ public partial class PreView : UserControl
         await CloseDiffViewsAsync();
         pwr.CloseDiffModeSync();
         MuPDFRenderer.ClearDiffOverlay();
+        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClose)
+            secClose.ClearDiffOverlay();
+        SyncLayers();
+        MuPDFRenderer.NotifyLayersChanged();
         MuPDFRenderer.Contain();
     }
 
@@ -791,15 +795,6 @@ public partial class PreView : UserControl
     {
         if (pwr == null || !pwr.CanRerunDiff) return;
         await pwr.RerunDiffWithToleranceAsync();
-        if (pwr.DiffViewMode != DiffViewMode.Overlay) return;
-        // Force-reload the overlay since the diff image on disk changed.
-        // If this page is now clean (tolerance absorbed all differences), clear the overlay.
-        int page = pwr.CurrentPage1;
-        var diffPath = pwr.GetDiffImagePath(page);
-        if (diffPath != null)
-            MuPDFRenderer.SetDiffOverlay(diffPath, page, PdfDiffService.ZOOM, forceReload: true);
-        else
-            MuPDFRenderer.ClearDiffOverlay();
     }
 
     private async void OnDiffCompareVersions(object? sender, RoutedEventArgs e)
@@ -892,28 +887,6 @@ public partial class PreView : UserControl
                 pwr.CurrentFile?.RefreshAnnotationStatus();
                 ctx?.MarkDirty();
             }
-        }
-    }
-
-    /// <summary>Sets the diff highlight color from a toolbar color button.</summary>
-    private void OnDiffColorPick(object? sender, RoutedEventArgs e)
-    {
-        if (pwr == null || sender is not Button btn || btn.Tag is not string tag) return;
-        var presets = PreviewViewModel.DiffColorPresets;
-        int index = tag switch
-        {
-            "Red" => 0,
-            "Blue" => 1,
-            "Green" => 2,
-            "Orange" => 3,
-            "Purple" => 4,
-            _ => -1
-        };
-        if (index >= 0 && index < presets.Count)
-        {
-            pwr.DiffHighlightColor = presets[index];
-            // Repaint the annotation layer immediately so the color change is visible
-            MuPDFRenderer.NotifyLayersChanged();
         }
     }
 
