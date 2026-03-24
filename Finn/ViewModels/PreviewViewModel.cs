@@ -28,8 +28,6 @@ namespace Finn.ViewModels
         #region Constants
         private const int MAX_RECENT_FILES = 20;
         private const double ZOOM_LEVEL = 0.2;
-        private const int BUFFER_SIZE = 64 * 1024; // 64 KB — larger buffer = fewer syscalls
-        private const int PROGRESS_UPDATE_INTERVAL = 20;
         private const int RENDER_DELAY = 20;
         #endregion
 
@@ -39,7 +37,6 @@ namespace Finn.ViewModels
         private int fileGeneration = 0;
         private int secondaryFileGeneration = 0;
         private CancellationTokenSource secondaryCts = new();
-        private bool fastOpenMode; // Toggle for fast open (first pages only) vs full open
         private TaskCompletionSource? searchDone; // Signalled when SearchDocumentAsync finishes
         private CancellationTokenSource? _diffCts;
         private CancellationTokenSource? _backgroundTaskCts;
@@ -47,6 +44,7 @@ namespace Finn.ViewModels
             Path.Combine(MainViewModel.SavePath, "Cache"));
         private string? _mainPinnedCachePath;   // cached path held open by MuPDF (fast-open)
         private string? _secondaryPinnedCachePath; // cached path held open by secondary doc
+        private bool _autoCacheNetworkFiles; // snapshot of UI setting
         #endregion
 
         #region Constructor
@@ -66,14 +64,6 @@ namespace Finn.ViewModels
 
         #region PDF Document Properties
         private MuPDFDocument? mainPreviewFile = null;
-        /// <summary>
-        /// If true, only the first pages of a PDF are loaded for fast preview.
-        /// </summary>
-        public bool FastOpenMode
-        {
-            get => fastOpenMode;
-            set => SetProperty(ref fastOpenMode, value);
-        }
 
         /// <summary>Visible in the toolbar when the current file is cached.</summary>
         [Newtonsoft.Json.JsonIgnore]
@@ -82,6 +72,18 @@ namespace Finn.ViewModels
         /// <summary>Number of files currently in the local cache.</summary>
         [Newtonsoft.Json.JsonIgnore]
         public int CacheFileCount => _fileCache.CachedFileCount;
+
+        /// <summary>
+        /// When true, network files are automatically routed through the local
+        /// cache before preview — even if not explicitly marked <c>IsCached</c>.
+        /// Set by MainViewModel from <see cref="UISettingsViewModel.AutoCacheNetworkFiles"/>.
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool AutoCacheNetworkFiles
+        {
+            get => _autoCacheNetworkFiles;
+            set => SetProperty(ref _autoCacheNetworkFiles, value);
+        }
 
         /// <summary>Total size in bytes of all cached files.</summary>
         [Newtonsoft.Json.JsonIgnore]
@@ -197,7 +199,6 @@ namespace Finn.ViewModels
         }
 
         private MuPDFContext? context = null;
-        private byte[]? bytes;
         private bool fileAvailable = false;
         private MuPDFDocument? secondaryFile = null;
         private MuPDFContext? secondaryContext = null;
@@ -646,8 +647,20 @@ namespace Finn.ViewModels
         public int Progress
         {
             get => progress;
-            set => SetProperty(ref progress, value);
+            set
+            {
+                if (SetProperty(ref progress, value))
+                    OnPropertyChanged(nameof(IsProgressIndeterminate));
+            }
         }
+
+        /// <summary>
+        /// True when <see cref="FileWorkerBusy"/> is active but no byte-level
+        /// progress is available (e.g. file-path open). The view binds this to
+        /// <c>ProgressBar.IsIndeterminate</c> for a marquee effect.
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsProgressIndeterminate => progress == 0;
 
         #region Background Task Progress
         private bool _backgroundTaskActive;
@@ -694,6 +707,22 @@ namespace Finn.ViewModels
         public void CancelBackgroundTask()
         {
             _backgroundTaskCts?.Cancel();
+        }
+
+        /// <summary>
+        /// Cancels the current <see cref="SetFileAsync"/> operation (cache copy,
+        /// document open, or render). Called from the loading overlay Cancel button.
+        /// Immediately hides the loading overlay for instant visual feedback;
+        /// the background operation cleans up via the cancellation token.
+        /// </summary>
+        public void CancelFileLoad()
+        {
+            FileWorkerBusy = false;
+            Progress = 0;
+            StatusMessage = "Cancelled";
+            try { mainCts.Cancel(); } catch { }
+            // Also cancel diff if it was the active operation
+            _diffCts?.Cancel();
         }
         #endregion
 
@@ -884,7 +913,7 @@ namespace Finn.ViewModels
             // creating/disposing native MuPDF objects which can cause crashes.
             try
             {
-                await Task.Delay(50, token).ConfigureAwait(false);
+                await Task.Delay(25, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -899,19 +928,35 @@ namespace Finn.ViewModels
 
             try
             {
-                // Dispose old document quickly on UI thread (no polling)
-                await DisposeCurrentDocumentAsync(token).ConfigureAwait(false);
+                // Cancel any running search immediately. The old document
+                // stays alive while the new one is created on a background
+                // thread — both are disposed/swapped atomically in a single
+                // UI dispatch below, saving two round-trips.
+                try
+                {
+                    await searchCts.CancelAsync().ConfigureAwait(false);
+                    searchCts.Dispose();
+                }
+                catch { }
+                searchCts = new CancellationTokenSource();
+                SearchBusy = false;
+                ClearSearch();
 
                 if (IsStale(myGeneration)) return;
 
                 string path = RequestFile.Sökväg;
+                var reqFileRef = RequestFile;
 
-                // Resolve through local cache when the file is marked for caching.
+                // Route through local cache when the file is explicitly cached
+                // or when AutoCacheNetworkFiles is on and this is a network path.
                 bool cacheHit = false;
-                bool cachedLocally = false; // true when the file was resolved to a local cache path (pin needed)
+                bool cachedLocally = false;
                 bool wasStale = false;
                 string originalPath = path;
-                if (RequestFile.IsCached)
+                bool useCache = RequestFile.IsCached
+                    || (_autoCacheNetworkFiles && LocalFileCache.IsNetworkPath(path));
+
+                if (useCache)
                 {
                     StatusMessage = "Caching…";
                     var result = await _fileCache.GetLocalPathAsync(path, token, p => Progress = p).ConfigureAwait(false);
@@ -922,138 +967,129 @@ namespace Finn.ViewModels
                     path = result.Path;
                 }
 
-                CacheSourceIcon = RequestFile.IsCached
+                CacheSourceIcon = useCache
                     ? (wasStale ? "ArrowSync" : (cacheHit ? "Database" : "Cloud"))
                     : null;
 
-                if (FastOpenMode)
-                {
-                    // FAST OPEN: open document by filepath rather than reading whole file into memory.
-                    // Opening by path lets the native renderer perform on-demand reads which
-                    // works better for slow servers and avoids large managed allocations.
-                    MuPDFContext previewContext = null!;
-                    MuPDFDocument previewDoc = null!;
+                string openPath = path;
 
-                    // Create MuPDF objects on the UI thread for safety (native interop sometimes
-                    // requires UI-thread affinity). Use Dispatcher to keep this async-friendly.
-                    var sw = Stopwatch.StartNew();
+                // Mark the file as cached so the UI shows the cache indicator
+                // and the setting persists for future sessions.
+                if (useCache && cachedLocally && !reqFileRef.IsCached)
+                    reqFileRef.IsCached = true;
+
+                // Create MuPDF objects on the background thread — document
+                // construction is pure native file I/O with no UI dependency.
+                // Only the renderer (Initialize) requires the UI thread.
+                StatusMessage = "Opening…";
+                MuPDFContext previewContext;
+                MuPDFDocument previewDoc;
+                var sw = Stopwatch.StartNew();
+                previewContext = new MuPDFContext();
+                try
+                {
+                    previewDoc = new MuPDFDocument(previewContext, openPath);
+                }
+                catch
+                {
+                    previewContext.Dispose();
+                    throw;
+                }
+
+                if (token.IsCancellationRequested || IsStale(myGeneration))
+                {
+                    previewDoc.Dispose();
+                    previewContext.Dispose();
+                    return;
+                }
+
+                // Pin/unpin cache paths before entering the UI dispatch
+                if (cachedLocally)
+                    _fileCache.Pin(path);
+                UnpinMainCachePath();
+                _mainPinnedCachePath = cachedLocally ? path : null;
+
+                var reqFile = RequestFile!;
+                int desired = Math.Clamp(reqFile.DefaultPage, 0,
+                    Math.Max(0, previewDoc.Pages.Count - 1));
+
+                // Atomic swap: one semaphore + one UI dispatch replaces the
+                // previous three separate round-trips (dispose ? create ? render).
+                await renderSemaphore.WaitAsync(token).ConfigureAwait(false);
+                try
+                {
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        if (token.IsCancellationRequested) return;
-                        previewContext = new MuPDFContext();
-                        // Use file-based constructor when available — this delegates IO to native layer
-                        // and avoids buffering the entire file in managed memory.
-                        previewDoc = new MuPDFDocument(previewContext, path);
+                        // --- Release old renderer resources ---
+                        if (mainRenderer?.HighlightedRegions != null)
+                            mainRenderer.HighlightedRegions = null;
+                        if (!dualFileMode && secondaryRenderer?.HighlightedRegions != null)
+                            secondaryRenderer.HighlightedRegions = null;
+                        mainRenderer?.ReleaseResources();
+                        if (!dualFileMode)
+                            secondaryRenderer?.ReleaseResources();
+
+                        // --- Dispose old, swap in new ---
+                        var prevDoc = MainPreviewFile;
+                        var prevCtx = context;
+                        MainPreviewFile = previewDoc;
+                        context = previewContext;
+                        Pagecount = previewDoc.Pages.Count;
+                        CurrentFile = reqFile;
+                        fileAvailable = true;
+                        prevDoc?.Dispose();
+                        prevCtx?.Dispose();
+
+                        // --- Page setup ---
+                        if (!DualFileMode) LinkedPageMode = true;
+                        if (Pagecount <= 1 && twopageMode) TwopageMode = false;
+                        requestPage1 = desired;
+                        OnPropertyChanged(nameof(RequestPage1));
+                        currentPage1 = -1;
+                        Rotation = 0;
+                        if (!string.IsNullOrEmpty(search))
+                        {
+                            SuppressSearchFocus = true;
+                            SearchMode = true;
+                        }
+
+                        // --- Render first page ---
+                        if (mainRenderer != null)
+                        {
+                            mainRenderer.Initialize(MainPreviewFile!, 1, desired, ZOOM_LEVEL);
+                            mainRenderer.IsVisible = true;
+                            SetSearchResults();
+                            CurrentPage1 = desired;
+                        }
+
+                        // --- Secondary page (two-page linked mode) ---
+                        if (!DualFileMode && LinkedPageMode && TwopageMode
+                            && PageInRange(desired + 1) && secondaryRenderer != null)
+                        {
+                            requestPage2 = desired + 1;
+                            OnPropertyChanged(nameof(RequestPage2));
+                            secondaryRenderer.Initialize(MainPreviewFile!, 1, requestPage2, ZOOM_LEVEL);
+                            secondaryRenderer.IsVisible = true;
+                            SetSecondarySearchResults();
+                            CurrentPage2 = requestPage2;
+                        }
                     }).GetTask().ConfigureAwait(false);
-
-                    if (token.IsCancellationRequested || IsStale(myGeneration))
-                    {
-                        // Another call superseded us or cancellation requested — dispose what we just created
-                        try { previewDoc?.Dispose(); } catch { }
-                        try { previewContext?.Dispose(); } catch { }
-                        return;
-                    }
-
-                    // Pin the cached path so LRU eviction / Invalidate won't delete
-                    // the file while MuPDF holds a native handle.
-                    if (cachedLocally)
-                        _fileCache.Pin(path);
-
-                    // Unpin previous cached path before swapping
-                    UnpinMainCachePath();
-                    _mainPinnedCachePath = cachedLocally ? path : null;
-
-                    // Swap fields atomically: capture old refs first
-                    var prevDoc = MainPreviewFile;
-                    var prevCtx = context;
-
-                    MainPreviewFile = previewDoc;
-                    context = previewContext;
-                    Pagecount = previewDoc.Pages.Count;
-                    CurrentFile = RequestFile;
-
-                    // Dispose old refs in correct order (document before context)
-                    prevDoc?.Dispose();
-                    prevCtx?.Dispose();
-
-                    fileAvailable = true;
-
-                    if (IsStale(myGeneration))
-                    {
-                        try { previewDoc?.Dispose(); } catch { }
-                        try { previewContext?.Dispose(); } catch { }
-                        return;
-                    }
-
-                    await FinalizeOpenAsync(search, token).ConfigureAwait(false);
-
-                    sw.Stop();
-                    swTotal.Stop();
-                    StatusMessage = $"Opened in {swTotal.ElapsedMilliseconds} ms";
-
-                    // Fast-open path complete
-                    return;
+                }
+                finally
+                {
+                    renderSemaphore.Release();
                 }
 
-                // Default: full open (read into memory and create from bytes)
-                var sw2 = Stopwatch.StartNew();
-                bytes = await Task.Run(() => ReadFileBytes(path, token)).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(search))
+                    _ = SearchAsync(search, token);
 
-                if (IsStale(myGeneration) || bytes == null) return;
-
-                var localBytes = bytes;
-
-                // Create PDF document on the UI thread. Native MuPDF objects have
-                // UI-thread affinity in some builds — constructing them on a
-                // background thread can cause use-after-free / access violations
-                // when documents are disposed or rendered concurrently.
-                MuPDFContext localContext = null!;
-                MuPDFDocument doc = null!;
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    if (token.IsCancellationRequested) return;
-                    localContext = new MuPDFContext();
-                    doc = new MuPDFDocument(localContext, localBytes, InputFileTypes.PDF);
-                }).GetTask().ConfigureAwait(false);
-
-                if (IsStale(myGeneration))
-                {
-                    // Another call superseded us — dispose what we just created
-                    doc?.Dispose();
-                    localContext?.Dispose();
-                    return;
-                }
-
-                // Swap fields atomically: capture old refs first
-                var oldDoc = MainPreviewFile;
-                var oldCtx = context;
-
-                MainPreviewFile = doc;
-                context = localContext;
-                Pagecount = doc.Pages.Count;
-                CurrentFile = RequestFile;
-
-                // Dispose old refs in correct order (document before context)
-                oldDoc?.Dispose();
-                oldCtx?.Dispose();
-
-                fileAvailable = true;
-
-                if (IsStale(myGeneration))
-                {
-                    doc?.Dispose();
-                    localContext?.Dispose();
-                    return;
-                }
-
-                await FinalizeOpenAsync(search, token).ConfigureAwait(false);
-
-                sw2.Stop();
+                sw.Stop();
                 swTotal.Stop();
                 StatusMessage = $"Opened in {swTotal.ElapsedMilliseconds} ms";
             }
             catch (OperationCanceledException)
             {
+                Progress = 0;
                 logger?.LogInformation("File load cancelled (gen {Generation})", myGeneration);
             }
             catch (Exception ex)
@@ -1091,47 +1127,6 @@ namespace Finn.ViewModels
                 _fileCache.Unpin(_secondaryPinnedCachePath);
                 _secondaryPinnedCachePath = null;
             }
-        }
-
-        /// <summary>
-        /// Shared post-open logic: sets the default page on the UI thread,
-        /// kicks off search if requested, and awaits the first-page render.
-        /// </summary>
-        private async Task FinalizeOpenAsync(string? search, CancellationToken token)
-        {
-            int desired = Math.Clamp(RequestFile!.DefaultPage, 0,
-                Math.Max(0, MainPreviewFile!.Pages.Count - 1));
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (!DualFileMode)
-                    LinkedPageMode = true;
-
-                // Single-page files cannot use two-page mode — revert to single.
-                if (Pagecount <= 1 && twopageMode)
-                    TwopageMode = false;
-
-                requestPage1 = desired;
-                OnPropertyChanged(nameof(RequestPage1));
-                // Reset the backing field to a sentinel so that
-                // RenderCurrentPageAsync's "CurrentPage1 = requestPage1"
-                // fires PropertyChanged AFTER Initialize completes.
-                // Setting CurrentPage1 here (before Initialize) would trigger
-                // OnBindingPwr ? SetStrokePage ? InvalidateVisual on a
-                // released renderer, causing a blank preview.
-                currentPage1 = -1;
-                Rotation = 0;
-                if (!string.IsNullOrEmpty(search))
-                {
-                    SuppressSearchFocus = true;
-                    SearchMode = true;
-                }
-            }).GetTask().ConfigureAwait(false);
-
-            if (!string.IsNullOrEmpty(search))
-                _ = SearchAsync(search, token);
-
-            await RenderCurrentPageAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1184,7 +1179,6 @@ namespace Finn.ViewModels
                 fileAvailable = false;
                 MainPreviewFile = null;
                 context = null;
-                bytes = null; // release memory early
 
                 // Unpin cached path now that the native handle is closed
                 UnpinMainCachePath();
@@ -1228,65 +1222,6 @@ namespace Finn.ViewModels
             }
         }
 
-        /// <summary>
-        /// Reads file bytes synchronously (called via Task.Run) with
-        /// cancellation support and progress reporting.
-        /// Returns null if cancelled or on error — caller checks for null.
-        /// </summary>
-        private byte[]? ReadFileBytes(string path, CancellationToken token)
-        {
-            try
-            {
-                if (token.IsCancellationRequested) return null;
-
-                var fileInfo = new FileInfo(path);
-                if (!fileInfo.Exists) return null;
-
-                long total = fileInfo.Length;
-                StatusMessage = $"Reading: {total / 1_000_000.0:F1} MB";
-                Progress = 0;
-
-                // Small files (< 10 MB): read all at once — fastest path
-                if (total < 10_000_000)
-                {
-                    if (token.IsCancellationRequested) return null;
-                    byte[] result = File.ReadAllBytes(path);
-                    Progress = 0;
-                    return token.IsCancellationRequested ? null : result;
-                }
-
-                // Large files: buffered read with progress
-                using var source = new FileStream(path, FileMode.Open, FileAccess.Read,
-                    FileShare.Read, BUFFER_SIZE, FileOptions.SequentialScan);
-                using var ms = new MemoryStream((int)Math.Min(total, int.MaxValue));
-
-                byte[] buffer = new byte[BUFFER_SIZE];
-                int steps = Math.Max(1, (int)(total / buffer.Length));
-                int leap = Math.Max(1, steps / PROGRESS_UPDATE_INTERVAL);
-                int i = 0;
-                int bytesRead;
-
-                while ((bytesRead = source.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    if (token.IsCancellationRequested) return null;
-
-                    ms.Write(buffer, 0, bytesRead);
-
-                    if (i % leap == 0)
-                        Progress = Math.Min(100, 100 * (i + 1) / steps);
-                    i++;
-                }
-
-                Progress = 0;
-                return token.IsCancellationRequested ? null : ms.ToArray();
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                logger?.LogError(ex, "Error reading {Path}", path);
-                return null;
-            }
-        }
-
         public async Task SetFile2Async(FileData file, CancellationToken cancellationToken = default)
         {
             if (disposed || file.Sökväg == null) return;
@@ -1303,7 +1238,7 @@ namespace Finn.ViewModels
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, secondaryCts.Token);
             var token = linkedCts.Token;
 
-            try { await Task.Delay(50, token).ConfigureAwait(false); }
+            try { await Task.Delay(25, token).ConfigureAwait(false); }
             catch (OperationCanceledException) { return; }
 
             bool IsStale2() => Volatile.Read(ref secondaryFileGeneration) != myGen;
@@ -1314,30 +1249,38 @@ namespace Finn.ViewModels
 
                 if (IsStale2()) return;
 
-                // Resolve through local cache when the file is marked for caching.
+                // Resolve through local cache when the file is marked for caching
+                // or auto-cache is enabled for network paths.
                 string filePath = file.Sökväg;
                 bool secondaryCachedLocally = false;
-                if (file.IsCached)
+                bool useCache2 = file.IsCached
+                    || (_autoCacheNetworkFiles && LocalFileCache.IsNetworkPath(filePath));
+
+                if (useCache2)
                 {
                     var result = await _fileCache.GetLocalPathAsync(filePath, token).ConfigureAwait(false);
                     secondaryCachedLocally = !string.Equals(result.Path, filePath, StringComparison.OrdinalIgnoreCase);
                     filePath = result.Path;
                 }
 
-                MuPDFContext newContext = null!;
-                MuPDFDocument newDoc = null!;
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                // Create MuPDF objects on the background thread (no UI dependency).
+                MuPDFContext newContext;
+                MuPDFDocument newDoc;
+                newContext = new MuPDFContext();
+                try
                 {
-                    if (token.IsCancellationRequested) return;
-                    newContext = new MuPDFContext();
                     newDoc = new MuPDFDocument(newContext, filePath);
-                }).GetTask().ConfigureAwait(false);
+                }
+                catch
+                {
+                    newContext.Dispose();
+                    throw;
+                }
 
                 if (IsStale2() || token.IsCancellationRequested)
                 {
-                    try { newDoc?.Dispose(); } catch { }
-                    try { newContext?.Dispose(); } catch { }
+                    newDoc.Dispose();
+                    newContext.Dispose();
                     return;
                 }
 
@@ -1404,73 +1347,6 @@ namespace Finn.ViewModels
         #endregion
 
         #region Page Navigation & Default Page
-        private async Task RenderCurrentPageAsync()
-        {
-            if (disposed || !PageInRange(requestPage1) || mainRenderer == null || MainPreviewFile == null)
-                return;
-
-            await renderSemaphore.WaitAsync().ConfigureAwait(false);
-            try
-            {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    try
-                    {
-                        if (mainRenderer == null || MainPreviewFile == null)
-                            return;
-
-                        mainRenderer.IsVisible = false;
-                        mainRenderer.HighlightedRegions = null;
-                        mainRenderer.ReleaseResources();
-                        mainRenderer.Initialize(MainPreviewFile, 1, requestPage1, ZOOM_LEVEL);
-                        mainRenderer.IsVisible = true;
-                        SetSearchResults();
-                        CurrentPage1 = requestPage1;
-                    }
-                    catch (Exception ex)
-                    {
-                        // Defensive: log the exception and abort this render attempt
-                        logger?.LogError(ex, "Exception in RenderCurrentPageAsync UI invoke");
-                        Finn.Utils.ErrorLogger.Log(ex, "RenderCurrentPageAsync.UI");
-                        return;
-                    }
-
-                    if (!DualFileMode && LinkedPageMode && TwopageMode && PageInRange(requestPage1 + 1) && secondaryRenderer != null)
-                    {
-                        try
-                        {
-                            if (MainPreviewFile == null)
-                                return;
-
-                            requestPage2 = requestPage1 + 1;
-                            OnPropertyChanged(nameof(RequestPage2));
-                            secondaryRenderer.IsVisible = false;
-                            secondaryRenderer.HighlightedRegions = null;
-                            secondaryRenderer.ReleaseResources();
-                            secondaryRenderer.Initialize(MainPreviewFile, 1, requestPage2, ZOOM_LEVEL);
-                            secondaryRenderer.IsVisible = true;
-                            SetSecondarySearchResults();
-                            CurrentPage2 = requestPage2;
-                        }
-                        catch (NullReferenceException nre)
-                        {
-                            logger?.LogError(nre, "NullReference in RenderCurrentPageAsync secondary UI invoke");
-                            Finn.Utils.ErrorLogger.Log(nre, "RenderCurrentPageAsync.UI.secondary");
-                            return;
-                        }
-                    }
-                }).GetTask().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error in RenderCurrentPageAsync");
-            }
-            finally
-            {
-                renderSemaphore.Release();
-            }
-        }
-
         public void NextPage(bool secondPage = false)
         {
             int lastPage = Pagecount - 1;

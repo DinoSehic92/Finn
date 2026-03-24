@@ -96,6 +96,13 @@ namespace Finn.ViewModels
         private bool showThumbnails;
         public bool ShowThumbnails { get => showThumbnails; set { showThumbnails = value; RaisePropertyChanged(nameof(ShowThumbnails)); } }
 
+        private bool autoCacheNetworkFiles;
+        /// <summary>
+        /// When true, network files are automatically cached locally before
+        /// previewing. Avoids locking server files and speeds up re-opens.
+        /// </summary>
+        public bool AutoCacheNetworkFiles { get => autoCacheNetworkFiles; set { autoCacheNetworkFiles = value; RaisePropertyChanged(nameof(AutoCacheNetworkFiles)); } }
+
         private bool previewDarkMode;
         public bool PreviewDarkMode { get => previewDarkMode; set { previewDarkMode = value; RaisePropertyChanged(nameof(PreviewDarkMode)); } }
 

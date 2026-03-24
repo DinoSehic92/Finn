@@ -126,6 +126,7 @@ public partial class MainView : UserControl
         _ctx = (MainViewModel)DataContext!;
         _pwr = _ctx.PreviewVM;
         _pwr.DarkMode = _ctx.UI.PreviewDarkMode;
+        _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
         _ctx.PreviewVM.PropertyChanged += OnPreviewPropertyChanged;
@@ -220,6 +221,9 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.ColorTagDot):
             case nameof(_ctx.UI.ColorTagRow):
                 UpdateRowColor();
+                break;
+            case nameof(_ctx.UI.AutoCacheNetworkFiles):
+                _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
                 break;
         }
     }
@@ -1294,6 +1298,9 @@ public partial class MainView : UserControl
         // to the UI thread to avoid cross-thread access on LayerList.
         if (e.PropertyName is "CurrentFile" or "WhiteboardMode" or "LayersChanged")
             Dispatcher.UIThread.Post(() => SyncLayerList(), DispatcherPriority.Background);
+        // Sync AutoCacheNetworkFiles back to UI settings when toggled from preview toolbar
+        if (e.PropertyName is nameof(PreviewViewModel.AutoCacheNetworkFiles))
+            _ctx.UI.AutoCacheNetworkFiles = _pwr.AutoCacheNetworkFiles;
     }
 
     private static readonly Avalonia.Media.Color[] LayerColors =

@@ -131,6 +131,18 @@ public partial class PreView
                         path.LineTo(sp[i]);
                     if (closed) path.Close();
                 }
+
+                // Fill closed polylines with a translucent tint (matches in-app alpha 40)
+                if (closed)
+                {
+                    using var closedFill = new SKPaint
+                    {
+                        Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, 40),
+                        Style = SKPaintStyle.Fill,
+                        IsAntialias = true
+                    };
+                    canvas.DrawPath(path, closedFill);
+                }
             }
             else
             {
@@ -309,12 +321,24 @@ public partial class PreView
             float lineHeight = (float)(t.FontSize * renderZoom * 1.3);
             float ty = (float)(t.Position.Y * renderZoom) + (float)(t.FontSize * renderZoom);
 
+            // Word-wrap when MaxWidth is set, otherwise split on explicit newlines
+            List<string> textLines;
+            if (t.MaxWidth > 0)
+            {
+                float maxWidthPx = (float)(t.MaxWidth * renderZoom);
+                textLines = WrapTextLines(t.Text, maxWidthPx, font);
+            }
+            else
+            {
+                textLines = new List<string>(t.Text.Split('\n'));
+            }
+
             // Measure total extent for frame
             float frameMinX = float.MaxValue, frameMinY = float.MaxValue;
             float frameMaxX = float.MinValue, frameMaxY = float.MinValue;
             var lineInfos = new List<(string text, float y, SKRect bounds)>();
             float curY = ty;
-            foreach (var line in t.Text.Split('\n'))
+            foreach (var line in textLines)
             {
                 if (line.Length > 0)
                 {
@@ -667,11 +691,11 @@ public partial class PreView
 
     /// <summary>
     /// Renders a label-style text annotation: centred text with a subtle pill background.
-    /// Uses a fixed font size (doesn't scale with zoom) matching the in-app renderer.
+    /// Font size scales with renderZoom so the label stays proportional in the export.
     /// </summary>
     private static void RenderSkiaLabel(SKCanvas canvas, TextAnnotation t, double renderZoom)
     {
-        float fontSize = (float)t.FontSize;
+        float fontSize = (float)(t.FontSize * renderZoom);
         byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
         var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
 
@@ -685,11 +709,12 @@ public partial class PreView
         float cy = (float)(t.Position.Y * renderZoom);
         float x = cx - textWidth * 0.5f;
         float y = cy + fontSize;
+        float s = (float)renderZoom;
 
         // Pill background
         using var bgPaint = new SKPaint { Color = new SKColor(255, 255, 255, 200), Style = SKPaintStyle.Fill, IsAntialias = true };
-        canvas.DrawRoundRect(x + textBounds.Left - 3, y + textBounds.Top - 2,
-            textBounds.Width + 6, textBounds.Height + 4, 3, 3, bgPaint);
+        canvas.DrawRoundRect(x + textBounds.Left - 3 * s, y + textBounds.Top - 2 * s,
+            textBounds.Width + 6 * s, textBounds.Height + 4 * s, 3 * s, 3 * s, bgPaint);
 
         using var textPaint = new SKPaint { Color = color, IsAntialias = true };
         canvas.DrawText(t.Text, x, y, font, textPaint);
@@ -1372,6 +1397,37 @@ public partial class PreView
         foreach (char c in Path.GetInvalidFileNameChars())
             name = name.Replace(c, '_');
         return name.Length > 60 ? name[..60] : name;
+    }
+
+    /// <summary>
+    /// Word-wraps text into lines that fit within <paramref name="maxWidthPx"/>.
+    /// Matches the in-app renderer's WrapTextLines logic.
+    /// </summary>
+    private static List<string> WrapTextLines(string text, float maxWidthPx, SKFont font)
+    {
+        var result = new List<string>();
+        foreach (var paragraph in text.Split('\n'))
+        {
+            if (string.IsNullOrEmpty(paragraph)) { result.Add(""); continue; }
+            var words = paragraph.Split(' ');
+            string currentLine = "";
+            foreach (var word in words)
+            {
+                string test = currentLine.Length == 0 ? word : currentLine + " " + word;
+                float width = font.MeasureText(test);
+                if (width <= maxWidthPx || currentLine.Length == 0)
+                    currentLine = test;
+                else
+                {
+                    result.Add(currentLine);
+                    currentLine = word;
+                }
+            }
+            if (currentLine.Length > 0)
+                result.Add(currentLine);
+        }
+        if (result.Count == 0) result.Add("");
+        return result;
     }
 
     #endregion

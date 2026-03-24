@@ -998,20 +998,22 @@ namespace Finn.ViewModels
 
                     // Resolve through local cache
                     string path = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
-                    MuPDFContext? newCtx = null;
-                    MuPDFDocument? newDoc = null;
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    var newCtx = new MuPDFContext();
+                    MuPDFDocument newDoc;
+                    try
                     {
-                        newCtx = new MuPDFContext();
                         newDoc = new MuPDFDocument(newCtx, path);
-                    }).GetTask().ConfigureAwait(false);
-
-                    if (newDoc == null || newCtx == null) return;
+                    }
+                    catch
+                    {
+                        newCtx.Dispose();
+                        throw;
+                    }
 
                     if (_secondaryCloseGen != openStartGen)
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() => { newDoc.Dispose(); newCtx.Dispose(); }).GetTask().ConfigureAwait(false);
+                        newDoc.Dispose();
+                        newCtx.Dispose();
                         return;
                     }
 
@@ -1081,20 +1083,22 @@ namespace Finn.ViewModels
 
                     // Resolve through local cache
                     string resolvedPath = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
-                    MuPDFContext? newCtx = null;
-                    MuPDFDocument? newDoc = null;
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    var newCtx = new MuPDFContext();
+                    MuPDFDocument newDoc;
+                    try
                     {
-                        newCtx = new MuPDFContext();
                         newDoc = new MuPDFDocument(newCtx, resolvedPath);
-                    }).GetTask().ConfigureAwait(false);
-
-                    if (newDoc == null || newCtx == null) return false;
+                    }
+                    catch
+                    {
+                        newCtx.Dispose();
+                        throw;
+                    }
 
                     if (_secondaryCloseGen != openStartGen)
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() => { newDoc.Dispose(); newCtx.Dispose(); }).GetTask().ConfigureAwait(false);
+                        newDoc.Dispose();
+                        newCtx.Dispose();
                         return false;
                     }
 

@@ -82,9 +82,11 @@
 						<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
 							<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="36" Foreground="White"/>
 							<TextBlock Text="{Binding PreviewVM.StatusMessage}" Foreground="White" FontSize="14" HorizontalAlignment="Center"/>
-							<ProgressBar Width="200" Height="6" Minimum="0" Maximum="100" Value="{Binding PreviewVM.Progress}"/>
-							<Button Content="Cancel" IsVisible="{Binding PreviewVM.DiffBusy}"
-									Click="OnCancelDiff" Padding="16,4" HorizontalAlignment="Center"
+							<!-- Indeterminate when Progress is 0 (file open); determinate when caching -->
+							<ProgressBar Width="200" Height="6" Minimum="0" Maximum="100"
+										 Value="{Binding PreviewVM.Progress}"
+										 IsIndeterminate="{Binding PreviewVM.IsProgressIndeterminate}"/>
+							<Button Content="Cancel" Click="OnCancelFileLoad" Padding="16,4" HorizontalAlignment="Center"
 									Foreground="White" Background="Transparent"
 									BorderThickness="1" BorderBrush="White" CornerRadius="3"/>
 						</StackPanel>
@@ -629,8 +631,8 @@
 
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-						<ToggleButton ToolTip.Tip="Fast Open" IsChecked="{Binding FastOpenMode, Mode=TwoWay}" Width="30" Height="30">
-								<ic:SymbolIcon Symbol="Rocket" IconVariant="Regular" FontSize="16"/>
+						<ToggleButton ToolTip.Tip="Auto-cache network files locally" IsChecked="{Binding AutoCacheNetworkFiles, Mode=TwoWay}" Width="30" Height="30">
+								<ic:SymbolIcon Symbol="Database" IconVariant="Regular" FontSize="16"/>
 							</ToggleButton>
 
 							<Button ToolTip.Tip="Reload from server (bypass local cache)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0"

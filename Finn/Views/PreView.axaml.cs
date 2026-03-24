@@ -837,6 +837,9 @@ public partial class PreView : UserControl
 
     private void OnCancelDiff(object? sender, RoutedEventArgs e) => pwr?.CancelDiff();
 
+    /// <summary>Cancels the current file load (cache copy or document open).</summary>
+    private void OnCancelFileLoad(object? sender, RoutedEventArgs e) => pwr?.CancelFileLoad();
+
     private void OnToggleDiffPageList(object? sender, RoutedEventArgs e) => pwr?.ToggleDiffPageList();
 
     /// <summary>Close Dual File mode from the banner close button.</summary>
