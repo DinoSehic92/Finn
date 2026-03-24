@@ -1438,6 +1438,10 @@ namespace Finn.ViewModels
                     }
                     if (!LinkedPageMode && !DualFileMode)
                         LinkedPageMode = true;
+                    // Restore focus after layout settles — the caller's
+                    // immediate Focus() call gets lost when Contain() /
+                    // IsVisible changes reshape the visual tree.
+                    mainRenderer?.Focus();
                 }).GetTask().ConfigureAwait(false);
             }
             catch (Exception ex)
