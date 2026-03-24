@@ -35,6 +35,8 @@ namespace Finn.ViewModels
         private FileData? _diffSourceFile;
         /// <summary>Debounce timer for auto-recomputing diffs when tolerance changes.</summary>
         private CancellationTokenSource? _toleranceDebounceCts;
+        /// <summary>True when the last diff comparison was pixel-based (not text-based).</summary>
+        private bool _lastDiffWasPixel;
         /// <summary>Auto-created diff annotation layer for A-side regions, tracked for auto-removal.</summary>
         private AnnotationLayer? _diffAnnotationLayer;
         /// <summary>The FileData that <see cref="_diffAnnotationLayer"/> was added to. Tracked so cleanup
@@ -97,6 +99,12 @@ namespace Finn.ViewModels
 
         /// <summary>Whether diff results are loaded (controls toggle button visibility).</summary>
         public bool HasDiffResults => _diffResults != null && _diffResults.Count > 0;
+
+        /// <summary>True when pixel-diff results are loaded (controls tolerance slider visibility).</summary>
+        public bool HasPixelDiffResults => HasDiffResults && _lastDiffWasPixel;
+
+        /// <summary>True when text-diff results are loaded (controls margin inputs visibility).</summary>
+        public bool HasTextDiffResults => HasDiffResults && !_lastDiffWasPixel;
 
         /// <summary>Active diff view mode: Overlay, Toggle (A/B swap), or SideBySide.</summary>
         public DiffViewMode DiffViewMode
@@ -302,9 +310,21 @@ namespace Finn.ViewModels
 
         private void NotifyDiffResultsLoaded(List<DiffResultData> results)
         {
+            // Detect whether this is a pixel or text diff
+            _lastDiffWasPixel = true;
+            foreach (var r in results)
+            {
+                if (r.Regions == null) continue;
+                foreach (var reg in r.Regions)
+                    if (reg.Side != DiffSide.Both) { _lastDiffWasPixel = false; break; }
+                if (!_lastDiffWasPixel) break;
+            }
+
             RefreshDiffPathChoices();
             DiffOverlayActive = results.Count > 0;
             OnPropertyChanged(nameof(HasDiffResults));
+            OnPropertyChanged(nameof(HasPixelDiffResults));
+            OnPropertyChanged(nameof(HasTextDiffResults));
             OnPropertyChanged(nameof(DiffSummary));
             OnPropertyChanged(nameof(CanRerunDiff));
             OnPropertyChanged(nameof(CanCompareVersions));
@@ -345,6 +365,39 @@ namespace Finn.ViewModels
 
         public void ClearDiffResults()
         {
+            ClearDiffResultsCore();
+            _diffOriginalPdfPath = null;
+            _diffRevisedPdfPath = null;
+            _diffSourceFile = null;
+            _diffChoiceA = null;
+            _diffChoiceB = null;
+            DiffOverlayActive = false;
+            // Detach the secondary file so stale B-side annotation layers
+            // cannot be re-attached by SyncSecondaryLayers / EnsureDiffBLayerOnSecondary.
+            CurrentFile2 = null;
+            OnPropertyChanged(nameof(CanCompareVersions));
+            OnPropertyChanged(nameof(ShowDiffToolbar));
+            OnPropertyChanged(nameof(ShowDiffToggle));
+            OnPropertyChanged(nameof(DiffChoiceA));
+            OnPropertyChanged(nameof(DiffChoiceB));
+            DiffPathChoices = [];
+            OnPropertyChanged(nameof(DiffPathChoices));
+            OnPropertyChanged(nameof(HasDiffPathChoices));
+        }
+
+        /// <summary>
+        /// Clears diff results and overlays but keeps the toolbar visible and
+        /// path choices intact so the user can immediately run another comparison.
+        /// </summary>
+        public void ClearDiffResultsOnly()
+        {
+            ClearDiffResultsCore();
+            OnPropertyChanged(nameof(DiffSummary));
+        }
+
+        /// <summary>Shared cleanup logic for diff results, layers, and temp files.</summary>
+        private void ClearDiffResultsCore()
+        {
             _toleranceDebounceCts?.Cancel();
             _toleranceDebounceCts?.Dispose();
             _toleranceDebounceCts = null;
@@ -352,16 +405,8 @@ namespace Finn.ViewModels
             CleanupDiffTempDir();
             _diffResults = null;
             _diffTempDir = null;
-            _diffOriginalPdfPath = null;
-            _diffRevisedPdfPath = null;
-            _diffSourceFile = null;
-            _diffChoiceA = null;
-            _diffChoiceB = null;
             _diffShowingOriginal = false;
-            DiffOverlayActive = false;
-            // Detach the secondary file so stale B-side annotation layers
-            // cannot be re-attached by SyncSecondaryLayers / EnsureDiffBLayerOnSecondary.
-            CurrentFile2 = null;
+            _lastDiffWasPixel = false;
             // Close the diff page list if it was open
             if (searchMode)
             {
@@ -370,17 +415,11 @@ namespace Finn.ViewModels
                 SetProperty(ref searchMode, false, nameof(SearchMode));
             }
             OnPropertyChanged(nameof(HasDiffResults));
+            OnPropertyChanged(nameof(HasPixelDiffResults));
+            OnPropertyChanged(nameof(HasTextDiffResults));
             OnPropertyChanged(nameof(CanRerunDiff));
-            OnPropertyChanged(nameof(CanCompareVersions));
-            OnPropertyChanged(nameof(ShowDiffToolbar));
-            OnPropertyChanged(nameof(ShowDiffToggle));
             OnPropertyChanged(nameof(DiffShowingOriginal));
             OnPropertyChanged(nameof(DiffSummary));
-            OnPropertyChanged(nameof(DiffChoiceA));
-            OnPropertyChanged(nameof(DiffChoiceB));
-            DiffPathChoices = [];
-            OnPropertyChanged(nameof(DiffPathChoices));
-            OnPropertyChanged(nameof(HasDiffPathChoices));
         }
 
         /// <summary>

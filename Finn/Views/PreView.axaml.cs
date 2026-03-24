@@ -812,30 +812,17 @@ public partial class PreView : UserControl
         }
     }
 
-    private void OnDiffSaveAsLayer(object? sender, RoutedEventArgs e)
+    private void OnClearDiffComparison(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
-        var layer = pwr.CreateDiffAnnotationLayer(pwr.DiffOriginalPdfPath);
-        if (layer != null)
-        {
-            // Detach so closing diff mode won't auto-remove the saved layer
-            pwr.DetachDiffAnnotationLayer();
-            SyncLayers();
-            // The layer was added to the same collection the renderer already
-            // holds, so SyncLayers (reference check) won't call SetLayers.
-            // Manually recount and activate the new layer so it renders.
-            MuPDFRenderer.ActiveLayer = layer;
-            MuPDFRenderer.NotifyLayersChanged();
-            UpdateActiveLayerLabel();
-            // Mark file as having annotations so the grid icon updates
-            pwr.CurrentFile?.RefreshAnnotationStatus();
-            pwr.StatusMessage = $"Diff saved as layer: {layer.Name}";
-            ctx?.MarkDirty();
-        }
-        else
-        {
-            pwr.StatusMessage = "No diff results to save";
-        }
+        pwr.ClearDiffResultsOnly();
+        MuPDFRenderer.ClearDiffOverlay();
+        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClear)
+            secClear.ClearDiffOverlay();
+        SyncLayers();
+        MuPDFRenderer.NotifyLayersChanged();
+        MuPDFRenderer.Contain();
+        pwr.StatusMessage = "Comparison cleared";
     }
 
     private void OnCancelDiff(object? sender, RoutedEventArgs e) => pwr?.CancelDiff();
