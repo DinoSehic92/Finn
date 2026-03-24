@@ -1463,26 +1463,43 @@ public partial class MainView : UserControl
             ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
     }
 
+    private static readonly string[] AllColorClasses =
+        ["Yellow", "Orange", "Brown", "Green", "Blue", "Red", "Magenta"];
+
     private static void ApplyRowClasses(DataGridRow row, bool dotMode = false)
     {
-        row.Classes.Clear();
-
         if (row.DataContext is not FileData data)
+        {
+            row.Classes.Remove("RedForeground");
+            row.Classes.Remove("Placeholder");
+            row.Classes.Remove("AppendedRow");
+            foreach (var c in AllColorClasses)
+                row.Classes.Remove(c);
             return;
+        }
 
         bool isPlaceholder = data.Sökväg == string.Empty;
 
-        if (data.IsFileMissing && !isPlaceholder)
-            row.Classes.Add("RedForeground");
+        SetClass(row, "RedForeground", data.IsFileMissing && !isPlaceholder);
+        SetClass(row, "Placeholder", isPlaceholder);
+        SetClass(row, "AppendedRow", data.IsAppendedFile);
 
-        if (isPlaceholder)
-            row.Classes.Add("Placeholder");
+        string? wantColor = (!dotMode && !string.IsNullOrEmpty(data.Färg)) ? data.Färg : null;
+        foreach (var c in AllColorClasses)
+            SetClass(row, c, c == wantColor);
+    }
 
-        if (data.IsAppendedFile)
-            row.Classes.Add("AppendedRow");
-
-        if (!dotMode && !string.IsNullOrEmpty(data.Färg))
-            row.Classes.Add(data.Färg);
+    private static void SetClass(DataGridRow row, string cls, bool active)
+    {
+        if (active)
+        {
+            if (!row.Classes.Contains(cls))
+                row.Classes.Add(cls);
+        }
+        else
+        {
+            row.Classes.Remove(cls);
+        }
     }
 
     #endregion

@@ -1,3 +1,4 @@
+using Finn.Converters;
 using Finn.Model;
 using Finn.Storage;
 using Microsoft.Extensions.Logging;
@@ -133,6 +134,9 @@ namespace Finn.ViewModels
                     doc.SaveImageAsJPEG(0, 1, temp, 20);
                 }
 
+                // Evict the old cached bitmap so the UI picks up the new image.
+                BitmapConverter.Evict(target);
+
                 // Atomic-ish replace: delete old file, rename temp → target.
                 // This prevents the UI from reading a partially-written JPEG.
                 try { if (File.Exists(target)) File.Delete(target); } catch { /* best effort */ }
@@ -150,6 +154,7 @@ namespace Finn.ViewModels
 
         public void ClearThumbnails()
         {
+            BitmapConverter.ClearCache();
             foreach (FileData file in CurrentFiles)
             {
                 file.RemoveThumbnail();
