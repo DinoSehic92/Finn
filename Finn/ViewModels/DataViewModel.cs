@@ -69,53 +69,79 @@ namespace Finn.ViewModels
 
         #region Thumbnails
 
-        public void GetThumbnails()
+        /// <summary>
+        /// Generates a stable, filesystem-safe thumbnail filename from the
+        /// file's full path so that two files with the same display name
+        /// (but different locations) never collide.
+        /// </summary>
+        private static string GetThumbnailFileName(FileData file)
         {
-            string thumbnailPath = Path.Combine(_savePath, "Thumbnails") + Path.DirectorySeparatorChar;
-            if (!Directory.Exists(thumbnailPath))
-            {
-                Directory.CreateDirectory(thumbnailPath);
-            }
+            // Use a short hash of the full path for uniqueness, prefixed with
+            // the display name for human readability when browsing the folder.
+            string safe = string.Concat(file.Namn.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+            if (safe.Length > 60) safe = safe[..60];
+            int hash = file.Sökväg.GetHashCode(StringComparison.OrdinalIgnoreCase);
+            return $"{safe}_{hash:X8}.jpeg";
+        }
 
-            foreach (FileData file in CurrentFiles)
+        /// <summary>
+        /// Generates thumbnails for all current files. Designed to be called
+        /// from a background thread via <see cref="Task.Run"/>.
+        /// </summary>
+        public async Task GenerateThumbnailsAsync(
+            IProgress<int>? progress = null,
+            CancellationToken ct = default)
+        {
+            string thumbnailDir = Path.Combine(_savePath, "Thumbnails");
+            Directory.CreateDirectory(thumbnailDir);
+
+            // Snapshot the file list so the background work is safe.
+            var files = CurrentFiles?.ToList() ?? [];
+            int total = files.Count;
+
+            await Task.Run(() =>
             {
-                if (file.IsValidPdf())
+                using var ctx = new MuPDFContext();
+                for (int i = 0; i < total; i++)
                 {
-                    file.RemoveThumbnail();
-
-                    byte[] bytes = File.ReadAllBytes(file.Sökväg);
-                    using var ctx = new MuPDFContext(1);
-                    MuPDFDocument fileDocument = new(ctx, bytes, InputFileTypes.PDF);
-
-                    file.ThumbnailSource = $"{thumbnailPath}{file.Namn}.jpeg";
-                    fileDocument.SaveImageAsJPEG(0, 1, file.ThumbnailSource, 20);
-
-                    fileDocument.Dispose();
+                    ct.ThrowIfCancellationRequested();
+                    GenerateSingleThumbnail(files[i], thumbnailDir, ctx);
+                    progress?.Report((i + 1) * 100 / Math.Max(1, total));
                 }
-            }
+            }, ct);
+
             _markDirty?.Invoke();
         }
 
-        public void GenerateThumbnail(FileData file, string thumbnailDir)
+        /// <summary>
+        /// Generates a thumbnail for a single file. Safe to call from any thread;
+        /// the <see cref="FileData.ThumbnailSource"/> property is only set after
+        /// the image file has been fully written (write-to-temp then rename).
+        /// </summary>
+        public void GenerateSingleThumbnail(FileData file, string thumbnailDir, MuPDFContext ctx)
         {
             try
             {
                 if (!file.IsValidPdf())
                     return;
 
-                if (!Directory.Exists(thumbnailDir))
-                    Directory.CreateDirectory(thumbnailDir);
+                string target = Path.Combine(thumbnailDir, GetThumbnailFileName(file));
+                string temp = target + ".tmp";
 
-                file.RemoveThumbnail();
+                using (var doc = new MuPDFDocument(ctx, file.Sökväg))
+                {
+                    doc.SaveImageAsJPEG(0, 1, temp, 20);
+                }
 
-                byte[] bytes = File.ReadAllBytes(file.Sökväg);
-                using var ctx = new MuPDFContext(1);
-                using var doc = new MuPDFDocument(ctx, bytes, InputFileTypes.PDF);
+                // Atomic-ish replace: delete old file, rename temp → target.
+                // This prevents the UI from reading a partially-written JPEG.
+                try { if (File.Exists(target)) File.Delete(target); } catch { /* best effort */ }
+                File.Move(temp, target);
 
-                string target = Path.Combine(thumbnailDir, file.Namn + ".jpeg");
+                // Only set the property after the file is complete on disk.
                 file.ThumbnailSource = target;
-                doc.SaveImageAsJPEG(0, 1, target, 20);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Failed to generate thumbnail for {Path}", file?.Sökväg);
@@ -131,6 +157,10 @@ namespace Finn.ViewModels
             _markDirty?.Invoke();
         }
 
+        /// <summary>
+        /// Re-links existing thumbnail files on disk to their corresponding
+        /// <see cref="FileData"/> objects. Uses the stable filename scheme.
+        /// </summary>
         public void SyncThumbnails()
         {
             string thumbnailDir = Path.Combine(_savePath, "Thumbnails");
@@ -139,11 +169,14 @@ namespace Finn.ViewModels
             {
                 foreach (var file in project.StoredFiles)
                 {
-                    string expected = Path.Combine(thumbnailDir, file.Namn + ".jpeg");
-                    if (File.Exists(expected))
-                        file.ThumbnailSource = expected;
-                    else
+                    if (string.IsNullOrEmpty(file.Sökväg))
+                    {
                         file.ThumbnailSource = string.Empty;
+                        continue;
+                    }
+
+                    string expected = Path.Combine(thumbnailDir, GetThumbnailFileName(file));
+                    file.ThumbnailSource = File.Exists(expected) ? expected : string.Empty;
                 }
             }
         }

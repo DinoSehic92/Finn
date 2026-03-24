@@ -1037,19 +1037,40 @@ public partial class MainView : UserControl
         _metaWorker.DoWork += MetaWorkerDoWork;
         _metaWorker.ProgressChanged += MetaWorkerProgress;
         _metaWorker.RunWorkerCompleted += MetaWorkerRunWorkerCompleted;
-
-        // Hook up thumbnail worker events (reuse background worker for simplicity)
-        _metaWorker.DoWork += ThumbnailWorkerDoWork;
-        _metaWorker.ProgressChanged += ThumbnailWorkerProgress;
-        _metaWorker.RunWorkerCompleted += ThumbnailWorkerRunWorkerCompleted;
     }
 
-    private void OnFetchThumbnails(object? sender, RoutedEventArgs e)
+    private async void OnFetchThumbnails(object? sender, RoutedEventArgs e)
     {
+        if (_ctx.PreviewVM.BackgroundTaskActive) return;
+
+        var cts = new CancellationTokenSource();
+        _ctx.PreviewVM.SetBackgroundTaskCts(cts);
         _ctx.PreviewVM.BackgroundTaskMessage = "Generating Thumbnails";
         _ctx.PreviewVM.BackgroundTaskActive = true;
-        // Start thumbnail work on the background worker; it will call back into the shared progress handlers
-        _metaWorker.RunWorkerAsync("thumbnails");
+        _ctx.PreviewVM.BackgroundTaskProgress = 0;
+
+        try
+        {
+            var progress = new Progress<int>(p =>
+                _ctx.PreviewVM.BackgroundTaskProgress = p);
+            await _ctx.Data.GenerateThumbnailsAsync(progress, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _ctx.PreviewVM.BackgroundTaskMessage = "Thumbnails cancelled";
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
+        finally
+        {
+            _ctx.PreviewVM.SetBackgroundTaskCts(null);
+            _ctx.PreviewVM.BackgroundTaskMessage = "";
+            _ctx.PreviewVM.BackgroundTaskProgress = 0;
+            _ctx.PreviewVM.BackgroundTaskActive = false;
+            cts.Dispose();
+        }
     }
 
     private async void OnFetchIndex(object? sender, RoutedEventArgs e)
@@ -1089,44 +1110,12 @@ public partial class MainView : UserControl
         }
     }
 
-    private void ThumbnailWorkerDoWork(object? sender, DoWorkEventArgs e)
-    {
-        if (e.Argument is string arg)
-        {
-            if (arg == "thumbnails")
-            {
-                var vm = _ctx;
-                int total = vm.CurrentFiles?.Count ?? 0;
-                string thumbnailPath = $"{MainViewModel.SavePath}\\Thumbnails\\";
-
-                for (int i = 0; i < total; i++)
-                {
-                    var file = vm.CurrentFiles[i];
-                    vm.Data.GenerateThumbnail(file, thumbnailPath);
-                    _metaWorker.ReportProgress((i + 1) * 100 / Math.Max(1, total));
-                }
-            }
-        }
-    }
-
-    private void ThumbnailWorkerProgress(object? sender, ProgressChangedEventArgs e)
-    {
-        // Use same progress bar for meta/thumbnail work
-        _ctx.PreviewVM.BackgroundTaskProgress = e.ProgressPercentage;
-    }
-
-    private void ThumbnailWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
-    {
-        _ctx.PreviewVM.BackgroundTaskMessage = "";
-        _ctx.PreviewVM.BackgroundTaskProgress = 0;
-        _ctx.PreviewVM.BackgroundTaskActive = false;
-    }
-
     private void OnFetchSingleMeta(object? sender, RoutedEventArgs e) => RunMetaWorker(singleFile: true);
     private void OnFetchFullMeta(object? sender, RoutedEventArgs e) => RunMetaWorker(singleFile: false);
 
     private void RunMetaWorker(bool singleFile)
     {
+        if (_metaWorker.IsBusy) return;
         _ctx.PreviewVM.BackgroundTaskMessage = "Fetching Metadata";
         _ctx.Data.SelectFilesForMetaworker(singleFile);
         _ctx.PreviewVM.BackgroundTaskActive = true;

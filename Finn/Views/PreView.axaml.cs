@@ -43,6 +43,7 @@ public partial class PreView : UserControl
     private bool _suppressWheelPageChange = false;
     private bool ZoomMode = false;
     private PDFRenderer? _panRenderer;
+    private ListBox? _searchResultList;
 
     // Pan state — shared between PreView.axaml.cs and PreView.Annotation.cs
     private bool _middlePanning;
@@ -88,11 +89,12 @@ public partial class PreView : UserControl
                 SetSearchFocus();
                 break;
 
-            case nameof(pwr.SearchItems):
-                // Once results populate, give the ListBox focus so Up/Down
-                // navigation works immediately without needing a click.
-                if (pwr.SearchMode && pwr.SearchItems > 0)
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => SearchResultList.Focus());
+            case nameof(pwr.SearchBusy):
+                // When a search finishes and results exist, focus the ListBox
+                // so Up/Down navigation works immediately.
+                // SearchBusy fires from a background thread — must Post to UI.
+                if (!pwr.SearchBusy && pwr.SearchMode && pwr.SearchItems > 0)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(SetSearchFocusToResultList);
                 break;
 
             case "CurrentFile" when !pwr.WhiteboardMode:
@@ -611,6 +613,20 @@ public partial class PreView : UserControl
     {
         string text = SearchRegex.Text;
         await pwr.SearchAsync(text);
+        if (pwr.SearchItems > 0)
+            SetSearchFocusToResultList();
+    }
+
+    /// <summary>Focuses the search result ListBox. Must be called on the UI thread.</summary>
+    private void SetSearchFocusToResultList()
+    {
+        _searchResultList ??= this.FindControl<ListBox>("SearchResultList");
+        if (_searchResultList == null || pwr?.SearchItems <= 0) return;
+        _searchResultList.Focus();
+        // Focus the selected container so arrow keys navigate immediately.
+        if (_searchResultList.SelectedIndex >= 0
+            && _searchResultList.ContainerFromIndex(_searchResultList.SelectedIndex) is Control item)
+            item.Focus();
     }
 
     private void SetSearchFocus()
