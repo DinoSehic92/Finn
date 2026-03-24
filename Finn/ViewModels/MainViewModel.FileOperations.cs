@@ -144,6 +144,10 @@ namespace Finn.ViewModels
                 var existingPaths = BuildKnownPathSet();
                 var existingByName = BuildFileNameLookup();
 
+                // When a specific type is selected, assign it to new files so
+                // they appear immediately in the current filtered view.
+                string assignedType = (Type != null && Type != ALL_TYPES) ? Type : "New";
+
                 var newFiles = new List<FileData>();
                 var versionCandidates = new List<VersionImportEntry>();
 
@@ -167,7 +171,7 @@ namespace Finn.ViewModels
                         var fileData = new FileData
                         {
                             Namn = fileName,
-                            Filtyp = "New",
+                            Filtyp = assignedType,
                             Uppdrag = CurrentProject.Namn,
                             Sökväg = path
                         };
@@ -196,7 +200,9 @@ namespace Finn.ViewModels
 
                 if (newFiles.Count > 0 || versionsAdded)
                 {
-                    SetDefaultType();
+                    // Stay in the current filter so the user sees their new files
+                    // without being navigated away to "All Types".
+                    UpdateFilter();
                     MarkDirty();
                 }
             }
@@ -205,8 +211,9 @@ namespace Finn.ViewModels
 
             public void AddFilesDrag(string path)
             {
-                CurrentProject.Newfile(path);
-                SetDefaultType();
+                string assignedType = (Type != null && Type != ALL_TYPES) ? Type : "New";
+                CurrentProject.Newfile(path, assignedType);
+                UpdateFilter();
                 MarkDirty();
             }
 

@@ -1298,9 +1298,6 @@ public partial class MainView : UserControl
         // to the UI thread to avoid cross-thread access on LayerList.
         if (e.PropertyName is "CurrentFile" or "WhiteboardMode" or "LayersChanged")
             Dispatcher.UIThread.Post(() => SyncLayerList(), DispatcherPriority.Background);
-        // Sync AutoCacheNetworkFiles back to UI settings when toggled from preview toolbar
-        if (e.PropertyName is nameof(PreviewViewModel.AutoCacheNetworkFiles))
-            _ctx.UI.AutoCacheNetworkFiles = _pwr.AutoCacheNetworkFiles;
     }
 
     private static readonly Avalonia.Media.Color[] LayerColors =

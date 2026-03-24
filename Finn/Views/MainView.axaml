@@ -174,10 +174,6 @@
 				<ic:SymbolIcon Symbol="Status" IconVariant="Regular" IsHitTestVisible="False" Width="20" FontSize="13" Opacity="0.5"/>
 				<TextBlock Text="{Binding PreviewVM.StatusMessage}" VerticalAlignment="Center" IsHitTestVisible="False"
 						   FontStyle="Italic" FontSize="13" Opacity="0.5" Padding="0"/>
-				<ic:SymbolIcon Symbol="{Binding PreviewVM.CacheSourceIcon}" IconVariant="Regular"
-							   IsVisible="{Binding PreviewVM.CacheSourceIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-							   FontSize="13" Opacity="0.5"
-							   ToolTip.Tip="{Binding PreviewVM.CacheSourceTooltip}"/>
 			</StackPanel>
 
 		<!-- Progress bar (shared: thumbnails, metadata, pre-caching, etc.) -->

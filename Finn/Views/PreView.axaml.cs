@@ -580,18 +580,21 @@ public partial class PreView : UserControl
             case Key.G when !shift:
                 pwr.DarkMode = !pwr.DarkMode;
                 e.Handled = true;
+                MuPDFRenderer.Focus();
                 break;
 
             case Key.D when !shift:
                 if (pwr.CanToggleLayout && !pwr.DualFileMode)
                     pwr.TwopageMode = !pwr.TwopageMode;
                 e.Handled = true;
+                MuPDFRenderer.Focus();
                 break;
 
             case Key.L when !shift:
                 if (pwr.ShowLinkedPageButton)
                     pwr.LinkedPageMode = !pwr.LinkedPageMode;
                 e.Handled = true;
+                MuPDFRenderer.Focus();
                 break;
 
             case Key.F when !shift:

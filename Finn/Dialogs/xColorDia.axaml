@@ -171,6 +171,9 @@
 					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 						<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
 					</Grid>
+					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+						<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
+					</Grid>
 					</StackPanel>
 
 		</Grid>
