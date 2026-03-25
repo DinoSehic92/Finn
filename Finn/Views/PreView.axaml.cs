@@ -109,6 +109,14 @@ public partial class PreView : UserControl
                         SyncLayers();
                         SyncDiffOverlay();
                     }
+                    else if (pwr.DualFileMode)
+                    {
+                        // Dual-file mode is active — the left file was replaced
+                        // via View Left. Preserve the mode; just refresh layers.
+                        MuPDFRenderer.ClearDiffOverlay();
+                        SyncLayers();
+                        MuPDFRenderer.NotifyLayersChanged();
+                    }
                     else
                     {
                         // Diff is NOT active — clean up any stale state so

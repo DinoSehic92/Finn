@@ -29,7 +29,9 @@ public partial class xAttachDia : Window
 
     private readonly ObservableCollection<AttachEntry> _entries = [];
     private readonly List<string> _newFolders = [];
+    private HashSet<string> _allProjectPaths = new(StringComparer.OrdinalIgnoreCase);
     private int _existingCount;
+    private int _skippedCount;
 
     public xAttachDia()
     {
@@ -43,11 +45,13 @@ public partial class xAttachDia : Window
     }
 
     /// <summary>
-    /// Sets the parent file name and populates existing attached files.
+    /// Sets the parent file name, populates existing attached files, and
+    /// registers all project file paths so duplicates can be rejected.
     /// </summary>
-    public void SetParentFile(string name, IEnumerable<FileData> existingFiles)
+    public void SetParentFile(string name, IEnumerable<FileData> existingFiles, IEnumerable<string> allProjectPaths)
     {
         HeaderText.Text = $"Attach to {name}";
+        _allProjectPaths = new HashSet<string>(allProjectPaths, StringComparer.OrdinalIgnoreCase);
 
         foreach (var file in existingFiles)
         {
@@ -115,6 +119,12 @@ public partial class xAttachDia : Window
         if (_entries.Any(e => e.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
             return;
 
+        if (_allProjectPaths.Contains(path))
+        {
+            _skippedCount++;
+            return;
+        }
+
         _entries.Add(new AttachEntry
         {
             Name = Path.GetFileNameWithoutExtension(path),
@@ -138,9 +148,15 @@ public partial class xAttachDia : Window
                 ? $"{_existingCount} attached · {newCount} new to add"
                 : "Drop PDF files or folders below";
 
-        StatusText.Text = hasNew
-            ? $"{newCount} file(s) will be attached on Accept"
+        string skippedHint = _skippedCount > 0
+            ? $" · {_skippedCount} skipped (already in project)"
             : "";
+
+        StatusText.Text = hasNew
+            ? $"{newCount} file(s) will be attached on Accept{skippedHint}"
+            : _skippedCount > 0
+                ? $"{_skippedCount} file(s) skipped — already in project"
+                : "";
     }
 
     private void OnLoadingRow(object? sender, DataGridRowEventArgs e)

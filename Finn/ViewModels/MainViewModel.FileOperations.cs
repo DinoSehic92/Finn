@@ -462,7 +462,6 @@ namespace Finn.ViewModels
             public void AddAppendedFile(string filepath, bool fromFolder = false)
             {
                 if (CurrentFile != null && !CurrentProject.StoredFiles.Any(x =>
-                    x.ParentNamn == CurrentFile.Namn &&
                     string.Equals(x.Sökväg, filepath, StringComparison.OrdinalIgnoreCase)))
                 {
                     var appended = new FileData()

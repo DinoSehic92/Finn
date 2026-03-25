@@ -713,7 +713,8 @@ public partial class MainView : UserControl
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
         dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        dialog.SetParentFile(parentName, existing);
+        var allProjectPaths = _ctx.CurrentProject.StoredFiles.Select(f => f.Sökväg);
+        dialog.SetParentFile(parentName, existing, allProjectPaths);
         await dialog.ShowDialog(window);
 
         if (!dialog.Confirmed) return;

@@ -165,16 +165,22 @@ namespace Finn.ViewModels
                             foreach (var old in oldSynced)
                                 CurrentProject.StoredFiles.Remove(old);
 
+                            var existingPaths = BuildKnownPathSet();
                             var newFiles = GetFilesFromFolder(folder);
+                            var filesToAdd = new List<FileData>();
                             foreach (var f in newFiles)
                             {
+                                if (existingPaths.Contains(f.Sökväg))
+                                    continue;
+
                                 f.ParentNamn = file.Namn;
                                 f.ParentFile = file;
                                 f.Uppdrag = file.Uppdrag;
                                 f.Filtyp = file.Filtyp;
+                                filesToAdd.Add(f);
                             }
-                            count = newFiles.Count;
-                            CurrentProject.StoredFiles.AddRange(newFiles);
+                            count = filesToAdd.Count;
+                            CurrentProject.StoredFiles.AddRange(filesToAdd);
                             CurrentProject.RefreshHasChildren();
                         }
 

@@ -151,6 +151,10 @@
 			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
+		<!-- Inner border in double-border overlay pattern: match parent's corner radius -->
+		<Style Selector="Border.shadow > Border">
+			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+		</Style>
 
 		<Style Selector="DataGridColumnHeader">
 			<Setter Property="Background" Value="Transparent"/>
