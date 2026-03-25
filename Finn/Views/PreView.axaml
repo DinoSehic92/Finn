@@ -78,19 +78,28 @@
 						IsHitTestVisible="False" />
 
 					<!-- Loading overlay shown while previewer is busy -->
-					<Grid Grid.ColumnSpan="3" IsVisible="{Binding PreviewVM.FileWorkerBusy}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-						<StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-							<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="36"/>
-							<TextBlock Text="{Binding PreviewVM.StatusMessage}" FontSize="14" HorizontalAlignment="Center"/>
-							<!-- Indeterminate when Progress is 0 (file open); determinate when caching -->
-							<ProgressBar Width="200" Height="6" Minimum="0" Maximum="100"
-										 Value="{Binding PreviewVM.Progress}"
-										 IsIndeterminate="{Binding PreviewVM.IsProgressIndeterminate}"/>
-							<Button Content="Cancel" Click="OnCancelFileLoad" Padding="16,4" HorizontalAlignment="Center"
-									Background="Transparent"
-									BorderThickness="1" CornerRadius="3"/>
-						</StackPanel>
-					</Grid>
+					<Border Grid.ColumnSpan="3" Classes="shadow" IsVisible="{Binding PreviewVM.FileWorkerBusy}"
+							HorizontalAlignment="Center" VerticalAlignment="Center"
+							Padding="24,16" IsHitTestVisible="True">
+						<Border.Background>
+							<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
+						</Border.Background>
+						<Border Background="{DynamicResource TextControlBackground}" Margin="-24,-16" Padding="24,16">
+							<StackPanel HorizontalAlignment="Center" Spacing="8">
+								<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+									<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="16" Opacity="0.7"/>
+									<TextBlock Text="{Binding PreviewVM.StatusMessage}" FontSize="13" VerticalAlignment="Center"/>
+								</StackPanel>
+								<!-- Indeterminate when Progress is 0 (file open); determinate when caching -->
+								<ProgressBar Width="200" Height="4" Minimum="0" Maximum="100"
+											 Value="{Binding PreviewVM.Progress}"
+											 IsIndeterminate="{Binding PreviewVM.IsProgressIndeterminate}"/>
+								<Button Content="Cancel" Click="OnCancelFileLoad" Padding="16,3" HorizontalAlignment="Center"
+										Background="Transparent" FontSize="12"
+										BorderThickness="1" CornerRadius="3"/>
+							</StackPanel>
+						</Border>
+					</Border>
 				</Grid>
 			</LayoutTransformControl>
 
@@ -775,10 +784,11 @@
 
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-						<!-- Cache source indicator: shows how the current file was loaded -->
+						<!-- Cache source indicator: accent-colored icon matching button width -->
 						<ic:SymbolIcon Symbol="{Binding CacheSourceIcon}" IconVariant="Regular" FontSize="16"
 									   IsVisible="{Binding CacheSourceIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-									   Opacity="0.6" Margin="2,0"
+									   Foreground="{DynamicResource SystemAccentColor}"
+									   Opacity="0.75" Width="30" Height="30"
 									   ToolTip.Tip="{Binding CacheSourceTooltip}"/>
 
 						<ToggleButton ToolTip.Tip="Invert Colors (Ctrl+G)" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">

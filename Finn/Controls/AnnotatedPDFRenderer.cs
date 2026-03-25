@@ -185,6 +185,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void NotifyLayersChanged()
     {
         RecalculateStrokeCount();
+        // Ensure the active layer still belongs to the current collection.
+        // When diff annotation layers are removed, _activeLayer can become
+        // an orphan — strokes drawn on it would be invisible because Render
+        // only iterates _layers.
+        if (_activeLayer != null && !_layers.Contains(_activeLayer))
+            _activeLayer = _layers.Count > 0 ? _layers[0] : null;
         InvalidateVisual();
     }
 
@@ -348,7 +354,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public bool HasAnyStrokes => _totalStrokeCount > 0 || _totalShapeCount > 0
                                   || _totalTextCount > 0 || _totalMeasurementCount > 0
-                                  || _activeStroke != null || _activeShape != null
+                                  || _activeStroke != null || _activePolyline != null
+                                  || _activeShape != null
                                   || _activeMeasurement != null || _arrowTextPreviewOrigin != null
                                   || _eraserHoverItem != null || _cursorPdfPos != null
                                   || _selectHighlightItems.Count > 0 || _stickyNoteHoverItem != null

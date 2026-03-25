@@ -112,11 +112,15 @@
 				</StackPanel>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Font"/>
-					<Border Grid.Column="1" Classes="shadow"><ComboBox Name="FontCombo" Width="120" SelectedValue="{Binding UI.Font}"/></Border>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="FontCombo" Width="120" SelectedValue="{Binding UI.Font}" VerticalAlignment="Center"/>
+					</Border>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Size"/>
-					<Border Grid.Column="1" Classes="shadow"><ComboBox Name="FontSizeCombo" Width="120" SelectedValue="{Binding UI.FontSize}"/></Border>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="FontSizeCombo" Width="120" SelectedValue="{Binding UI.FontSize}" VerticalAlignment="Center"/>
+					</Border>
 				</Grid>
 
 				<!-- Layout -->
