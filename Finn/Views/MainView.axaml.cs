@@ -132,13 +132,16 @@ public partial class MainView : UserControl
                 Debug.WriteLine(ex);
             }
 
-            // Initial paint — use Render priority so CalendarDayButtons are fully templated
-            Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
-        }
-        catch (Exception ex) { Debug.WriteLine($"InitStartup failed: {ex}"); }
+                // Initial paint — use Render priority so CalendarDayButtons are fully templated
+                    Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
+                }
+                catch (Exception ex) { Debug.WriteLine($"InitStartup failed: {ex}"); }
 
-        UpdateEmptyState();
-    }
+                UpdateEmptyState();
+
+                // Auto-show analog clock when window is tall enough
+                this.SizeChanged += OnMainViewSizeChanged;
+            }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -178,6 +181,12 @@ public partial class MainView : UserControl
         // Read font settings from the UI viewmodel
         window.FontFamily = (FontFamily)Resources[_ctx.UI.Font]!;
         window.FontSize = _ctx.UI.FontSize;
+    }
+
+    private void OnMainViewSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (_ctx != null)
+            _ctx.UI.ShowClock = e.NewSize.Height > 1250;
     }
 
     #endregion

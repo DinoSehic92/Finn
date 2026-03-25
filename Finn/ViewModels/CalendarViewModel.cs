@@ -117,6 +117,11 @@ namespace Finn.ViewModels
             catch { /* ignore IO/parse errors */ }
 
             EnsureTotalRow();
+            OnPropertyChanged(nameof(SelectableProjects));
+            OnPropertyChanged(nameof(SelectableProjectNames));
+            var firstProject = SelectableProjects.FirstOrDefault();
+            if (firstProject != null)
+                NewEntryProject = firstProject.Project;
             RefreshProjectSummaries();
             RefreshProjectDiarySummary();
             DayIndicatorsChanged?.Invoke();
@@ -238,6 +243,7 @@ namespace Finn.ViewModels
 
             RefreshProjectSummaries();
             RefreshProjectDiarySummary();
+            OnPropertyChanged(nameof(DailyTotalDisplay));
         }
 
         /// <summary>
@@ -250,6 +256,8 @@ namespace Finn.ViewModels
                 RefreshProjectSummaries();
             if (e.PropertyName is nameof(TimeSheetData.Hours) or nameof(TimeSheetData.Project) or nameof(TimeSheetData.Diary))
                 RefreshProjectDiarySummary();
+            if (e.PropertyName is nameof(TimeSheetData.Hours))
+                OnPropertyChanged(nameof(DailyTotalDisplay));
         }
 
         /// <summary>
@@ -292,6 +300,12 @@ namespace Finn.ViewModels
                 CurrentCalendarData = existing;
             else
                 CurrentCalendarData = new CalendarData { Date = date };
+
+            // Reset grid selection to first entry for the new day (#8)
+            CurrentTimeSheet = CurrentCalendarData.TimeSheets.Count > 0
+                ? CurrentCalendarData.TimeSheets[0]
+                : null!;
+            OnPropertyChanged(nameof(DailyTotalDisplay));
         }
 
         /// <summary>
@@ -316,6 +330,40 @@ namespace Finn.ViewModels
         {
             get => currentTimeSheet;
             set => SetProperty(ref currentTimeSheet, value);
+        }
+
+        private int newEntryHours = 1;
+        /// <summary>Staging: hours value for the next entry to be added.</summary>
+        public int NewEntryHours
+        {
+            get => newEntryHours;
+            set => SetProperty(ref newEntryHours, value);
+        }
+
+        private string newEntryProject = string.Empty;
+        /// <summary>Staging: project name for the next entry to be added.</summary>
+        public string NewEntryProject
+        {
+            get => newEntryProject;
+            set => SetProperty(ref newEntryProject, value);
+        }
+
+        /// <summary>Projects available for selection (excludes the Total summary row).</summary>
+        public IEnumerable<TimeSheetProjectData> SelectableProjects
+            => TimeProjects.Where(x => x.Project != TOTAL_PROJECT);
+
+        /// <summary>Project name strings for inline ComboBox editing in the daily grid.</summary>
+        public IEnumerable<string> SelectableProjectNames
+            => TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Select(x => x.Project);
+
+        /// <summary>Display string for the daily total hours.</summary>
+        public string DailyTotalDisplay
+        {
+            get
+            {
+                var total = CurrentCalendarData?.TotalTime;
+                return total.HasValue ? $"Hours: {total.Value} / 8" : "";
+            }
         }
 
         public ObservableCollection<int> Hours { get; } = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -397,6 +445,7 @@ namespace Finn.ViewModels
                     _trackedProjectName = newName;
                     RefreshProjectSummaries();
                     RefreshProjectDiarySummary();
+                    OnPropertyChanged(nameof(SelectableProjectNames));
                 }
             }
         }
@@ -406,13 +455,50 @@ namespace Finn.ViewModels
             if (CurrentCalendarData == null) SetCurrentCalendarData();
             if (CurrentCalendarData == null) return;
 
-            CurrentCalendarData.TimeSheets.Add(new TimeSheetData { Hours = 1, Project = "New" });
+            string project = !string.IsNullOrWhiteSpace(NewEntryProject)
+                ? NewEntryProject
+                : SelectableProjects.FirstOrDefault()?.Project ?? "New";
+
+            var entry = new TimeSheetData { Hours = NewEntryHours, Project = project };
+            CurrentCalendarData.TimeSheets.Add(entry);
+            CurrentTimeSheet = entry;
         }
 
         public void RemoveTimeSheet()
         {
             if (CurrentCalendarData == null || CurrentTimeSheet == null) return;
             CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
+            CurrentTimeSheet = CurrentCalendarData.TimeSheets.Count > 0
+                ? CurrentCalendarData.TimeSheets[^1]
+                : null!;
+        }
+
+        /// <summary>
+        /// Copies timesheet entries from the most recent previous day (up to 7 days back)
+        /// that has entries. Copies hours and project, leaving diary empty.
+        /// </summary>
+        public void CopyFromPreviousDay()
+        {
+            if (CurrentCalendarData == null) SetCurrentCalendarData();
+            if (CurrentCalendarData == null) return;
+
+            var currentDate = DateOnly.FromDateTime(SelectedDateTime);
+            for (int i = 1; i <= 7; i++)
+            {
+                var prevDate = currentDate.AddDays(-i);
+                if (_dateIndex.TryGetValue(prevDate, out var prevDay) && prevDay.TimeSheets.Count > 0)
+                {
+                    foreach (var ts in prevDay.TimeSheets)
+                    {
+                        CurrentCalendarData.TimeSheets.Add(new TimeSheetData
+                        {
+                            Hours = ts.Hours,
+                            Project = ts.Project
+                        });
+                    }
+                    break;
+                }
+            }
         }
 
         /// <summary>
@@ -428,6 +514,8 @@ namespace Finn.ViewModels
             TimeProjects.Insert(idx, newProject);
             CurrentTimeSheetProject = newProject;
             RefreshProjectSummaries();
+            OnPropertyChanged(nameof(SelectableProjects));
+            OnPropertyChanged(nameof(SelectableProjectNames));
         }
 
         /// <summary>
@@ -438,6 +526,8 @@ namespace Finn.ViewModels
             if (CurrentTimeSheetProject == null || CurrentTimeSheetProject.Project == TOTAL_PROJECT) return;
             TimeProjects.Remove(CurrentTimeSheetProject);
             RefreshProjectSummaries();
+            OnPropertyChanged(nameof(SelectableProjects));
+            OnPropertyChanged(nameof(SelectableProjectNames));
         }
 
         /// <summary>

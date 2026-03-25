@@ -175,6 +175,11 @@ namespace Finn.ViewModels
         private bool trayAnnotations;
         public bool TrayAnnotations { get => trayAnnotations; set { trayAnnotations = value; RaisePropertyChanged(nameof(TrayAnnotations)); } }
 
+        private bool showClock;
+        /// <summary>Auto-toggled based on window height. Not persisted.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowClock { get => showClock; set { showClock = value; RaisePropertyChanged(nameof(ShowClock)); } }
+
         private bool trayViewOpen;
         public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; RaisePropertyChanged(nameof(TrayViewOpen)); } }
 

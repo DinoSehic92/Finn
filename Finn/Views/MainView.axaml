@@ -809,7 +809,7 @@
 									</DataTemplate>
 								</DataGridTemplateColumn.CellTemplate>
 							</DataGridTemplateColumn>
-							<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="3*"   FontSize="14"/>
+							<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="14"/>
 							<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="14" Foreground="Gray"/>
 							<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"             Width="60"   FontSize="14"/>
 							<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="14" FontStyle="Italic" IsVisible="false"/>
@@ -872,7 +872,7 @@
 				<ColumnDefinition Width="Auto"/>
 			</Grid.ColumnDefinitions>
 		<!-- Calendar panel -->
-		<Grid Grid.Column="0" RowDefinitions="Auto,40,40,3*,2*,40,Auto,Auto" IsVisible="{Binding UI.CalendarOpen}" Width="320">
+		<Grid Grid.Column="0" RowDefinitions="Auto,Auto,2*,2*,40,Auto,Auto" IsVisible="{Binding UI.CalendarOpen}" Width="320">
 			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
 				<StackPanel Orientation="Vertical">
 					<Calendar Name="MainCalendar" Height="295" Background="Transparent" HorizontalAlignment="Center"
@@ -927,42 +927,57 @@
 			</Border>
 
 			<!-- Daily timesheet entry -->
-			<StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="0">
-				<Border Classes="shadow">
-					<ComboBox Width="65" Name="HoursCombo" ItemsSource="{Binding Calendar.Hours}" SelectedItem="{Binding Calendar.CurrentTimeSheet.Hours}"/>
-				</Border>
-				<Border Classes="shadow">
-					<ComboBox Width="165" ItemsSource="{Binding Calendar.TimeProjects}"
-							  SelectedValue="{Binding Calendar.CurrentTimeSheet.Project}" SelectedValueBinding="{Binding Project}">
-						<ComboBox.ItemTemplate>
-							<DataTemplate><TextBlock Text="{Binding Project}"/></DataTemplate>
-						</ComboBox.ItemTemplate>
-					</ComboBox>
-				</Border>
-				<Button Width="30" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
-				<Button Width="30" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove entry"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
+			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Margin="10,0,0,0" Opacity="0.7"/>
+			<StackPanel Grid.Row="1" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="0" Margin="0,4,0,2">
+				<Button Width="28" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove selected"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
+				<Button Width="28" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
+				<Button Width="28" Command="{Binding Calendar.CopyFromPreviousDay}" ToolTip.Tip="Copy from previous day"><ic:SymbolIcon Symbol="Copy" FontSize="16"/></Button>
 			</StackPanel>
 
-			<Border Grid.Row="2" Classes="shadow">
-				<TextBox Text="{Binding Calendar.CurrentTimeSheet.Diary}" FontSize="14" Watermark="Diary"/>
-			</Border>
-
 			<!-- Daily timesheet list -->
-			<Panel Grid.Row="3">
+			<Panel Grid.Row="2" Margin="0" MinHeight="55">
 				<DataGrid ItemsSource="{Binding Calendar.CurrentCalendarData.TimeSheets}"
-						  SelectedItem="{Binding Calendar.CurrentTimeSheet, Mode=TwoWay}" IsReadOnly="True" MinWidth="0"
-						  RowHeight="22" HeadersVisibility="None" GridLinesVisibility="None"
+						  SelectedItem="{Binding Calendar.CurrentTimeSheet, Mode=TwoWay}" MinWidth="0"
+						  RowHeight="24" HeadersVisibility="Column" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
-						<DataGridTextColumn Binding="{Binding Hours}"   Width="35" FontSize="14"/>
-						<DataGridTextColumn Binding="{Binding Project}" Width="100" FontSize="14"/>
-						<DataGridTextColumn Binding="{Binding Diary}"   Width="*" FontSize="14" MinWidth="100"/>
+						<DataGridTemplateColumn Header="Hrs" Width="50">
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate>
+									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.Hours}"
+											  SelectedItem="{Binding Hours}" MinHeight="0" MinWidth="0"
+											  Padding="8,0,4,0" FontSize="12" Height="24"
+											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
+											  VerticalContentAlignment="Center"
+											  BorderThickness="0" Background="Transparent"/>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
+						<DataGridTemplateColumn Header="Project" Width="100">
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate>
+									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.SelectableProjectNames}"
+											  SelectedItem="{Binding Project}" MinHeight="0" MinWidth="0"
+											  Padding="4,0" FontSize="12" Height="24"
+											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
+											  VerticalContentAlignment="Center"
+											  BorderThickness="0" Background="Transparent"/>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
+						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="12" MinWidth="80"/>
 					</DataGrid.Columns>
 					<DataGrid.Styles>
 						<Style Selector="DataGrid /template/ Rectangle">
 							<Setter Property="IsVisible" Value="False"/>
 							<Setter Property="Height" Value="0"/>
 							<Setter Property="MaxHeight" Value="0"/>
+						</Style>
+						<Style Selector="DataGridRow:pointerover ComboBox">
+							<Setter Property="Background" Value="Transparent"/>
+						</Style>
+						<Style Selector="DataGridRow ComboBox:pointerover /template/ Border">
+							<Setter Property="Background" Value="Transparent"/>
 						</Style>
 					</DataGrid.Styles>
 				</DataGrid>
@@ -971,7 +986,7 @@
 			</Panel>
 
 			<!-- Notepad -->
-			<Border Grid.Row="4" Classes="shadow">
+			<Border Grid.Row="3" Classes="shadow" MinHeight="40">
 				<Panel>
 					<TextBox Text="{Binding Calendar.CurrentCalendarData.Note1}" Watermark="Notepad"
 							 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
@@ -981,7 +996,7 @@
 			</Border>
 
 			<!-- Reminder -->
-			<Border Grid.Row="5" Classes="shadow">
+			<Border Grid.Row="4" Classes="shadow">
 				<Panel>
 					<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14"/>
 					<Ellipse Width="6" Height="6" Fill="Orange" HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -989,17 +1004,8 @@
 				</Panel>
 			</Border>
 
-			<!-- Clock (hidden) -->
-			<Border Grid.Row="6" Classes="shadow" Background="{DynamicResource TextControlBackground}" Margin="5" Padding="10" IsVisible="False">
-				<controls:AnalogWatchControl HorizontalAlignment="Stretch" Height="200">
-					<controls:AnalogWatchControl.FaceBrush>
-						<SolidColorBrush Color="{DynamicResource SystemAccentColor}"/>
-					</controls:AnalogWatchControl.FaceBrush>
-				</controls:AnalogWatchControl>
-			</Border>
-
 			<!-- Project management & weekly summary -->
-			<StackPanel Grid.Row="7" Spacing="3" Margin="0,2,0,0">
+			<StackPanel Grid.Row="5" Spacing="3" Margin="0,2,0,0">
 				<!-- Project name + nr + add/remove on one row -->
 				<StackPanel Orientation="Horizontal" Spacing="0">
 					<Border Classes="shadow">
@@ -1017,22 +1023,27 @@
 				<!-- Weekly hours per project -->
 				<DataGrid Name="ProjectSummaryGrid" ItemsSource="{Binding Calendar.TimeProjects}"
 						  SelectedItem="{Binding Calendar.CurrentTimeSheetProject, Mode=TwoWay}"
-						  IsReadOnly="True" MinWidth="0" RowHeight="24" Height="170"
+						  IsReadOnly="True" MinWidth="0" RowHeight="22" 
 						  HeadersVisibility="None" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
-						<DataGridTextColumn Binding="{Binding Project}" Width="*" FontSize="13"/>
-						<DataGridTextColumn Binding="{Binding W1}" Width="36" FontSize="13"/>
-						<DataGridTextColumn Binding="{Binding W2}" Width="36" FontSize="13"/>
-						<DataGridTextColumn Binding="{Binding W3}" Width="36" FontSize="13"/>
-						<DataGridTextColumn Binding="{Binding W4}" Width="36" FontSize="13"/>
-						<DataGridTextColumn Binding="{Binding W5}" Width="36" FontSize="13"/>
+						<DataGridTextColumn Header="Project" Binding="{Binding Project}" Width="*" FontSize="13"/>
+						<DataGridTextColumn Header="W1" Binding="{Binding W1}" Width="34" FontSize="13"/>
+						<DataGridTextColumn Header="W2" Binding="{Binding W2}" Width="34" FontSize="13"/>
+						<DataGridTextColumn Header="W3" Binding="{Binding W3}" Width="34" FontSize="13"/>
+						<DataGridTextColumn Header="W4" Binding="{Binding W4}" Width="34" FontSize="13"/>
+						<DataGridTextColumn Header="W5" Binding="{Binding W5}" Width="34" FontSize="13"/>
+						<DataGridTextColumn Header="Σ" Binding="{Binding MonthTotal}" Width="36" FontSize="13"/>
 					</DataGrid.Columns>
 					<DataGrid.Styles>
 						<Style Selector="DataGrid /template/ Rectangle">
 							<Setter Property="IsVisible" Value="False"/>
 							<Setter Property="Height" Value="0"/>
 							<Setter Property="MaxHeight" Value="0"/>
+						</Style>
+						<Style Selector="DataGridRow:nth-last-child(1)">
+							<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
+							<Setter Property="BorderThickness" Value="0,1,0,0"/>
 						</Style>
 						<Style Selector="DataGridRow:nth-last-child(1) DataGridCell">
 							<Setter Property="FontWeight" Value="SemiBold"/>
@@ -1042,12 +1053,12 @@
 
 				<!-- Diary summary for selected project: Mon–Fri of the selected week -->
 				<DataGrid ItemsSource="{Binding Calendar.WeekDiaryEntries}"
-						  IsReadOnly="True" MinWidth="0" RowHeight="24" Height="130"
+						  IsReadOnly="True" MinWidth="0" RowHeight="24" Height="105"
 						  HeadersVisibility="None" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
-						<DataGridTextColumn Binding="{Binding Day}" Width="38" FontSize="13"/>
-						<DataGridTextColumn Binding="{Binding Diary}" Width="*" FontSize="13"/>
+						<DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="38" FontSize="13"/>
+						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="13"/>
 						<DataGridTemplateColumn Width="28">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate x:DataType="model:WeekDiaryEntry">
@@ -1069,6 +1080,17 @@
 					</DataGrid.Styles>
 				</DataGrid>
 			</StackPanel>
+
+			<!-- Analog clock (auto-shown when window is tall enough) -->
+			<Border Grid.Row="6" Classes="shadow" IsVisible="{Binding UI.ShowClock}"
+					Background="{DynamicResource TextControlBackground}"
+					Padding="8" Margin="5" HorizontalAlignment="Stretch">
+				<controls:AnalogWatchControl HorizontalAlignment="Center" Height="150" Width="150">
+					<controls:AnalogWatchControl.FaceBrush>
+						<SolidColorBrush Color="White"/>
+					</controls:AnalogWatchControl.FaceBrush>
+				</controls:AnalogWatchControl>
+			</Border>
 		</Grid>
 
 		<!-- Tray panel (notes, collections, bookmarks, recent, other files, versions) -->
@@ -1084,8 +1106,8 @@
 				<RowDefinition Height="{Binding UI.TrayOtherFiles,  Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
-					<RowDefinition Height="{Binding UI.TrayAnnotations, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
-			</Grid.RowDefinitions>
+						<RowDefinition Height="{Binding UI.TrayAnnotations, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
+					</Grid.RowDefinitions>
 
             <!-- File notepad (wrapped in shadow-only border) -->
                 <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding UI.TrayNote}">
@@ -1360,9 +1382,9 @@
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
 									</DataGrid>
+									</Grid>
 								</Grid>
-							</Grid>
-							</Grid>
+								</Grid>
 
 		<!-- Embedded preview -->
 		<Grid Name="PreviewArea" Grid.Column="3" Grid.Row="2" ClipToBounds="True"
