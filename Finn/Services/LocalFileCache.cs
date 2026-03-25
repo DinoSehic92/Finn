@@ -102,12 +102,30 @@ namespace Finn.Services
             await keyLock.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                var fi = new FileInfo(serverPath);
-                if (!fi.Exists)
-                    return new CacheResult(serverPath, false);
+                // Probe the network file on a background thread so slow/unreachable
+                // servers never block the calling (UI) thread.
+                var (exists, lastWrite, size) = await Task.Run(() =>
+                {
+                    try
+                    {
+                        var fi = new FileInfo(serverPath);
+                        if (!fi.Exists)
+                            return (false, DateTime.MinValue, 0L);
+                        return (true, fi.LastWriteTimeUtc, fi.Length);
+                    }
+                    catch
+                    {
+                        return (false, DateTime.MinValue, 0L);
+                    }
+                }, token).ConfigureAwait(false);
 
-                var lastWrite = fi.LastWriteTimeUtc;
-                var size = fi.Length;
+                if (!exists)
+                {
+                    // Server unreachable or file missing — return existing cache if available
+                    if (_entries.TryGetValue(serverPath, out var fallbackEntry) && File.Exists(fallbackEntry.LocalPath))
+                        return new CacheResult(fallbackEntry.LocalPath, true);
+                    return new CacheResult(serverPath, false);
+                }
 
                 bool wasStale = false;
 

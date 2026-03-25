@@ -140,10 +140,6 @@
 			<Setter Property="Padding" Value="2,4"/>
 		</Style>
 
-		<Style Selector="Border">
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
-		</Style>
-
 		<!-- Shadow border: use Classes="shadow" on a Border to get shadow, rounded corners, and optional visible border -->
 		<Style Selector="Border.shadow">
 			<Setter Property="BoxShadow" Value="{ReflectionBinding UI.Shadow}"/>

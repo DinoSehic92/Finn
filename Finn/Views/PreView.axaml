@@ -20,9 +20,6 @@
 	</UserControl.Resources>
 
 	<UserControl.Styles>
-		<Style Selector="Border">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-		</Style>
 		<Style Selector="Slider#OpacitySlider /template/ Thumb">
 			<Setter Property="Width" Value="12"/>
 			<Setter Property="Height" Value="12"/>

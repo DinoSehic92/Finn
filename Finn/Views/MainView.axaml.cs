@@ -94,31 +94,6 @@ public partial class MainView : UserControl
         _ctx.OpenWhiteboard(TopLevel.GetTopLevel(this) as Window ?? new Window());
     }
 
-    private async void OpenTimesheetWindow(object? sender, RoutedEventArgs e)
-    {
-        var window = new Finn.Views.TimesheetWindow();
-        // Attach the concrete MainViewModel instance when available to avoid
-        // stale/old DataContext instances after a reload. Fall back to the
-        // current DataContext if _ctx hasn't been initialized yet.
-        var dc = _ctx ?? (DataContext as MainViewModel);
-        if (dc != null)
-            window.AttachDataContext(dc);
-        else
-            window.AttachDataContext(this.DataContext);
-
-        Debug.WriteLine($"Opening TimesheetWindow with Calendar instance: {((dc as MainViewModel)?.Calendar?.GetHashCode().ToString() ?? "null")}");
-
-        if (this.FindAncestorOfType<Window>() is Window owner)
-        {
-            window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            await window.ShowDialog(owner);
-        }
-        else
-        {
-            window.Show();
-        }
-    }
-
     #region Initialization
 
     private void InitStartup(object? sender, RoutedEventArgs e)
@@ -137,10 +112,12 @@ public partial class MainView : UserControl
         try
         {
             _ctx.LoadFileAuto();
-            var cachedPaths = _ctx.ReconcileFileCache();
-            // Fire-and-forget: refresh stale cached files in background
-            _ = _ctx.RefreshStaleCacheAsync(cachedPaths);
+            _ctx.ReconcileFileCache();
             UpdateFont();
+            // Refresh calendar day indicators when data changes
+            _ctx.Calendar.DayIndicatorsChanged += () =>
+                Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Loaded);
+
             // initialize calendar selected date on separate viewmodel
             _ctx.Calendar.SelectedDateTime = DateTime.Now;
             // Initialize calendar persistence after projects have been loaded so
@@ -154,6 +131,9 @@ public partial class MainView : UserControl
             {
                 Debug.WriteLine(ex);
             }
+
+            // Initial paint — use Render priority so CalendarDayButtons are fully templated
+            Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
         }
         catch (Exception ex) { Debug.WriteLine($"InitStartup failed: {ex}"); }
 
@@ -224,6 +204,10 @@ public partial class MainView : UserControl
                 break;
             case nameof(_ctx.UI.AutoCacheNetworkFiles):
                 _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
+                break;
+            case nameof(_ctx.UI.CalendarOpen):
+                if (_ctx.UI.CalendarOpen)
+                    Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
                 break;
         }
     }
@@ -1519,6 +1503,92 @@ public partial class MainView : UserControl
     private void OnCancelBackgroundTask(object? sender, RoutedEventArgs e)
     {
         _pwr?.CancelBackgroundTask();
+    }
+
+    #endregion
+
+    #region Calendar
+
+    private async void OnCopyDiaryEntry(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is Model.WeekDiaryEntry entry
+            && !string.IsNullOrWhiteSpace(entry.Diary))
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top?.Clipboard != null)
+                await top.Clipboard.SetTextAsync(entry.Diary);
+        }
+    }
+
+    /// <summary>
+    /// Called when the Calendar control navigates to a different month.
+    /// </summary>
+    private void OnCalendarMonthChanged(object? sender, CalendarDateChangedEventArgs e)
+    {
+        // Delay so the CalendarDayButtons have been laid out for the new month
+        Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Walks the visual tree of the calendar control and adds small coloured
+    /// dot indicators to each <see cref="CalendarDayButton"/> that has timesheet
+    /// entries, notes, or reminders.
+    /// </summary>
+    private void RefreshCalendarDayIndicators()
+    {
+        var calendar = this.FindControl<Calendar>("MainCalendar");
+        if (calendar is null || _ctx?.Calendar is null) return;
+
+        var displayDate = calendar.DisplayDate;
+        var dayButtons = calendar.GetVisualDescendants().OfType<CalendarDayButton>();
+
+        foreach (var btn in dayButtons)
+        {
+            // Resolve the template root Panel so we can add/remove our indicator
+            var rootPanel = btn.GetVisualChildren().FirstOrDefault() as Panel;
+            if (rootPanel is null) continue;
+
+            // Remove any previously-added indicator panel
+            for (int i = rootPanel.Children.Count - 1; i >= 0; i--)
+            {
+                if (rootPanel.Children[i] is Avalonia.Controls.StackPanel sp && sp.Name == "_DayInd")
+                    rootPanel.Children.RemoveAt(i);
+            }
+
+            // Skip inactive (previous/next month) day buttons
+            if (btn.Classes.Contains(":inactive")) continue;
+
+            // Parse the day number from the button's Content
+            if (btn.Content is not string dayStr || !int.TryParse(dayStr, out int day)) continue;
+            if (day < 1 || day > DateTime.DaysInMonth(displayDate.Year, displayDate.Month)) continue;
+
+            var date = new DateOnly(displayDate.Year, displayDate.Month, day);
+            var (hasNote, hasTime, hasReminder) = _ctx.Calendar.GetDayInfo(date);
+            if (!hasNote && !hasTime && !hasReminder) continue;
+
+            var indicator = new Avalonia.Controls.StackPanel
+            {
+                Name = "_DayInd",
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
+                Spacing = 2,
+                Margin = new Thickness(0, 0, 0, 4),
+                IsHitTestVisible = false,
+            };
+
+            if (hasTime)
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
+                    { Width = 5, Height = 5, Fill = Brushes.DodgerBlue });
+            if (hasNote)
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
+                    { Width = 5, Height = 5, Fill = Brushes.MediumSeaGreen });
+            if (hasReminder)
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
+                    { Width = 5, Height = 5, Fill = Brushes.Orange });
+
+            rootPanel.Children.Add(indicator);
+        }
     }
 
     #endregion

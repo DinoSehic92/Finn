@@ -39,54 +39,43 @@ namespace Finn.Model
         }
 
         private int w1;
-        /// <summary>
-        /// Gets or sets week 1 value.
-        /// </summary>
         public int W1
         {
             get => w1;
-            set { w1 = value; RaisePropertyChanged(nameof(W1)); }
+            set { w1 = value; RaisePropertyChanged(nameof(W1)); RaisePropertyChanged(nameof(MonthTotal)); }
         }
 
         private int w2;
-        /// <summary>
-        /// Gets or sets week 2 value.
-        /// </summary>
         public int W2
         {
             get => w2;
-            set { w2 = value; RaisePropertyChanged(nameof(W2)); }
+            set { w2 = value; RaisePropertyChanged(nameof(W2)); RaisePropertyChanged(nameof(MonthTotal)); }
         }
 
         private int w3;
-        /// <summary>
-        /// Gets or sets week 3 value.
-        /// </summary>
         public int W3
         {
             get => w3;
-            set { w3 = value; RaisePropertyChanged(nameof(W3)); }
+            set { w3 = value; RaisePropertyChanged(nameof(W3)); RaisePropertyChanged(nameof(MonthTotal)); }
         }
 
         private int w4;
-        /// <summary>
-        /// Gets or sets week 4 value.
-        /// </summary>
         public int W4
         {
             get => w4;
-            set { w4 = value; RaisePropertyChanged(nameof(W4)); }
+            set { w4 = value; RaisePropertyChanged(nameof(W4)); RaisePropertyChanged(nameof(MonthTotal)); }
         }
 
         private int w5;
-        /// <summary>
-        /// Gets or sets week 5 value.
-        /// </summary>
         public int W5
         {
             get => w5;
-            set { w5 = value; RaisePropertyChanged(nameof(W5)); }
+            set { w5 = value; RaisePropertyChanged(nameof(W5)); RaisePropertyChanged(nameof(MonthTotal)); }
         }
+
+        /// <summary>Sum of W1–W5, used for compact inline display.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public int MonthTotal => W1 + W2 + W3 + W4 + W5;
 
         private void RaisePropertyChanged(string propName)
         {

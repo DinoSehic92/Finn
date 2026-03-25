@@ -99,54 +99,6 @@ namespace Finn.ViewModels
         public void ReconcileCache(IReadOnlySet<string> validPaths) => _fileCache.Reconcile(validPaths);
 
         /// <summary>
-        /// Checks all provided cached paths for staleness and refreshes any that
-        /// have changed on the server. Call after <see cref="ReconcileCache"/> at
-        /// startup. Only stale files are re-copied; fresh cache hits are free.
-        /// </summary>
-        public async Task RefreshStaleCachedFilesAsync(IReadOnlyList<string> paths, CancellationToken token = default)
-        {
-            if (paths.Count == 0) return;
-
-            int total = paths.Count;
-            int refreshed = 0;
-            BackgroundTaskActive = true;
-            BackgroundTaskMessage = "Checking cached files…";
-            BackgroundTaskProgress = 0;
-
-            for (int i = 0; i < total; i++)
-            {
-                if (token.IsCancellationRequested) break;
-                try
-                {
-                    var result = await _fileCache.GetLocalPathAsync(paths[i], token).ConfigureAwait(false);
-                    if (result.WasStale) refreshed++;
-                }
-                catch (OperationCanceledException) { break; }
-                catch { }
-                BackgroundTaskProgress = (int)(100.0 * (i + 1) / total);
-            }
-
-            if (token.IsCancellationRequested)
-            {
-                BackgroundTaskMessage = "Cache refresh cancelled";
-            }
-            else if (refreshed > 0)
-            {
-                BackgroundTaskMessage = $"Refreshed {refreshed} stale file(s)";
-            }
-            else
-            {
-                // All fresh — hide immediately
-                BackgroundTaskActive = false;
-                return;
-            }
-
-            BackgroundTaskProgress = 100;
-            await Task.Delay(2000, CancellationToken.None).ConfigureAwait(false);
-            BackgroundTaskActive = false;
-        }
-
-        /// <summary>
         /// Pre-caches a single file in the background (no document open).
         /// Used when the user marks files for caching.
         /// </summary>

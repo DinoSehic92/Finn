@@ -7,18 +7,45 @@ using System;
 namespace Finn.Controls
 {
     /// <summary>
-    /// A custom control that displays an analog watch showing the current time.
+    /// A custom control that displays an analog clock showing the current time.
+    /// Adapts to the current theme via the inherited Foreground property.
     /// </summary>
     public class AnalogWatchControl : Control
     {
-        private DispatcherTimer _timer;
+        private readonly DispatcherTimer _timer;
         private DateTime _currentTime;
+
+        /// <summary>
+        /// Foreground brush used for hands, ticks, and numerals.
+        /// Defaults to inheriting from the parent control's foreground.
+        /// </summary>
+        public static readonly StyledProperty<IBrush> ForegroundProperty =
+            TextBlock.ForegroundProperty.AddOwner<AnalogWatchControl>();
+
+        public IBrush Foreground
+        {
+            get => GetValue(ForegroundProperty);
+            set => SetValue(ForegroundProperty, value);
+        }
+
+        /// <summary>
+        /// Optional brush for the clock face fill. When set, the face is
+        /// painted with this brush at low opacity to stand out from the background.
+        /// </summary>
+        public static readonly StyledProperty<IBrush?> FaceBrushProperty =
+            AvaloniaProperty.Register<AnalogWatchControl, IBrush?>(nameof(FaceBrush));
+
+        public IBrush? FaceBrush
+        {
+            get => GetValue(FaceBrushProperty);
+            set => SetValue(FaceBrushProperty, value);
+        }
 
         public AnalogWatchControl()
         {
             _currentTime = DateTime.Now;
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _timer.Tick += (s, e) =>
+            _timer.Tick += (_, _) =>
             {
                 _currentTime = DateTime.Now;
                 InvalidateVisual();
@@ -33,91 +60,85 @@ namespace Finn.Controls
             var bounds = Bounds;
             double size = Math.Min(bounds.Width, bounds.Height);
             if (size <= 0) return;
-            double centerX = bounds.Width / 2;
-            double centerY = bounds.Height / 2;
-            double radius = size / 2 - 6;
+            double cx = bounds.Width / 2;
+            double cy = bounds.Height / 2;
+            double radius = size / 2 - 4;
 
-            // Modern face: subtle radial gradient
-            var faceBrush = new RadialGradientBrush
+            // Use the inherited foreground for theme adaptation
+            var fg = Foreground ?? Brushes.Black;
+            var fgColor = fg is SolidColorBrush scb ? scb.Color : Colors.Black;
+
+            // Face fill — uses FaceBrush when set, otherwise subtle foreground outline
+            var faceRect = new Rect(cx - radius, cy - radius, radius * 2, radius * 2);
+            if (FaceBrush is ISolidColorBrush fb)
             {
-                GradientStops = new GradientStops
-                {
-                    new GradientStop(Color.Parse("#FAFBFC"), 0.0),
-                    new GradientStop(Color.Parse("#F3F6FB"), 0.6),
-                    new GradientStop(Color.Parse("#E6EAF2"), 1.0)
-                },
-                Center = new RelativePoint(0.35, 0.35, RelativeUnit.Relative)
-            };
+                var fc = fb.Color;
+                var fillBrush = new SolidColorBrush(Color.FromArgb(25, fc.R, fc.G, fc.B));
+                var rimPen = new Pen(new SolidColorBrush(Color.FromArgb(50, fc.R, fc.G, fc.B)), 1.5);
+                context.DrawEllipse(fillBrush, rimPen, faceRect);
+            }
+            else
+            {
+                var facePen = new Pen(new SolidColorBrush(Color.FromArgb(30, fgColor.R, fgColor.G, fgColor.B)), 1.5);
+                context.DrawEllipse(null, facePen, faceRect);
+            }
 
-            // Outer ring stroke
-            var ringPen = new Pen(Brushes.Gray, Math.Max(1.0, size * 0.02));
+            // Hour numerals
+            var numeralBrush = new SolidColorBrush(Color.FromArgb(120, fgColor.R, fgColor.G, fgColor.B));
+            double numeralRadius = radius - size * 0.09;
+            double fontSize = Math.Max(9, size * 0.065);
+            var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Normal);
 
-            // Draw face and rim
-            context.DrawEllipse(faceBrush, ringPen, new Rect(centerX - radius, centerY - radius, radius * 2, radius * 2));
+            for (int h = 1; h <= 12; h++)
+            {
+                double angle = Math.PI * 2 * h / 12.0;
+                double nx = cx + Math.Sin(angle) * numeralRadius;
+                double ny = cy - Math.Cos(angle) * numeralRadius;
+                var text = new FormattedText(h.ToString(), System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight, typeface, fontSize, numeralBrush);
+                context.DrawText(text, new Point(nx - text.Width / 2, ny - text.Height / 2));
+            }
 
-            // Draw minute ticks (subtle)
-            var tickPen = new Pen(new SolidColorBrush(Color.Parse("#9AA6B2")), Math.Max(0.8, size * 0.003));
+            // Minute ticks
+            var tickBrush = new SolidColorBrush(Color.FromArgb(60, fgColor.R, fgColor.G, fgColor.B));
+            var minorPen = new Pen(tickBrush, Math.Max(0.5, size * 0.003));
+            var majorPen = new Pen(new SolidColorBrush(Color.FromArgb(100, fgColor.R, fgColor.G, fgColor.B)), Math.Max(1.0, size * 0.006));
             for (int i = 0; i < 60; i++)
             {
                 double angle = Math.PI * 2 * i / 60.0;
-                double inner = (i % 5 == 0) ? radius - size * 0.07 : radius - size * 0.04;
-                double outer = radius - size * 0.01;
-                double x1 = centerX + Math.Sin(angle) * inner;
-                double y1 = centerY - Math.Cos(angle) * inner;
-                double x2 = centerX + Math.Sin(angle) * outer;
-                double y2 = centerY - Math.Cos(angle) * outer;
-                context.DrawLine(tickPen, new Point(x1, y1), new Point(x2, y2));
+                bool isHour = i % 5 == 0;
+                double inner = isHour ? radius - size * 0.055 : radius - size * 0.03;
+                double outer = radius - size * 0.005;
+                context.DrawLine(isHour ? majorPen : minorPen,
+                    new Point(cx + Math.Sin(angle) * inner, cy - Math.Cos(angle) * inner),
+                    new Point(cx + Math.Sin(angle) * outer, cy - Math.Cos(angle) * outer));
             }
 
-            // Calculate hand angles
+            // Hand angles (smooth)
             double hourAngle = (_currentTime.Hour % 12 + _currentTime.Minute / 60.0) * 30.0;
             double minuteAngle = (_currentTime.Minute + _currentTime.Second / 60.0) * 6.0;
             double secondAngle = _currentTime.Second * 6.0;
 
-            // Hand colors
-            var handBrush = new SolidColorBrush(Color.Parse("#2D3748"));
-            var secondBrush = new SolidColorBrush(Color.Parse("#E53E3E"));
+            // Draw hands
+            var handBrush = new SolidColorBrush(Color.FromArgb(200, fgColor.R, fgColor.G, fgColor.B));
+            DrawHand(context, cx, cy, radius * 0.50, hourAngle, handBrush, Math.Max(2.5, size * 0.025));
+            DrawHand(context, cx, cy, radius * 0.72, minuteAngle, handBrush, Math.Max(1.5, size * 0.016));
 
-            // Draw hand shadows (subtle offset)
-            DrawHandWithShadow(context, centerX, centerY, radius * 0.55, hourAngle, handBrush, Math.Max(3.0, size * 0.04));
-            DrawHandWithShadow(context, centerX, centerY, radius * 0.78, minuteAngle, handBrush, Math.Max(2.0, size * 0.028));
-            DrawHandWithShadow(context, centerX, centerY, radius * 0.9, secondAngle, secondBrush, Math.Max(1.0, size * 0.01));
+            var secondBrush = new SolidColorBrush(Color.Parse("#E05050"));
+            DrawHand(context, cx, cy, radius * 0.85, secondAngle, secondBrush, Math.Max(0.8, size * 0.006));
 
-            // Modern center cap
-            var capBrush = new RadialGradientBrush
-            {
-                GradientStops = new GradientStops
-                {
-                    new GradientStop(Colors.Black, 0.0),
-                    new GradientStop(Color.Parse("#333333"), 0.8),
-                    new GradientStop(Color.Parse("#666666"), 1.0)
-                }
-            };
-
-            double capSize = Math.Max(4, size * 0.03);
-            context.DrawEllipse(capBrush, null, new Rect(centerX - capSize / 2, centerY - capSize / 2, capSize, capSize));
+            // Center dot
+            double capR = Math.Max(2.5, size * 0.018);
+            context.DrawEllipse(handBrush, null, new Rect(cx - capR, cy - capR, capR * 2, capR * 2));
         }
 
-
-        private void DrawHandWithShadow(DrawingContext context, double cx, double cy, double length, double angleDeg, IBrush brush, double thickness)
+        private static void DrawHand(DrawingContext context, double cx, double cy,
+            double length, double angleDeg, IBrush brush, double thickness)
         {
-            double angleRad = Math.PI * angleDeg / 180.0;
-            var end = new Point(cx + Math.Sin(angleRad) * length, cy - Math.Cos(angleRad) * length);
-
-            // shadow line slightly offset for depth
-            var shadowOffset = new Vector(0.8, 0.8);
-            var shadowPen = new Pen(new SolidColorBrush(Color.Parse("#22000000")), thickness + 2);
-            context.DrawLine(shadowPen, new Point(cx + shadowOffset.X, cy + shadowOffset.Y), new Point(end.X + shadowOffset.X, end.Y + shadowOffset.Y));
-
-            var pen = new Pen(brush, thickness);
+            double rad = Math.PI * angleDeg / 180.0;
+            var end = new Point(cx + Math.Sin(rad) * length, cy - Math.Cos(rad) * length);
+            var pen = new Pen(brush, thickness, lineCap: PenLineCap.Round);
             context.DrawLine(pen, new Point(cx, cy), end);
-
-            // small decorative counterweight for second hand
-            if (thickness <= 2.0)
-            {
-                var tail = new Point(cx - Math.Sin(angleRad) * (length * 0.18), cy + Math.Cos(angleRad) * (length * 0.18));
-                context.DrawEllipse(brush, null, new Rect(tail.X - thickness, tail.Y - thickness, thickness * 2, thickness * 2));
-            }
         }
     }
 }

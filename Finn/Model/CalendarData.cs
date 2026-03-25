@@ -158,36 +158,6 @@ namespace Finn.Model
             OnPropertyChanged(nameof(DateString));
         }
 
-        private string currentTimeSheetProjectDiary = string.Empty;
-        /// <summary>
-        /// Gets or sets the diary for the current timesheet project.
-        /// </summary>
-        [JsonIgnore]
-        public string CurrentTimeSheetProjectDiary
-        {
-            get => currentTimeSheetProjectDiary;
-            set { currentTimeSheetProjectDiary = value; OnPropertyChanged(nameof(CurrentTimeSheetProjectDiary)); }
-        }
-
-        private int? currentTimeSheetProjectTime = null;
-        /// <summary>
-        /// Gets or sets the time for the current timesheet project.
-        /// </summary>
-        [JsonIgnore]
-        public int? CurrentTimeSheetProjectTime
-        {
-            get => currentTimeSheetProjectTime;
-            set { currentTimeSheetProjectTime = value; OnPropertyChanged(nameof(CurrentTimeSheetProjectTime)); }
-        }
-
-        /// <summary>
-        /// Triggers property change notifications for date string properties.
-        /// </summary>
-        public void TriggerDateStringUpdate()
-        {
-            OnPropertyChanged(nameof(DateString));
-        }
-
         /// <summary>
         /// Gets whether this entry has a note.
         /// </summary>
@@ -199,25 +169,6 @@ namespace Finn.Model
         /// </summary>
         [JsonIgnore]
         public bool HasTime => TimeSheets.Count > 0;
-
-
-        /// <summary>
-        /// Sets the diary and time for the current timesheet project.
-        /// </summary>
-        public void SetCurrentTimeSheetProjectDiary(string text)
-        {
-            var items = TimeSheets.Where(x => x.Project == text).ToList();
-            if (items.Count > 0)
-            {
-                CurrentTimeSheetProjectDiary = string.Join(", ", items.Select(i => i.Diary));
-                CurrentTimeSheetProjectTime = items.Sum(i => i.Hours);
-            }
-            else
-            {
-                CurrentTimeSheetProjectDiary = string.Empty;
-                CurrentTimeSheetProjectTime = null;
-            }
-        }
 
 
         protected void OnPropertyChanged([CallerMemberName] string? propName = null)

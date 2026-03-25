@@ -69,9 +69,8 @@ namespace Finn.ViewModels
             /// projects. Removes cache entries for files that are no longer
             /// marked <see cref="FileData.IsCached"/> (e.g. the user toggled
             /// caching but never saved Projects.json).
-            /// Returns the set of valid cached paths for downstream use.
             /// </summary>
-            public IReadOnlyList<string> ReconcileFileCache()
+            public void ReconcileFileCache()
             {
                 var validPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var project in Storage.StoredProjects)
@@ -90,27 +89,6 @@ namespace Finn.ViewModels
                 }
 
                 PreviewVM.ReconcileCache(validPaths);
-                return validPaths.ToList();
-            }
-
-            /// <summary>
-            /// Refreshes any stale cached files in the background.
-            /// Call after <see cref="ReconcileFileCache"/> at startup.
-            /// </summary>
-            public async Task RefreshStaleCacheAsync(IReadOnlyList<string> cachedPaths)
-            {
-                if (cachedPaths.Count == 0) return;
-                var cts = new CancellationTokenSource();
-                PreviewVM.SetBackgroundTaskCts(cts);
-                try
-                {
-                    await PreviewVM.RefreshStaleCachedFilesAsync(cachedPaths, cts.Token).ConfigureAwait(false);
-                }
-                finally
-                {
-                    PreviewVM.SetBackgroundTaskCts(null);
-                    cts.Dispose();
-                }
             }
 
             public void DeserializeLoadFile(string fileContent)

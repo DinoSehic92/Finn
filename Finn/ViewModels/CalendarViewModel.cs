@@ -17,7 +17,6 @@ namespace Finn.ViewModels
     public class CalendarViewModel : ViewModelBase
     {
         private readonly Func<UISettingsViewModel> uiGetter;
-        // Fast lookup by date to avoid scanning the full CalendarList
         private readonly Dictionary<DateOnly, CalendarData> _dateIndex = new();
 
         private const string TOTAL_PROJECT = "Total";
@@ -38,10 +37,17 @@ namespace Finn.ViewModels
             set => SetProperty(ref calendarStorage, value);
         }
 
-        // Expose collections for binding (delegates to CalendarStorage)
+        /// <summary>
+        /// All calendar entries. Delegates to CalendarStorage but ensures a
+        /// concrete collection is always returned (never creates throwaways).
+        /// </summary>
         public ObservableCollection<CalendarData> CalendarList
         {
-            get => CalendarStorage.CalendarList ?? new ObservableCollection<CalendarData>();
+            get
+            {
+                CalendarStorage.CalendarList ??= [];
+                return CalendarStorage.CalendarList;
+            }
             set
             {
                 if (CalendarStorage.CalendarList != value)
@@ -55,7 +61,11 @@ namespace Finn.ViewModels
 
         public ObservableCollection<TimeSheetProjectData> TimeProjects
         {
-            get => CalendarStorage.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>();
+            get
+            {
+                CalendarStorage.TimeProjects ??= [];
+                return CalendarStorage.TimeProjects;
+            }
             set
             {
                 if (CalendarStorage.TimeProjects != value)
@@ -66,9 +76,10 @@ namespace Finn.ViewModels
             }
         }
 
+        #region Persistence
+
         /// <summary>
-        /// Loads calendar storage from the provided save path (Calendar.json). If the file
-        /// does not exist a new file will be created from the current in-memory storage.
+        /// Loads calendar storage from Calendar.json. Creates a new file if none exists.
         /// </summary>
         public void LoadOrCreateStorage(string savePath)
         {
@@ -86,47 +97,33 @@ namespace Finn.ViewModels
                     if (cs != null)
                     {
                         CalendarStorage = cs;
-                        // Ensure collections are concrete ObservableCollections
-                        CalendarStorage.CalendarList = new ObservableCollection<CalendarData>(CalendarStorage.CalendarList ?? new ObservableCollection<CalendarData>());
-                        CalendarStorage.TimeProjects = new ObservableCollection<TimeSheetProjectData>(CalendarStorage.TimeProjects ?? new ObservableCollection<TimeSheetProjectData>());
-                        // Rebuild the date index so EnsureMonthEntries doesn't treat every day as missing
+                        CalendarStorage.CalendarList = new ObservableCollection<CalendarData>(CalendarStorage.CalendarList ?? []);
+                        CalendarStorage.TimeProjects = new ObservableCollection<TimeSheetProjectData>(CalendarStorage.TimeProjects ?? []);
                         RebuildDateIndex();
-                        // Notify bindings
                         OnPropertyChanged(nameof(CalendarStorage));
                         OnPropertyChanged(nameof(CalendarList));
                         OnPropertyChanged(nameof(TimeProjects));
-
-                        // Ensure monthly view and current item reflect loaded storage
-                        try
-                        {
-                            UpdateMonthly();
-                            SetCurrentCalendarData();
-                        }
-                        catch { }
                     }
                 }
                 else
                 {
                     string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
                     File.WriteAllText(file, json);
-                    // Populate the current month when starting fresh
-                    try
-                    {
-                        EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
-                        UpdateMonthly();
-                        SetCurrentCalendarData();
-                    }
-                    catch { }
+                    EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
                 }
+
+                SetCurrentCalendarData();
             }
-            catch
-            {
-                // ignore IO/parse errors — do not crash UI thread
-            }
+            catch { /* ignore IO/parse errors */ }
+
+            EnsureTotalRow();
+            RefreshProjectSummaries();
+            RefreshProjectDiarySummary();
+            DayIndicatorsChanged?.Invoke();
         }
 
         /// <summary>
-        /// Saves the current <see cref="CalendarStorage"/> to Calendar.json under <paramref name="savePath"/>.
+        /// Saves the current CalendarStorage to Calendar.json.
         /// </summary>
         public void SaveStorage(string savePath)
         {
@@ -137,38 +134,12 @@ namespace Finn.ViewModels
                 string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
                 File.WriteAllText(file, json);
             }
-            catch
-            {
-                // ignore IO/parse errors — do not crash UI thread
-            }
+            catch { /* ignore IO/parse errors */ }
         }
 
-        private IEnumerable<CalendarData> GetMonthEntries(int year, int month)
-        {
-            // Use index lookup to construct month entries efficiently by iterating days in month
-            var dates = GetDates(year, month).Select(d => DateOnly.FromDateTime(d));
-            foreach (var date in dates)
-            {
-                if (_dateIndex.TryGetValue(date, out var cd)) yield return cd;
-            }
-        }
+        #endregion
 
-        private int SumProjectHoursForWeek(IEnumerable<CalendarData> monthEntries, int weekOfMonth, string project)
-        {
-            return monthEntries
-                   .Where(x => x.WeekOfMonth == weekOfMonth)
-                   .SelectMany(x => x.TimeSheets)
-                   .Where(ts => ts.Project == project)
-                   .Sum(ts => ts.Hours);
-        }
-
-        // Rebuild the date index from the current CalendarList
-        private void RebuildDateIndex()
-        {
-            _dateIndex.Clear();
-            foreach (var cd in CalendarList)
-                _dateIndex[cd.Date] = cd;
-        }
+        #region Date selection
 
         private DateTime selectedDateTime = DateTime.Now;
         public DateTime SelectedDateTime
@@ -180,16 +151,16 @@ namespace Finn.ViewModels
                 var prevMonth = selectedDateTime.Month;
                 SetProperty(ref selectedDateTime, value, () =>
                 {
-                    // If month or year changed, ensure backing CalendarList contains all days for the new month
                     if (prevYear != SelectedDateTime.Year || prevMonth != SelectedDateTime.Month)
-                    {
                         EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
-                    }
 
-                    UpdateMonthly();
+                    SelectedWeek = ISOWeek.GetWeekOfYear(SelectedDateTime);
                     SetCurrentCalendarData();
                     OnPropertyChanged(nameof(SelectedYear));
                     OnPropertyChanged(nameof(SelectedMonth));
+                    RefreshProjectSummaries();
+                    RefreshProjectDiarySummary();
+                    DayIndicatorsChanged?.Invoke();
                 });
             }
         }
@@ -197,33 +168,148 @@ namespace Finn.ViewModels
         public int SelectedYear => SelectedDateTime.Year;
         public int SelectedMonth => SelectedDateTime.Month;
 
-        private int selectedWeek = 0;
+        private int selectedWeek;
         public int SelectedWeek
         {
             get => selectedWeek;
             set => SetProperty(ref selectedWeek, value);
         }
 
-        private ObservableCollection<CalendarData> monthlyNotes = new();
-        public ObservableCollection<CalendarData> MonthlyNotes
-        {
-            get => monthlyNotes;
-            set => SetProperty(ref monthlyNotes, value);
-        }
+        #endregion
+
+        #region Current entry
 
         private CalendarData currentCalendarData = new();
+        /// <summary>
+        /// The calendar entry for the currently selected date.
+        /// Subscribes to PropertyChanged so edits immediately refresh
+        /// day indicator dots and promote transient entries to storage.
+        /// Also tracks individual TimeSheetData changes for live grid updates.
+        /// </summary>
         public CalendarData CurrentCalendarData
         {
             get => currentCalendarData;
             set
             {
                 if (value == null) return;
-                SetProperty(ref currentCalendarData, value, () => { SelectDateTime(); });
+                if (currentCalendarData != null)
+                {
+                    currentCalendarData.PropertyChanged -= OnCurrentEntryChanged;
+                    UnsubscribeTimesheetItems(currentCalendarData);
+                }
+                SetProperty(ref currentCalendarData, value, () =>
+                {
+                    if (currentCalendarData != null)
+                    {
+                        currentCalendarData.PropertyChanged += OnCurrentEntryChanged;
+                        SubscribeTimesheetItems(currentCalendarData);
+                    }
+                    SyncSelectedDate();
+                });
             }
         }
 
-        // Weak subscription to transient calendar entry
-        private CalendarData? _subscribedCalendarData;
+        private void SubscribeTimesheetItems(CalendarData cal)
+        {
+            cal.TimeSheets.CollectionChanged += OnTimesheetCollectionChanged;
+            foreach (var ts in cal.TimeSheets)
+                ts.PropertyChanged += OnTimesheetItemChanged;
+        }
+
+        private void UnsubscribeTimesheetItems(CalendarData cal)
+        {
+            cal.TimeSheets.CollectionChanged -= OnTimesheetCollectionChanged;
+            foreach (var ts in cal.TimeSheets)
+                ts.PropertyChanged -= OnTimesheetItemChanged;
+        }
+
+        private void OnTimesheetCollectionChanged(object? sender,
+            System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            // Unsubscribe removed items
+            if (e.OldItems != null)
+                foreach (TimeSheetData ts in e.OldItems)
+                    ts.PropertyChanged -= OnTimesheetItemChanged;
+
+            // Subscribe new items
+            if (e.NewItems != null)
+                foreach (TimeSheetData ts in e.NewItems)
+                    ts.PropertyChanged += OnTimesheetItemChanged;
+
+            RefreshProjectSummaries();
+            RefreshProjectDiarySummary();
+        }
+
+        /// <summary>
+        /// Fires when any property on a timesheet entry changes (hours, project, diary).
+        /// Immediately refreshes both summary grids so edits are reflected live.
+        /// </summary>
+        private void OnTimesheetItemChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(TimeSheetData.Hours) or nameof(TimeSheetData.Project))
+                RefreshProjectSummaries();
+            if (e.PropertyName is nameof(TimeSheetData.Hours) or nameof(TimeSheetData.Project) or nameof(TimeSheetData.Diary))
+                RefreshProjectDiarySummary();
+        }
+
+        /// <summary>
+        /// Unified handler for the current entry's property changes:
+        /// - Promotes transient (not-yet-persisted) entries to CalendarList on first edit.
+        /// - Fires DayIndicatorsChanged for note/time/reminder changes.
+        /// </summary>
+        private void OnCurrentEntryChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (sender is not CalendarData cal) return;
+
+            // Promote transient entry to storage on first meaningful edit
+            if (!_dateIndex.ContainsKey(cal.Date))
+            {
+                bool meaningful = e.PropertyName is nameof(CalendarData.Note1)
+                    or nameof(CalendarData.Reminder) or nameof(CalendarData.TimeSheets);
+                if (meaningful)
+                {
+                    CalendarList.Add(cal);
+                    _dateIndex[cal.Date] = cal;
+                }
+            }
+
+            // Refresh calendar dots
+            if (e.PropertyName is nameof(CalendarData.HasNote) or nameof(CalendarData.HasTime)
+                or nameof(CalendarData.Reminder))
+            {
+                DayIndicatorsChanged?.Invoke();
+            }
+        }
+
+        /// <summary>
+        /// Resolves the CalendarData entry for the currently selected date.
+        /// Creates a transient entry if none exists yet (promoted on first edit).
+        /// </summary>
+        private void SetCurrentCalendarData()
+        {
+            var date = DateOnly.FromDateTime(SelectedDateTime);
+            if (_dateIndex.TryGetValue(date, out var existing))
+                CurrentCalendarData = existing;
+            else
+                CurrentCalendarData = new CalendarData { Date = date };
+        }
+
+        /// <summary>
+        /// Syncs SelectedDateTime when CurrentCalendarData is set externally
+        /// (e.g. from a grid selection).
+        /// </summary>
+        private void SyncSelectedDate()
+        {
+            if (CurrentCalendarData != null
+                && CurrentCalendarData.Date != DateOnly.FromDateTime(SelectedDateTime.Date))
+            {
+                SelectedDateTime = CurrentCalendarData.Date.ToDateTime(TimeOnly.Parse("10:00 PM"));
+            }
+        }
+
+        #endregion
+
+        #region Timesheet
 
         private TimeSheetData currentTimeSheet = new();
         public TimeSheetData CurrentTimeSheet
@@ -232,185 +318,254 @@ namespace Finn.ViewModels
             set => SetProperty(ref currentTimeSheet, value);
         }
 
-        public ObservableCollection<int> Hours { get; } = new() { 1, 2, 3, 4, 5, 6, 7, 8 };
+        public ObservableCollection<int> Hours { get; } = [1, 2, 3, 4, 5, 6, 7, 8];
+
+        /// <summary>
+        /// Refreshes the W1–W5 columns on each TimeProject so the inline
+        /// summary grid in the calendar tray shows current monthly totals.
+        /// </summary>
+        public void RefreshProjectSummaries()
+        {
+            int month = SelectedDateTime.Month;
+            int year = SelectedDateTime.Year;
+            var entries = GetMonthEntries(year, month).ToList();
+
+            foreach (var p in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
+            {
+                var name = p?.Project ?? string.Empty;
+                p!.W1 = SumProjectHoursForWeek(entries, 0, name);
+                p.W2 = SumProjectHoursForWeek(entries, 1, name);
+                p.W3 = SumProjectHoursForWeek(entries, 2, name);
+                p.W4 = SumProjectHoursForWeek(entries, 3, name);
+                p.W5 = SumProjectHoursForWeek(entries, 4, name);
+            }
+
+            var total = TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
+            if (total != null)
+            {
+                var nonTotal = TimeProjects.Where(x => x.Project != TOTAL_PROJECT).ToList();
+                total.W1 = nonTotal.Sum(x => x.W1);
+                total.W2 = nonTotal.Sum(x => x.W2);
+                total.W3 = nonTotal.Sum(x => x.W3);
+                total.W4 = nonTotal.Sum(x => x.W4);
+                total.W5 = nonTotal.Sum(x => x.W5);
+            }
+        }
 
         private TimeSheetProjectData currentTimeSheetProject = new();
+        private string? _trackedProjectName;
         public TimeSheetProjectData CurrentTimeSheetProject
         {
             get => currentTimeSheetProject;
-            set => SetProperty(ref currentTimeSheetProject, value);
+            set
+            {
+                if (currentTimeSheetProject != null)
+                    currentTimeSheetProject.PropertyChanged -= OnCurrentProjectPropertyChanged;
+
+                _trackedProjectName = value?.Project;
+
+                SetProperty(ref currentTimeSheetProject, value, () =>
+                {
+                    if (currentTimeSheetProject != null)
+                        currentTimeSheetProject.PropertyChanged += OnCurrentProjectPropertyChanged;
+                    RefreshProjectDiarySummary();
+                });
+            }
+        }
+
+        /// <summary>
+        /// When the selected project's name changes, rename all matching
+        /// TimeSheetData entries across the entire calendar so summaries
+        /// and diary entries stay in sync.
+        /// </summary>
+        private void OnCurrentProjectPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TimeSheetProjectData.Project) && _trackedProjectName != null)
+            {
+                string oldName = _trackedProjectName;
+                string newName = CurrentTimeSheetProject.Project;
+                if (oldName != newName && !string.IsNullOrWhiteSpace(newName))
+                {
+                    foreach (var cal in CalendarList)
+                    {
+                        foreach (var ts in cal.TimeSheets)
+                        {
+                            if (ts.Project == oldName)
+                                ts.Project = newName;
+                        }
+                    }
+                    _trackedProjectName = newName;
+                    RefreshProjectSummaries();
+                    RefreshProjectDiarySummary();
+                }
+            }
         }
 
         public void NewTimeSheet()
         {
-            // Ensure we have a current calendar entry before mutating it
-            if (CurrentCalendarData == null)
-            {
-                SetCurrentCalendarData();
-            }
+            if (CurrentCalendarData == null) SetCurrentCalendarData();
+            if (CurrentCalendarData == null) return;
 
-            if (CurrentCalendarData == null)
-                return;
-
-            CurrentCalendarData.TimeSheets.Add(new TimeSheetData() { Hours = 1, Project = "New" });
-            CurrentCalendarData.TriggerDateStringUpdate();
+            CurrentCalendarData.TimeSheets.Add(new TimeSheetData { Hours = 1, Project = "New" });
         }
 
         public void RemoveTimeSheet()
         {
-            if (CurrentCalendarData == null || CurrentTimeSheet == null)
-                return;
-
+            if (CurrentCalendarData == null || CurrentTimeSheet == null) return;
             CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
-            CurrentCalendarData.TriggerDateStringUpdate();
         }
 
-        public void UpdateTimeSheetSummary()
+        /// <summary>
+        /// Adds a new empty timesheet project entry before the Total row.
+        /// The user edits the name and number inline via the bound text boxes.
+        /// </summary>
+        public void AddTimeProject()
         {
-            // Guard against null CurrentTimeSheetProject (can happen during edits)
-            var projectName = CurrentTimeSheetProject?.Project ?? string.Empty;
-            foreach (CalendarData calendarData in MonthlyNotes)
-            {
-                calendarData.SetCurrentTimeSheetProjectDiary(projectName);
-            }
+            EnsureTotalRow();
+
+            int idx = TimeProjects.IndexOf(TimeProjects.First(x => x.Project == TOTAL_PROJECT));
+            var newProject = new TimeSheetProjectData { Project = "New" };
+            TimeProjects.Insert(idx, newProject);
+            CurrentTimeSheetProject = newProject;
+            RefreshProjectSummaries();
         }
 
-        public void WeeklyTimeSummary()
+        /// <summary>
+        /// Removes the currently selected timesheet project.
+        /// </summary>
+        public void RemoveTimeProject()
         {
-            // Guard against no timesheet UI
-            if (!UI.TimeSheetOpen)
+            if (CurrentTimeSheetProject == null || CurrentTimeSheetProject.Project == TOTAL_PROJECT) return;
+            TimeProjects.Remove(CurrentTimeSheetProject);
+            RefreshProjectSummaries();
+        }
+
+        /// <summary>
+        /// Per-day diary rows for the selected project in the week that
+        /// the selected date falls in. Shows one row per weekday with
+        /// combined diary text for that project on that day.
+        /// </summary>
+        public ObservableCollection<WeekDiaryEntry> WeekDiaryEntries { get; } = [];
+
+        /// <summary>
+        /// Rebuilds the weekly diary entries for the currently selected project.
+        /// Shows 5 rows (Mon–Fri) for the selected week, each with the combined
+        /// diary text from all timesheet entries for that project on that day.
+        /// </summary>
+        private void RefreshProjectDiarySummary()
+        {
+            WeekDiaryEntries.Clear();
+
+            var projName = CurrentTimeSheetProject?.Project;
+            if (string.IsNullOrEmpty(projName) || projName == TOTAL_PROJECT)
                 return;
 
-            // Ensure we have a valid current calendar entry. If CurrentCalendarData is missing
-            // or has a default Date, try to resolve it from SelectedDateTime or CalendarList.
-            if (CurrentCalendarData == null || CurrentCalendarData.Date == default)
-            {
-                SetCurrentCalendarData();
-            }
+            int year = SelectedDateTime.Year;
+            int month = SelectedDateTime.Month;
+            var selectedDate = DateOnly.FromDateTime(SelectedDateTime);
 
-            if (CurrentCalendarData == null || CurrentCalendarData.Date == default)
+            // Compute which week-of-month the selected date is in
+            int firstWeek = ISOWeek.GetWeekOfYear(new DateTime(year, month, 1));
+            int selectedWeekOfMonth = ISOWeek.GetWeekOfYear(new DateTime(year, month, selectedDate.Day)) - firstWeek;
+
+            var weekDays = GetMonthEntries(year, month)
+                .Where(x => x.WeekOfMonth == selectedWeekOfMonth)
+                .Where(x => x.Date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+                .OrderBy(x => x.Date)
+                .ToList();
+
+            foreach (var day in weekDays)
             {
-                // Fallback: try to find entries for the selected date
-                var selDate = DateOnly.FromDateTime(SelectedDateTime);
-                var existing = CalendarList.FirstOrDefault(x => x.Date == selDate);
-                if (existing != null)
+                var diaries = day.TimeSheets
+                    .Where(ts => ts.Project == projName && !string.IsNullOrWhiteSpace(ts.Diary))
+                    .Select(ts => ts.Diary.Trim())
+                    .ToList();
+
+                string diaryText = diaries.Count > 0 ? string.Join(", ", diaries) : string.Empty;
+
+                WeekDiaryEntries.Add(new WeekDiaryEntry
                 {
-                    CurrentCalendarData = existing;
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            // Materialise once — SumProjectHoursForWeek is called 5 times per project
-            int month = CurrentCalendarData.Date.Month;
-            int year = CurrentCalendarData.Date.Year;
-            var monthEntries = GetMonthEntries(year, month).ToList();
-
-            foreach (TimeSheetProjectData project in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
-            {
-                var projName = project?.Project ?? string.Empty;
-                project.W1 = SumProjectHoursForWeek(monthEntries, 0, projName);
-                project.W2 = SumProjectHoursForWeek(monthEntries, 1, projName);
-                project.W3 = SumProjectHoursForWeek(monthEntries, 2, projName);
-                project.W4 = SumProjectHoursForWeek(monthEntries, 3, projName);
-                project.W5 = SumProjectHoursForWeek(monthEntries, 4, projName);
-            }
-
-            TimeSheetProjectData summarySheet = TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
-            if (summarySheet != null)
-            {
-                var nonTotal = TimeProjects.Where(x => x.Project != TOTAL_PROJECT).ToList();
-                summarySheet.W1 = nonTotal.Sum(x => x.W1);
-                summarySheet.W2 = nonTotal.Sum(x => x.W2);
-                summarySheet.W3 = nonTotal.Sum(x => x.W3);
-                summarySheet.W4 = nonTotal.Sum(x => x.W4);
-                summarySheet.W5 = nonTotal.Sum(x => x.W5);
+                    Day = day.Date.Day.ToString(),
+                    Diary = diaryText
+                });
             }
         }
 
-        private void UpdateMonthly()
+        #endregion
+
+        #region Project summary helpers
+
+        private IEnumerable<CalendarData> GetMonthEntries(int year, int month)
         {
-            // Refresh the monthly notes collection from the CalendarList
-            SelectedWeek = ISOWeek.GetWeekOfYear(SelectedDateTime);
-            MonthlyNotes = new ObservableCollection<CalendarData>(CalendarList.Where(x => x.Date.Month == SelectedDateTime.Month && x.Date.Year == SelectedDateTime.Year).OrderBy(x => x.Date));
-        }
-
-        private void SetCurrentCalendarData()
-        {
-            var date = DateOnly.FromDateTime(SelectedDateTime);
-            if (_dateIndex.TryGetValue(date, out var existing))
+            foreach (var day in Enumerable.Range(1, DateTime.DaysInMonth(year, month)))
             {
-                CurrentCalendarData = existing;
-                _subscribedCalendarData = existing;
-            }
-            else
-            {
-                CalendarData transient = new() { Date = date };
-                CurrentCalendarData = transient;
-                _subscribedCalendarData = transient;
-                transient.PropertyChanged += TransientCalendar_PropertyChanged;
+                var date = new DateOnly(year, month, day);
+                if (_dateIndex.TryGetValue(date, out var cd)) yield return cd;
             }
         }
 
-        public void SetCalendarMonth()
+        private static int SumProjectHoursForWeek(IEnumerable<CalendarData> entries, int weekOfMonth, string project)
+            => entries.Where(x => x.WeekOfMonth == weekOfMonth)
+                      .SelectMany(x => x.TimeSheets)
+                      .Where(ts => ts.Project == project)
+                      .Sum(ts => ts.Hours);
+
+        #endregion
+
+        #region Helpers
+
+        public void ResetDate() => SelectedDateTime = DateTime.Now;
+
+        /// <summary>
+        /// Ensures a "Total" summary row always exists at the end of TimeProjects.
+        /// </summary>
+        private void EnsureTotalRow()
         {
-            EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
-            UpdateMonthly();
+            if (!TimeProjects.Any(x => x.Project == TOTAL_PROJECT))
+                TimeProjects.Add(new TimeSheetProjectData { Project = TOTAL_PROJECT });
         }
 
-        private void TransientCalendar_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        /// <summary>
+        /// Returns per-day flags for the given date.
+        /// </summary>
+        public (bool HasNote, bool HasTime, bool HasReminder) GetDayInfo(DateOnly date)
         {
-            if (sender is CalendarData cal && _subscribedCalendarData == cal)
-            {
-                if (e.PropertyName == nameof(CalendarData.Note1) || e.PropertyName == nameof(CalendarData.Note2) ||
-                    e.PropertyName == nameof(CalendarData.Reminder) || e.PropertyName == nameof(CalendarData.TimeSheets))
-                {
-                    try { cal.PropertyChanged -= TransientCalendar_PropertyChanged; } catch { }
-
-                    if (!CalendarList.Any(x => x.Date == cal.Date)) CalendarList.Add(cal);
-                    _subscribedCalendarData = null;
-                }
-            }
+            if (_dateIndex.TryGetValue(date, out var cd))
+                return (cd.HasNote, cd.HasTime, !string.IsNullOrWhiteSpace(cd.Reminder));
+            return (false, false, false);
         }
+
+        /// <summary>
+        /// Raised when day data changes and the calendar day indicators should be refreshed.
+        /// </summary>
+        public event Action? DayIndicatorsChanged;
 
         public static List<DateTime> GetDates(int year, int month)
-        {
-            return Enumerable.Range(1, DateTime.DaysInMonth(year, month))
-                             .Select(day => new DateTime(year, month, day))
-                             .ToList();
-        }
+            => Enumerable.Range(1, DateTime.DaysInMonth(year, month))
+                         .Select(day => new DateTime(year, month, day))
+                         .ToList();
 
-        public void ResetDate()
+        private void RebuildDateIndex()
         {
-            SelectedDateTime = DateTime.Now;
+            _dateIndex.Clear();
+            foreach (var cd in CalendarList)
+                _dateIndex[cd.Date] = cd;
         }
 
         private void EnsureMonthEntries(int year, int month)
         {
-            CalendarStorage.CalendarList ??= new ObservableCollection<CalendarData>();
-
-            foreach (var day in GetDates(year, month).Select(d => DateOnly.FromDateTime(d)))
+            foreach (var day in Enumerable.Range(1, DateTime.DaysInMonth(year, month)))
             {
-                if (!_dateIndex.ContainsKey(day))
+                var date = new DateOnly(year, month, day);
+                if (!_dateIndex.ContainsKey(date))
                 {
-                    var entry = new CalendarData { Date = day };
+                    var entry = new CalendarData { Date = date };
                     CalendarList.Add(entry);
-                    _dateIndex[day] = entry;
+                    _dateIndex[date] = entry;
                 }
             }
         }
 
-        private void SelectDateTime()
-        {
-            if (CurrentCalendarData != null)
-            {
-                if (CurrentCalendarData.Date != DateOnly.FromDateTime(SelectedDateTime.Date))
-                {
-                    SelectedDateTime = CurrentCalendarData.Date.ToDateTime(TimeOnly.Parse("10:00 PM"));
-                }
-            }
-        }
+        #endregion
     }
 }
