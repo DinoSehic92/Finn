@@ -55,6 +55,15 @@
 			</Panel>
 		</ControlTemplate>
 
+		<ControlTheme x:Key="OverlayFlyout" TargetType="FlyoutPresenter" BasedOn="{StaticResource {x:Type FlyoutPresenter}}">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinWidth" Value="0"/>
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="CornerRadius" Value="0"/>
+		</ControlTheme>
+
 	</UserControl.Resources>
 
 	<UserControl.Styles>
@@ -302,19 +311,26 @@
 				<Button Name="ColorTagButton" ToolTip.Tip="Color Tag" Height="28" Width="28" Padding="0">
 					<ic:SymbolIcon Symbol="Color" IconVariant="Regular" FontSize="15"/>
 					<Button.Flyout>
-						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
-							<StackPanel Orientation="Horizontal" Spacing="2" Margin="2">
-								<Button Width="24" Height="24" Background="#E5A820" Opacity="0.7" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Background="#E06830" Opacity="0.7" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Background="#9C6B3C" Opacity="0.7" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Background="#3DA35F" Opacity="0.7" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Background="#3B82D9" Opacity="0.7" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Background="#D64045" Opacity="0.7" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Background="#9B5FC0" Opacity="0.7" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0"/>
-								<Button Width="24" Height="24" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0">
-									<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
-								</Button>
-							</StackPanel>
+						<Flyout Placement="Bottom"  ShowMode="TransientWithDismissOnPointerMoveAway"
+								FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
+							<Border Classes="shadow" MinHeight="0" Padding="6,4">
+								<Border.Background>
+									<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
+								</Border.Background>
+								<StackPanel Orientation="Vertical" Spacing="2">
+									<Button Width="22" Height="22" Background="#E5A820" Opacity="0.85" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="#E06830" Opacity="0.85" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="#9C6B3C" Opacity="0.85" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="#3DA35F" Opacity="0.85" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="#3B82D9" Opacity="0.85" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="#D64045" Opacity="0.85" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="#9B5FC0" Opacity="0.85" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"
+											BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+										<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
+									</Button>
+								</StackPanel>
+							</Border>
 						</Flyout>
 					</Button.Flyout>
 				</Button>
@@ -411,9 +427,6 @@
 					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
 						<!-- compact vertical flyout with same-size buttons as toolbar -->
 						<StackPanel Orientation="Vertical" Width="38" Margin="1" Spacing="1">
-						   <Button ToolTip.Tip="Analog Clock" Width="35" Height="30" Classes="rounded-default" Click="OnOpenAnalogClock" Padding="0">
-							   <ic:SymbolIcon Symbol="Clock" FontSize="18"/>
-						   </Button>
 							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Click="OnOpenWhiteboard" Padding="0">
 								<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
 							</Button>

@@ -72,20 +72,6 @@ public partial class MainView : UserControl
 
     // Removed file-open debugger / benchmark command and handler
 
-    private async void OnOpenAnalogClock(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var dialog = new Finn.Dialogs.AnalogWatchDialog();
-        if (this.FindAncestorOfType<Window>() is Window owner)
-        {
-            dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            await dialog.ShowDialog(owner);
-        }
-        else
-        {
-            dialog.Show(); // Not awaited, just show the window
-        }
-    }
-
     private void OnOpenWhiteboard(object? sender, RoutedEventArgs e)
     {
         // Close the toolbox flyout so the first click after this goes to the canvas
