@@ -200,7 +200,7 @@ namespace Finn.ViewModels
                     using var streamWriter = new StreamWriter(stream);
                     var data = JsonConvert.SerializeObject(Storage);
                     await streamWriter.WriteLineAsync(data);
-                    Calendar.SaveStorage(SavePath);
+                    await Calendar.SaveStorageAsync(SavePath);
                     ClearDirty();
                 }
             }
@@ -233,7 +233,7 @@ namespace Finn.ViewModels
 
                     File.Move(tmpPath, path, overwrite: true);
 
-                    Calendar.SaveStorage(SavePath);
+                    await Calendar.SaveStorageAsync(SavePath);
                     ClearDirty();
                     PreviewVM.StatusMessage = "Saved";
                 }
@@ -339,7 +339,7 @@ namespace Finn.ViewModels
 
             public void BackupSaveFile()
             {
-                string backupDir = $"{SavePath}\\Backup_{DateTime.Today:d}";
+                string backupDir = Path.Combine(SavePath, $"Backup_{DateTime.Today:d}");
 
                 Directory.CreateDirectory(backupDir);
 

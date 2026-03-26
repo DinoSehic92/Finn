@@ -1,8 +1,7 @@
 ﻿using System;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Linq;
 
 namespace Finn.Model
@@ -10,7 +9,7 @@ namespace Finn.Model
     /// <summary>
     /// Represents a calendar entry with notes, reminders, and timesheet data.
     /// </summary>
-    public class CalendarData : INotifyPropertyChanged
+    public class CalendarData : ObservableObject
     {
 
         public CalendarData()
@@ -143,12 +142,5 @@ namespace Finn.Model
         /// </summary>
         [JsonIgnore]
         public bool HasTime => TimeSheets.Count > 0;
-
-
-        protected void OnPropertyChanged([CallerMemberName] string? propName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
-        }
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

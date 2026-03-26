@@ -8,6 +8,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading.Tasks;
 
 namespace Finn.ViewModels
 {
@@ -109,12 +110,14 @@ namespace Finn.ViewModels
                 {
                     string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
                     File.WriteAllText(file, json);
-                    EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
                 }
 
                 SetCurrentCalendarData();
             }
-            catch { /* ignore IO/parse errors */ }
+            catch (Exception ex)
+            {
+                Finn.Utils.ErrorLogger.Log(ex, "CalendarViewModel.LoadOrCreateStorage");
+            }
 
             EnsureTotalRow();
             OnPropertyChanged(nameof(SelectableProjects));
@@ -128,18 +131,33 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Saves the current CalendarStorage to Calendar.json.
+        /// Saves the current CalendarStorage to Calendar.json using atomic write.
         /// </summary>
-        public void SaveStorage(string savePath)
+        public async Task SaveStorageAsync(string savePath)
         {
             try
             {
                 if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
                 string file = Path.Combine(savePath, "Calendar.json");
+                string tmpFile = file + ".tmp";
+                string bakFile = file + ".bak";
+
+                // Prune empty entries before saving to keep Calendar.json compact (D1)
+                PruneEmptyEntries();
+
                 string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
-                File.WriteAllText(file, json);
+
+                await File.WriteAllTextAsync(tmpFile, json);
+
+                if (File.Exists(file))
+                    File.Copy(file, bakFile, overwrite: true);
+
+                File.Move(tmpFile, file, overwrite: true);
             }
-            catch { /* ignore IO/parse errors */ }
+            catch (Exception ex)
+            {
+                Finn.Utils.ErrorLogger.Log(ex, "CalendarViewModel.SaveStorageAsync");
+            }
         }
 
         #endregion
@@ -152,13 +170,8 @@ namespace Finn.ViewModels
             get => selectedDateTime;
             set
             {
-                var prevYear = selectedDateTime.Year;
-                var prevMonth = selectedDateTime.Month;
                 SetProperty(ref selectedDateTime, value, () =>
                 {
-                    if (prevYear != SelectedDateTime.Year || prevMonth != SelectedDateTime.Month)
-                        EnsureMonthEntries(SelectedDateTime.Year, SelectedDateTime.Month);
-
                     SelectedWeek = ISOWeek.GetWeekOfYear(SelectedDateTime);
                     SetCurrentCalendarData();
                     OnPropertyChanged(nameof(SelectedYear));
@@ -518,8 +531,18 @@ namespace Finn.ViewModels
         {
             EnsureTotalRow();
 
+            // Generate a unique name to prevent duplicate project entries
+            string baseName = "New";
+            string name = baseName;
+            int counter = 1;
+            while (TimeProjects.Any(x => x.Project == name))
+            {
+                name = $"{baseName} {counter}";
+                counter++;
+            }
+
             int idx = TimeProjects.IndexOf(TimeProjects.First(x => x.Project == TOTAL_PROJECT));
-            var newProject = new TimeSheetProjectData { Project = "New" };
+            var newProject = new TimeSheetProjectData { Project = name };
             TimeProjects.Insert(idx, newProject);
             CurrentTimeSheetProject = newProject;
             RefreshProjectSummaries();
@@ -563,9 +586,9 @@ namespace Finn.ViewModels
             int month = SelectedDateTime.Month;
             var selectedDate = DateOnly.FromDateTime(SelectedDateTime);
 
-            // Compute which week-of-month the selected date is in
-            int firstWeek = ISOWeek.GetWeekOfYear(new DateTime(year, month, 1));
-            int selectedWeekOfMonth = ISOWeek.GetWeekOfYear(new DateTime(year, month, selectedDate.Day)) - firstWeek;
+            // Use the same day-of-month arithmetic as CalendarData.WeekOfMonth
+            // to avoid ISOWeek wraparound issues (e.g. Jan 1 in ISO week 52).
+            int selectedWeekOfMonth = (selectedDate.Day - 1) / 7;
 
             var weekDays = GetMonthEntries(year, month)
                 .Where(x => x.WeekOfMonth == selectedWeekOfMonth)
@@ -652,17 +675,20 @@ namespace Finn.ViewModels
                 _dateIndex[cd.Date] = cd;
         }
 
-        private void EnsureMonthEntries(int year, int month)
+        /// <summary>
+        /// Removes calendar entries that have no meaningful data (no notes, no reminders,
+        /// no timesheets) to keep Calendar.json compact over time.
+        /// </summary>
+        private void PruneEmptyEntries()
         {
-            foreach (var day in Enumerable.Range(1, DateTime.DaysInMonth(year, month)))
+            var empties = CalendarList
+                .Where(cd => !cd.HasNote && !cd.HasTime && string.IsNullOrWhiteSpace(cd.Reminder))
+                .ToList();
+
+            foreach (var empty in empties)
             {
-                var date = new DateOnly(year, month, day);
-                if (!_dateIndex.ContainsKey(date))
-                {
-                    var entry = new CalendarData { Date = date };
-                    CalendarList.Add(entry);
-                    _dateIndex[date] = entry;
-                }
+                CalendarList.Remove(empty);
+                _dateIndex.Remove(empty.Date);
             }
         }
 

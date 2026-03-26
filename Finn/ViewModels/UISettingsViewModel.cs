@@ -1,5 +1,5 @@
 using System;
-using System.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Avalonia.Media;
 using Avalonia;
 using Avalonia.Styling;
@@ -7,7 +7,7 @@ using Avalonia.Themes.Fluent;
 
 namespace Finn.ViewModels
 {
-    public class UISettingsViewModel : INotifyPropertyChanged
+    public class UISettingsViewModel : ObservableObject
     {
         // Localized defaults moved here from Finn.Services.UIDefaults
         public static class Defaults
@@ -74,128 +74,128 @@ namespace Finn.ViewModels
         }
 
         private bool treeViewOpen;
-        public bool TreeViewOpen { get => treeViewOpen; set { treeViewOpen = value; RaisePropertyChanged(nameof(TreeViewOpen)); } }
+        public bool TreeViewOpen { get => treeViewOpen; set { treeViewOpen = value; OnPropertyChanged(nameof(TreeViewOpen)); } }
 
         private int treeViewWidth;
-        public int TreeViewWidth { get => treeViewWidth; set { treeViewWidth = value; RaisePropertyChanged(nameof(TreeViewWidth)); } }
+        public int TreeViewWidth { get => treeViewWidth; set { treeViewWidth = value; OnPropertyChanged(nameof(TreeViewWidth)); } }
 
         private int trayWidth;
-        public int TrayWidth { get => trayWidth; set { trayWidth = value; RaisePropertyChanged(nameof(TrayWidth)); } }
+        public int TrayWidth { get => trayWidth; set { trayWidth = value; OnPropertyChanged(nameof(TrayWidth)); } }
 
         private bool calendarOpen;
-        public bool CalendarOpen { get => calendarOpen; set { calendarOpen = value; RaisePropertyChanged(nameof(CalendarOpen)); } }
+        public bool CalendarOpen { get => calendarOpen; set { calendarOpen = value; OnPropertyChanged(nameof(CalendarOpen)); } }
 
         private bool timeSheetOpen;
-        public bool TimeSheetOpen { get => timeSheetOpen; set { timeSheetOpen = value; RaisePropertyChanged(nameof(TimeSheetOpen)); } }
+        public bool TimeSheetOpen { get => timeSheetOpen; set { timeSheetOpen = value; OnPropertyChanged(nameof(TimeSheetOpen)); } }
 
         private bool showFolders;
-        public bool ShowFolders { get => showFolders; set { showFolders = value; RaisePropertyChanged(nameof(ShowFolders)); } }
+        public bool ShowFolders { get => showFolders; set { showFolders = value; OnPropertyChanged(nameof(ShowFolders)); } }
 
         private bool showActionBar;
-        public bool ShowActionBar { get => showActionBar; set { showActionBar = value; RaisePropertyChanged(nameof(ShowActionBar)); } }
+        public bool ShowActionBar { get => showActionBar; set { showActionBar = value; OnPropertyChanged(nameof(ShowActionBar)); } }
 
         private bool showThumbnails;
-        public bool ShowThumbnails { get => showThumbnails; set { showThumbnails = value; RaisePropertyChanged(nameof(ShowThumbnails)); } }
+        public bool ShowThumbnails { get => showThumbnails; set { showThumbnails = value; OnPropertyChanged(nameof(ShowThumbnails)); } }
 
         private bool autoCacheNetworkFiles;
         /// <summary>
         /// When true, network files are automatically cached locally before
         /// previewing. Avoids locking server files and speeds up re-opens.
         /// </summary>
-        public bool AutoCacheNetworkFiles { get => autoCacheNetworkFiles; set { autoCacheNetworkFiles = value; RaisePropertyChanged(nameof(AutoCacheNetworkFiles)); } }
+        public bool AutoCacheNetworkFiles { get => autoCacheNetworkFiles; set { autoCacheNetworkFiles = value; OnPropertyChanged(nameof(AutoCacheNetworkFiles)); } }
 
         private bool previewDarkMode;
-        public bool PreviewDarkMode { get => previewDarkMode; set { previewDarkMode = value; RaisePropertyChanged(nameof(PreviewDarkMode)); } }
+        public bool PreviewDarkMode { get => previewDarkMode; set { previewDarkMode = value; OnPropertyChanged(nameof(PreviewDarkMode)); } }
 
         private Color color1;
-        public Color Color1 { get => color1; set { color1 = value; RaisePropertyChanged(nameof(Color1)); } }
+        public Color Color1 { get => color1; set { color1 = value; OnPropertyChanged(nameof(Color1)); } }
 
         private Color color2;
-        public Color Color2 { get => color2; set { color2 = value; RaisePropertyChanged(nameof(Color2)); } }
+        public Color Color2 { get => color2; set { color2 = value; OnPropertyChanged(nameof(Color2)); } }
 
         private Color color3;
-        public Color Color3 { get => color3; set { color3 = value; RaisePropertyChanged(nameof(Color3)); } }
+        public Color Color3 { get => color3; set { color3 = value; OnPropertyChanged(nameof(Color3)); } }
 
         private Color color4;
-        public Color Color4 { get => color4; set { color4 = value; RaisePropertyChanged(nameof(Color4)); } }
+        public Color Color4 { get => color4; set { color4 = value; OnPropertyChanged(nameof(Color4)); } }
 
         private bool cornerRadiusVal;
-        public bool CornerRadiusVal { get => cornerRadiusVal; set { cornerRadiusVal = value; RaisePropertyChanged(nameof(CornerRadiusVal)); SetCornerRadius(); } }
+        public bool CornerRadiusVal { get => cornerRadiusVal; set { cornerRadiusVal = value; OnPropertyChanged(nameof(CornerRadiusVal)); SetCornerRadius(); } }
 
         private CornerRadius cornerRadius;
-        public CornerRadius CornerRadius { get => cornerRadius; set { cornerRadius = value; RaisePropertyChanged(nameof(CornerRadius)); } }
+        public CornerRadius CornerRadius { get => cornerRadius; set { cornerRadius = value; OnPropertyChanged(nameof(CornerRadius)); } }
 
         private BoxShadows shadow;
-        public BoxShadows Shadow { get => shadow; set { shadow = value; RaisePropertyChanged(nameof(Shadow)); } }
+        public BoxShadows Shadow { get => shadow; set { shadow = value; OnPropertyChanged(nameof(Shadow)); } }
 
         private bool shadowVal;
-        public bool ShadowVal { get => shadowVal; set { shadowVal = value; RaisePropertyChanged(nameof(ShadowVal)); SetShadow(); } }
+        public bool ShadowVal { get => shadowVal; set { shadowVal = value; OnPropertyChanged(nameof(ShadowVal)); SetShadow(); } }
 
         private bool darkMode;
-        public bool DarkMode { get => darkMode; set { darkMode = value; RaisePropertyChanged(nameof(DarkMode)); RaisePropertyChanged(nameof(Theme)); } }
+        public bool DarkMode { get => darkMode; set { darkMode = value; OnPropertyChanged(nameof(DarkMode)); OnPropertyChanged(nameof(Theme)); } }
 
         public ThemeVariant Theme => DarkMode ? ThemeVariant.Dark : ThemeVariant.Light;
 
         private string font = string.Empty;
-        public string Font { get => font; set { font = value; RaisePropertyChanged(nameof(Font)); } }
+        public string Font { get => font; set { font = value; OnPropertyChanged(nameof(Font)); } }
 
         private int fontSize;
-        public int FontSize { get => fontSize; set { fontSize = value; RaisePropertyChanged(nameof(FontSize)); RaisePropertyChanged(nameof(FontSizeCompact)); } }
+        public int FontSize { get => fontSize; set { fontSize = value; OnPropertyChanged(nameof(FontSize)); OnPropertyChanged(nameof(FontSizeCompact)); } }
 
         /// <summary>FontSize - 2, for compact controls like calendar grids and timesheet entries.</summary>
         [Newtonsoft.Json.JsonIgnore]
         public int FontSizeCompact => Math.Max(fontSize - 2, 11);
 
         private bool showIcons;
-        public bool ShowIcons { get => showIcons; set { showIcons = value; RaisePropertyChanged(nameof(ShowIcons)); } }
+        public bool ShowIcons { get => showIcons; set { showIcons = value; OnPropertyChanged(nameof(ShowIcons)); } }
 
         private bool colorTagDot;
         /// <summary>
         /// When true, color tags are shown as a small colored dot instead of tinting the full row.
         /// </summary>
-        public bool ColorTagDot { get => colorTagDot; set { colorTagDot = value; RaisePropertyChanged(nameof(ColorTagDot)); RaisePropertyChanged(nameof(ColorTagRow)); } }
+        public bool ColorTagDot { get => colorTagDot; set { colorTagDot = value; OnPropertyChanged(nameof(ColorTagDot)); OnPropertyChanged(nameof(ColorTagRow)); } }
 
         /// <summary>Inverse of <see cref="ColorTagDot"/> for convenience bindings.</summary>
         [Newtonsoft.Json.JsonIgnore]
         public bool ColorTagRow => !colorTagDot;
 
         private bool trayNote;
-        public bool TrayNote { get => trayNote; set { trayNote = value; RaisePropertyChanged(nameof(TrayNote)); } }
+        public bool TrayNote { get => trayNote; set { trayNote = value; OnPropertyChanged(nameof(TrayNote)); } }
 
         private bool trayCollections;
-        public bool TrayCollections { get => trayCollections; set { trayCollections = value; RaisePropertyChanged(nameof(TrayCollections)); } }
+        public bool TrayCollections { get => trayCollections; set { trayCollections = value; OnPropertyChanged(nameof(TrayCollections)); } }
 
         private bool trayBookmarks;
-        public bool TrayBookmarks { get => trayBookmarks; set { trayBookmarks = value; RaisePropertyChanged(nameof(TrayBookmarks)); } }
+        public bool TrayBookmarks { get => trayBookmarks; set { trayBookmarks = value; OnPropertyChanged(nameof(TrayBookmarks)); } }
 
         private bool trayRecent;
-        public bool TrayRecent { get => trayRecent; set { trayRecent = value; RaisePropertyChanged(nameof(TrayRecent)); } }
+        public bool TrayRecent { get => trayRecent; set { trayRecent = value; OnPropertyChanged(nameof(TrayRecent)); } }
 
         private bool trayVersions;
-        public bool TrayVersions { get => trayVersions; set { trayVersions = value; RaisePropertyChanged(nameof(TrayVersions)); } }
+        public bool TrayVersions { get => trayVersions; set { trayVersions = value; OnPropertyChanged(nameof(TrayVersions)); } }
 
         private bool trayOtherFiles;
-        public bool TrayOtherFiles { get => trayOtherFiles; set { trayOtherFiles = value; RaisePropertyChanged(nameof(TrayOtherFiles)); } }
+        public bool TrayOtherFiles { get => trayOtherFiles; set { trayOtherFiles = value; OnPropertyChanged(nameof(TrayOtherFiles)); } }
 
         private bool trayAnnotations;
-        public bool TrayAnnotations { get => trayAnnotations; set { trayAnnotations = value; RaisePropertyChanged(nameof(TrayAnnotations)); } }
+        public bool TrayAnnotations { get => trayAnnotations; set { trayAnnotations = value; OnPropertyChanged(nameof(TrayAnnotations)); } }
 
         private bool showClock;
         /// <summary>Auto-toggled based on window height. Not persisted.</summary>
         [Newtonsoft.Json.JsonIgnore]
-        public bool ShowClock { get => showClock; set { showClock = value; RaisePropertyChanged(nameof(ShowClock)); } }
+        public bool ShowClock { get => showClock; set { showClock = value; OnPropertyChanged(nameof(ShowClock)); } }
 
         private bool trayViewOpen;
-        public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; RaisePropertyChanged(nameof(TrayViewOpen)); } }
+        public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; OnPropertyChanged(nameof(TrayViewOpen)); } }
 
         private bool previewEmbeddedOpen;
-        public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; RaisePropertyChanged(nameof(PreviewEmbeddedOpen)); } }
+        public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); } }
 
         private bool showBorders;
-        public bool ShowBorders { get => showBorders; set { showBorders = value; RaisePropertyChanged(nameof(ShowBorders)); SetBorderThickness(); } }
+        public bool ShowBorders { get => showBorders; set { showBorders = value; OnPropertyChanged(nameof(ShowBorders)); SetBorderThickness(); } }
 
         private Thickness borderThickness;
-        public Thickness BorderThickness { get => borderThickness; set { borderThickness = value; RaisePropertyChanged(nameof(BorderThickness)); } }
+        public Thickness BorderThickness { get => borderThickness; set { borderThickness = value; OnPropertyChanged(nameof(BorderThickness)); } }
 
         private void SetBorderThickness()
         {
@@ -217,13 +217,6 @@ namespace Finn.ViewModels
             else
                 Shadow = new BoxShadows();
         }
-
-        private void RaisePropertyChanged(string propName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
 
         // Convert the runtime UI viewmodel into the lightweight storage DTO
         public Finn.Storage.UIStorage ToStorage()

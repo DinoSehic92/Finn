@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using System.IO;
 
 namespace Finn.Model
@@ -19,7 +19,7 @@ namespace Finn.Model
     /// <summary>
     /// Represents a folder and its metadata.
     /// </summary>
-    public class FolderData : INotifyPropertyChanged
+    public class FolderData : ObservableObject
     {
         private string name = string.Empty;
         /// <summary>
@@ -28,7 +28,7 @@ namespace Finn.Model
         public string Name
         {
             get => name;
-            set { name = value; RaisePropertyChanged(nameof(Name)); }
+            set { name = value; OnPropertyChanged(nameof(Name)); }
         }
 
         private string path = string.Empty;
@@ -38,7 +38,7 @@ namespace Finn.Model
         public string Path
         {
             get => path;
-            set { path = value; RaisePropertyChanged(nameof(Path)); }
+            set { path = value; OnPropertyChanged(nameof(Path)); }
         }
 
         private string types = string.Empty;
@@ -48,21 +48,21 @@ namespace Finn.Model
         public string Types
         {
             get => types;
-            set { types = value; RaisePropertyChanged(nameof(Types)); }
+            set { types = value; OnPropertyChanged(nameof(Types)); }
         }
 
         private string? attachToFile;
         public string? AttachToFile
         {
             get { return attachToFile; }
-            set { attachToFile = value; RaisePropertyChanged("AttachToFile"); }
+            set { attachToFile = value; OnPropertyChanged(nameof(AttachToFile)); }
         }
 
         private string? attachToFilePath = null;
         public string? AttachToFilePath
         {
             get { return attachToFilePath; }
-            set { attachToFilePath = value; RaisePropertyChanged("AttachToFilePath"); }
+            set { attachToFilePath = value; OnPropertyChanged(nameof(AttachToFilePath)); }
         }
 
         private int syncedFileCount;
@@ -72,7 +72,7 @@ namespace Finn.Model
         public int SyncedFileCount
         {
             get => syncedFileCount;
-            set { syncedFileCount = value; RaisePropertyChanged(nameof(SyncedFileCount)); }
+            set { syncedFileCount = value; OnPropertyChanged(nameof(SyncedFileCount)); }
         }
 
         /// <summary>
@@ -135,11 +135,5 @@ namespace Finn.Model
         {
             return Directory.Exists(Path);
         }
-
-        private void RaisePropertyChanged(string propName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
-        }
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

@@ -77,12 +77,27 @@ namespace Finn.ViewModels
         /// </summary>
         private static string GetThumbnailFileName(FileData file)
         {
-            // Use a short hash of the full path for uniqueness, prefixed with
+            // Use a deterministic hash of the full path for uniqueness, prefixed with
             // the display name for human readability when browsing the folder.
             string safe = string.Concat(file.Namn.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
             if (safe.Length > 60) safe = safe[..60];
-            int hash = file.Sökväg.GetHashCode(StringComparison.OrdinalIgnoreCase);
+            uint hash = StableHash(file.Sökväg);
             return $"{safe}_{hash:X8}.jpeg";
+        }
+
+        /// <summary>
+        /// FNV-1a hash that is deterministic across process restarts
+        /// (unlike string.GetHashCode which is randomized in .NET Core+).
+        /// </summary>
+        private static uint StableHash(string input)
+        {
+            uint hash = 2166136261;
+            foreach (char c in input)
+            {
+                hash ^= char.ToUpperInvariant(c);
+                hash *= 16777619;
+            }
+            return hash;
         }
 
         /// <summary>
