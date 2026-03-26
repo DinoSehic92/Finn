@@ -128,33 +128,36 @@ namespace Finn.ViewModels
 
                 var mainWindow = topLevel as Window;
                 await AddFilesWithVersionCheck(
-                    files.Select(f => f.Path.LocalPath), mainWindow);
+                    files.Select(f => f.Path.LocalPath), mainWindow, "File Picker");
             }
 
             /// <summary>
             /// Adds files to the current project. Files that match an existing entry
             /// by name are collected and presented in a version-import dialog so the
             /// user can choose the label before they are registered as versions.
-            /// Uses HashSet lookups and batch additions for performance with large
-            /// file counts (e.g. drag-and-drop from a slow network share).
+            /// Shows an import confirmation dialog so the user can review files,
+            /// pick a category, and remove unwanted entries before importing.
             /// </summary>
-            public async Task AddFilesWithVersionCheck(IEnumerable<string> paths, Window? mainWindow)
+            public async Task AddFilesWithVersionCheck(IEnumerable<string> paths, Window? mainWindow, string source = "Added")
             {
                 // Build O(1) lookup structures to avoid linear scans per file
                 var existingPaths = BuildKnownPathSet();
                 var existingByName = BuildFileNameLookup();
 
-                // When a specific type is selected, assign it to new files so
-                // they appear immediately in the current filtered view.
-                string assignedType = (Type != null && Type != ALL_TYPES) ? Type : "New";
+                // When a specific type is selected, use it as the default category
+                string defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
 
-                var newFiles = new List<FileData>();
+                var candidatePaths = new List<(string Path, string Source)>();
                 var versionCandidates = new List<VersionImportEntry>();
+                int skippedCount = 0;
 
                 foreach (string path in paths)
                 {
                     if (existingPaths.Contains(path))
+                    {
+                        skippedCount++;
                         continue;
+                    }
 
                     string fileName = System.IO.Path.GetFileNameWithoutExtension(path);
 
@@ -168,23 +171,50 @@ namespace Finn.ViewModels
                     }
                     else
                     {
-                        var fileData = new FileData
-                        {
-                            Namn = fileName,
-                            Filtyp = assignedType,
-                            Uppdrag = CurrentProject.Namn,
-                            Sökväg = path
-                        };
-                        newFiles.Add(fileData);
-                        // Track so subsequent duplicates in the same drop are caught
+                        candidatePaths.Add((path, source));
                         existingPaths.Add(path);
-                        existingByName.TryAdd(fileName, fileData);
+                        existingByName.TryAdd(fileName, null!);
                     }
                 }
 
-                // Batch-add: single Reset notification + single SetFiletypeList call
-                if (newFiles.Count > 0)
-                    CurrentProject.AddFiles(newFiles);
+                // Show import dialog for new files
+                if (candidatePaths.Count > 0 && mainWindow != null)
+                {
+                    var dialog = new Dialogs.xImportDia
+                    {
+                        DataContext = this,
+                        RequestedThemeVariant = mainWindow.ActualThemeVariant
+                    };
+                    dialog.SetFiles(candidatePaths, skippedCount, CurrentProject.AllowedTypes, defaultCategory);
+                    await dialog.ShowDialog(mainWindow);
+
+                    if (dialog.Confirmed)
+                    {
+                        string assignedType = dialog.SelectedCategory;
+                        var acceptedSet = new HashSet<string>(dialog.AcceptedPaths, StringComparer.OrdinalIgnoreCase);
+
+                        var newFiles = new List<FileData>();
+                        foreach (var (path, _) in candidatePaths)
+                        {
+                            if (!acceptedSet.Contains(path)) continue;
+                            newFiles.Add(new FileData
+                            {
+                                Namn = System.IO.Path.GetFileNameWithoutExtension(path),
+                                Filtyp = assignedType,
+                                Uppdrag = CurrentProject.Namn,
+                                Sökväg = path
+                            });
+                        }
+
+                        if (newFiles.Count > 0)
+                            CurrentProject.AddFiles(newFiles);
+                    }
+                    else
+                    {
+                        // User cancelled — skip version dialog too
+                        return;
+                    }
+                }
 
                 bool versionsAdded = false;
                 if (versionCandidates.Count > 0 && mainWindow != null)
@@ -198,10 +228,8 @@ namespace Finn.ViewModels
                     }
                 }
 
-                if (newFiles.Count > 0 || versionsAdded)
+                if (candidatePaths.Count > 0 || versionsAdded)
                 {
-                    // Stay in the current filter so the user sees their new files
-                    // without being navigated away to "All Types".
                     UpdateFilter();
                     MarkDirty();
                 }

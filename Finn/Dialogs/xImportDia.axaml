@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+mc:Ignorable="d" Width="520" Height="440" MinWidth="380" MinHeight="320"
+xmlns:ic="using:FluentIcons.Avalonia"
+x:Class="Finn.Dialogs.xImportDia" Title="Import Files"
+xmlns:vm="clr-namespace:Finn.ViewModels"
+CanResize="True" WindowStartupLocation="CenterOwner"
+ExtendClientAreaToDecorationsHint="True" x:DataType="vm:MainViewModel">
+<Window.Styles>
+<Style Selector="Button.accent">
+<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+<Setter Property="FontWeight" Value="SemiBold"/>
+<Setter Property="FontSize" Value="15"/>
+</Style>
+<Style Selector="Button.normal">
+<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+<Setter Property="FontWeight" Value="SemiBold"/>
+<Setter Property="FontSize" Value="15"/>
+</Style>
+</Window.Styles>
+<Grid RowDefinitions="30,Auto,*,Auto,Auto" Margin="0">
+<Panel Grid.Row="0" IsHitTestVisible="False"/>
+<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
+<Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+<ic:SymbolIcon Symbol="DocumentAdd" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+</Border>
+<TextBlock Name="HeaderText" Text="Import Files" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+<TextBlock Name="SubHeaderText" FontSize="12" Opacity="0.7" HorizontalAlignment="Center"/>
+</StackPanel>
+<DataGrid Name="FileListGrid" Grid.Row="2" Margin="5" AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None" SelectionMode="Extended" CanUserReorderColumns="False">
+<DataGrid.Columns>
+<DataGridTextColumn Header="Name" Binding="{ReflectionBinding Name}" Width="3*" MinWidth="160"/>
+<DataGridTextColumn Header="Source" Binding="{ReflectionBinding Source}" Width="2*" MinWidth="80"/>
+</DataGrid.Columns>
+<DataGrid.ContextMenu>
+<ContextMenu>
+<MenuItem Header="Remove Selected" Click="OnRemoveSelected">
+<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+</MenuItem>
+</ContextMenu>
+</DataGrid.ContextMenu>
+</DataGrid>
+<StackPanel Grid.Row="3" Orientation="Vertical" Spacing="4" Margin="16,4,16,0">
+<StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+<TextBlock Text="Category:" VerticalAlignment="Center" FontSize="13"/>
+<ComboBox Name="CategoryCombo" Width="160" Height="30" FontSize="13"/>
+</StackPanel>
+<TextBlock Name="StatusText" FontSize="12" Opacity="0.6" HorizontalAlignment="Center"/>
+</StackPanel>
+<StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,10,0,16">
+<Button Name="AcceptButton" HotKey="Enter" Width="70" Classes="accent" Content="Accept" Click="OnAccept" IsEnabled="False"/>
+<Button Name="CancelButton" HotKey="Escape" Width="70" Classes="normal" Content="Cancel" Click="OnCancel"/>
+</StackPanel>
+</Grid>
+</Window>

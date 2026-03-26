@@ -92,14 +92,14 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Async version of <see cref="AddDroppedFiles"/> that shows a version-import
-        /// dialog when any of the dropped files match existing entries by name.
+        /// Async version of <see cref="AddDroppedFiles"/> that shows an import
+        /// dialog when files are dropped, letting the user confirm and pick a category.
         /// </summary>
         public async Task AddDroppedFilesAsync(IEnumerable<string> paths, Window mainWindow)
         {
             if (IsSearchResult) return;
 
-            await AddFilesWithVersionCheck(paths, mainWindow);
+            await AddFilesWithVersionCheck(paths, mainWindow, "Dropped");
             UpdateTreeview();
         }
 

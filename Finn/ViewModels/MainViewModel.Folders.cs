@@ -214,11 +214,15 @@ namespace Finn.ViewModels
                     var actualAdds = new List<FileData>();
                     var versionCandidates = new List<VersionImportEntry>();
                     var filesByName = BuildFileNameLookup();
+                    int skippedCount = 0;
 
                     foreach (FileData file in filesToAdd)
                     {
                         if (CurrentProject.StoredFiles.Any(x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            skippedCount++;
                             continue;
+                        }
 
                         if (filesByName.TryGetValue(file.Namn, out var existing))
                         {
@@ -234,8 +238,39 @@ namespace Finn.ViewModels
                         }
                     }
 
-                    if (actualAdds.Count > 0)
+                    // Show import dialog for folder-synced files
+                    if (actualAdds.Count > 0 && mainWindow != null)
+                    {
+                        string folderName = new DirectoryInfo(folder.Path).Name;
+                        string defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
+
+                        var candidatePaths = actualAdds.Select(f => (f.Sökväg, folderName)).ToList();
+                        var dialog = new Dialogs.xImportDia
+                        {
+                            DataContext = this,
+                            RequestedThemeVariant = mainWindow.ActualThemeVariant
+                        };
+                        dialog.SetFiles(candidatePaths, skippedCount, CurrentProject.AllowedTypes, defaultCategory);
+                        await dialog.ShowDialog(mainWindow);
+
+                        if (dialog.Confirmed)
+                        {
+                            string assignedType = dialog.SelectedCategory;
+                            var acceptedSet = new HashSet<string>(dialog.AcceptedPaths, StringComparer.OrdinalIgnoreCase);
+
+                            var confirmed = actualAdds.Where(f => acceptedSet.Contains(f.Sökväg)).ToList();
+                            foreach (var f in confirmed)
+                                f.Filtyp = assignedType;
+
+                            if (confirmed.Count > 0)
+                                CurrentProject.StoredFiles.AddRange(confirmed);
+                        }
+                    }
+                    else if (actualAdds.Count > 0)
+                    {
+                        // No window available (e.g. auto-sync) — add directly
                         CurrentProject.StoredFiles.AddRange(actualAdds);
+                    }
 
                     if (versionCandidates.Count > 0 && mainWindow != null)
                     {

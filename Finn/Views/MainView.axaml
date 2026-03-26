@@ -920,17 +920,11 @@
 						</Calendar.Styles>
 					</Calendar>
 					<Grid ColumnDefinitions="40,*,40">
-						<Border Name="SelectedDateWeek" Grid.Column="1"
-								BorderBrush="{DynamicResource SystemAccentColor}"
-								CornerRadius="{Binding UI.CornerRadius}"
-								BorderThickness="1"
-								Padding="8,3,8,3" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center">
-							<StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="8">
-								<TextBlock Text="{Binding Calendar.CurrentCalendarData.Date}" FontWeight="SemiBold" FontSize="{Binding UI.FontSize}"/>
-								<TextBlock Text="| week" FontSize="{Binding UI.FontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-								<TextBlock Text="{Binding Calendar.SelectedWeek}" FontWeight="SemiBold" FontSize="{Binding UI.FontSize}"/>
-							</StackPanel>
-						</Border>
+						<StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8">
+							<TextBlock Text="{Binding Calendar.CurrentCalendarData.Date}" FontWeight="SemiBold" FontSize="{Binding UI.FontSize}"/>
+							<TextBlock Text="| week" FontSize="{Binding UI.FontSize}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+							<TextBlock Text="{Binding Calendar.SelectedWeek}" FontWeight="SemiBold" FontSize="{Binding UI.FontSize}"/>
+						</StackPanel>
 						<Button Grid.Column="2" Width="35" Command="{Binding Calendar.ResetDate}">
 							<ic:SymbolIcon Symbol="ArrowCircleLeft" FontSize="18"/>
 						</Button>
