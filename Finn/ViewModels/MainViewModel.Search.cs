@@ -21,7 +21,7 @@ namespace Finn.ViewModels
                     SearchFiles();
                 }
 
-                OnPropertyChanged("UpdateColumns");
+                SignalColumnsChanged();
             }
 
             public async Task SearchIndexAsync()

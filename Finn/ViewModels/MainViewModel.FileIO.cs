@@ -96,14 +96,30 @@ namespace Finn.ViewModels
                 Storage = new ProjectStorage();
                 try // Trying reading v.2 save file
                 {
-                    Storage = JsonConvert.DeserializeObject<ProjectStorage>(fileContent);
+                    var deserialized = JsonConvert.DeserializeObject<ProjectStorage>(fileContent);
+                    if (deserialized != null)
+                        Storage = deserialized;
                 }
                 catch // If not, try read as v.1 save file
                 {
-                    Storage.StoredProjects = JsonConvert.DeserializeObject<ObservableCollection<ProjectData>>(fileContent);
-                    RemoveProjects(Storage.StoredProjects.Where(x => x.Category == SEARCH_CATEGORY).ToList());
-                    RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Favorites").ToList());
+                    try
+                    {
+                        var projects = JsonConvert.DeserializeObject<ObservableCollection<ProjectData>>(fileContent);
+                        if (projects != null)
+                        {
+                            Storage.StoredProjects = projects;
+                            RemoveProjects(Storage.StoredProjects.Where(x => x.Category == SEARCH_CATEGORY).ToList());
+                            RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Favorites").ToList());
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.ErrorLogger.Log(ex, "DeserializeLoadFile: failed to parse v1 and v2 format");
+                    }
                 }
+
+                // Guard against null collections from partial/corrupt JSON
+                Storage.StoredProjects ??= new ObservableCollection<ProjectData>();
 
                 // Clear ThumbnailSource for any file whose thumbnail no longer exists on disk
                 // and wire ParentFile back-references for appended files.
@@ -199,10 +215,24 @@ namespace Finn.ViewModels
                     }
 
                     string path = Path.Combine(SavePath, "Projects.json");
+                    string tmpPath = path + ".tmp";
+                    string bakPath = path + ".bak";
                     try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
                     var data = JsonConvert.SerializeObject(Storage);
-                    await File.WriteAllTextAsync(path, data);
+
+                    // Write to a temp file first, then swap atomically to prevent
+                    // data loss if the app crashes or is killed mid-write.
+                    await File.WriteAllTextAsync(tmpPath, data);
+
+                    if (File.Exists(path))
+                    {
+                        // Keep one backup of the previous save
+                        File.Copy(path, bakPath, overwrite: true);
+                    }
+
+                    File.Move(tmpPath, path, overwrite: true);
+
                     Calendar.SaveStorage(SavePath);
                     ClearDirty();
                     PreviewVM.StatusMessage = "Saved";

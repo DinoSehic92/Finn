@@ -3004,6 +3004,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         base.Render(context);
 
+        try
+        {
+            RenderAnnotations(context);
+        }
+        catch (Exception ex)
+        {
+            Finn.Utils.ErrorLogger.Log(ex, "AnnotatedPDFRenderer.Render");
+        }
+    }
+
+    private void RenderAnnotations(DrawingContext context)
+    {
         // Draw the diff overlay between PDF content and annotations
         if (HasDiffOverlay)
         {

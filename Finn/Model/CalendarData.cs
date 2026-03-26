@@ -3,7 +3,6 @@ using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Globalization;
 using System.Linq;
 
 namespace Finn.Model
@@ -35,16 +34,17 @@ namespace Finn.Model
         }
 
         /// <summary>
-        /// Gets the week of the month for this date.
+        /// Gets the week of the month for this date (0-based).
+        /// Uses day-of-month arithmetic to avoid ISO week wraparound issues
+        /// (e.g. January 1st in ISO week 52 of the previous year).
         /// </summary>
         [JsonIgnore]
         public int WeekOfMonth
         {
             get
             {
-                int firstWeek = ISOWeek.GetWeekOfYear(new DateTime(Date.Year, Date.Month, 1));
-                int currentWeek = ISOWeek.GetWeekOfYear(new DateTime(Date.Year, Date.Month, Date.Day));
-                return currentWeek - firstWeek;
+                // Week 0 = days 1–7, week 1 = days 8–14, etc.
+                return (Date.Day - 1) / 7;
             }
         }
 

@@ -35,7 +35,7 @@ namespace Finn.ViewModels
                         CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && x.SyncFolder == folder.Path);
                         UpdateFilter();
                         CurrentProject.Folders.Remove(folder);
-                        OnPropertyChanged("TreeViewUpdate");
+                        SignalTreeViewUpdate();
                     }
                     else
                     {
@@ -79,10 +79,17 @@ namespace Finn.ViewModels
 
             public async Task SyncFoldersAsync(List<FolderData> folders, Window? mainWindow = null)
             {
+                int fileCountBefore = CurrentProject.StoredFiles.Count;
+
                 foreach (var folder in folders)
                 {
                     await SyncFolderAsync(folder, mainWindow);
                 }
+
+                int added = CurrentProject.StoredFiles.Count - fileCountBefore;
+                PreviewVM.StatusMessage = added > 0
+                    ? $"Sync complete — {added} file(s) added"
+                    : "All folders up to date";
             }
 
             /// <summary>

@@ -139,7 +139,7 @@ namespace Finn.ViewModels
             {
                 SetProject(name);
             }
-            OnPropertyChanged("UpdateColumns");
+            SignalColumnsChanged();
         }
 
         public void SelectProjectAsync(ProjectData project)
@@ -176,13 +176,13 @@ namespace Finn.ViewModels
                 OnPropertyChanged(nameof(IsSearchResult));
             }
             OnPropertyChanged(nameof(Type));
-            OnPropertyChanged("UpdateColumns");
+            SignalColumnsChanged();
         }
 
         public void ReselectProject()
         {
             SetProject(CurrentProject.Namn);
-            OnPropertyChanged("UpdateColumns");
+            SignalColumnsChanged();
         }
 
         public void SetProjecCategory(string name)

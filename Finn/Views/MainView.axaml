@@ -442,7 +442,6 @@
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+S" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Save" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+Q" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Tree View" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+E" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Tray" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+A" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Attached Files" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+L" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Folders" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+T" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Thumbnails" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+W" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Preview Window" FontSize="13"/></Grid>

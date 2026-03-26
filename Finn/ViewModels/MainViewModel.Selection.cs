@@ -25,7 +25,7 @@ namespace Finn.ViewModels
             {
                 Type = name;
             }
-            OnPropertyChanged("UpdateColumns");
+            SignalColumnsChanged();
         }
 
         public void AddPlaceholderFile(string name)
@@ -40,7 +40,7 @@ namespace Finn.ViewModels
 
             CurrentProject.StoredFiles.Add(newfile);
             UpdateFilter();
-            OnPropertyChanged("TreeViewUpdate");
+            SignalTreeViewUpdate();
             MarkDirty();
         }
 
@@ -173,7 +173,7 @@ namespace Finn.ViewModels
 
         public void UpdateTreeview()
         {
-            OnPropertyChanged("TreeViewUpdate");
+            SignalTreeViewUpdate();
         }
     }
 }

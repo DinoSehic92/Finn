@@ -5,7 +5,6 @@ using Finn.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ namespace Finn.ViewModels
         /// <summary>
         /// Main view model for the application, handles core logic and state.
         /// </summary>
-        public partial class MainViewModel : ViewModelBase, INotifyPropertyChanged
+        public partial class MainViewModel : ViewModelBase
         {
             // Constants for magic strings
             private const string ALL_TYPES = "All Types";
@@ -193,7 +192,6 @@ namespace Finn.ViewModels
                 {
                     currentFiles = value;
                     ClearSelectedVersion();
-                    OnPropertyChanged("FiletypesTree");
                     OnPropertyChanged(nameof(CurrentFiles));
                     OnPropertyChanged(nameof(CurrentFile));
                     OnPropertyChanged(nameof(OtherFilesOwner));
@@ -346,6 +344,22 @@ namespace Finn.ViewModels
             {
                 IsDirty = false;
             }
+
+            #endregion
+
+            #region View Signals
+
+            /// <summary>Raised when DataGrid columns need to be refreshed (project switch, search, type change).</summary>
+            public event Action? ColumnsChanged;
+            internal void SignalColumnsChanged() => ColumnsChanged?.Invoke();
+
+            /// <summary>Raised when the tree view needs to be rebuilt.</summary>
+            public event Action? TreeViewUpdateRequested;
+            internal void SignalTreeViewUpdate() => TreeViewUpdateRequested?.Invoke();
+
+            /// <summary>Raised when the font family or size changes.</summary>
+            public event Action? FontChanged;
+            internal void SignalFontChanged() => FontChanged?.Invoke();
 
             #endregion
 

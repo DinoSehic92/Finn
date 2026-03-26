@@ -64,14 +64,14 @@ namespace Finn.ViewModels
                 // Let the dialog inherit the app-level theme so toggling
                 // DarkMode inside the dialog updates it in real-time.
                 window.RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Default;
-                window.FontCombo.SelectionChanged += SignalFontChanged;
-                window.FontSizeCombo.SelectionChanged += SignalFontChanged;
+                window.FontCombo.SelectionChanged += OnFontComboChanged;
+                window.FontSizeCombo.SelectionChanged += OnFontComboChanged;
                 window.ShowDialog(mainWindow);
             }
 
-            private void SignalFontChanged(object sender, SelectionChangedEventArgs e)
+            private void OnFontComboChanged(object? sender, SelectionChangedEventArgs e)
             {
-                OnPropertyChanged("FontChanged");
+                SignalFontChanged();
             }
 
             public void OpenMetaEditDia(Window mainWindow)

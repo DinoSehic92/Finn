@@ -91,6 +91,9 @@ public partial class MainView : UserControl
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
         _ctx.PreviewVM.PropertyChanged += OnPreviewPropertyChanged;
+        _ctx.ColumnsChanged += () => { OnUpdateColumns(); UpdateEmptyState(); };
+        _ctx.TreeViewUpdateRequested += () => _ctx.BuildTreeData();
+        _ctx.FontChanged += () => UpdateFont();
 
         UpdateFont();
         UpdateMainGrid();
@@ -134,7 +137,6 @@ public partial class MainView : UserControl
         switch (e.PropertyName)
         {
             case nameof(MainViewModel.FilteredFiles):
-            case "UpdateColumns":
                 OnUpdateColumns();
                 UpdateEmptyState();
                 break;
@@ -143,12 +145,6 @@ public partial class MainView : UserControl
                 break;
             case nameof(MainViewModel.PreviewWindowOpen):
                 OnTogglePreviewWindow();
-                break;
-            case "FontChanged":
-                UpdateFont();
-                break;
-            case "TreeViewUpdate":
-                _ctx.BuildTreeData();
                 break;
             case nameof(MainViewModel.NrFilteredFiles):
                 UpdateEmptyState();

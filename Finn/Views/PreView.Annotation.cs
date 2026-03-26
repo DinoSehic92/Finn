@@ -953,6 +953,8 @@ public partial class PreView
     private void OnInkPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!_annotateMode) return;
+        try
+        {
         var point = e.GetCurrentPoint(MuPDFRenderer);
 
         // Space+left-click: pan (Figma-style)
@@ -1380,11 +1382,15 @@ public partial class PreView
                 MuPDFRenderer.BeginStroke(pdfPoint.Value);
                 break;
         }
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnInkPointerPressed"); }
     }
 
     private void OnInkPointerMoved(object? sender, PointerEventArgs e)
     {
         if (!_annotateMode) return;
+        try
+        {
 
         if (_middlePanning)
         {
@@ -1673,11 +1679,15 @@ public partial class PreView
                 MuPDFRenderer.AddPoint(pdfPoint.Value);
                 break;
         }
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnInkPointerMoved"); }
     }
 
     private void OnInkPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
         if (!_annotateMode) return;
+        try
+        {
 
         if (_middlePanning)
         {
@@ -1687,7 +1697,6 @@ public partial class PreView
             MuPDFRenderer.Cursor = _spaceHeld ? CursorHand : GetToolCursor(MuPDFRenderer.ActiveTool);
             return;
         }
-
         if (!_inkDrawing) return;
         _inkDrawing = false;
         e.Pointer.Capture(null);
@@ -1762,6 +1771,8 @@ public partial class PreView
                 MuPDFRenderer.UpdateCursorPreview(null);
                 break;
         }
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnInkPointerReleased"); }
     }
 
     private void OnAnnotateColor(object sender, RoutedEventArgs e)
