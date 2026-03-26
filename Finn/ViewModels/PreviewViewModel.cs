@@ -156,6 +156,23 @@ namespace Finn.ViewModels
         private MuPDFContext? secondaryContext = null;
         private int _secondaryCloseGen;
         private int _dualViewGen;
+
+        /// <summary>
+        /// Atomically swaps the secondary document and context fields, disposing the
+        /// old ones in the correct order (document before context). Prevents the GC
+        /// finalizer crash where a document is finalized after its context is already gone.
+        /// Must be called on the UI thread when the renderer is not using the old document.
+        /// </summary>
+        private void SwapSecondaryDocument(MuPDFDocument? newDoc, MuPDFContext? newCtx)
+        {
+            var oldDoc = secondaryFile;
+            var oldCtx = secondaryContext;
+            secondaryFile = newDoc;
+            secondaryContext = newCtx;
+            // Dispose in strict order: document first, then context
+            try { oldDoc?.Dispose(); } catch { }
+            try { oldCtx?.Dispose(); } catch { }
+        }
         #endregion
 
         #region File Properties
@@ -733,7 +750,10 @@ namespace Finn.ViewModels
 
                 if (CurrentFile != null)
                     _ = SetMainPageAsync();
-                if (DualFileMode && CurrentFile2 != null)
+                // Skip secondary init when diff mode is active — the View's
+                // SyncDiffOverlay will set up the secondary renderer with the
+                // correct layout (Toggle/SBS) after this method returns.
+                if (!_diffOverlayActive && DualFileMode && CurrentFile2 != null)
                     _ = SetSecondaryPageAsync();
             }
             catch (Exception ex)
@@ -1153,17 +1173,13 @@ namespace Finn.ViewModels
                     try
                     {
                         secondaryRenderer?.ReleaseResources();
-                        secondaryFile?.Dispose();
-                        secondaryContext?.Dispose();
+                        SwapSecondaryDocument(null, null);
                     }
                     catch (Exception ex)
                     {
                         logger?.LogWarning(ex, "Error during secondary dispose");
                     }
                 }).GetTask().ConfigureAwait(false);
-
-                secondaryFile = null;
-                secondaryContext = null;
 
                 // Unpin cached path now that the native handle is closed
                 UnpinSecondaryCachePath();
@@ -1244,8 +1260,7 @@ namespace Finn.ViewModels
                 UnpinSecondaryCachePath();
                 _secondaryPinnedCachePath = secondaryCachedLocally ? filePath : null;
 
-                secondaryFile = newDoc;
-                secondaryContext = newContext;
+                SwapSecondaryDocument(newDoc, newContext);
                 Pagecount2 = newDoc.Pages.Count;
                 CurrentFile2 = file;
 

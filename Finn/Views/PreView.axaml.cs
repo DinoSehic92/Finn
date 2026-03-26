@@ -294,19 +294,24 @@ public partial class PreView : UserControl
     }
 
     /// <summary>Synchronous overload — only use when the caller cannot await (e.g., PropertyChanged handler).
-    /// Fires disposal as fire-and-forget; prefer CloseDiffViewsAsync when possible.</summary>
+    /// Cancels the secondary document open and fires disposal as fire-and-forget;
+    /// prefer CloseDiffViewsAsync when possible.</summary>
     private void CloseDiffViews()
     {
         if (_diffToggleOpen)
         {
             _diffToggleOpen = false;
             CloseDiffToggleSync();
+            // Cancel any in-flight secondary open so a racing OpenDiffToggle
+            // won't assign a new document after we start disposing.
+            pwr.CancelSecondaryOpen();
             _ = pwr.CloseDiffToggleAsync();
         }
         if (_diffSideBySideOpen)
         {
             _diffSideBySideOpen = false;
             StopDisplayAreaSync();
+            pwr.CancelSecondaryOpen();
             _ = pwr.CloseDiffSideBySideAsync();
         }
         // Clear secondary layers to prevent stale diff annotations.
@@ -560,6 +565,12 @@ public partial class PreView : UserControl
         MuPDFRendererSecondary.AddHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
 
         ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
+
+        // Re-sync diff view state after renderer swap (e.g. embedded → windowed).
+        // The ViewModel retains diff state (DiffOverlayActive, DualFileMode) but
+        // this PreView instance has fresh _diffToggleOpen/_diffSideBySideOpen flags.
+        if (pwr.DiffOverlayActive)
+            SyncDiffOverlay();
     }
 
     /// <summary>

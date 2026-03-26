@@ -1056,8 +1056,7 @@ namespace Finn.ViewModels
                         return;
                     }
 
-                    secondaryFile = newDoc;
-                    secondaryContext = newCtx;
+                    SwapSecondaryDocument(newDoc, newCtx);
                     Pagecount2 = newDoc.Pages.Count;
                     CurrentFile2 = null;
                 }
@@ -1141,8 +1140,7 @@ namespace Finn.ViewModels
                         return false;
                     }
 
-                    secondaryFile = newDoc;
-                    secondaryContext = newCtx;
+                    SwapSecondaryDocument(newDoc, newCtx);
                     Pagecount2 = newDoc.Pages.Count;
                     CurrentFile2 = null;
                 }
