@@ -8,19 +8,14 @@ namespace Finn.Converters
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return (int)value + 1;
+            return value is int i ? i + 1 : 0;
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            try
-            {
-                return Int32.Parse(value.ToString()) - 1;
-            }
-            catch
-            {
-                return 0;
-            }
+            if (value is int i) return i - 1;
+            if (int.TryParse(value?.ToString(), out int parsed)) return parsed - 1;
+            return 0;
         }
     }
 }

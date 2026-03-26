@@ -184,23 +184,34 @@ namespace Finn.ViewModels
                     using var streamWriter = new StreamWriter(stream);
                     var data = JsonConvert.SerializeObject(Storage);
                     await streamWriter.WriteLineAsync(data);
+                    Calendar.SaveStorage(SavePath);
                     ClearDirty();
                 }
             }
 
             public async Task SaveFileAuto()
             {
-                if (!Directory.Exists(SavePath))
+                try
                 {
-                    Directory.CreateDirectory(SavePath);
+                    if (!Directory.Exists(SavePath))
+                    {
+                        Directory.CreateDirectory(SavePath);
+                    }
+
+                    string path = Path.Combine(SavePath, "Projects.json");
+                    try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
+
+                    var data = JsonConvert.SerializeObject(Storage);
+                    await File.WriteAllTextAsync(path, data);
+                    Calendar.SaveStorage(SavePath);
+                    ClearDirty();
+                    PreviewVM.StatusMessage = "Saved";
                 }
-
-                string path = Path.Combine(SavePath, "Projects.json");
-                try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
-
-                var data = JsonConvert.SerializeObject(Storage);
-                await File.WriteAllTextAsync(path, data);
-                ClearDirty();
+                catch (Exception ex)
+                {
+                    PreviewVM.StatusMessage = $"Save failed: {ex.Message}";
+                    Utils.ErrorLogger.Log(ex, "SaveFileAuto");
+                }
             }
 
             /// <summary>

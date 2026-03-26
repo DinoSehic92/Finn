@@ -50,9 +50,9 @@ public partial class PreView : UserControl
     private Point _panStart;
     private Rect _panStartDisplayArea;
 
-    private void InitSetup(object sender, RoutedEventArgs e)
+    private void InitSetup(object? sender, RoutedEventArgs e)
     {
-        ctx = (MainViewModel)this.DataContext;
+        ctx = (MainViewModel)this.DataContext!;
         pwr = ctx.PreviewVM;
 
         pwr.PropertyChanged += OnBindingPwr;
@@ -620,9 +620,10 @@ public partial class PreView : UserControl
         }
     }
 
-    private async void OnSeachRegex(object sender, RoutedEventArgs e)
+    private async void OnSeachRegex(object? sender, RoutedEventArgs? e)
     {
-        string text = SearchRegex.Text;
+        string? text = SearchRegex.Text;
+        if (string.IsNullOrEmpty(text)) return;
         await pwr.SearchAsync(text);
         if (pwr.SearchItems > 0)
             SetSearchFocusToResultList();
@@ -654,7 +655,7 @@ public partial class PreView : UserControl
         SearchRegex.Focus();
     }
 
-    private async void OnClearSearch(object sender, RoutedEventArgs e)
+    private async void OnClearSearch(object? sender, RoutedEventArgs e)
     {
         if (pwr.SearchBusy)
         {
@@ -667,15 +668,15 @@ public partial class PreView : UserControl
         }
     }
 
-    private void OnStartSearhRegex(object sender, KeyEventArgs e)
+    private void OnStartSearhRegex(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
         {
-            OnSeachRegex(null, null);
+            OnSeachRegex(sender, null);
         }
     }
 
-    private void PageNrSlider(object sender, RoutedEventArgs e)
+    private void PageNrSlider(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
         int page = (int)ScrollSlider.Value - 1;
@@ -683,7 +684,7 @@ public partial class PreView : UserControl
             pwr.RequestPage1 = page;
     }
 
-    private void SecondaryPageNrSlider(object sender, RoutedEventArgs e)
+    private void SecondaryPageNrSlider(object? sender, RoutedEventArgs e)
     {
         if (pwr == null) return;
         int page = (int)ScrollSliderSecondary.Value - 1;
@@ -700,12 +701,12 @@ public partial class PreView : UserControl
     }
 
 
-    private void PreviewSizeChanged(object sender, SizeChangedEventArgs e)
+    private void PreviewSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         ResetView(null, null);
     }
 
-    private void ResetView(object sender, RoutedEventArgs e)
+    private void ResetView(object? sender, RoutedEventArgs? e)
     {
         MuPDFRenderer.Contain();
         if (MuPDFRendererSecondary.Bounds.Width > 0 && MuPDFRendererSecondary.Bounds.Height > 0)
@@ -1123,7 +1124,7 @@ public partial class PreView : UserControl
         }
 
         project.StoredFiles.Add(fileData);
-        mainVm.MarkDirty();
+        mainVm?.MarkDirty();
 
         pwr.StatusMessage = $"Sketch saved to {project.Namn}: {sketchName}";
     }

@@ -49,6 +49,7 @@ namespace Finn.ViewModels
                 SetDefaultType();
 
                 Calendar = new CalendarViewModel(() => UI);
+                Calendar.DataChanged += () => MarkDirty();
                 Collections = new CollectionsViewModel(
                     () => Storage,
                     () => PreviewVM,

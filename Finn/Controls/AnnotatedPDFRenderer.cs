@@ -4219,16 +4219,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             // Reuse the cached paint; create once per render thread.
             var paint = s_paint ??= new SKPaint { IsAntialias = false };
             paint.Color = SKColors.White.WithAlpha((byte)(_opacity * 255));
-            // Low (nearest neighbor) is significantly faster than Medium
-            // for large images during continuous pan/zoom. The visual
-            // difference is negligible for diff highlight overlays.
-            paint.FilterQuality = SKFilterQuality.Low;
 
             canvas.Save();
             canvas.ClipRect(destRect);
             // SKImage.DrawImage uses GPU-cached textures when available,
             // avoiding the per-frame CPU→GPU pixel upload that DrawBitmap requires.
-            canvas.DrawImage(_image, srcRect, destRect, paint);
+            // Nearest-neighbor sampling is fastest for diff highlight overlays.
+            canvas.DrawImage(_image, srcRect, destRect, new SKSamplingOptions(SKFilterMode.Nearest), paint);
             canvas.Restore();
         }
     }

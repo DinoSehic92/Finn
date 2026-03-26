@@ -19,9 +19,7 @@
 	</Design.DataContext>
 
 	<UserControl.Resources>
-		<converter:ShortenStringConverter x:Key="ShortenStringConverter" />
 		<converter:AddOneConverter x:Key="AddOneConverter" />
-		<converter:AddPageConverter x:Key="AddPageConverter" />
 		<converter:BitmapConverter x:Key="BitmapConverter" />
 		<converter:ByteArrayToBitmapConverter x:Key="ByteArrayToBitmapConverter" />
 		<converter:GridDefConverter x:Key="GridDefConverter" />
@@ -538,6 +536,7 @@
 														   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
 										</Panel>
 										<TextBlock Text="{Binding Namn}" VerticalAlignment="Center"
+												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 												   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
 												   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
 									</StackPanel>
@@ -817,15 +816,15 @@
 									<DataTemplate>
 										<StackPanel Orientation="Horizontal" Spacing="5" Margin="6,0" VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
 											<ic:SymbolIcon Symbol="{Binding Mode, Converter={StaticResource FolderModeIconConverter}}" FontSize="14"/>
-											<TextBlock Text="{Binding DisplayType}" FontSize="14" VerticalAlignment="Center"/>
-										</StackPanel>
-									</DataTemplate>
-								</DataGridTemplateColumn.CellTemplate>
-							</DataGridTemplateColumn>
-							<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="14" Foreground="Gray"/>
-							<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"             Width="60"   FontSize="14"/>
-							<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="14" FontStyle="Italic" IsVisible="false"/>
+															<TextBlock Text="{Binding DisplayType}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}" VerticalAlignment="Center"/>
+														</StackPanel>
+													</DataTemplate>
+												</DataGridTemplateColumn.CellTemplate>
+											</DataGridTemplateColumn>
+											<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="{Binding UI.FontSize}"/>
+											<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="{Binding UI.FontSize}" Foreground="Gray"/>
+											<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"             Width="60"   FontSize="{Binding UI.FontSize}"/>
+											<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="{Binding UI.FontSize}" FontStyle="Italic" IsVisible="false"/>
 						</DataGrid.Columns>
 						<DataGrid.ContextMenu>
 							<ContextMenu>
@@ -940,7 +939,7 @@
 			</Border>
 
 			<!-- Daily timesheet entry -->
-			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Margin="10,0,0,0" Opacity="0.7"/>
+			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="10,0,0,0" Opacity="0.7"/>
 			<StackPanel Grid.Row="1" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="0" Margin="0,4,0,2">
 				<Button Width="28" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove selected"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
 				<Button Width="28" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
@@ -959,7 +958,7 @@
 								<DataTemplate>
 									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.Hours}"
 											  SelectedItem="{Binding Hours}" MinHeight="0" MinWidth="0"
-											  Padding="8,0,4,0" FontSize="12" Height="24"
+											  Padding="8,0,4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="24"
 											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 											  VerticalContentAlignment="Center"
 											  BorderThickness="0" Background="Transparent"/>
@@ -971,14 +970,14 @@
 								<DataTemplate>
 									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.SelectableProjectNames}"
 											  SelectedItem="{Binding Project}" MinHeight="0" MinWidth="0"
-											  Padding="4,0" FontSize="12" Height="24"
+											  Padding="4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="24"
 											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 											  VerticalContentAlignment="Center"
 											  BorderThickness="0" Background="Transparent"/>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
-						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="12" MinWidth="80"/>
+						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="{Binding UI.FontSizeCompact}" MinWidth="80"/>
 					</DataGrid.Columns>
 					<DataGrid.Styles>
 						<Style Selector="DataGrid /template/ Rectangle">
@@ -1002,7 +1001,7 @@
 			<Border Grid.Row="3" Classes="shadow" MinHeight="40">
 				<Panel>
 					<TextBox Text="{Binding Calendar.CurrentCalendarData.Note1}" Watermark="Notepad"
-							 AcceptsReturn="True" AcceptsTab="True" FontSize="14" VerticalAlignment="Stretch"/>
+							 AcceptsReturn="True" AcceptsTab="True" FontSize="{Binding UI.FontSize}" VerticalAlignment="Stretch"/>
 					<Ellipse Width="6" Height="6" Fill="MediumSeaGreen" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,4,6,0" IsHitTestVisible="False"/>
 				</Panel>
@@ -1011,7 +1010,7 @@
 			<!-- Reminder -->
 			<Border Grid.Row="4" Classes="shadow">
 				<Panel>
-					<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="14"/>
+					<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="{Binding UI.FontSize}"/>
 					<Ellipse Width="6" Height="6" Fill="Orange" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,4,6,0" IsHitTestVisible="False"/>
 				</Panel>
@@ -1022,11 +1021,11 @@
 				<!-- Project name + nr + add/remove on one row -->
 				<StackPanel Orientation="Horizontal" Spacing="0">
 					<Border Classes="shadow">
-						<TextBox Name="ProjectNameBox" Width="155" Watermark="Project" FontSize="13"
+						<TextBox Name="ProjectNameBox" Width="155" Watermark="Project" FontSize="{Binding UI.FontSizeCompact}"
 								 Text="{Binding Calendar.CurrentTimeSheetProject.Project, Mode=TwoWay}"/>
 					</Border>
 					<Border Classes="shadow">
-						<TextBox Name="ProjNrBox" Width="75" Watermark="Nr" FontSize="13"
+						<TextBox Name="ProjNrBox" Width="75" Watermark="Nr" FontSize="{Binding UI.FontSizeCompact}"
 								 Text="{Binding Calendar.CurrentTimeSheetProject.ProjectNr, Mode=TwoWay}"/>
 					</Border>
 					<Button Width="30" ToolTip.Tip="Add Project" Command="{Binding Calendar.AddTimeProject}"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
@@ -1040,13 +1039,13 @@
 						  HeadersVisibility="None" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
-						<DataGridTextColumn Header="Project" Binding="{Binding Project}" Width="*" FontSize="13"/>
-						<DataGridTextColumn Header="W1" Binding="{Binding W1}" Width="34" FontSize="13"/>
-						<DataGridTextColumn Header="W2" Binding="{Binding W2}" Width="34" FontSize="13"/>
-						<DataGridTextColumn Header="W3" Binding="{Binding W3}" Width="34" FontSize="13"/>
-						<DataGridTextColumn Header="W4" Binding="{Binding W4}" Width="34" FontSize="13"/>
-						<DataGridTextColumn Header="W5" Binding="{Binding W5}" Width="34" FontSize="13"/>
-						<DataGridTextColumn Header="Σ" Binding="{Binding MonthTotal}" Width="36" FontSize="13"/>
+						<DataGridTextColumn Header="Project" Binding="{Binding Project}" Width="*" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="W1" Binding="{Binding W1}" Width="34" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="W2" Binding="{Binding W2}" Width="34" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="W3" Binding="{Binding W3}" Width="34" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="W4" Binding="{Binding W4}" Width="34" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="W5" Binding="{Binding W5}" Width="34" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="Σ" Binding="{Binding MonthTotal}" Width="36" FontSize="{Binding UI.FontSizeCompact}"/>
 					</DataGrid.Columns>
 					<DataGrid.Styles>
 						<Style Selector="DataGrid /template/ Rectangle">
@@ -1070,8 +1069,8 @@
 						  HeadersVisibility="None" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
-						<DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="38" FontSize="13"/>
-						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="13"/>
+						<DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="38" FontSize="{Binding UI.FontSizeCompact}"/>
+						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="{Binding UI.FontSizeCompact}"/>
 						<DataGridTemplateColumn Width="28">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate x:DataType="model:WeekDiaryEntry">
@@ -1125,7 +1124,7 @@
             <!-- File notepad (wrapped in shadow-only border) -->
                 <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding UI.TrayNote}">
 				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
-					 AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
+					 FontSize="{Binding UI.FontSize}" AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
 			</Border>
 
 			<!-- Collections toolbar -->
@@ -1279,7 +1278,7 @@
 										<!-- Toolbar -->
 										<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 											<Border Classes="shadow">
-												<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="13" Width="210" Height="30"/>
+												<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="{Binding UI.FontSize}" Width="210" Height="30"/>
 											</Border>
 											<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
 											<Button Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
@@ -1380,7 +1379,7 @@
 																	<SolidColorBrush Color="{Binding Color}"/>
 																</Ellipse.Fill>
 															</Ellipse>
-															<TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+															<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" VerticalAlignment="Center"/>
 														</StackPanel>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>

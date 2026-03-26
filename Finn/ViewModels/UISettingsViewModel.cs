@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using Avalonia.Media;
 using Avalonia;
@@ -139,7 +140,11 @@ namespace Finn.ViewModels
         public string Font { get => font; set { font = value; RaisePropertyChanged(nameof(Font)); } }
 
         private int fontSize;
-        public int FontSize { get => fontSize; set { fontSize = value; RaisePropertyChanged(nameof(FontSize)); } }
+        public int FontSize { get => fontSize; set { fontSize = value; RaisePropertyChanged(nameof(FontSize)); RaisePropertyChanged(nameof(FontSizeCompact)); } }
+
+        /// <summary>FontSize - 2, for compact controls like calendar grids and timesheet entries.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public int FontSizeCompact => Math.Max(fontSize - 2, 11);
 
         private bool showIcons;
         public bool ShowIcons { get => showIcons; set { showIcons = value; RaisePropertyChanged(nameof(ShowIcons)); } }

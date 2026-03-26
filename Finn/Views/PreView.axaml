@@ -13,9 +13,7 @@
              x:Class="Finn.Views.PreView">
 	
 	<UserControl.Resources>
-		<converter:ShortenStringConverter x:Key="ShortenStringConverter" />
 		<converter:AddOneConverter x:Key="AddOneConverter"/>
-		<converter:AddPageConverter x:Key="AddPageConverter"/>
 		<converter:GridDefConverter x:Key="GridDefConverter"/>
 	</UserControl.Resources>
 

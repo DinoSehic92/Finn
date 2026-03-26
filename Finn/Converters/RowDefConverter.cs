@@ -9,17 +9,12 @@ namespace Finn.Converters
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if ((bool)value)
-            {
+            if (value is bool visible && visible)
                 return new GridLength(40, GridUnitType.Pixel);
-            }
-            else
-            {
-                return new GridLength(0, GridUnitType.Pixel);
-            }
+            return new GridLength(0, GridUnitType.Pixel);
         }
 
-        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             return null;
         }

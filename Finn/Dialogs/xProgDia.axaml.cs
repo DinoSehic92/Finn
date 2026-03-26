@@ -22,9 +22,15 @@ public partial class xProgDia : Window
     {
         MainViewModel ctx = (MainViewModel)this.DataContext!;
 
-        CompiledDate.Content = File.GetLastWriteTime(Assembly.GetExecutingAssembly().CodeBase.Substring(8));
+        var assemblyPath = Assembly.GetExecutingAssembly().Location;
+        CompiledDate.Content = !string.IsNullOrEmpty(assemblyPath)
+            ? File.GetLastWriteTime(assemblyPath)
+            : "N/A";
 
-        LastSaved.Content = File.GetLastWriteTime("C:\\Finn\\Projects.json");
+        var projectsPath = System.IO.Path.Combine(MainViewModel.SavePath, "Projects.json");
+        LastSaved.Content = File.Exists(projectsPath)
+            ? File.GetLastWriteTime(projectsPath)
+            : "Not saved";
 
         int nrFiles = 0;
 

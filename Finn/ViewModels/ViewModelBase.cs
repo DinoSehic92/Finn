@@ -27,7 +27,7 @@ namespace Finn.ViewModels
         #endregion
 
         #region Property Changed Enhancements
-        protected bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
+        protected new bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, newValue))
                 return false;

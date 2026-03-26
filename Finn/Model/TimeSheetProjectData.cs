@@ -28,16 +28,6 @@ namespace Finn.Model
             set { projectNr = value; RaisePropertyChanged(nameof(ProjectNr)); }
         }
 
-        private string task = string.Empty;
-        /// <summary>
-        /// Gets or sets the task.
-        /// </summary>
-        public string Task
-        {
-            get => task;
-            set { task = value; RaisePropertyChanged(nameof(Task)); }
-        }
-
         private int w1;
         public int W1
         {

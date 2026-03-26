@@ -31,7 +31,6 @@ namespace Finn.Model
             {
                 date = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DateString));
             }
         }
 
@@ -49,28 +48,9 @@ namespace Finn.Model
             }
         }
 
-        /// <summary>
-        /// Gets a string representation of the date, or " - " for weekends.
-        /// </summary>
-        [JsonIgnore]
-        public string DateString
-        {
-            get
-            {
-                // Show month-day in MM-DD format
-                string text = date.ToString("MM-dd");
-                if (Date.DayOfWeek == DayOfWeek.Saturday || Date.DayOfWeek == DayOfWeek.Sunday)
-                {
-                    text = " - ";
-                }
-                return text;
-            }
-        }
-
-
         private string note1 = string.Empty;
         /// <summary>
-        /// Gets or sets the first note.
+        /// Gets or sets the note.
         /// </summary>
         public string Note1
         {
@@ -79,14 +59,13 @@ namespace Finn.Model
             {
                 note1 = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DateString));
                 OnPropertyChanged(nameof(HasNote));
             }
         }
 
         private string note2 = string.Empty;
         /// <summary>
-        /// Gets or sets the second note.
+        /// Gets or sets the second note (legacy, kept for deserialization).
         /// </summary>
         public string Note2
         {
@@ -95,7 +74,6 @@ namespace Finn.Model
             {
                 note2 = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DateString));
                 OnPropertyChanged(nameof(HasNote));
             }
         }
@@ -111,7 +89,6 @@ namespace Finn.Model
             {
                 reminder = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DateString));
             }
         }
 
@@ -137,7 +114,6 @@ namespace Finn.Model
             get => timeSheets;
             set
             {
-                // Unsubscribe previous and attach to the new collection (even if same instance)
                 if (timeSheets != null)
                     timeSheets.CollectionChanged -= TimeSheets_CollectionChanged;
 
@@ -147,7 +123,6 @@ namespace Finn.Model
                 OnPropertyChanged(nameof(TimeSheets));
                 OnPropertyChanged(nameof(HasTime));
                 OnPropertyChanged(nameof(TotalTime));
-                OnPropertyChanged(nameof(DateString));
             }
         }
 
@@ -155,14 +130,13 @@ namespace Finn.Model
         {
             OnPropertyChanged(nameof(HasTime));
             OnPropertyChanged(nameof(TotalTime));
-            OnPropertyChanged(nameof(DateString));
         }
 
         /// <summary>
         /// Gets whether this entry has a note.
         /// </summary>
         [JsonIgnore]
-        public bool HasNote => Note1.Length > 0 || Note2.Length > 0;
+        public bool HasNote => (note1 != null && note1.Length > 0) || (note2 != null && note2.Length > 0);
 
         /// <summary>
         /// Gets whether this entry has time data.

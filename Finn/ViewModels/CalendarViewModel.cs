@@ -244,6 +244,7 @@ namespace Finn.ViewModels
             RefreshProjectSummaries();
             RefreshProjectDiarySummary();
             OnPropertyChanged(nameof(DailyTotalDisplay));
+            DataChanged?.Invoke();
         }
 
         /// <summary>
@@ -258,6 +259,7 @@ namespace Finn.ViewModels
                 RefreshProjectDiarySummary();
             if (e.PropertyName is nameof(TimeSheetData.Hours))
                 OnPropertyChanged(nameof(DailyTotalDisplay));
+            DataChanged?.Invoke();
         }
 
         /// <summary>
@@ -286,6 +288,13 @@ namespace Finn.ViewModels
                 or nameof(CalendarData.Reminder))
             {
                 DayIndicatorsChanged?.Invoke();
+            }
+
+            // Mark as dirty for any meaningful property change
+            if (e.PropertyName is nameof(CalendarData.Note1) or nameof(CalendarData.Reminder)
+                or nameof(CalendarData.HasTime))
+            {
+                DataChanged?.Invoke();
             }
         }
 
@@ -630,10 +639,11 @@ namespace Finn.ViewModels
         /// </summary>
         public event Action? DayIndicatorsChanged;
 
-        public static List<DateTime> GetDates(int year, int month)
-            => Enumerable.Range(1, DateTime.DaysInMonth(year, month))
-                         .Select(day => new DateTime(year, month, day))
-                         .ToList();
+        /// <summary>
+        /// Raised when calendar data is modified (timesheet edits, project changes, notes, etc.)
+        /// so the host can mark the application as dirty.
+        /// </summary>
+        public event Action? DataChanged;
 
         private void RebuildDateIndex()
         {

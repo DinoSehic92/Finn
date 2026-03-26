@@ -16,13 +16,9 @@ public partial class PreWindow : Window
 
     protected override void OnClosing(WindowClosingEventArgs e)
     {
-
         e.Cancel = true;
 
-
-        MainViewModel ctx = (MainViewModel)this.DataContext;
-
-        if (ctx.PreviewWindowOpen)
+        if (this.DataContext is MainViewModel ctx && ctx.PreviewWindowOpen)
         {
             ctx.PreviewWindowOpen = false;
         }
@@ -30,7 +26,7 @@ public partial class PreWindow : Window
         e.Cancel = false;
     }
 
-    private void CloseKey(object sender, KeyEventArgs e)
+    private void CloseKey(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
         {

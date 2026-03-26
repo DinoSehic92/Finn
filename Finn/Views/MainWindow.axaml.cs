@@ -37,7 +37,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (this.DataContext is not MainViewModel ctx) return;
         ctx.Calendar.SaveStorage(MainViewModel.SavePath);
 
         if (ctx.IsStorageDifferentFromFile())

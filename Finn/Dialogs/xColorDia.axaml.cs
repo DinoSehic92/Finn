@@ -22,7 +22,7 @@ public partial class xColorDia : Window
 
         FontCombo.ItemsSource = new List<string>() {"Barlow","Fira Sans", "IBM Plex Sans", "Jost", "Lato", "Lexend Deca", "Montserrat", "Nunito", "Open Sans", "Quicksand", "Raleway", "Recursive", "Roboto", "Rosario", "Share Tech", "Source Code Pro", "Ubuntu", "Urbanist", "Work Sans"};
 
-        FontSizeCombo.ItemsSource = new List<int>() { 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 };
+        FontSizeCombo.ItemsSource = new List<int>() { 14, 15, 16 };
 
         KeyDown += CloseKey;
     }

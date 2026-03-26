@@ -8,7 +8,7 @@ namespace Finn.Dialogs;
 
 public partial class xCloseDia : Window
 {
-    private MainWindow mainWindow;
+    private MainWindow? mainWindow;
 
     public xCloseDia()
     {
@@ -20,28 +20,24 @@ public partial class xCloseDia : Window
         mainWindow = mainW;
     }
 
-    public async void SaveBeforeClose(object sender, RoutedEventArgs args)
+    public async void SaveBeforeClose(object? sender, RoutedEventArgs args)
     {
-
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (this.DataContext is not MainViewModel ctx) return;
 
         await ctx.SaveFileAuto();
 
         OnLeave(null, null);
-
     }
 
-    public void OnLeave(object sender, RoutedEventArgs args)
+    public void OnLeave(object? sender, RoutedEventArgs? args)
     {
+        if (mainWindow == null) return;
         mainWindow.ConfirmLeave = false;
         mainWindow.Close();
     }
 
-
-    public void OnCancel(object sender, RoutedEventArgs args)
+    public void OnCancel(object? sender, RoutedEventArgs? args)
     {
         Close();
     }
-
-
 }
