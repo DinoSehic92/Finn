@@ -82,7 +82,7 @@ namespace Finn.ViewModels
         /// <summary>
         /// Loads calendar storage from Calendar.json. Creates a new file if none exists.
         /// </summary>
-        public void LoadOrCreateStorage(string savePath)
+        public async Task LoadOrCreateStorageAsync(string savePath)
         {
             if (string.IsNullOrWhiteSpace(savePath)) return;
 
@@ -93,7 +93,7 @@ namespace Finn.ViewModels
 
                 if (File.Exists(file))
                 {
-                    string json = File.ReadAllText(file);
+                    string json = await File.ReadAllTextAsync(file);
                     var cs = JsonConvert.DeserializeObject<CalendarStorage>(json);
                     if (cs != null)
                     {
@@ -109,14 +109,14 @@ namespace Finn.ViewModels
                 else
                 {
                     string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
-                    File.WriteAllText(file, json);
+                    await File.WriteAllTextAsync(file, json);
                 }
 
                 SetCurrentCalendarData();
             }
             catch (Exception ex)
             {
-                Finn.Utils.ErrorLogger.Log(ex, "CalendarViewModel.LoadOrCreateStorage");
+                Finn.Utils.ErrorLogger.Log(ex, "CalendarViewModel.LoadOrCreateStorageAsync");
             }
 
             EnsureTotalRow();

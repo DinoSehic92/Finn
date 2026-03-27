@@ -190,6 +190,25 @@ namespace Finn.ViewModels
             }
         }
 
+        /// <summary>
+        /// The real file when previewing a version (the stub doesn't carry HasVersions).
+        /// Set by MainViewModel.PreviewVersionAsync, cleared when leaving version preview.
+        /// </summary>
+        private FileData? _versionSourceFile;
+        public FileData? VersionSourceFile
+        {
+            get => _versionSourceFile;
+            set
+            {
+                _versionSourceFile = value;
+                OnPropertyChanged(nameof(CanCompareVersions));
+                OnPropertyChanged(nameof(IsViewingVersion));
+            }
+        }
+
+        /// <summary>True when previewing a specific version of a file.</summary>
+        public bool IsViewingVersion => _versionSourceFile != null;
+
         private FileData? currentFile2 = null;
         public FileData? CurrentFile2
         {

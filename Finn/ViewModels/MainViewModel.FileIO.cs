@@ -121,8 +121,7 @@ namespace Finn.ViewModels
                 // Guard against null collections from partial/corrupt JSON
                 Storage.StoredProjects ??= new ObservableCollection<ProjectData>();
 
-                // Clear ThumbnailSource for any file whose thumbnail no longer exists on disk
-                // and wire ParentFile back-references for appended files.
+                // Single pass: migrate, wire references, and validate all files.
                 foreach (var project in Storage.StoredProjects)
                 {
                     // Migrate legacy nested AppendedFiles into the flat StoredFiles list.
@@ -130,6 +129,7 @@ namespace Finn.ViewModels
 
                     foreach (var file in project.StoredFiles)
                     {
+                        // Clear stale thumbnail references
                         if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
                             file.ThumbnailSource = string.Empty;
 
@@ -147,7 +147,19 @@ namespace Finn.ViewModels
                             }
                         }
 
-                        // Inherit parent metadata for appended files that are missing it
+                        // Recompute annotation counts so HasAnnotations is accurate.
+                        foreach (var layer in file.AnnotationLayers)
+                            layer.RecalculateCounts();
+                        file.RefreshAnnotationStatus();
+                    }
+
+                    // Resolve ParentFile back-references from the serialized ParentNamn field.
+                    project.WireParentReferences();
+                    project.RefreshHasChildren();
+
+                    // Inherit parent metadata for appended files (must run after WireParentReferences).
+                    foreach (var file in project.StoredFiles)
+                    {
                         if (file.IsAppendedFile && file.ParentFile is { } parent)
                         {
                             if (string.IsNullOrEmpty(file.Uppdrag))
@@ -155,18 +167,6 @@ namespace Finn.ViewModels
                             if (string.IsNullOrEmpty(file.Filtyp))
                                 file.Filtyp = parent.Filtyp;
                         }
-                    }
-
-                    // Resolve ParentFile back-references from the serialized ParentNamn field.
-                    project.WireParentReferences();
-                    project.RefreshHasChildren();
-
-                    // Recompute annotation counts so HasAnnotations is accurate after deserialization.
-                    foreach (var f in project.StoredFiles)
-                    {
-                        foreach (var layer in f.AnnotationLayers)
-                            layer.RecalculateCounts();
-                        f.RefreshAnnotationStatus();
                     }
                 }
 

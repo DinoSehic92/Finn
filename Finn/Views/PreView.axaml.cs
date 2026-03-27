@@ -633,11 +633,15 @@ public partial class PreView : UserControl
 
     private async void OnSeachRegex(object? sender, RoutedEventArgs? e)
     {
-        string? text = SearchRegex.Text;
-        if (string.IsNullOrEmpty(text)) return;
-        await pwr.SearchAsync(text);
-        if (pwr.SearchItems > 0)
-            SetSearchFocusToResultList();
+        try
+        {
+            string? text = SearchRegex.Text;
+            if (string.IsNullOrEmpty(text)) return;
+            await pwr.SearchAsync(text);
+            if (pwr.SearchItems > 0)
+                SetSearchFocusToResultList();
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnSeachRegex"); }
     }
 
     /// <summary>Focuses the search result ListBox. Must be called on the UI thread.</summary>
@@ -668,15 +672,19 @@ public partial class PreView : UserControl
 
     private async void OnClearSearch(object? sender, RoutedEventArgs e)
     {
-        if (pwr.SearchBusy)
+        try
         {
-            await pwr.StopSearchAsync();
+            if (pwr.SearchBusy)
+            {
+                await pwr.StopSearchAsync();
+            }
+            else
+            {
+                pwr.ClearSearch();
+                SearchRegex.Clear();
+            }
         }
-        else
-        {
-            pwr.ClearSearch();
-            SearchRegex.Clear();
-        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnClearSearch"); }
     }
 
     private void OnStartSearhRegex(object? sender, KeyEventArgs e)
@@ -858,6 +866,13 @@ public partial class PreView : UserControl
         if (pwr != null) pwr.DualFileMode = false;
     }
 
+    /// <summary>Return to the original file from version preview.</summary>
+    private async void OnReturnToOriginal(object? sender, RoutedEventArgs e)
+    {
+        if (ctx == null) return;
+        await ctx.ReturnToOriginalAsync();
+    }
+
     /// <summary>Close Diff comparison mode from the banner close button.</summary>
     private async void OnCloseDiffMode(object? sender, RoutedEventArgs e)
     {
@@ -898,8 +913,12 @@ public partial class PreView : UserControl
 
     private async void OnDiffRerun(object? sender, RoutedEventArgs e)
     {
-        if (pwr == null || !pwr.CanRerunDiff) return;
-        await pwr.RerunDiffWithToleranceAsync();
+        try
+        {
+            if (pwr == null || !pwr.CanRerunDiff) return;
+            await pwr.RerunDiffWithToleranceAsync();
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnDiffRerun"); }
     }
 
     /// <summary>
@@ -908,13 +927,17 @@ public partial class PreView : UserControl
     /// </summary>
     private async void OnRunDiffComparison(object? sender, RoutedEventArgs e)
     {
-        if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
-        if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
+        try
         {
-            pwr.StatusMessage = "A and B are the same";
-            return;
+            if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
+            if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                pwr.StatusMessage = "A and B are the same";
+                return;
+            }
+            await RerunDiffCoreAsync(DiffRunKind.Pixel);
         }
-        await RerunDiffCoreAsync(DiffRunKind.Pixel);
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnRunDiffComparison"); }
     }
 
     /// <summary>
@@ -924,13 +947,17 @@ public partial class PreView : UserControl
     /// </summary>
     private async void OnRunTextDiff(object? sender, RoutedEventArgs e)
     {
-        if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
-        if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
+        try
         {
-            pwr.StatusMessage = "A and B are the same";
-            return;
+            if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
+            if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                pwr.StatusMessage = "A and B are the same";
+                return;
+            }
+            await RerunDiffCoreAsync(DiffRunKind.Text);
         }
-        await RerunDiffCoreAsync(DiffRunKind.Text);
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnRunTextDiff"); }
     }
 
     private enum DiffRunKind { Pixel, Text }

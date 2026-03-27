@@ -116,6 +116,24 @@
 				</Border>
 			</Border>
 
+			<!-- Mode banner: Version Preview -->
+			<Border Name="VersionBanner" Classes="shadow" IsVisible="{Binding PreviewVM.IsViewingVersion}" IsHitTestVisible="True"
+					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"
+					Padding="10,5">
+				<Border.Background>
+					<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
+				</Border.Background>
+				<Border Background="{DynamicResource TextControlBackground}" Margin="-10,-5" Padding="10,5">
+				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+					<ic:SymbolIcon Symbol="History" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
+					<TextBlock Text="Viewing version" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
+					<Button Content="Return to original" FontSize="11" Padding="6,2" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Return to original file" Click="OnReturnToOriginal"
+							Background="Transparent" BorderThickness="0"/>
+				</StackPanel>
+				</Border>
+			</Border>
+
 			<!-- Mode banner: Diff Comparison -->
 			<Border Name="DiffModeBanner" Classes="shadow" IsVisible="{Binding PreviewVM.DiffOverlayActive}" IsHitTestVisible="True"
 					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"

@@ -210,7 +210,7 @@ namespace Finn.ViewModels
         {
             get
             {
-                var file = _diffSourceFile ?? currentFile;
+                var file = _diffSourceFile ?? _versionSourceFile ?? currentFile;
                 if (file is { HasVersions: true }) return true;
                 if (file is { HasChildren: true }) return true;
                 // Appended files only show compare if they have their own versions

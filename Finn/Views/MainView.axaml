@@ -1121,14 +1121,14 @@
 			</Border>
 
 			<!-- Collections toolbar -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="3" IsVisible="{Binding UI.TrayCollections}">
-                <Border Classes="shadow">
-					<TextBox Name="CollectionInput" Width="180" Watermark="Add Collection"/>
-                </Border>
-				<Button Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-				<Button Width="30" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-				<Button Width="30" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
-			</StackPanel>
+			<Grid Grid.Row="1" ColumnDefinitions="*,30,30,30" IsVisible="{Binding UI.TrayCollections}">
+				<Border Classes="shadow" Grid.Column="0">
+					<TextBox Name="CollectionInput" Watermark="Add Collection"/>
+				</Border>
+				<Button Grid.Column="1" Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+				<Button Grid.Column="2" Width="30" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+				<Button Grid.Column="3" Width="30" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
+			</Grid>
 
 			<!-- Collections list -->
             <DataGrid Grid.Row="2" IsVisible="{Binding UI.TrayCollections}" Name="Collections"
@@ -1178,14 +1178,14 @@
 
 			<!-- Bookmarks toolbar -->
             <Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding UI.TrayBookmarks}">
-				<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
-					<Border Classes="shadow">
-						<TextBox Name="BookmarkInput" Watermark="Add Bookmark" Width="180"/>
+				<Grid Grid.Row="0" ColumnDefinitions="*,30,30,30">
+					<Border Grid.Column="0" Classes="shadow">
+						<TextBox Name="BookmarkInput" Watermark="Add Bookmark"/>
 					</Border>
-					<Button Width="30" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-					<Button Width="30" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-					<Button Width="30" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
-				</StackPanel>
+					<Button Grid.Column="1" Width="30" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+					<Button Grid.Column="2" Width="30" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+					<Button Grid.Column="3" Width="30" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
+				</Grid>
 			</Grid>
 
 			<!-- Bookmarks list -->
@@ -1209,6 +1209,7 @@
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate x:DataType="model:FileData">
 								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
+										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
 										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
 							</DataTemplate>
@@ -1231,7 +1232,14 @@
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
-						<DataGridTextColumn Binding="{Binding Name}" Header="Other Files" Width="*" MinWidth="80"/>
+						<DataGridTemplateColumn Header="Other Files" Width="*" MinWidth="80">
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate>
+									<TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="4,0"
+											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
 						<DataGridTextColumn Binding="{Binding Type}" Header="Type" Width="55" MinWidth="40" IsVisible="false"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
@@ -1269,13 +1277,13 @@
 			<!-- File versions panel -->
 								<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
 										<!-- Toolbar -->
-										<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
-											<Border Classes="shadow">
-												<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="{Binding UI.FontSize}" Width="210" Height="30"/>
+										<Grid Grid.Row="0" ColumnDefinitions="*,30,30" Margin="0,0,0,3">
+											<Border Grid.Column="0" Classes="shadow">
+												<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="{Binding UI.FontSize}" Height="30" HorizontalAlignment="Stretch"/>
 											</Border>
-											<Button Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
-											<Button Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
-										</StackPanel>
+											<Button Grid.Column="1" Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
+											<Button Grid.Column="2" Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
+										</Grid>
 										<DataGrid Grid.Row="1" Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
@@ -1296,6 +1304,7 @@
 																	   Opacity="0.3"
 																	   IsVisible="{Binding !IsActive}"/>
 														<TextBlock Text="{Binding Label}" Opacity="{Binding VersionOpacity}"
+																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 																   VerticalAlignment="Center"/>
 													</StackPanel>
 												</DataTemplate>

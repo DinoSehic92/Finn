@@ -249,6 +249,7 @@ namespace Finn.ViewModels
             public void ClearSelectedVersion()
             {
                 SelectedVersion = null;
+                PreviewVM.VersionSourceFile = null;
             }
 
             /// <summary>

@@ -1,0 +1,1023 @@
+﻿using Finn.Model;
+using Finn.Controls;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.VisualTree;
+using MuPDFCore.MuPDFRenderer;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Finn.Views;
+
+public partial class PreView
+{
+    private void OnAnnotateColor(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string colorName)
+        {
+            var color = ColorPalette.GetValueOrDefault(colorName, ColorPalette["Red"]);
+            MuPDFRenderer.StrokeColor = color;
+
+            if (MuPDFRenderer.ActiveLayer != null)
+                MuPDFRenderer.ActiveLayer.Color = color;
+
+            // Apply to currently selected annotation
+            ApplyColorToSelection(color);
+
+            SetActiveColorButton(btn);
+            UpdateColorIndicator(color);
+            MuPDFRenderer.Focus();
+        }
+    }
+
+    private void ApplyColorToSelection(Color color)
+    {
+        if (_selectedAnnotations.Count == 0) return;
+        foreach (var selItem in _selectedAnnotations)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            switch (selItem)
+            {
+                case InkStroke s: s.Color = color; s.InvalidatePen(); break;
+                case ShapeAnnotation sh: sh.Color = color; sh.InvalidatePen(); break;
+                case TextAnnotation t: t.Color = color; break;
+                case MeasurementAnnotation m: m.Color = color; break;
+            }
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+        }
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnAnnotateToolSelect(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string toolName)
+        {
+            var tool = Enum.Parse<InlineAnnotationTool>(toolName);
+            ApplyToolSwitch(tool);
+        }
+        MuPDFRenderer.Focus();
+    }
+
+    private void OnAnnotateWidth(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string widthStr && double.TryParse(widthStr, out double w))
+        {
+            if (MuPDFRenderer.IsHighlighterMode) return;
+            MuPDFRenderer.StrokeWidth = w;
+            _normalStrokeWidth = w;
+
+            // Apply to currently selected annotations
+            foreach (var selItem in _selectedAnnotations)
+            {
+                if (selItem is InkStroke ink)
+                {
+                    var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    ink.Width = w; ink.InvalidatePen();
+                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+                }
+                else if (selItem is ShapeAnnotation sh)
+                {
+                    var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    sh.StrokeWidth = w; sh.InvalidatePen();
+                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+                }
+            }
+            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+
+            SetActiveWidthButton(btn);
+            UpdateBrushSizeIndicator(w);
+        }
+    }
+
+    private void OnAnnotateDashPattern(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string patternName
+            && Enum.TryParse<LineDashPattern>(patternName, out var pattern))
+        {
+            MuPDFRenderer.StrokeDashPattern = pattern;
+
+            // Apply to currently selected annotations
+            foreach (var selItem in _selectedAnnotations)
+            {
+                if (selItem is InkStroke ink)
+                {
+                    var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    ink.DashPattern = pattern; ink.InvalidatePen();
+                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+                }
+                else if (selItem is ShapeAnnotation sh)
+                {
+                    var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    sh.DashPattern = pattern; sh.InvalidatePen();
+                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+                }
+            }
+            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+
+            SetActiveDashButton(btn);
+            UpdateDashIndicator(pattern);
+        }
+    }
+
+    private Button? _activeCornerRadiusButton;
+
+    private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string radiusStr && double.TryParse(radiusStr, out double r))
+        {
+            MuPDFRenderer.ShapeCornerRadius = r;
+
+            // Apply to currently selected annotations
+            foreach (var selItem in _selectedAnnotations)
+            {
+                if (selItem is ShapeAnnotation sh && sh.ShapeType == InlineAnnotationTool.Rectangle)
+                {
+                    sh.CornerRadius = r;
+                    sh.InvalidatePen();
+                }
+                else if (selItem is InkStroke { IsPolyline: true } ink)
+                {
+                    ink.CornerRadius = r;
+                    ink.InvalidatePen();
+                }
+            }
+            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+
+            SetActiveButton(ref _activeCornerRadiusButton, btn);
+            UpdateCornerIndicator(r);
+        }
+    }
+
+    /// <summary>
+    /// Highlights a toolbar button with the system accent color border, clearing the
+    /// previous one stored in the given field. Used for tool, color, width, and dash buttons.
+    /// </summary>
+    private static void SetActiveButton(ref Button? field, Button? btn)
+    {
+        if (field != null) { field.BorderThickness = new Thickness(0); field.BorderBrush = null; }
+        field = btn;
+        if (btn != null)
+        {
+            btn.BorderThickness = new Thickness(2);
+            btn.BorderBrush = btn.TryFindResource("SystemAccentColor", btn.ActualThemeVariant, out var accentObj) && accentObj is Color accentColor
+                ? new SolidColorBrush(accentColor)
+                : Brushes.White;
+        }
+    }
+
+    private void SetActiveToolButton(Button? btn) => SetActiveButton(ref _activeToolButton, btn);
+    private void SetActiveColorButton(Button? btn) => SetActiveButton(ref _activeColorButton, btn);
+    private void SetActiveWidthButton(Button? btn) => SetActiveButton(ref _activeWidthButton, btn);
+    private void SetActiveDashButton(Button? btn) => SetActiveButton(ref _activeDashButton, btn);
+
+    /// <summary>Finds an annotation toolbar button whose Tag matches the given string.</summary>
+    private Button? FindToolbarButtonByTag(string tag)
+    {
+        foreach (var child in AnnotateToolbar.GetVisualDescendants())
+        {
+            if (child is Button b && b.Tag is string t && t == tag)
+                return b;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Highlights the default tool (Draw), color (Red), and width (3px) buttons
+    /// when annotation mode is first activated.
+    /// </summary>
+    private void HighlightInitialButtons()
+    {
+        SetActiveToolButton(FindToolbarButtonByTag(MuPDFRenderer.ActiveTool.ToString()));
+        SetActiveColorButton(FindToolbarButtonByTag("Red"));
+        SetActiveWidthButton(FindToolbarButtonByTag(((int)MuPDFRenderer.StrokeWidth).ToString()));
+        SetActiveDashButton(FindToolbarButtonByTag(MuPDFRenderer.StrokeDashPattern.ToString()));
+        SyncFlyoutIndicators();
+    }
+
+    /// <summary>
+    /// Syncs <see cref="_normalStrokeWidth"/> and the width button highlight
+    /// after a programmatic width change (e.g. keyboard shortcut).
+    /// </summary>
+    private void SyncWidthState()
+    {
+        if (!MuPDFRenderer.IsHighlighterMode)
+            _normalStrokeWidth = MuPDFRenderer.StrokeWidth;
+        SetActiveWidthButton(FindToolbarButtonByTag(((int)MuPDFRenderer.StrokeWidth).ToString()));
+        UpdateBrushSizeIndicator(MuPDFRenderer.StrokeWidth);
+    }
+
+    /// <summary>Updates the color flyout button indicator to reflect the current color.</summary>
+    private void UpdateColorIndicator(Color color)
+    {
+        if (ColorFlyoutIndicator != null)
+            ColorFlyoutIndicator.Fill = new SolidColorBrush(color);
+    }
+
+    /// <summary>Updates the brush size flyout button indicator to reflect the current width.</summary>
+    private void UpdateBrushSizeIndicator(double width)
+    {
+        if (BrushSizeIndicator == null) return;
+        double size = width switch { <= 1 => 4, <= 2 => 6, _ => 9 };
+        BrushSizeIndicator.Width = size;
+        BrushSizeIndicator.Height = size;
+    }
+
+    /// <summary>Updates the dash pattern flyout button indicator to reflect the current pattern.</summary>
+    private void UpdateDashIndicator(LineDashPattern pattern)
+    {
+        if (DashIndicator == null) return;
+        DashIndicator.StrokeDashArray = pattern switch
+        {
+            LineDashPattern.Dashed => new Avalonia.Collections.AvaloniaList<double> { 4, 3 },
+            LineDashPattern.Dotted => new Avalonia.Collections.AvaloniaList<double> { 1, 2 },
+            LineDashPattern.DashDot => new Avalonia.Collections.AvaloniaList<double> { 4, 2, 1, 2 },
+            _ => null,
+        };
+    }
+
+    /// <summary>Updates the corner radius flyout button indicator to reflect the current radius.</summary>
+    private void UpdateCornerIndicator(double radius)
+    {
+        if (CornerIndicator != null)
+            CornerIndicator.CornerRadius = new CornerRadius(Math.Min(radius, 7));
+    }
+
+    /// <summary>Syncs all flyout indicators to the current renderer state.</summary>
+    private void SyncFlyoutIndicators()
+    {
+        UpdateColorIndicator(MuPDFRenderer.StrokeColor);
+        UpdateBrushSizeIndicator(MuPDFRenderer.StrokeWidth);
+        UpdateDashIndicator(MuPDFRenderer.StrokeDashPattern);
+        UpdateCornerIndicator(MuPDFRenderer.ShapeCornerRadius);
+    }
+
+    private void OnAnnotateUndo(object sender, RoutedEventArgs e) { MuPDFRenderer.Undo(); MuPDFRenderer.Focus(); }
+
+    private void OnAnnotateRedo(object sender, RoutedEventArgs e) { MuPDFRenderer.Redo(); MuPDFRenderer.Focus(); }
+
+    private void OnAnnotateClear(object sender, RoutedEventArgs e)
+    {
+        int count = MuPDFRenderer.CurrentPageAnnotationCount;
+        if (count == 0) return;
+        MuPDFRenderer.ClearPage();
+    }
+
+    private void OnOpacitySliderChanged(object? sender, RoutedEventArgs e)
+    {
+        if (OpacitySlider == null) return;
+        MuPDFRenderer.StrokeOpacity = OpacitySlider.Value;
+        if (_selectedAnnotations.Count > 0)
+        {
+            foreach (var selItem in _selectedAnnotations)
+            {
+                var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+                switch (selItem)
+                {
+                    case InkStroke s: s.Opacity = OpacitySlider.Value; s.InvalidatePen(); break;
+                    case ShapeAnnotation sh: sh.Opacity = OpacitySlider.Value; sh.InvalidatePen(); break;
+                    case TextAnnotation t: t.Opacity = OpacitySlider.Value; break;
+                }
+                if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+            }
+            MuPDFRenderer.InvalidateVisual();
+            MuPDFRenderer.NotifyAnnotationChanged();
+        }
+    }
+
+    private void OnAnnotateCustomColor(object sender, RoutedEventArgs e)
+    {
+        // Open a simple color input via TextBox — parse hex like "#FF6600"
+        var hex = "#" + MuPDFRenderer.StrokeColor.R.ToString("X2")
+                      + MuPDFRenderer.StrokeColor.G.ToString("X2")
+                      + MuPDFRenderer.StrokeColor.B.ToString("X2");
+        ColorInputBox.Text = hex;
+        ColorInputCanvas.IsVisible = true;
+        ColorInputBox.Focus();
+        ColorInputBox.SelectAll();
+    }
+
+    private void OnColorInputApply(object sender, RoutedEventArgs e)
+    {
+        if (Color.TryParse(ColorInputBox.Text?.Trim(), out var c))
+        {
+            MuPDFRenderer.StrokeColor = c;
+            if (MuPDFRenderer.ActiveLayer != null)
+                MuPDFRenderer.ActiveLayer.Color = c;
+        }
+        ColorInputCanvas.IsVisible = false;
+        MuPDFRenderer.Focus();
+    }
+
+    private void OnColorInputCancel(object sender, RoutedEventArgs e)
+    {
+        ColorInputCanvas.IsVisible = false;
+        MuPDFRenderer.Focus();
+    }
+
+    private void OnColorInputKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { OnColorInputApply(sender!, e); e.Handled = true; }
+        else if (e.Key == Key.Escape) { OnColorInputCancel(sender!, e); e.Handled = true; }
+    }
+
+    private void UpdateAnnotationCountBadge()
+    {
+        if (MuPDFRenderer.ActiveLayer is { } layer)
+        {
+            int count = layer.TotalCount;
+            AnnotationCountBadge.Text = count > 0 ? $"{count}" : "";
+        }
+        else
+        {
+            AnnotationCountBadge.Text = "";
+        }
+    }
+
+    private void UpdateFontSizeLabel()
+    {
+        FontSizeLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
+    }
+
+    private void UpdateUndoRedoButtons()
+    {
+        bool canUndo = MuPDFRenderer.CanUndoCurrentPage;
+        bool canRedo = MuPDFRenderer.CanRedoCurrentPage;
+        if (_undoBtn != null) { _undoBtn.Opacity = canUndo ? 1.0 : 0.35; _undoBtn.IsEnabled = canUndo; }
+        if (_redoBtn != null) { _redoBtn.Opacity = canRedo ? 1.0 : 0.35; _redoBtn.IsEnabled = canRedo; }
+    }
+
+    private void OnAnnotationChanged()
+    {
+        UpdateAnnotationCountBadge();
+        UpdateUndoRedoButtons();
+        UpdateActiveLayerLabel();
+    }
+
+    /// <summary>Shows a context menu listing all layers; clicking one sets it as the active layer.</summary>
+    private void OnLayerPickerClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var layers = MuPDFRenderer.Layers;
+        if (layers.Count == 0) return;
+        var menu = new ContextMenu();
+        foreach (var layer in layers.ToList())
+        {
+            var capturedLayer = layer;
+            var suffix = capturedLayer.IsLocked ? " \U0001F512" : "";
+            var item = new MenuItem
+            {
+                Header = capturedLayer.Name + suffix,
+                IsChecked = capturedLayer == MuPDFRenderer.ActiveLayer
+            };
+            item.Click += (_, _) =>
+            {
+                MuPDFRenderer.ActiveLayer = capturedLayer;
+                UpdateActiveLayerLabel();
+                MuPDFRenderer.Focus();
+            };
+            menu.Items.Add(item);
+        }
+        menu.Open(btn);
+    }
+
+    /// <summary>Toggles the visibility of the active annotation layer.</summary>
+    private void OnToggleLayerVisibility(object? sender, RoutedEventArgs e)
+    {
+        var layer = MuPDFRenderer.ActiveLayer;
+        if (layer == null) return;
+        layer.IsVisible = !layer.IsVisible;
+        MuPDFRenderer.InvalidateVisual();
+        UpdateActiveLayerLabel();
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Toggles the lock state of the active annotation layer.</summary>
+    private void OnToggleLayerLock(object? sender, RoutedEventArgs e)
+    {
+        var layer = MuPDFRenderer.ActiveLayer;
+        if (layer == null) return;
+        layer.IsLocked = !layer.IsLocked;
+        MuPDFRenderer.InvalidateVisual();
+        UpdateActiveLayerLabel();
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Syncs the layer label, visibility and lock button state to the current active layer.</summary>
+    private void UpdateActiveLayerLabel()
+    {
+        var layer = MuPDFRenderer.ActiveLayer;
+        if (layer == null) return;
+        if (ActiveLayerLabel != null)
+            ActiveLayerLabel.Text = layer.IsLocked ? $"{layer.Name} \U0001F512" : layer.Name;
+        if (LayerVisBtn != null)
+            LayerVisBtn.Opacity = layer.IsVisible ? 1.0 : 0.35;
+        if (LayerLockBtn != null)
+            LayerLockBtn.Opacity = layer.IsLocked ? 1.0 : 0.35;
+    }
+
+    private void OnFontSizeDecrease(object sender, RoutedEventArgs e)
+    {
+        MuPDFRenderer.TextFontSize = Math.Max(6, MuPDFRenderer.TextFontSize - 2);
+        UpdateFontSizeLabel();
+        if (_selectedAnnotation is TextAnnotation t)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(t);
+            t.FontSize = MuPDFRenderer.TextFontSize;
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+            MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged();
+        }
+    }
+
+    private void OnFontSizeIncrease(object sender, RoutedEventArgs e)
+    {
+        MuPDFRenderer.TextFontSize = Math.Min(72, MuPDFRenderer.TextFontSize + 2);
+        UpdateFontSizeLabel();
+        if (_selectedAnnotation is TextAnnotation t)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(t);
+            t.FontSize = MuPDFRenderer.TextFontSize;
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+            MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged();
+        }
+    }
+
+    private void OnToggleFill(object sender, RoutedEventArgs e)
+    {
+        MuPDFRenderer.IsFilledMode = !MuPDFRenderer.IsFilledMode;
+
+        // Apply to selected closed shape (rect / ellipse / cloud)
+        if (_selectedAnnotation is ShapeAnnotation sh
+            && sh.ShapeType is InlineAnnotationTool.Rectangle
+                            or InlineAnnotationTool.Ellipse
+                            or InlineAnnotationTool.RevisionCloud)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+            sh.IsFilled = MuPDFRenderer.IsFilledMode;
+            sh.InvalidatePen();
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+            MuPDFRenderer.InvalidateVisual();
+            MuPDFRenderer.NotifyAnnotationChanged();
+        }
+
+        SyncFillToggleButton(MuPDFRenderer.IsFilledMode);
+    }
+
+    /// <summary>Syncs the fill toggle button visual state to the given value.</summary>
+    private void SyncFillToggleButton(bool isFilled)
+    {
+        if (FillToggleBtn == null) return;
+        FillToggleBtn.BorderThickness = isFilled ? new Thickness(2) : new Thickness(0);
+        FillToggleBtn.BorderBrush = isFilled
+            ? (FillToggleBtn.TryFindResource("SystemAccentColor", FillToggleBtn.ActualThemeVariant, out var obj) && obj is Color c
+                ? new SolidColorBrush(c) : Brushes.White)
+            : null;
+    }
+
+    private void OnToggleGrid(object sender, RoutedEventArgs e)
+    {
+        MuPDFRenderer.SnapToGrid = !MuPDFRenderer.SnapToGrid;
+        SyncGridToggleButton(MuPDFRenderer.SnapToGrid);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Syncs the grid toggle button visual state to the given value.</summary>
+    private void SyncGridToggleButton(bool active)
+    {
+        if (GridToggleBtn == null) return;
+        GridToggleBtn.BorderThickness = active ? new Thickness(2) : new Thickness(0);
+        GridToggleBtn.BorderBrush = active
+            ? (GridToggleBtn.TryFindResource("SystemAccentColor", GridToggleBtn.ActualThemeVariant, out var obj) && obj is Color c
+                ? new SolidColorBrush(c) : Brushes.White)
+            : null;
+    }
+
+    private static void MoveAnnotation(object item, double dx, double dy)
+    {
+        switch (item)
+        {
+            case TextAnnotation t:
+                t.Position = new Point(t.Position.X + dx, t.Position.Y + dy);
+                if (t.ArrowOrigin.HasValue)
+                    t.ArrowOrigin = new Point(t.ArrowOrigin.Value.X + dx, t.ArrowOrigin.Value.Y + dy);
+                break;
+            case ShapeAnnotation s:
+                s.Start = new Point(s.Start.X + dx, s.Start.Y + dy);
+                s.End = new Point(s.End.X + dx, s.End.Y + dy);
+                s.InvalidatePen();
+                break;
+            case MeasurementAnnotation m:
+                for (int i = 0; i < m.Points.Count; i++)
+                    m.Points[i] = new Point(m.Points[i].X + dx, m.Points[i].Y + dy);
+                break;
+            case InkStroke ink:
+                for (int i = 0; i < ink.Points.Count; i++)
+                    ink.Points[i] = new Point(ink.Points[i].X + dx, ink.Points[i].Y + dy);
+                ink.InvalidatePen();
+                break;
+        }
+    }
+
+    private Point? _pendingArrowOrigin;
+    private bool _pendingStickyNote;
+
+    private void ShowTextInput(Point pdfPoint, Point screenPos, Point? arrowOrigin = null, bool isStickyNote = false)
+    {
+        _textPlacementPdfPoint = pdfPoint;
+        _editingTextAnnotation = null;
+        _pendingArrowOrigin = arrowOrigin;
+        _pendingStickyNote = isStickyNote;
+        Canvas.SetLeft(TextInputBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 240));
+        Canvas.SetTop(TextInputBorder, Math.Min(screenPos.Y, MuPDFRenderer.Bounds.Height - 100));
+        TextInputBox.Text = "";
+        TextInputCanvas.IsVisible = true;
+        TextInputBox.Focus();
+    }
+
+    private void ShowTextEdit(TextAnnotation existing, Point screenPos)
+    {
+        _textPlacementPdfPoint = existing.Position;
+        _editingTextAnnotation = existing;
+        // Position the overlay directly over the annotation for in-place editing
+        var da = MuPDFRenderer.DisplayArea;
+        var bounds = MuPDFRenderer.Bounds;
+        if (da.Width > 0 && bounds.Width > 0)
+        {
+            double annotX = (existing.Position.X - da.X) / da.Width * bounds.Width;
+            double annotY = (existing.Position.Y - da.Y) / da.Height * bounds.Height;
+            screenPos = new Point(annotX, annotY);
+            // Match text input width to annotation's MaxWidth for WYSIWYG editing
+            if (existing.MaxWidth > 0)
+                TextInputBox.Width = Math.Clamp(existing.MaxWidth / da.Width * bounds.Width, 120, 600);
+            else
+                TextInputBox.Width = 220;
+        }
+        Canvas.SetLeft(TextInputBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 240));
+        Canvas.SetTop(TextInputBorder, Math.Min(screenPos.Y, MuPDFRenderer.Bounds.Height - 100));
+        TextInputBox.Text = existing.Text;
+        TextInputCanvas.IsVisible = true;
+        TextInputBox.Focus();
+    }
+
+    private void OnTextInputCommit(object sender, RoutedEventArgs e)
+    {
+        if (_textPlacementPdfPoint.HasValue && !string.IsNullOrWhiteSpace(TextInputBox.Text))
+        {
+            if (_editingTextAnnotation != null)
+            {
+                var snap = MuPDFRenderer.CapturePropertySnapshot(_editingTextAnnotation);
+                _editingTextAnnotation.Text = TextInputBox.Text;
+                MuPDFRenderer.AutoSizeTextWidth(_editingTextAnnotation);
+                if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+            }
+            else if (_pendingStickyNote)
+            {
+                MuPDFRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, TextInputBox.Text);
+            }
+            else if (_pendingArrowOrigin.HasValue)
+            {
+                MuPDFRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
+                    _textPlacementPdfPoint.Value, TextInputBox.Text);
+            }
+            else
+            {
+                MuPDFRenderer.PlaceText(_textPlacementPdfPoint.Value, TextInputBox.Text);
+            }
+        }
+
+        CloseTextInput();
+        MuPDFRenderer.InvalidateVisual();
+    }
+
+    private void OnTextInputCancel(object sender, RoutedEventArgs e) => CloseTextInput();
+
+    private void OnTextInputKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            // Plain Enter = commit; Shift+Enter = newline (handled by AcceptsReturn)
+            OnTextInputCommit(sender!, e);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            OnTextInputCancel(sender!, e);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// Clicking the canvas background (outside the text input border) auto-commits
+    /// the current text, making the input feel more direct — no Done button needed.
+    /// </summary>
+    private void OnTextInputBackgroundClick(object? sender, PointerPressedEventArgs e)
+    {
+        // Only commit if the click is outside the TextInputBorder
+        var pos = e.GetPosition(TextInputBorder);
+        if (pos.X < 0 || pos.Y < 0 || pos.X > TextInputBorder.Bounds.Width || pos.Y > TextInputBorder.Bounds.Height)
+        {
+            OnTextInputCommit(this, e);
+            e.Handled = true;
+        }
+    }
+
+    private void OnMeasureCalibrate(object sender, RoutedEventArgs e)
+    {
+        // Always enter guided calibration mode: switch to the measure tool
+        // and let the user draw a reference line. The distance input dialog
+        // appears after the line is committed (in OnInkPointerPressed).
+        // This avoids the old behaviour where the dialog would appear
+        // immediately when measurements existed, blocking the PDF and
+        // preventing the user from drawing a new reference line.
+        _calibrationMode = true;
+        ApplyToolSwitch(InlineAnnotationTool.MeasureDistance);
+    }
+
+    private void OnCalibrationApply(object sender, RoutedEventArgs e)
+    {
+        if (double.TryParse(CalibrationValueBox.Text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double realMm) && realMm > 0)
+        {
+            MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
+        }
+        CalibrationCanvas.IsVisible = false;
+        MuPDFRenderer.Focus();
+    }
+
+    private void OnCalibrationCancel(object sender, RoutedEventArgs e)
+    {
+        CalibrationCanvas.IsVisible = false;
+        _calibrationMode = false;
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Centers the calibration dialog overlay in the preview area.</summary>
+    private void CenterCalibrationDialog()
+    {
+        // Use approximate dialog size; Avalonia measures on next layout pass
+        const double dialogWidth = 250;
+        const double dialogHeight = 110;
+        double cx = Math.Max(0, (MuPDFRenderer.Bounds.Width - dialogWidth) / 2);
+        double cy = Math.Max(0, (MuPDFRenderer.Bounds.Height - dialogHeight) / 2);
+        Canvas.SetLeft(CalibrationBorder, cx);
+        Canvas.SetTop(CalibrationBorder, cy);
+    }
+
+    private void OnCalibrationKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            OnCalibrationApply(sender!, e);
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            OnCalibrationCancel(sender!, e);
+            e.Handled = true;
+        }
+    }
+
+    private void OnPropertyEditText(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is TextAnnotation t)
+        {
+            ClosePropertyPanel();
+            var da = MuPDFRenderer.DisplayArea;
+            var bounds = MuPDFRenderer.Bounds;
+            double screenX = da.Width > 0 ? (t.Position.X - da.X) / da.Width * bounds.Width : 0;
+            double screenY = da.Height > 0 ? (t.Position.Y - da.Y) / da.Height * bounds.Height : 0;
+            ShowTextEdit(t, new Point(screenX, screenY));
+        }
+    }
+
+    private void OnPropertyDuplicate(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget != null && !MuPDFRenderer.IsActiveLayerLocked)
+        {
+            _annotationClipboard = _propertyPanelTarget;
+            PasteAnnotation();
+        }
+        ClosePropertyPanel();
+    }
+
+    private void OnPropertyMatchStyle(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget != null)
+        {
+            SavePreSelectState();
+            SyncToolbarToSelection();
+            DeselectAnnotation();
+        }
+        ClosePropertyPanel();
+    }
+
+    private void OnPropertyBringToFront(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget != null)
+            MuPDFRenderer.BringToFront(_propertyPanelTarget);
+        ClosePropertyPanel();
+    }
+
+    private void OnPropertySendToBack(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget != null)
+            MuPDFRenderer.SendToBack(_propertyPanelTarget);
+        ClosePropertyPanel();
+    }
+
+    private void OnPropertyClosePolyline(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is InkStroke { IsPolyline: true } poly)
+            MuPDFRenderer.TogglePolylineClosed(poly);
+        ClosePropertyPanel();
+    }
+
+    private void OnPropertyDelete(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget != null)
+        {
+            MuPDFRenderer.DeleteAnnotation(_propertyPanelTarget);
+            _selectedAnnotation = null;
+            _selectedAnnotations.Clear();
+            MuPDFRenderer.ClearSelectHighlight();
+        }
+        ClosePropertyPanel();
+    }
+
+    private void OnAnnotateKeyUp(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && _spaceHeld)
+        {
+            _spaceHeld = false;
+            if (!_middlePanning)
+                MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
+            e.Handled = true;
+        }
+    }
+
+    /// <summary>
+    /// When an annotation is selected, update the toolbar buttons to reflect
+    /// its color, width, dash, opacity, font size, and fill state.
+    /// This gives Figma-style "inspect on select" feedback.
+    /// </summary>
+    private void SyncToolbarToSelection()
+    {
+        if (_selectedAnnotation == null) return;
+
+        Color? color = null;
+        double? width = null;
+        LineDashPattern? dash = null;
+        double? opacity = null;
+
+        switch (_selectedAnnotation)
+        {
+            case InkStroke s:
+                color = s.Color; width = s.Width; dash = s.DashPattern; opacity = s.Opacity;
+                break;
+            case ShapeAnnotation sh:
+                color = sh.Color; width = sh.StrokeWidth; dash = sh.DashPattern; opacity = sh.Opacity;
+                break;
+            case TextAnnotation t:
+                color = t.Color; opacity = t.Opacity;
+                break;
+            case MeasurementAnnotation m:
+                color = m.Color;
+                break;
+        }
+
+        // Sync color button highlight
+        if (color.HasValue)
+        {
+            var tag = MatchColorTag(color.Value);
+            SetActiveColorButton(tag != null ? FindToolbarButtonByTag(tag) : null);
+            MuPDFRenderer.StrokeColor = color.Value;
+            UpdateColorIndicator(color.Value);
+        }
+
+        // Sync width button highlight
+        if (width.HasValue)
+        {
+            SetActiveWidthButton(FindToolbarButtonByTag(((int)width.Value).ToString()));
+            if (!MuPDFRenderer.IsHighlighterMode)
+            { MuPDFRenderer.StrokeWidth = width.Value; _normalStrokeWidth = width.Value; }
+            UpdateBrushSizeIndicator(width.Value);
+        }
+
+        // Sync dash pattern button highlight
+        if (dash.HasValue)
+        {
+            SetActiveDashButton(FindToolbarButtonByTag(dash.Value.ToString()));
+            MuPDFRenderer.StrokeDashPattern = dash.Value;
+            UpdateDashIndicator(dash.Value);
+        }
+
+        // Sync opacity slider
+        if (opacity.HasValue && OpacitySlider != null)
+            OpacitySlider.Value = opacity.Value;
+
+        // Sync font size for text annotations
+        if (_selectedAnnotation is TextAnnotation txt)
+        {
+            MuPDFRenderer.TextFontSize = txt.FontSize;
+            UpdateFontSizeLabel();
+        }
+
+        // Sync fill toggle for closed shapes
+        if (_selectedAnnotation is ShapeAnnotation shape
+            && shape.ShapeType is InlineAnnotationTool.Rectangle
+                               or InlineAnnotationTool.Ellipse
+                               or InlineAnnotationTool.RevisionCloud)
+        {
+            MuPDFRenderer.IsFilledMode = shape.IsFilled;
+            SyncFillToggleButton(shape.IsFilled);
+        }
+    }
+
+    private static string? MatchColorTag(Color c) =>
+        ColorNames.GetValueOrDefault(c);
+
+    // ── Property panel (double-click to edit shape/stroke properties) ──────
+
+    private void ShowPropertyPanel(object item, Point screenPos)
+    {
+        _propertyPanelTarget = item;
+        SelectAnnotation(item);
+
+        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 220));
+        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, MuPDFRenderer.Bounds.Height - 100));
+
+        bool hasStroke = item is InkStroke or ShapeAnnotation;
+        bool hasFill = item is ShapeAnnotation sf
+            && sf.ShapeType is InlineAnnotationTool.Rectangle
+                            or InlineAnnotationTool.Ellipse
+                            or InlineAnnotationTool.RevisionCloud;
+        bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
+            || item is InkStroke { IsPolyline: true };
+        bool isText = item is TextAnnotation;
+        bool isPolyline = item is InkStroke { IsPolyline: true, Points.Count: >= 3 };
+
+        PropertyStrokeRow.IsVisible = hasStroke;
+        PropertyFillBtn.IsVisible = hasFill;
+        PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
+        var editTextBtn = this.FindControl<Button>("PropertyEditTextBtn");
+        var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
+        if (editTextBtn != null) editTextBtn.IsVisible = isText;
+        if (closePolyBtn != null) closePolyBtn.IsVisible = isPolyline;
+
+        if (isPolyline && closePolyBtn != null)
+        {
+            var poly = (InkStroke)item;
+            ToolTip.SetTip(closePolyBtn, poly.IsClosed ? "Open Polyline" : "Close Polyline");
+        }
+
+        if (hasFill)
+        {
+            var sh = (ShapeAnnotation)item;
+            PropertyFillBtn.BorderThickness = sh.IsFilled ? new Thickness(2) : new Thickness(0);
+            PropertyFillBtn.BorderBrush = sh.IsFilled ? Brushes.White : null;
+        }
+
+        double opacity = item switch
+        {
+            InkStroke s => s.Opacity,
+            ShapeAnnotation sh => sh.Opacity,
+            TextAnnotation t => t.Opacity,
+            MeasurementAnnotation m => 1.0,
+            _ => 1.0
+        };
+        PropertyOpacitySlider.Value = opacity;
+
+        PropertyPanelCanvas.IsVisible = true;
+    }
+
+    private void ClosePropertyPanel()
+    {
+        PropertyPanelCanvas.IsVisible = false;
+        _propertyPanelTarget = null;
+        MuPDFRenderer.Focus();
+    }
+
+    private void OnPropertyPanelBackgroundClick(object? sender, PointerPressedEventArgs e)
+    {
+        var pos = e.GetPosition(PropertyPanelBorder);
+        if (pos.X < 0 || pos.Y < 0 || pos.X > PropertyPanelBorder.Bounds.Width || pos.Y > PropertyPanelBorder.Bounds.Height)
+        {
+            ClosePropertyPanel();
+            e.Handled = true;
+        }
+    }
+
+    private void OnPropertyColor(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null) return;
+        if (sender is not Button btn || btn.Tag is not string colorName) return;
+        var color = ColorPalette.GetValueOrDefault(colorName, ColorPalette["Red"]);
+        ApplyColorToSelection(color);
+        MuPDFRenderer.StrokeColor = color;
+        SetActiveColorButton(FindToolbarButtonByTag(colorName));
+    }
+
+    private void OnPropertyWidth(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null) return;
+        if (sender is not Button btn || btn.Tag is not string widthStr || !double.TryParse(widthStr, out double w)) return;
+        foreach (var selItem in _selectedAnnotations)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            switch (selItem)
+            {
+                case InkStroke ink: ink.Width = w; ink.InvalidatePen(); break;
+                case ShapeAnnotation sh: sh.StrokeWidth = w; sh.InvalidatePen(); break;
+            }
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+        }
+        MuPDFRenderer.StrokeWidth = w;
+        _normalStrokeWidth = w;
+        SetActiveWidthButton(FindToolbarButtonByTag(widthStr));
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyDash(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null) return;
+        if (sender is not Button btn || btn.Tag is not string patternName
+            || !Enum.TryParse<LineDashPattern>(patternName, out var pattern)) return;
+        foreach (var selItem in _selectedAnnotations)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            switch (selItem)
+            {
+                case InkStroke ink: ink.DashPattern = pattern; ink.InvalidatePen(); break;
+                case ShapeAnnotation sh: sh.DashPattern = pattern; sh.InvalidatePen(); break;
+            }
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+        }
+        MuPDFRenderer.StrokeDashPattern = pattern;
+        SetActiveDashButton(FindToolbarButtonByTag(patternName));
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyFill(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not ShapeAnnotation sh) return;
+        var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+        sh.IsFilled = !sh.IsFilled;
+        sh.InvalidatePen();
+        if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+        PropertyFillBtn.BorderThickness = sh.IsFilled ? new Thickness(2) : new Thickness(0);
+        PropertyFillBtn.BorderBrush = sh.IsFilled ? Brushes.White : null;
+        MuPDFRenderer.IsFilledMode = sh.IsFilled;
+        SyncFillToggleButton(sh.IsFilled);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyCornerRadius(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null) return;
+        if (sender is not Button btn || btn.Tag is not string radiusStr || !double.TryParse(radiusStr, out double r)) return;
+        foreach (var selItem in _selectedAnnotations)
+        {
+            switch (selItem)
+            {
+                case ShapeAnnotation sh when sh.ShapeType == InlineAnnotationTool.Rectangle:
+                    sh.CornerRadius = r; sh.InvalidatePen(); break;
+                case InkStroke { IsPolyline: true } ink:
+                    ink.CornerRadius = r; ink.InvalidatePen(); break;
+            }
+        }
+        MuPDFRenderer.ShapeCornerRadius = r;
+        SetActiveButton(ref _activeCornerRadiusButton, btn);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyOpacityChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null || PropertyOpacitySlider == null) return;
+        double val = PropertyOpacitySlider.Value;
+        foreach (var selItem in _selectedAnnotations)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            switch (selItem)
+            {
+                case InkStroke s: s.Opacity = val; s.InvalidatePen(); break;
+                case ShapeAnnotation sh: sh.Opacity = val; sh.InvalidatePen(); break;
+                case TextAnnotation t: t.Opacity = val; break;
+            }
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+        }
+        MuPDFRenderer.StrokeOpacity = val;
+        if (OpacitySlider != null) OpacitySlider.Value = val;
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+}
+

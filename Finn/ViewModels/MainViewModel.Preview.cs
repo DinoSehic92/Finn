@@ -67,6 +67,8 @@ namespace Finn.ViewModels
         {
             if (version == null) return;
             SelectedVersion = version;
+            // Remember the real file so CanCompareVersions works during version preview
+            PreviewVM.VersionSourceFile = CurrentFile;
             var stub = new FileData { Sökväg = version.Sökväg, Namn = version.ShortName };
             // Point the stub at the version's own annotation layers so strokes
             // survive version switches instead of being lost with the stub.
@@ -75,6 +77,16 @@ namespace Finn.ViewModels
             if (CurrentFile?.IsCached == true)
                 stub.IsCached = true;
             await RequestPreviewAsync(stub, searchText);
+        }
+
+        /// <summary>
+        /// Returns to the original file after previewing a version.
+        /// </summary>
+        public async Task ReturnToOriginalAsync()
+        {
+            if (!IsViewingVersion) return;
+            ClearSelectedVersion();
+            await RequestPreviewAsync(CurrentFile);
         }
 
         /// <summary>

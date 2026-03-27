@@ -15,6 +15,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
 
@@ -22,7 +23,6 @@ namespace Finn.Views;
 
 public partial class MainView : UserControl
 {
-    private readonly BackgroundWorker _metaWorker = new() { WorkerReportsProgress = true };
     private readonly HashSet<DataGridRow> _trackedRows = [];
     private readonly Dictionary<DataGridRow, (FileData Data, PropertyChangedEventHandler Handler)> _rowBindings = [];
 
@@ -66,8 +66,6 @@ public partial class MainView : UserControl
 
         VersionsGrid.AddHandler(DataGrid.DoubleTappedEvent, OnVersionDoubleTapped);
         VersionsGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectVersion);
-
-        InitMetaworker();
     }
 
     // Removed file-open debugger / benchmark command and handler
@@ -82,7 +80,7 @@ public partial class MainView : UserControl
 
     #region Initialization
 
-    private void InitStartup(object? sender, RoutedEventArgs e)
+    private async void InitStartup(object? sender, RoutedEventArgs e)
     {
         _ctx = (MainViewModel)DataContext!;
         _pwr = _ctx.PreviewVM;
@@ -114,17 +112,17 @@ public partial class MainView : UserControl
             try
             {
                 // Load calendar storage directly into the CalendarViewModel
-                _ctx.Calendar.LoadOrCreateStorage(MainViewModel.SavePath);
+                await _ctx.Calendar.LoadOrCreateStorageAsync(MainViewModel.SavePath);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex);
+                Utils.ErrorLogger.Log(ex, "InitStartup.LoadCalendar");
             }
 
                 // Initial paint — use Render priority so CalendarDayButtons are fully templated
                     Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
                 }
-                catch (Exception ex) { Debug.WriteLine($"InitStartup failed: {ex}"); }
+                catch (Exception ex) { Utils.ErrorLogger.Log(ex, "InitStartup"); }
 
                 UpdateEmptyState();
 
@@ -242,38 +240,50 @@ public partial class MainView : UserControl
     private async void OnDrop(object? sender, DragEventArgs e)
     {
         SetDropHintActive(DropOverlay, false);
-        var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        if (files.Count > 0)
-            await _ctx.AddDroppedFilesAsync(files, window);
-        if (folders.Count > 0)
-            await _ctx.AddDroppedFoldersAsync(folders, window);
-        UpdateEmptyState();
+        try
+        {
+            var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
+            var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+            if (files.Count > 0)
+                await _ctx.AddDroppedFilesAsync(files, window);
+            if (folders.Count > 0)
+                await _ctx.AddDroppedFoldersAsync(folders, window);
+            UpdateEmptyState();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, "OnDrop"); }
     }
 
     private async void OnDropOtherFiles(object? sender, DragEventArgs e)
     {
         SetDropHintActive(OtherFilesDropOverlay, false);
-        var (files, folders) = ExtractDroppedFilesAndFolders(e);
-        await _ctx.AddDroppedOtherFilesAsync(files, folders);
-        UpdateOtherFilesEmptyState();
+        try
+        {
+            var (files, folders) = ExtractDroppedFilesAndFolders(e);
+            await _ctx.AddDroppedOtherFilesAsync(files, folders);
+            UpdateOtherFilesEmptyState();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, "OnDropOtherFiles"); }
     }
 
     private async void OnDropVersionFolder(object? sender, DragEventArgs e)
     {
         SetDropHintActive(FolderDropOverlay, false);
-        var (_, folders) = ExtractDroppedFilesAndFolders(e);
-        if (folders.Count == 0) return;
-
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        foreach (string path in folders)
+        try
         {
-            _ctx.NewVersionFolder(path);
-            var folder = _ctx.CurrentProject.Folders.LastOrDefault();
-            if (folder != null)
-                await _ctx.SyncVersionFolderAsync(folder, window);
+            var (_, folders) = ExtractDroppedFilesAndFolders(e);
+            if (folders.Count == 0) return;
+
+            var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+            foreach (string path in folders)
+            {
+                _ctx.NewVersionFolder(path);
+                var folder = _ctx.CurrentProject.Folders.LastOrDefault();
+                if (folder != null)
+                    await _ctx.SyncVersionFolderAsync(folder, window);
+            }
+            UpdateFolderEmptyState();
         }
-        UpdateFolderEmptyState();
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, "OnDropVersionFolder"); }
     }
 
     /// <summary>
@@ -393,8 +403,12 @@ public partial class MainView : UserControl
 
     private async void OnSearch(object? sender, RoutedEventArgs e)
     {
-        await _ctx.Search();
-        OnUpdateColumns();
+        try
+        {
+            await _ctx.Search();
+            OnUpdateColumns();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, "OnSearch"); }
     }
 
     private void OnStartSearch(object? sender, KeyEventArgs e)
@@ -1012,13 +1026,6 @@ public partial class MainView : UserControl
 
     #region Metadata Worker
 
-    private void InitMetaworker()
-    {
-        _metaWorker.DoWork += MetaWorkerDoWork;
-        _metaWorker.ProgressChanged += MetaWorkerProgress;
-        _metaWorker.RunWorkerCompleted += MetaWorkerRunWorkerCompleted;
-    }
-
     private async void OnFetchThumbnails(object? sender, RoutedEventArgs e)
     {
         if (_ctx.PreviewVM.BackgroundTaskActive) return;
@@ -1041,7 +1048,7 @@ public partial class MainView : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine(ex);
+            Utils.ErrorLogger.Log(ex, "OnFetchThumbnails");
         }
         finally
         {
@@ -1078,7 +1085,7 @@ public partial class MainView : UserControl
         }
         catch (Exception ex)
         {
-            Debug.WriteLine(ex);
+            Utils.ErrorLogger.Log(ex, "OnFetchIndex");
         }
         finally
         {
@@ -1090,38 +1097,46 @@ public partial class MainView : UserControl
         }
     }
 
-    private void OnFetchSingleMeta(object? sender, RoutedEventArgs e) => RunMetaWorker(singleFile: true);
-    private void OnFetchFullMeta(object? sender, RoutedEventArgs e) => RunMetaWorker(singleFile: false);
+    private async void OnFetchSingleMeta(object? sender, RoutedEventArgs e) => await RunMetaWorkerAsync(singleFile: true);
+    private async void OnFetchFullMeta(object? sender, RoutedEventArgs e) => await RunMetaWorkerAsync(singleFile: false);
 
-    private void RunMetaWorker(bool singleFile)
+    private async Task RunMetaWorkerAsync(bool singleFile)
     {
-        if (_metaWorker.IsBusy) return;
+        if (_ctx.PreviewVM.BackgroundTaskActive) return;
+
         _ctx.PreviewVM.BackgroundTaskMessage = "Fetching Metadata";
-        _ctx.Data.SelectFilesForMetaworker(singleFile);
         _ctx.PreviewVM.BackgroundTaskActive = true;
-        _metaWorker.RunWorkerAsync();
-    }
-
-    private void MetaWorkerDoWork(object? sender, DoWorkEventArgs e)
-    {
-        int total = _ctx.Data.GetNrSelectedFiles();
-        for (int k = 0; k < total; k++)
-        {
-            _ctx.Data.GetMetadata(k);
-            _metaWorker.ReportProgress((k + 1) * 100 / total);
-        }
-    }
-
-    private void MetaWorkerProgress(object? sender, ProgressChangedEventArgs e) =>
-        _ctx.PreviewVM.BackgroundTaskProgress = e.ProgressPercentage;
-
-    private void MetaWorkerRunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
-    {
-        _ctx.Data.SetMeta();
-        _ctx.MarkDirty();
-        _ctx.PreviewVM.BackgroundTaskMessage = "";
         _ctx.PreviewVM.BackgroundTaskProgress = 0;
-        _ctx.PreviewVM.BackgroundTaskActive = false;
+        _ctx.Data.SelectFilesForMetaworker(singleFile);
+
+        try
+        {
+            int total = _ctx.Data.GetNrSelectedFiles();
+            var progress = new Progress<int>(p =>
+                _ctx.PreviewVM.BackgroundTaskProgress = p);
+
+            await Task.Run(() =>
+            {
+                for (int k = 0; k < total; k++)
+                {
+                    _ctx.Data.GetMetadata(k);
+                    ((IProgress<int>)progress).Report((k + 1) * 100 / Math.Max(1, total));
+                }
+            });
+
+            _ctx.Data.SetMeta();
+            _ctx.MarkDirty();
+        }
+        catch (Exception ex)
+        {
+            Utils.ErrorLogger.Log(ex, "RunMetaWorkerAsync");
+        }
+        finally
+        {
+            _ctx.PreviewVM.BackgroundTaskMessage = "";
+            _ctx.PreviewVM.BackgroundTaskProgress = 0;
+            _ctx.PreviewVM.BackgroundTaskActive = false;
+        }
     }
 
     

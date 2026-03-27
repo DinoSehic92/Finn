@@ -241,7 +241,7 @@ namespace Finn.ViewModels
             {
                 string assignedType = (Type != null && Type != ALL_TYPES) ? Type : "New";
                 CurrentProject.Newfile(path, assignedType);
-                UpdateFilter();
+                ScheduleFilterUpdate();
                 MarkDirty();
             }
 

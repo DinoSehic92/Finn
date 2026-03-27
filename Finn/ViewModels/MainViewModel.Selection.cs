@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using Avalonia.Threading;
 
 namespace Finn.ViewModels
 {
@@ -127,6 +128,24 @@ namespace Finn.ViewModels
                 PreviewVM.SearchMode = false;
                 SearchText = String.Empty;
             }
+        }
+
+        private bool _filterScheduled;
+
+        /// <summary>
+        /// Schedules a single <see cref="UpdateFilter"/> call on the next UI
+        /// dispatch cycle. Multiple rapid calls collapse into one update,
+        /// avoiding redundant work when batch operations add/remove many files.
+        /// </summary>
+        public void ScheduleFilterUpdate()
+        {
+            if (_filterScheduled) return;
+            _filterScheduled = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                _filterScheduled = false;
+                UpdateFilter();
+            }, DispatcherPriority.Background);
         }
 
         /// <summary>
