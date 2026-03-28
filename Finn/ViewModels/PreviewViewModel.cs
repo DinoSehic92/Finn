@@ -27,8 +27,8 @@ namespace Finn.ViewModels
     {
         #region Constants
         private const int MAX_RECENT_FILES = 20;
-        private const double ZOOM_LEVEL = 0.2;
-        private const int RENDER_DELAY = 20;
+        private const double ZOOM_LEVEL = 0.5;
+        private const int RENDER_DELAY = 5;
         #endregion
 
         #region Fields
@@ -1468,22 +1468,28 @@ namespace Finn.ViewModels
             if (disposed || FileWorkerBusy || SearchBusy || !PageInRange(RequestPage1) || mainRenderer == null)
                 return;
 
+            int targetPage = RequestPage1;
+
             await renderSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
+                // Skip stale requests: if the user scrolled past this page
+                // while we waited for the semaphore, render the latest instead.
+                if (RequestPage1 != targetPage)
+                    targetPage = RequestPage1;
+                if (!PageInRange(targetPage)) return;
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    mainRenderer.IsVisible = false;
-                    mainRenderer.HighlightedRegions = null;
+                    if (mainRenderer?.HighlightedRegions != null)
+                        mainRenderer.HighlightedRegions = null;
                     try
                     {
                         if (MainPreviewFile != null && mainRenderer != null)
                         {
-                            mainRenderer.ReleaseResources();
-                            mainRenderer.Initialize(MainPreviewFile, 1, RequestPage1, ZOOM_LEVEL);
-                            mainRenderer.IsVisible = true;
-                            SetSearchResults();
-                            CurrentPage1 = RequestPage1;
+                            mainRenderer.Initialize(MainPreviewFile, 1, targetPage, ZOOM_LEVEL);
+                            if (SearchPages?.Count > 0) SetSearchResults();
+                            CurrentPage1 = targetPage;
                         }
                     }
                     catch (NullReferenceException nre)
@@ -1512,29 +1518,35 @@ namespace Finn.ViewModels
             if (disposed || FileWorkerBusy || SearchBusy || !inRange || !rendererActive || secondaryRenderer == null)
                 return;
 
+            int targetPage = RequestPage2;
+
             await renderSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
+                // Skip stale requests after semaphore wait
+                if (RequestPage2 != targetPage)
+                    targetPage = RequestPage2;
+                inRange = DualFileMode ? PageInRange2(targetPage) : PageInRange(targetPage);
+                if (!inRange) return;
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    secondaryRenderer.IsVisible = false;
-                    secondaryRenderer.HighlightedRegions = null;
+                    if (secondaryRenderer?.HighlightedRegions != null)
+                        secondaryRenderer.HighlightedRegions = null;
                     try
                     {
                         var doc = DualFileMode ? secondaryFile : MainPreviewFile;
                         if (doc != null && secondaryRenderer != null)
                         {
-                            secondaryRenderer.ReleaseResources();
                             // Guard: skip Initialize when the renderer has zero bounds
                             // (not yet in layout). ToggleDualViewAsync or Contain()
                             // will retry after layout completes.
                             if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
                             {
-                                secondaryRenderer.Initialize(doc, 1, RequestPage2, ZOOM_LEVEL);
-                                if (!DualFileMode) SetSecondarySearchResults();
-                                CurrentPage2 = RequestPage2;
+                                secondaryRenderer.Initialize(doc, 1, targetPage, ZOOM_LEVEL);
+                                if (!DualFileMode && SearchPages?.Count > 0) SetSecondarySearchResults();
+                                CurrentPage2 = targetPage;
                             }
-                            secondaryRenderer.IsVisible = true;
                         }
                     }
                     catch (NullReferenceException nre)
@@ -1577,19 +1589,24 @@ namespace Finn.ViewModels
                             await renderSemaphore.WaitAsync().ConfigureAwait(false);
                             try
                             {
+                                // Pick up latest page if user scrolled while we waited
+                                if (requestPage1 != page1) page1 = requestPage1;
+                                if (requestPage2 != page2) page2 = requestPage2;
+                                mainInRange = PageInRange(page1);
+                                secInRange = DualFileMode ? PageInRange2(page2) : PageInRange(page2);
+                                if (!mainInRange && !secInRange) return;
+
                                 await Dispatcher.UIThread.InvokeAsync(() =>
                                 {
                                     // -- Main page --
                                     if (mainInRange && mainRenderer != null && MainPreviewFile != null)
                                     {
-                                        mainRenderer.IsVisible = false;
-                                        mainRenderer.HighlightedRegions = null;
+                                        if (mainRenderer.HighlightedRegions != null)
+                                            mainRenderer.HighlightedRegions = null;
                                         try
                                         {
-                                            mainRenderer.ReleaseResources();
                                             mainRenderer.Initialize(MainPreviewFile, 1, page1, ZOOM_LEVEL);
-                                            mainRenderer.IsVisible = true;
-                                            SetSearchResults();
+                                            if (SearchPages?.Count > 0) SetSearchResults();
                                             CurrentPage1 = page1;
                                         }
                                         catch (NullReferenceException nre)
@@ -1602,21 +1619,19 @@ namespace Finn.ViewModels
                                     // -- Secondary page --
                                     if (secInRange && rendererActive && secondaryRenderer != null)
                                     {
-                                        secondaryRenderer.IsVisible = false;
-                                        secondaryRenderer.HighlightedRegions = null;
+                                        if (secondaryRenderer.HighlightedRegions != null)
+                                            secondaryRenderer.HighlightedRegions = null;
                                         try
                                         {
                                             var doc = DualFileMode ? secondaryFile : MainPreviewFile;
                                             if (doc != null)
                                             {
-                                                secondaryRenderer.ReleaseResources();
                                                 if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
                                                 {
                                                     secondaryRenderer.Initialize(doc, 1, page2, ZOOM_LEVEL);
-                                                    if (!DualFileMode) SetSecondarySearchResults();
+                                                    if (!DualFileMode && SearchPages?.Count > 0) SetSecondarySearchResults();
                                                     CurrentPage2 = page2;
                                                 }
-                                                secondaryRenderer.IsVisible = true;
                                             }
                                         }
                                         catch (NullReferenceException nre)

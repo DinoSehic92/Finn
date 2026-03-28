@@ -63,11 +63,13 @@ public class ShapeAnnotation
     {
         _cachedPen = null;
         _cachedDashedPen = null;
+        _cachedFillBrush = null;
     }
 
     // Cached pen to avoid per-frame allocation during rendering.
     private IPen? _cachedPen;
     private double _cachedPenScale;
+    private IBrush? _cachedFillBrush;
 
     // Cached dash styles — avoid allocating identical objects per pen creation
     private static readonly DashStyle s_dashed = new([4, 3], 0);
@@ -84,7 +86,7 @@ public class ShapeAnnotation
 
     internal IPen GetOrCreatePen(double penScale)
     {
-        if (_cachedPen == null || Math.Abs(_cachedPenScale - penScale) > 0.001)
+        if (_cachedPen == null || Math.Abs(_cachedPenScale - penScale) > 0.05)
         {
             _cachedPenScale = penScale;
             var c = Opacity < 1.0
@@ -98,13 +100,20 @@ public class ShapeAnnotation
         return _cachedPen;
     }
 
+    internal IBrush GetOrCreateFillBrush()
+    {
+        _cachedFillBrush ??= new SolidColorBrush(
+            Color.FromArgb(80, Color.R, Color.G, Color.B)).ToImmutable();
+        return _cachedFillBrush;
+    }
+
     // Cached dashed pen used while drawing the shape preview.
     private IPen? _cachedDashedPen;
     private double _cachedDashedPenScale;
 
     internal IPen GetOrCreateDashedPen(double penScale)
     {
-        if (_cachedDashedPen == null || Math.Abs(_cachedDashedPenScale - penScale) > 0.001)
+        if (_cachedDashedPen == null || Math.Abs(_cachedDashedPenScale - penScale) > 0.05)
         {
             _cachedDashedPenScale = penScale;
             var c = Opacity < 1.0

@@ -59,15 +59,7 @@ public partial class PreView : UserControl
 
         SetRenderer();
 
-        MuPDFRenderer.AnnotationChanged += () =>
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                ctx.MarkDirty();
-                UpdateAnnotationCountBadge();
-                pwr.CurrentFile?.RefreshAnnotationStatus();
-            });
-        };
+        MuPDFRenderer.AnnotationChanged += OnAnnotationDirty;
 
         if (Avalonia.Application.Current is { } app)
         {
@@ -79,6 +71,16 @@ public partial class PreView : UserControl
                 pwr.UpdateThemeRegionColor(color);
             };
         }
+    }
+
+    private void OnAnnotationDirty()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            ctx.MarkDirty();
+            UpdateAnnotationCountBadge();
+            pwr.CurrentFile?.RefreshAnnotationStatus();
+        });
     }
 
     private void OnBindingPwr(object? sender, PropertyChangedEventArgs e)
@@ -133,7 +135,8 @@ public partial class PreView : UserControl
                 break;
 
             case "CurrentPage1":
-                DeselectAnnotation();
+                if (_annotateMode && _selectedAnnotation != null)
+                    DeselectAnnotation();
                 MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)
                 {
@@ -157,7 +160,8 @@ public partial class PreView : UserControl
                     }
                 }
                 SyncLayers();
-                SyncDiffOverlay();
+                if (pwr.DiffOverlayActive)
+                    SyncDiffOverlay();
                 if (_annotateMode) UpdateUndoRedoButtons();
                 break;
 

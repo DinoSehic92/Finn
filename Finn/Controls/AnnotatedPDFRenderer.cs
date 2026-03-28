@@ -51,6 +51,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // ── Cached rendering resources (avoid per-frame allocations) ────────
     private readonly List<TextOverlayDrawOp.TextItem> _textItemPool = new(64);
+    private readonly List<TextOverlayDrawOp.TextItem> _textItemSwap = new(64);
     // Cached SKTypeface lookups — FromFamilyName is expensive native interop
     private static readonly Dictionary<string, SKTypeface> _typefaceCache = new();
     // Cached brushes / pens used every frame (static colors, scale-independent)
@@ -79,6 +80,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static readonly DashStyle s_dashStyle4_3 = new([4, 3], 0);
     private static readonly DashStyle s_dashStyle5_4 = new([5, 4], 0);
     private static readonly DashStyle s_dashStyle3_3 = new([3, 3], 0);
+
+    // ── Cached pens for render chrome (constant thickness, static brush) ──
+    private static readonly IPen s_snapGuidePen =
+        new Pen(new SolidColorBrush(Color.FromArgb(180, 16, 185, 129)).ToImmutable(),
+            1.0, dashStyle: new DashStyle([3, 3], 0), lineCap: PenLineCap.Flat);
+    private static readonly IPen s_rubberBandPen =
+        new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
+            1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
+    // Pens whose thickness depends on penScale are cached per-frame.
+    private IPen? _cachedSelectHoverPen;
+    private IPen? _cachedSelectionPen;
+    private IPen? _cachedEraserHoverPen;
+    private double _cachedChromePenScale;
+    // Polyline/arrow preview pens depend on user-chosen color/width.
+    private IPen? _cachedPreviewPen;
+    private Color _cachedPreviewColor;
+    private double _cachedPreviewWidth;
+    // Cursor preview brush and crosshair pen (depend on StrokeColor).
+    private IBrush? _cachedCursorBrush;
+    private IPen? _cachedCrosshairPen;
+    private Color _cachedCursorColor;
 
     private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize }
     private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
@@ -342,6 +364,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Clears the diff overlay image and frees resources.</summary>
     public void ClearDiffOverlay()
     {
+        // Skip if already cleared to avoid unnecessary InvalidateVisual
+        if (_diffOverlayImage == null && !DiffOverlayVisible) return;
         // Don't Dispose — see SetDiffOverlay comment.
         _diffOverlayImage = null;
         _diffOverlayPage = -1;
@@ -352,18 +376,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private bool HasDiffOverlay => DiffOverlayVisible && _diffOverlayImage != null
                                     && _diffOverlayPage == _currentPage;
 
-    public bool HasAnyStrokes => _totalStrokeCount > 0 || _totalShapeCount > 0
-                                  || _totalTextCount > 0 || _totalMeasurementCount > 0
-                                  || _activeStroke != null || _activePolyline != null
-                                  || _activeShape != null
-                                  || _activeMeasurement != null || _arrowTextPreviewOrigin != null
-                                  || _eraserHoverItem != null || _cursorPdfPos != null
-                                  || _selectHighlightItems.Count > 0 || _stickyNoteHoverItem != null
-                                  || _textPlacementPreviewPos != null
-                                  || _snapGuideX != null || _snapGuideY != null
-                                  || _selectHoverItem != null
-                                  || _rubberBandStart != null
-                                  || SnapToGrid;
+    /// <summary>Fast check: true when any annotation content or UI chrome needs rendering.</summary>
+    public bool HasAnyStrokes
+    {
+        get
+        {
+            // Fast path: check counts first (single comparison, no field chain)
+            if ((_totalStrokeCount | _totalShapeCount | _totalTextCount | _totalMeasurementCount) > 0)
+                return true;
+            // Slow path: check transient UI state only when counts are zero
+            return _activeStroke != null || _activePolyline != null
+                   || _activeShape != null
+                   || _activeMeasurement != null || _arrowTextPreviewOrigin != null
+                   || _eraserHoverItem != null || _cursorPdfPos != null
+                   || _selectHighlightItems.Count > 0 || _stickyNoteHoverItem != null
+                   || _textPlacementPreviewPos != null
+                   || _snapGuideX != null || _snapGuideY != null
+                   || _selectHoverItem != null
+                   || _rubberBandStart != null
+                   || SnapToGrid;
+        }
+    }
 
     public bool CanRedo => _redoStack.Count > 0;
 
@@ -599,6 +632,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             (pdfPos.X - da.X) / da.Width  * boundsSize.Width,
             (pdfPos.Y - da.Y) / da.Height * boundsSize.Height);
     }
+
+    /// <summary>Fast overload using precomputed scale/offset (avoids per-call division).</summary>
+    private static Point PdfToScreen(Point pdfPos, double offsetX, double offsetY, double scaleX, double scaleY)
+        => new((pdfPos.X - offsetX) * scaleX, (pdfPos.Y - offsetY) * scaleY);
 
     /// <summary>Converts a screen-pixel distance to PDF-unit distance at the current zoom level.
     /// Use for zoom-adaptive hit-test radii so handles stay a constant screen size.</summary>
@@ -2206,6 +2243,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public void UpdateStickyNoteHover(Point pdfPoint)
     {
+        // Fast path: skip scan when no text annotations exist anywhere
+        if (_totalTextCount == 0)
+        {
+            if (_stickyNoteHoverItem != null) { _stickyNoteHoverItem = null; InvalidateVisual(); }
+            return;
+        }
         TextAnnotation? hit = null;
         foreach (var layer in Layers)
         {
@@ -3004,6 +3047,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         base.Render(context);
 
+        // Fast path: skip annotation rendering entirely when there's nothing to draw.
+        // HasDiffOverlay is checked separately since it's independent of annotations.
+        if (!HasDiffOverlay && !HasAnyStrokes) return;
+
         try
         {
             RenderAnnotations(context);
@@ -3039,6 +3086,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double scaleY = boundsSize.Height / da.Height;
         double penScale = (scaleX + scaleY) * 0.5;
 
+        // Precomputed values for the fast PdfToScreen overload (#10)
+        double offsetX = da.X, offsetY = da.Y;
+
+        // Rebuild scale-dependent chrome pens only when penScale changes (#1)
+        if (_cachedSelectHoverPen == null || Math.Abs(_cachedChromePenScale - penScale) > 0.05)
+        {
+            _cachedChromePenScale = penScale;
+            _cachedSelectHoverPen = new Pen(s_selectHoverBrush,
+                1.0 * penScale, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Round);
+            _cachedSelectionPen = new Pen(s_selectPenBrush,
+                1.0, dashStyle: s_dashStyle5_4,
+                lineCap: PenLineCap.Round);
+            _cachedEraserHoverPen = new Pen(s_eraserHoverPenBrush,
+                2 * penScale, lineCap: PenLineCap.Round);
+        }
+
         // Draw snap-to-grid dots (behind annotations, very subtle)
         if (SnapToGrid && GridSpacing > 0)
             RenderGridDots(context, da, boundsSize, scaleX, scaleY);
@@ -3065,7 +3128,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 foreach (var m in measurements)
                 {
-                    RenderMeasurementGeometry(context, m.Points, m.Color, da, boundsSize, penScale);
+                    RenderMeasurementGeometry(context, m.Points, m.Color, da, boundsSize, penScale, m);
                     CollectMeasurementLabel(m, da, boundsSize, penScale, textItems);
                 }
             }
@@ -3100,11 +3163,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 var lastPt = PdfToScreen(_activePolyline.Points[^1], da, boundsSize);
                 var previewPt = PdfToScreen(_polylinePreviewEnd.Value, da, boundsSize);
-                var previewPen = new Pen(
-                    new SolidColorBrush(Color.FromArgb(140, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(),
-                    StrokeWidth * penScale, dashStyle: new DashStyle([4, 3], 0),
-                    lineCap: PenLineCap.Round);
-                context.DrawLine(previewPen, lastPt, previewPt);
+                double pw = StrokeWidth * penScale;
+                if (_cachedPreviewPen == null || _cachedPreviewColor != StrokeColor
+                    || Math.Abs(_cachedPreviewWidth - pw) > 0.5)
+                {
+                    _cachedPreviewColor = StrokeColor;
+                    _cachedPreviewWidth = pw;
+                    _cachedPreviewPen = new Pen(
+                        new SolidColorBrush(Color.FromArgb(140, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(),
+                        pw, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Round);
+                }
+                context.DrawLine(_cachedPreviewPen, lastPt, previewPt);
             }
         }
 
@@ -3139,10 +3208,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             var from = PdfToScreen(_arrowTextPreviewOrigin.Value, da, boundsSize);
             var to = PdfToScreen(_lastPointerPdfPos.Value, da, boundsSize);
-            var previewPen = new Pen(new SolidColorBrush(StrokeColor).ToImmutable(),
-                1.2, lineCap: PenLineCap.Round);
-            context.DrawLine(previewPen, from, to);
-            DrawArrowhead(context, previewPen, to, from, penScale);
+            double pw = StrokeWidth * penScale;
+            if (_cachedPreviewPen == null || _cachedPreviewColor != StrokeColor
+                || Math.Abs(_cachedPreviewWidth - 1.2) > 0.5)
+            {
+                _cachedPreviewColor = StrokeColor;
+                _cachedPreviewWidth = 1.2;
+                _cachedPreviewPen = new Pen(new SolidColorBrush(StrokeColor).ToImmutable(),
+                    1.2, lineCap: PenLineCap.Round);
+            }
+            context.DrawLine(_cachedPreviewPen, from, to);
+            DrawArrowhead(context, _cachedPreviewPen, to, from, penScale);
         }
 
         // Hover popup for the text annotation under the cursor (drawn above all other items)
@@ -3180,10 +3256,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
-        // Render all text via SkiaSharp overlay (snapshot the list — the draw
-        // op may execute on the render thread after _textItemPool is cleared)
+        // Render all text via SkiaSharp overlay (swap the pool into the draw op
+        // without copying — the swap list holds the previous frame's items until
+        // the next render clears it, keeping the draw-op's reference alive).
         if (textItems.Count > 0)
-            context.Custom(new TextOverlayDrawOp(new Rect(boundsSize), new List<TextOverlayDrawOp.TextItem>(textItems)));
+        {
+            _textItemSwap.Clear();
+            _textItemSwap.AddRange(textItems);
+            context.Custom(new TextOverlayDrawOp(new Rect(boundsSize), _textItemSwap));
+        }
 
         // Eraser hover highlight: draw a translucent red overlay on the hovered item
         if (_eraserHoverItem != null)
@@ -3192,8 +3273,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Select-mode hover outline: dotted bounding-box around the hovered annotation
         if (_selectHoverItem != null && !_selectHighlightItems.Contains(_selectHoverItem))
         {
-            var hoverPen = new Pen(s_selectHoverBrush,
-                1.0 * penScale, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Round);
+            var hoverPen = _cachedSelectHoverPen!;
             Rect? hoverBounds = null;
             switch (_selectHoverItem)
             {
@@ -3250,9 +3330,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
             double radius = StrokeWidth * 0.5 * penScale;
-            var previewColor = Color.FromArgb(160, StrokeColor.R, StrokeColor.G, StrokeColor.B);
-            var previewBrush = new SolidColorBrush(previewColor).ToImmutable();
-            context.DrawEllipse(previewBrush, null, cp, radius, radius);
+            if (_cachedCursorBrush == null || _cachedCursorColor != StrokeColor)
+            {
+                _cachedCursorColor = StrokeColor;
+                _cachedCursorBrush = new SolidColorBrush(
+                    Color.FromArgb(160, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable();
+                _cachedCrosshairPen = new Pen(new SolidColorBrush(
+                    Color.FromArgb(180, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(), 1.0);
+            }
+            context.DrawEllipse(_cachedCursorBrush, null, cp, radius, radius);
         }
         // Crosshair cursor preview for shape/line/measurement/polyline tools
         else if (_cursorPdfPos.HasValue
@@ -3263,18 +3349,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
             double arm = 8;
-            var crossColor = Color.FromArgb(180, StrokeColor.R, StrokeColor.G, StrokeColor.B);
-            var crossPen = new Pen(new SolidColorBrush(crossColor).ToImmutable(), 1.0);
-            context.DrawLine(crossPen, new Point(cp.X - arm, cp.Y), new Point(cp.X + arm, cp.Y));
-            context.DrawLine(crossPen, new Point(cp.X, cp.Y - arm), new Point(cp.X, cp.Y + arm));
-            context.DrawEllipse(null, crossPen, cp, 3, 3);
+            if (_cachedCrosshairPen == null || _cachedCursorColor != StrokeColor)
+            {
+                _cachedCursorColor = StrokeColor;
+                _cachedCursorBrush = new SolidColorBrush(
+                    Color.FromArgb(160, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable();
+                _cachedCrosshairPen = new Pen(new SolidColorBrush(
+                    Color.FromArgb(180, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(), 1.0);
+            }
+            context.DrawLine(_cachedCrosshairPen, new Point(cp.X - arm, cp.Y), new Point(cp.X + arm, cp.Y));
+            context.DrawLine(_cachedCrosshairPen, new Point(cp.X, cp.Y - arm), new Point(cp.X, cp.Y + arm));
+            context.DrawEllipse(null, _cachedCrosshairPen, cp, 3, 3);
         }
 
         // Snap-to-alignment guides: thin dotted lines across the viewport
         if (_snapGuideX.HasValue || _snapGuideY.HasValue)
         {
-            var guidePen = new Pen(s_snapBrush,
-                1.0, dashStyle: s_dashStyle3_3, lineCap: PenLineCap.Flat);
+            var guidePen = s_snapGuidePen;
             double dotRadius = 3.5;
             if (_snapGuideX.HasValue)
             {
@@ -3311,8 +3402,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var re = PdfToScreen(_rubberBandEnd.Value, da, boundsSize);
             var rect = new Rect(Math.Min(rs.X, re.X), Math.Min(rs.Y, re.Y),
                 Math.Abs(re.X - rs.X), Math.Abs(re.Y - rs.Y));
-            var borderPen = new Pen(s_rubberBandBorderBrush,
-                1.0, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Flat);
+            var borderPen = s_rubberBandPen;
             context.DrawRectangle(s_rubberBandFillBrush, borderPen, rect);
         }
 
@@ -3326,9 +3416,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         // Selection UI uses constant screen-pixel sizes so handles don't
         // balloon when zoomed in or shrink when zoomed out.
-        var selectPen = new Pen(s_selectPenBrush,
-            1.0, dashStyle: s_dashStyle5_4,
-            lineCap: PenLineCap.Round);
+        var selectPen = _cachedSelectionPen!;
         var vertexPen = new Pen(s_vertexPenBrush,
             1.2, lineCap: PenLineCap.Round);
         bool single = _selectHighlightItems.Count == 1;
@@ -3518,23 +3606,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
         int countY = (int)Math.Ceiling((endY - startY) / g);
         if (countX > 100 || countY > 100) return;
 
+        // Batch all dots into a single geometry for one draw call (#9)
         double dotRadius = 1.0;
-        for (double py = startY; py <= endY; py += g)
+        double offsetX = da.X, offsetY = da.Y;
+        var geometry = new StreamGeometry();
+        using (var ctx = geometry.Open())
         {
-            double sy = (py - da.Y) / da.Height * boundsSize.Height;
-            for (double px = startX; px <= endX; px += g)
+            for (double py = startY; py <= endY; py += g)
             {
-                double sx = (px - da.X) / da.Width * boundsSize.Width;
-                context.DrawEllipse(s_gridDotBrush, null, new Point(sx, sy), dotRadius, dotRadius);
+                double sy = (py - offsetY) * scaleY;
+                for (double px = startX; px <= endX; px += g)
+                {
+                    double sx = (px - offsetX) * scaleX;
+                    var center = new Point(sx, sy);
+                    ctx.BeginFigure(new Point(center.X + dotRadius, center.Y), true);
+                    ctx.ArcTo(new Point(center.X - dotRadius, center.Y),
+                        new Size(dotRadius, dotRadius), 0, false, SweepDirection.Clockwise);
+                    ctx.ArcTo(new Point(center.X + dotRadius, center.Y),
+                        new Size(dotRadius, dotRadius), 0, false, SweepDirection.Clockwise);
+                    ctx.EndFigure(true);
+                }
             }
         }
+        context.DrawGeometry(s_gridDotBrush, null, geometry);
     }
 
     private void RenderEraserHover(DrawingContext context, Rect da, Size boundsSize,
                                     double scaleX, double scaleY, double penScale)
     {
-        var hoverPen = new Pen(s_eraserHoverPenBrush,
-            2 * penScale, lineCap: PenLineCap.Round);
+        var hoverPen = _cachedEraserHoverPen!;
 
         switch (_eraserHoverItem)
         {
@@ -3582,11 +3682,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double penScale = (scaleX + scaleY) * 0.5;
         var pen = overridePen ?? stroke.GetOrCreatePen(penScale);
 
-        // Pre-transform all points to screen space once
+        // Pre-transform all points to screen space once (fast overload avoids per-point division)
         int n = pts.Count;
+        double offsetX = da.X, offsetY = da.Y;
         Span<Point> sp = n <= 256 ? stackalloc Point[n] : new Point[n];
         for (int i = 0; i < n; i++)
-            sp[i] = PdfToScreen(pts[i], da, boundsSize);
+            sp[i] = PdfToScreen(pts[i], offsetX, offsetY, scaleX, scaleY);
 
         bool closed = stroke.IsClosed && stroke.IsPolyline && n >= 3;
 
@@ -3700,10 +3801,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // For closed polylines with fill, draw a translucent fill
         IBrush? fillBrush = null;
         if (closed && overridePen == null)
-        {
-            var fillColor = Color.FromArgb(40, stroke.Color.R, stroke.Color.G, stroke.Color.B);
-            fillBrush = new SolidColorBrush(fillColor).ToImmutable();
-        }
+            fillBrush = stroke.GetOrCreateFillBrush();
         context.DrawGeometry(fillBrush, pen, geometry);
     }
 
@@ -3728,13 +3826,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var screenStart = PdfToScreen(shape.Start, da, boundsSize);
         var screenEnd = PdfToScreen(shape.End, da, boundsSize);
 
-        // Create optional fill brush for filled shapes
+        // Create optional fill brush for filled shapes (cached on the annotation)
         IBrush? fillBrush = null;
         if (shape.IsFilled && overridePen == null)
-        {
-            var fillColor = Color.FromArgb(80, shape.Color.R, shape.Color.G, shape.Color.B);
-            fillBrush = new SolidColorBrush(fillColor).ToImmutable();
-        }
+            fillBrush = shape.GetOrCreateFillBrush();
 
         switch (shape.ShapeType)
         {
@@ -3953,8 +4048,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
         var c = Color.FromArgb(alpha, t.Color.R, t.Color.G, t.Color.B);
-        var pen = new Pen(new SolidColorBrush(c).ToImmutable(),
-            1.2, lineCap: PenLineCap.Round);
+        var pen = t.GetOrCreateArrowPen(penScale);
         context.DrawLine(pen, arrowTip, connection);
         DrawArrowhead(context, pen, connection, arrowTip, penScale);
     }
@@ -3962,7 +4056,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Returns the center point of the rectangle side closest to the given point.</summary>
     private static Point ClosestSideCenter(Rect rect, Point pt)
     {
-        Point[] candidates =
+        Span<Point> candidates =
         [
             new(rect.X + rect.Width / 2, rect.Y),                    // top
             new(rect.X + rect.Width / 2, rect.Y + rect.Height),      // bottom
@@ -3982,14 +4076,26 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     private void RenderMeasurementGeometry(DrawingContext context, List<Point> pdfPoints,
-                                           Color color, Rect da, Size boundsSize, double penScale)
+                                            Color color, Rect da, Size boundsSize, double penScale,
+                                            MeasurementAnnotation? annotation = null)
     {
         if (pdfPoints.Count < 2) return;
 
-        var c = Color.FromArgb(220, color.R, color.G, color.B);
-        var brush = new SolidColorBrush(c).ToImmutable();
-        var solidPen = new Pen(brush, 1.5 * penScale,
-            lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        IPen solidPen;
+        Color c;
+        if (annotation != null)
+        {
+            var (pen, _) = annotation.GetOrCreatePen(penScale);
+            solidPen = pen;
+            c = Color.FromArgb(220, color.R, color.G, color.B);
+        }
+        else
+        {
+            c = Color.FromArgb(220, color.R, color.G, color.B);
+            var brush = new SolidColorBrush(c).ToImmutable();
+            solidPen = new Pen(brush, 1.5 * penScale,
+                lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        }
 
         var s0 = PdfToScreen(pdfPoints[0], da, boundsSize);
         var s1 = PdfToScreen(pdfPoints[1], da, boundsSize);
@@ -4014,7 +4120,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
                            tip.Y - headLen * Math.Sin(angle - half));
         var p2 = new Point(tip.X - headLen * Math.Cos(angle + half),
                            tip.Y - headLen * Math.Sin(angle + half));
-        var brush = new SolidColorBrush(color).ToImmutable();
         var geo = new StreamGeometry();
         using (var ctx2 = geo.Open())
         {
@@ -4023,6 +4128,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             ctx2.LineTo(p2);
             ctx2.EndFigure(true);
         }
+        // Use the pen's existing brush (same color) instead of allocating a new one
+        var brush = new SolidColorBrush(color).ToImmutable();
         context.DrawGeometry(brush, null, geo);
     }
 
@@ -4264,6 +4371,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
         public bool Equals(ICustomDrawOperation? other) => false;
         public void Dispose() { }
 
+        // Reuse paint/font objects per render thread to avoid native alloc+dispose overhead (#2)
+        [ThreadStatic] private static SKFont? s_defaultFont;
+        [ThreadStatic] private static SKPaint? s_textPaint;
+        [ThreadStatic] private static SKPaint? s_bgPaint;
+        [ThreadStatic] private static SKPaint? s_borderPaint;
+
         public void Render(ImmediateDrawingContext context)
         {
             if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature leaseFeature)
@@ -4272,10 +4385,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var canvas = lease.SkCanvas;
             if (canvas == null) return;
 
-            using var defaultFont = new SKFont(SKTypeface.Default);
-            using var paint = new SKPaint { IsAntialias = true };
-            using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
-            using var borderPaint = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeWidth = 1.2f };
+            var defaultFont = s_defaultFont ??= new SKFont(SKTypeface.Default);
+            var paint = s_textPaint ??= new SKPaint { IsAntialias = true };
+            var bgPaint = s_bgPaint ??= new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
+            var borderPaint = s_borderPaint ??= new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeWidth = 1.2f };
 
             // First pass: draw sticky-note icons (and expanded popup if hovered)
             DrawStickyNoteIcons(canvas, bgPaint, borderPaint);
@@ -4343,13 +4456,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
+        // Reuse SKPath objects per render thread to avoid native allocation per icon (#5)
+        [ThreadStatic] private static SKPath? s_bodyPath;
+        [ThreadStatic] private static SKPath? s_foldPath;
+        [ThreadStatic] private static SKPaint? s_linesPaint;
+
         private static void DrawStickyNoteIcon(SKCanvas canvas, float x, float y, float sz,
                                                SKColor color, SKPaint bgPaint, SKPaint borderPaint)
         {
             float fold = sz * 0.28f;
 
             // Main body: folded top-right corner
-            var bodyPath = new SKPath();
+            var bodyPath = s_bodyPath ??= new SKPath();
+            bodyPath.Reset();
             bodyPath.MoveTo(x, y);
             bodyPath.LineTo(x + sz - fold, y);
             bodyPath.LineTo(x + sz, y + fold);
@@ -4367,7 +4486,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             canvas.DrawPath(bodyPath, borderPaint);
 
             // Fold triangle (slightly darker)
-            var foldPath = new SKPath();
+            var foldPath = s_foldPath ??= new SKPath();
+            foldPath.Reset();
             foldPath.MoveTo(x + sz - fold, y);
             foldPath.LineTo(x + sz, y + fold);
             foldPath.LineTo(x + sz - fold, y + fold);
@@ -4378,13 +4498,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             canvas.DrawPath(foldPath, borderPaint);
 
             // Three lines suggesting text content
-            using var linesPaint = new SKPaint
-            {
-                Color = new SKColor(color.Red, color.Green, color.Blue, 180),
-                StrokeWidth = MathF.Max(1f, sz * 0.07f),
-                StrokeCap = SKStrokeCap.Round,
-                IsAntialias = true
-            };
+            var linesPaint = s_linesPaint ??= new SKPaint { IsAntialias = true };
+            linesPaint.Color = new SKColor(color.Red, color.Green, color.Blue, 180);
+            linesPaint.StrokeWidth = MathF.Max(1f, sz * 0.07f);
+            linesPaint.StrokeCap = SKStrokeCap.Round;
             float lx = x + sz * 0.14f;
             float lw = sz * 0.52f;
             float ly = y + sz * 0.38f;
@@ -4558,11 +4675,12 @@ public class InkStroke
     // Cached pen to avoid per-frame allocation during rendering.
     private IPen? _cachedPen;
     private double _cachedPenScale;
+    private IBrush? _cachedFillBrush;
 
     internal IPen GetOrCreatePen(double penScale)
     {
         // Recreate only when the scale changes (zoom/resize) or first call
-        if (_cachedPen == null || Math.Abs(_cachedPenScale - penScale) > 0.001)
+        if (_cachedPen == null || Math.Abs(_cachedPenScale - penScale) > 0.05)
         {
             _cachedPenScale = penScale;
             var c = Opacity < 1.0
@@ -4577,5 +4695,12 @@ public class InkStroke
         return _cachedPen;
     }
 
-    public void InvalidatePen() => _cachedPen = null;
+    internal IBrush GetOrCreateFillBrush()
+    {
+        _cachedFillBrush ??= new SolidColorBrush(
+            Color.FromArgb(40, Color.R, Color.G, Color.B)).ToImmutable();
+        return _cachedFillBrush;
+    }
+
+    public void InvalidatePen() { _cachedPen = null; _cachedFillBrush = null; }
 }

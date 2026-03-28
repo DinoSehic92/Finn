@@ -14,6 +14,10 @@ namespace Finn.Views;
 /// </summary>
 public partial class PreView
 {
+    // Throttle hover hit-testing: skip scan when cursor hasn't moved enough (#14)
+    private Point _lastHoverPdf;
+    private const double HoverThresholdSq = 1.0; // ~1 PDF pt ≈ sub-pixel at most zooms
+
     private void OnInkPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!_annotateMode) return;
@@ -509,13 +513,28 @@ public partial class PreView
                 else
                     MuPDFRenderer.ClearEraserHover();
             }
-            // Sticky note hover popup: show when cursor is over any note icon
+            // General hover: sticky-note popup, text placement ghost, select outline
             else if (_annotateMode)
             {
+                // Throttle hover hit-testing: skip when cursor barely moved (#14)
+                bool hoverMoved = true;
                 if (hoverPdf.HasValue)
-                    MuPDFRenderer.UpdateStickyNoteHover(hoverPdf.Value);
-                else
-                    MuPDFRenderer.ClearStickyNoteHover();
+                {
+                    double hdx = hoverPdf.Value.X - _lastHoverPdf.X;
+                    double hdy = hoverPdf.Value.Y - _lastHoverPdf.Y;
+                    if (hdx * hdx + hdy * hdy < HoverThresholdSq)
+                        hoverMoved = false;
+                    else
+                        _lastHoverPdf = hoverPdf.Value;
+                }
+
+                if (hoverMoved)
+                {
+                    if (hoverPdf.HasValue)
+                        MuPDFRenderer.UpdateStickyNoteHover(hoverPdf.Value);
+                    else
+                        MuPDFRenderer.ClearStickyNoteHover();
+                }
 
                 // Text/Sticky/ArrowText: show ghost at cursor for placement preview
                 var at = MuPDFRenderer.ActiveTool;
@@ -530,7 +549,7 @@ public partial class PreView
                     MuPDFRenderer.ClearTextPlacementPreview();
 
                 // Hover outline + cursor: show only for tools that can grab annotations
-                if (hoverPdf.HasValue
+                if (hoverMoved && hoverPdf.HasValue
                     && at is InlineAnnotationTool.Select
                         or InlineAnnotationTool.Text
                         or InlineAnnotationTool.ArrowText
@@ -541,7 +560,7 @@ public partial class PreView
                     if (at is InlineAnnotationTool.Select)
                         MuPDFRenderer.Cursor = GetHoverCursor(hoverPdf.Value, hoverHit);
                 }
-                else
+                else if (hoverMoved)
                 {
                     MuPDFRenderer.UpdateSelectHover(null);
                 }

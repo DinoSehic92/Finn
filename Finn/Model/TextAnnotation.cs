@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Media;
 using Newtonsoft.Json;
+using System;
 
 namespace Finn.Model;
 
@@ -95,4 +96,23 @@ public class TextAnnotation
         MeasuredWidth = 0;
         MeasuredHeight = 0;
     }
+
+    // Cached arrow pen to avoid per-frame allocation during rendering.
+    [JsonIgnore] private IPen? _cachedArrowPen;
+    [JsonIgnore] private double _cachedArrowPenScale;
+
+    internal IPen GetOrCreateArrowPen(double penScale)
+    {
+        if (_cachedArrowPen == null || Math.Abs(_cachedArrowPenScale - penScale) > 0.05)
+        {
+            _cachedArrowPenScale = penScale;
+            byte alpha = Opacity < 1.0 ? (byte)(Opacity * 255) : (byte)255;
+            var c = Color.FromArgb(alpha, Color.R, Color.G, Color.B);
+            _cachedArrowPen = new Pen(new SolidColorBrush(c).ToImmutable(),
+                1.2, lineCap: PenLineCap.Round);
+        }
+        return _cachedArrowPen;
+    }
+
+    internal void InvalidateArrowPen() => _cachedArrowPen = null;
 }
