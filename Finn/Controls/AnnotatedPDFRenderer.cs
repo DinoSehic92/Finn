@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Reflection;
 
 namespace Finn.Controls;
 
@@ -27,6 +28,42 @@ namespace Finn.Controls;
 /// </summary>
 public class AnnotatedPDFRenderer : PDFRenderer
 {
+    // ── Consistent bitmap resolution during pan/zoom ─────────────────
+    // MuPDFCore's Render() has two fallback paths while the background
+    // thread renders new DynamicBitmaps tiles:
+    //
+    //   AreDynamicBitmapsReady == true  → draws DynamicBitmaps (full-res, stale position)
+    //   AreDynamicBitmapsReady == false → draws FixedCanvas   (low-res, correct position)
+    //
+    // On a stale renderer (second file / page change), the flag is
+    // still true from the previous render.  The compositor draws the
+    // previous content's full-resolution DynamicBitmaps at the old
+    // viewport position, so the page appears frozen for one frame.
+    //
+    // Fix: clear the flag on every DisplayArea change so the compositor
+    // always falls back to the correctly-positioned FixedCanvas until
+    // fresh tiles arrive — matching fresh-renderer behaviour.
+    private static readonly FieldInfo? s_areDynamicBitmapsReadyField =
+        typeof(PDFRenderer).GetField("AreDynamicBitmapsReady", BindingFlags.NonPublic | BindingFlags.Instance);
+
+    /// <summary>
+    /// OnPropertyChanged fires BEFORE MuPDFCore's ControlPropertyChanged
+    /// (virtual override vs event handler). By clearing AreDynamicBitmapsReady
+    /// here, we guarantee the flag is false before InvalidateVisual is called,
+    /// so the compositor always falls back to the correctly-positioned
+    /// FixedCanvas. The background thread sets the flag back to true and
+    /// calls InvalidateVisual once it finishes rendering at the new position.
+    /// </summary>
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        if (change.Property == DisplayAreaProperty && IsViewerInitialized)
+        {
+            try { s_areDynamicBitmapsReadyField?.SetValue(this, false); }
+            catch { }
+        }
+        base.OnPropertyChanged(change);
+    }
+
     private InkStroke? _activeStroke;
     private ShapeAnnotation? _activeShape;
     private MeasurementAnnotation? _activeMeasurement;
