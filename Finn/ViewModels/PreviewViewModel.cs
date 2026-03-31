@@ -27,7 +27,7 @@ namespace Finn.ViewModels
     {
         #region Constants
         private const int MAX_RECENT_FILES = 20;
-        private const double ZOOM_LEVEL = 0.5;
+        private const double ZOOM_LEVEL = 0.35;
         private const int RENDER_DELAY = 5;
         #endregion
 
@@ -83,6 +83,19 @@ namespace Finn.ViewModels
         {
             get => _autoCacheNetworkFiles;
             set => SetProperty(ref _autoCacheNetworkFiles, value);
+        }
+
+        private bool _readBytesMode;
+        /// <summary>
+        /// When true, files are read entirely into a byte[] before passing to
+        /// MuPDF instead of opening by path. Avoids holding file locks on
+        /// network shares but uses more memory. Set by MainView from UI settings.
+        /// </summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ReadBytesMode
+        {
+            get => _readBytesMode;
+            set => SetProperty(ref _readBytesMode, value);
         }
 
         /// <summary>Total size in bytes of all cached files.</summary>
@@ -984,7 +997,15 @@ namespace Finn.ViewModels
                 previewContext = new MuPDFContext();
                 try
                 {
-                    previewDoc = new MuPDFDocument(previewContext, openPath);
+                    if (_readBytesMode)
+                    {
+                        byte[] fileBytes = await File.ReadAllBytesAsync(openPath, token).ConfigureAwait(false);
+                        previewDoc = new MuPDFDocument(previewContext, fileBytes, InputFileTypes.PDF);
+                    }
+                    else
+                    {
+                        previewDoc = new MuPDFDocument(previewContext, openPath);
+                    }
                 }
                 catch
                 {
@@ -1052,7 +1073,6 @@ namespace Finn.ViewModels
                         // --- Render first page ---
                         if (mainRenderer != null)
                         {
-                            mainRenderer.IsVisible = false;
                             mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile!, 1, desired, ZOOM_LEVEL);
                             mainRenderer.IsVisible = true;
@@ -1066,7 +1086,6 @@ namespace Finn.ViewModels
                         {
                             requestPage2 = desired + 1;
                             OnPropertyChanged(nameof(RequestPage2));
-                            secondaryRenderer.IsVisible = false;
                             secondaryRenderer.ReleaseResources();
                             secondaryRenderer.Initialize(MainPreviewFile!, 1, requestPage2, ZOOM_LEVEL);
                             secondaryRenderer.IsVisible = true;
@@ -1265,7 +1284,15 @@ namespace Finn.ViewModels
                 newContext = new MuPDFContext();
                 try
                 {
-                    newDoc = new MuPDFDocument(newContext, filePath);
+                    if (_readBytesMode)
+                    {
+                        byte[] fileBytes = await File.ReadAllBytesAsync(filePath, token).ConfigureAwait(false);
+                        newDoc = new MuPDFDocument(newContext, fileBytes, InputFileTypes.PDF);
+                    }
+                    else
+                    {
+                        newDoc = new MuPDFDocument(newContext, filePath);
+                    }
                 }
                 catch
                 {
@@ -1461,12 +1488,6 @@ namespace Finn.ViewModels
                     RequestPage2 = CurrentPage1 + 1;
                 }
             }
-        }
-
-        public void ToggleVisibility(bool isVisible)
-        {
-            if (mainRenderer != null) mainRenderer.IsVisible = isVisible;
-            if (TwopageMode && !DualFileMode && secondaryRenderer != null) secondaryRenderer.IsVisible = isVisible;
         }
 
         #endregion

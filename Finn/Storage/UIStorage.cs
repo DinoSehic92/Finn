@@ -43,6 +43,7 @@ namespace Finn.Storage
         public bool PreviewDarkMode { get; set; }
         public int TreeViewWidth { get; set; }
         public int TrayWidth { get; set; }
+        public bool ReadBytesMode { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

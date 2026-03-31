@@ -2,9 +2,9 @@
 		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="660"
+		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="690"
 		Width="540" MinWidth="540" MaxWidth="540"
-		Height="660" MinHeight="660" MaxHeight="660"
+		Height="690" MinHeight="690" MaxHeight="690"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xColorDia"
 		Title="UI Settings"
@@ -176,8 +176,11 @@
 						<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
 					</Grid>
 					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-						<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
-					</Grid>
+							<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
+						</Grid>
+						<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+							<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
+						</Grid>
 					</StackPanel>
 
 		</Grid>

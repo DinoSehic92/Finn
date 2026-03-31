@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Finn.Dialogs;
 using Finn.Model;
@@ -47,6 +48,14 @@ namespace Finn.ViewModels
                     DataContext = this,
                     RequestedThemeVariant = theme
                 };
+                // Sync font so disabled buttons and all controls
+                // look the same as in the main window.
+                if (Avalonia.Application.Current?.Resources?.TryGetResource(UI.Font, theme, out var fontRes) == true
+                    && fontRes is FontFamily fontFamily)
+                {
+                    PreviewWindow.FontFamily = fontFamily;
+                }
+                PreviewWindow.FontSize = UI.FontSize;
                 PreviewWindow.Show();
             }
 

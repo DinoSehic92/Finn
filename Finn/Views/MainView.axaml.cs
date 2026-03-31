@@ -86,6 +86,7 @@ public partial class MainView : UserControl
         _pwr = _ctx.PreviewVM;
         _pwr.DarkMode = _ctx.UI.PreviewDarkMode;
         _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
+        _pwr.ReadBytesMode = _ctx.UI.ReadBytesMode;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
         _ctx.PreviewVM.PropertyChanged += OnPreviewPropertyChanged;
@@ -161,6 +162,13 @@ public partial class MainView : UserControl
         // Read font settings from the UI viewmodel
         window.FontFamily = (FontFamily)Resources[_ctx.UI.Font]!;
         window.FontSize = _ctx.UI.FontSize;
+
+        // Keep the detached preview window in sync
+        if (_ctx.PreviewWindow is Window pw)
+        {
+            pw.FontFamily = window.FontFamily;
+            pw.FontSize = _ctx.UI.FontSize;
+        }
     }
 
     private void OnMainViewSizeChanged(object? sender, SizeChangedEventArgs e)
@@ -193,6 +201,9 @@ public partial class MainView : UserControl
                 break;
             case nameof(_ctx.UI.AutoCacheNetworkFiles):
                 _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
+                break;
+            case nameof(_ctx.UI.ReadBytesMode):
+                _pwr.ReadBytesMode = _ctx.UI.ReadBytesMode;
                 break;
             case nameof(_ctx.UI.CalendarOpen):
                 if (_ctx.UI.CalendarOpen)

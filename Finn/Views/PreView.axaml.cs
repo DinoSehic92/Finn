@@ -772,22 +772,6 @@ public partial class PreView : UserControl
         MuPDFRenderer.Contain();
     }
 
-    private static readonly Avalonia.Animation.Transitions s_rectTransition =
-    [
-        new Finn.Controls.RectTransition
-        {
-            Property = MuPDFCore.MuPDFRenderer.PDFRenderer.DisplayAreaProperty,
-            Duration = TimeSpan.FromMilliseconds(100)
-        }
-    ];
-
-    private void OnToggleSmoothTransition(object sender, RoutedEventArgs e)
-    {
-        bool on = SmoothTransitionToggle.IsChecked == true;
-        MuPDFRenderer.Transitions = on ? s_rectTransition : null;
-        MuPDFRendererSecondary.Transitions = on ? s_rectTransition : null;
-    }
-
     private void ModifiedControlPointerWheelChanged(object sender, PointerWheelEventArgs e)
     {
         bool ctrlHeld = e.KeyModifiers.HasFlag(KeyModifiers.Control);
@@ -882,8 +866,8 @@ public partial class PreView : UserControl
         MuPDFRenderer.ClearDiffOverlay();
         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClear)
             secClear.ClearDiffOverlay();
-        SyncLayers();
-        MuPDFRenderer.NotifyLayersChanged();
+        if (!SyncLayers())
+            MuPDFRenderer.NotifyLayersChanged();
         MuPDFRenderer.Contain();
         pwr.StatusMessage = "Comparison cleared";
     }
@@ -918,12 +902,10 @@ public partial class PreView : UserControl
         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClose)
         {
             secClose.ClearDiffOverlay();
-            // Clear the secondary renderer's layers to prevent stale diff
-            // annotations from persisting after diff mode is closed.
             secClose.SetLayers(null);
         }
-        SyncLayers();
-        MuPDFRenderer.NotifyLayersChanged();
+        if (!SyncLayers())
+            MuPDFRenderer.NotifyLayersChanged();
         MuPDFRenderer.Contain();
     }
 
@@ -958,13 +940,19 @@ public partial class PreView : UserControl
 
     /// <summary>
     /// Runs the slow pixel-level diff comparison from the toolbar button.
-    /// The user is already in dual view — this adds overlay results.
+    /// If pixel results already exist, clears them (toggle-off behavior).
     /// </summary>
     private async void OnRunDiffComparison(object? sender, RoutedEventArgs e)
     {
         try
         {
-            if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
+            if (pwr == null) return;
+            if (pwr.HasPixelDiffResults)
+            {
+                OnClearDiffComparison(sender, e);
+                return;
+            }
+            if (pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
             if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
             {
                 pwr.StatusMessage = "A and B are the same";
@@ -977,14 +965,19 @@ public partial class PreView : UserControl
 
     /// <summary>
     /// Runs a word-level text diff from the toolbar button.
-    /// Produces DiffRegion results (no pixel images) that populate
-    /// the diff page list and can be saved as an annotation layer.
+    /// If text results already exist, clears them (toggle-off behavior).
     /// </summary>
     private async void OnRunTextDiff(object? sender, RoutedEventArgs e)
     {
         try
         {
-            if (pwr == null || pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
+            if (pwr == null) return;
+            if (pwr.HasTextDiffResults)
+            {
+                OnClearDiffComparison(sender, e);
+                return;
+            }
+            if (pwr.DiffChoiceA == null || pwr.DiffChoiceB == null) return;
             if (string.Equals(pwr.DiffChoiceA.Path, pwr.DiffChoiceB.Path, StringComparison.OrdinalIgnoreCase))
             {
                 pwr.StatusMessage = "A and B are the same";

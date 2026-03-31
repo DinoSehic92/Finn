@@ -104,6 +104,14 @@ namespace Finn.ViewModels
         /// </summary>
         public bool AutoCacheNetworkFiles { get => autoCacheNetworkFiles; set { autoCacheNetworkFiles = value; OnPropertyChanged(nameof(AutoCacheNetworkFiles)); } }
 
+        private bool readBytesMode;
+        /// <summary>
+        /// When true, PDF files are read entirely into memory before passing
+        /// to MuPDF. This avoids holding a file lock on the server but uses
+        /// more memory. When false, MuPDF opens the file by path (default).
+        /// </summary>
+        public bool ReadBytesMode { get => readBytesMode; set { readBytesMode = value; OnPropertyChanged(nameof(ReadBytesMode)); } }
+
         private bool previewDarkMode;
         public bool PreviewDarkMode { get => previewDarkMode; set { previewDarkMode = value; OnPropertyChanged(nameof(PreviewDarkMode)); } }
 
@@ -253,6 +261,7 @@ namespace Finn.ViewModels
                 PreviewDarkMode = this.PreviewDarkMode,
                 TreeViewWidth = this.TreeViewWidth,
                 TrayWidth = this.TrayWidth,
+                ReadBytesMode = this.ReadBytesMode,
             };
         }
 
@@ -299,6 +308,7 @@ namespace Finn.ViewModels
                     this.TreeViewWidth = ui.TreeViewWidth;
                 if (ui.TrayWidth >= 250 && ui.TrayWidth <= 400)
                     this.TrayWidth = ui.TrayWidth;
+                this.ReadBytesMode = ui.ReadBytesMode;
             }
             catch
             {

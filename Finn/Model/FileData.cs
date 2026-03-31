@@ -552,6 +552,18 @@ namespace Finn.Model
         }
 
         /// <summary>
+        /// Lightweight check: returns true when the file path ends with .pdf.
+        /// Does NOT hit the filesystem — use in UI-thread hot paths where the
+        /// caller can handle a missing file gracefully (e.g. SetFileAsync catches
+        /// the MuPDF constructor exception).
+        /// </summary>
+        public bool HasPdfExtension()
+        {
+            return !string.IsNullOrEmpty(_sökväg)
+                && _sökväg.EndsWith(PdfExtension, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
         /// Returns all unique PDF paths for this file, including every version.
         /// When no versions exist the current Sökväg is returned if it is a valid PDF.
         /// </summary>

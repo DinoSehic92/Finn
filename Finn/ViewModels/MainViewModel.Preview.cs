@@ -21,10 +21,9 @@ namespace Finn.ViewModels
 
             CheckSingleFile();
 
-            if (file != null && file.IsValidPdf())
+            if (file != null && file.HasPdfExtension())
             {
                 PreviewVM.RequestFile = file;
-                PreviewVM.ToggleVisibility(false);
 
                 await PreviewVM.SetFileAsync(searchText);
             }
@@ -36,7 +35,7 @@ namespace Finn.ViewModels
 
         public async Task RequestPreviewLeftAsync(FileData? file)
         {
-            if (file == null || !file.IsValidPdf())
+            if (file == null || !file.HasPdfExtension())
                 return;
 
             if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
@@ -44,14 +43,13 @@ namespace Finn.ViewModels
 
             CheckSingleFile();
             PreviewVM.RequestFile = file;
-            PreviewVM.ToggleVisibility(false);
             // Preserve the dual-file layout — only replace the left document.
             await PreviewVM.SetFileAsync(preserveDualFile: true);
         }
 
         public async Task RequestPreview2Async(FileData? file)
         {
-            if (file == null || !file.IsValidPdf())
+            if (file == null || !file.HasPdfExtension())
                 return;
 
             if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
