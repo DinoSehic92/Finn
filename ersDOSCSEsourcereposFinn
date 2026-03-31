@@ -1,0 +1,29 @@
+[1mdiff --git a/Finn/Model/FileData.cs b/Finn/Model/FileData.cs[m
+[1mindex 91a3502..a2634e1 100644[m
+[1m--- a/Finn/Model/FileData.cs[m
+[1m+++ b/Finn/Model/FileData.cs[m
+[36m@@ -122,6 +122,7 @@[m [mnamespace Finn.Model[m
+         private string _currentVersion = string.Empty;[m
+         private string _originalPath = string.Empty;[m
+         private string _parentNamn = string.Empty;[m
+[32m+[m[32m        private bool _isCached;[m
+ [m
+         /// <summary>[m
+         /// Name of the parent file this is attached to (serialized).[m
+[36m@@ -275,6 +276,16 @@[m [mnamespace Finn.Model[m
+         /// </summary>[m
+         public void RefreshAnnotationStatus() => OnPropertyChanged(nameof(HasAnnotations));[m
+ [m
+[32m+[m[32m        /// <summary>[m
+[32m+[m[32m        /// When true, this file is cached locally for fast access.[m
+[32m+[m[32m        /// Persisted to Projects.json so the setting survives restarts.[m
+[32m+[m[32m        /// </summary>[m
+[32m+[m[32m        public bool IsCached[m
+[32m+[m[32m        {[m
+[32m+[m[32m            get => _isCached;[m
+[32m+[m[32m            set => SetProperty(ref _isCached, value);[m
+[32m+[m[32m        }[m
+[32m+[m
+         public ObservableCollection<PageData> FavPages[m
+         {[m
+             get => _favPages;[m

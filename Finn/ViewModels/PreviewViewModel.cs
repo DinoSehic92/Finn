@@ -582,7 +582,11 @@ namespace Finn.ViewModels
         public bool FileWorkerBusy
         {
             get => fileWorkerBusy;
-            set => SetProperty(ref fileWorkerBusy, value);
+            set
+            {
+                if (SetProperty(ref fileWorkerBusy, value))
+                    OnPropertyChanged(nameof(IsProgressIndeterminate));
+            }
         }
 
         private bool diffBusy = false;
@@ -646,9 +650,13 @@ namespace Finn.ViewModels
         /// True when <see cref="FileWorkerBusy"/> is active but no byte-level
         /// progress is available (e.g. file-path open). The view binds this to
         /// <c>ProgressBar.IsIndeterminate</c> for a marquee effect.
+        /// Gated on <see cref="FileWorkerBusy"/> so the indeterminate animation
+        /// stops when the overlay is hidden — Avalonia's DispatcherTimer keeps
+        /// ticking on invisible controls and steals UI-thread time from the
+        /// PDF renderer, causing pan/zoom stutter.
         /// </summary>
         [Newtonsoft.Json.JsonIgnore]
-        public bool IsProgressIndeterminate => progress == 0;
+        public bool IsProgressIndeterminate => fileWorkerBusy && progress == 0;
 
         #region Background Task Progress
         private bool _backgroundTaskActive;
