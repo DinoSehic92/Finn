@@ -27,7 +27,7 @@ namespace Finn.ViewModels
     {
         #region Constants
         private const int MAX_RECENT_FILES = 20;
-        private const double ZOOM_LEVEL = 0.2;
+        private const double ZOOM_LEVEL = 0.5;
         private const int RENDER_DELAY = 5;
         #endregion
 
@@ -460,10 +460,7 @@ namespace Finn.ViewModels
             set
             {
                 if (SetProperty(ref darkMode, value))
-                {
                     OnPropertyChanged(nameof(PreviewBackground));
-                    _ = SetMainPageAsync();
-                }
             }
         }
 
@@ -1499,10 +1496,13 @@ namespace Finn.ViewModels
                     {
                         if (MainPreviewFile != null && mainRenderer != null)
                         {
-                            mainRenderer.IsVisible = false;
+                            // Skip redundant re-render when already showing
+                            // this page (e.g. DarkMode toggle, layout changes).
+                            if (CurrentPage1 == targetPage && mainRenderer.IsViewerInitialized)
+                                return;
+
                             mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile, 1, targetPage, ZOOM_LEVEL);
-                            mainRenderer.IsVisible = true;
                             if (SearchPages?.Count > 0) SetSearchResults();
                             CurrentPage1 = targetPage;
                         }
@@ -1553,15 +1553,17 @@ namespace Finn.ViewModels
                         var doc = DualFileMode ? secondaryFile : MainPreviewFile;
                         if (doc != null && secondaryRenderer != null)
                         {
+                            // Skip redundant re-render when already showing this page.
+                            if (CurrentPage2 == targetPage && secondaryRenderer.IsViewerInitialized)
+                                return;
+
                             // Guard: skip Initialize when the renderer has zero bounds
                             // (not yet in layout). ToggleDualViewAsync or Contain()
                             // will retry after layout completes.
                             if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
                             {
-                                secondaryRenderer.IsVisible = false;
                                 secondaryRenderer.ReleaseResources();
                                 secondaryRenderer.Initialize(doc, 1, targetPage, ZOOM_LEVEL);
-                                secondaryRenderer.IsVisible = true;
                                 if (!DualFileMode && SearchPages?.Count > 0) SetSecondarySearchResults();
                                 CurrentPage2 = targetPage;
                             }
@@ -1619,14 +1621,16 @@ namespace Finn.ViewModels
                                     // -- Main page --
                                     if (mainInRange && mainRenderer != null && MainPreviewFile != null)
                                     {
+                                        // Skip redundant re-render when already showing this page.
+                                        if (CurrentPage1 == page1 && mainRenderer.IsViewerInitialized)
+                                            goto secondaryPage;
+
                                         if (mainRenderer.HighlightedRegions != null)
                                             mainRenderer.HighlightedRegions = null;
                                         try
                                         {
-                                            mainRenderer.IsVisible = false;
                                             mainRenderer.ReleaseResources();
                                             mainRenderer.Initialize(MainPreviewFile, 1, page1, ZOOM_LEVEL);
-                                            mainRenderer.IsVisible = true;
                                             if (SearchPages?.Count > 0) SetSearchResults();
                                             CurrentPage1 = page1;
                                         }
@@ -1637,9 +1641,14 @@ namespace Finn.ViewModels
                                         }
                                     }
 
+                                    secondaryPage:
                                     // -- Secondary page --
                                     if (secInRange && rendererActive && secondaryRenderer != null)
                                     {
+                                        // Skip redundant re-render when already showing this page.
+                                        if (CurrentPage2 == page2 && secondaryRenderer.IsViewerInitialized)
+                                            return;
+
                                         if (secondaryRenderer.HighlightedRegions != null)
                                             secondaryRenderer.HighlightedRegions = null;
                                         try
@@ -1649,10 +1658,8 @@ namespace Finn.ViewModels
                                             {
                                                 if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
                                                 {
-                                                    secondaryRenderer.IsVisible = false;
                                                     secondaryRenderer.ReleaseResources();
                                                     secondaryRenderer.Initialize(doc, 1, page2, ZOOM_LEVEL);
-                                                    secondaryRenderer.IsVisible = true;
                                                     if (!DualFileMode && SearchPages?.Count > 0) SetSecondarySearchResults();
                                                     CurrentPage2 = page2;
                                                 }

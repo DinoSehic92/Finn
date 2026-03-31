@@ -50,30 +50,42 @@ namespace Finn.ViewModels
                 int localPageCount = Pagecount;
 
                 // MuPDF structured-text APIs are not always safe to call from background threads
-                // — run each page extraction/search on the UI thread to avoid crashes.
+                // — batch pages per UI dispatch to reduce context-switch overhead.
+                const int searchBatchSize = 10;
                 List<(int pageIndex, int matchCount)> foundPagesLocal = [];
-                for (int i = 0; i < localPageCount; i++)
+                for (int batchStart = 0; batchStart < localPageCount; batchStart += searchBatchSize)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    int batchEnd = Math.Min(batchStart + searchBatchSize, localPageCount);
+                    int bs = batchStart, be = batchEnd;
                     try
                     {
-                        int matchCount = await Dispatcher.UIThread.InvokeAsync(() =>
+                        var batchResults = await Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            using var disposable = doc.GetStructuredTextPage(i);
-                            var structuredPage = (MuPDFStructuredTextPage)disposable;
-                            return structuredPage.Search(regex!).Count();
+                            var results = new List<(int, int)>();
+                            for (int i = bs; i < be; i++)
+                            {
+                                try
+                                {
+                                    using var disposable = doc.GetStructuredTextPage(i);
+                                    var structuredPage = (MuPDFStructuredTextPage)disposable;
+                                    int count = structuredPage.Search(regex!).Count();
+                                    if (count > 0)
+                                        results.Add((i, count));
+                                }
+                                catch (Exception ex) when (ex is not OperationCanceledException)
+                                {
+                                    logger?.LogWarning(ex, "Error searching page {Page}", i);
+                                }
+                            }
+                            return results;
                         }).GetTask().ConfigureAwait(false);
 
-                        if (matchCount > 0)
-                            foundPagesLocal.Add((i, matchCount));
+                        foundPagesLocal.AddRange(batchResults);
                     }
                     catch (OperationCanceledException)
                     {
                         throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.LogWarning(ex, "Error searching page {Page}", i);
                     }
                 }
 

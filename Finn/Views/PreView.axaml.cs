@@ -116,8 +116,8 @@ public partial class PreView : UserControl
                         // Dual-file mode is active — the left file was replaced
                         // via View Left. Preserve the mode; just refresh layers.
                         MuPDFRenderer.ClearDiffOverlay();
-                        SyncLayers();
-                        MuPDFRenderer.NotifyLayersChanged();
+                        if (!SyncLayers())
+                            MuPDFRenderer.NotifyLayersChanged();
                     }
                     else
                     {
@@ -128,8 +128,8 @@ public partial class PreView : UserControl
                         MuPDFRenderer.ClearDiffOverlay();
                         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secFile)
                             secFile.ClearDiffOverlay();
-                        SyncLayers();
-                        MuPDFRenderer.NotifyLayersChanged();
+                        if (!SyncLayers())
+                            MuPDFRenderer.NotifyLayersChanged();
                     }
                 });
                 break;
@@ -245,13 +245,18 @@ public partial class PreView : UserControl
     /// current context (whiteboard or file). Safe to call at any time.
     /// Only calls SetLayers when the collection instance actually changes,
     /// so page navigation within the same file preserves the undo stack.
+    /// Returns true when SetLayers was called (counts recalculated, visual invalidated).
     /// </summary>
-    private void SyncLayers()
+    private bool SyncLayers()
     {
-        if (pwr == null || pwr.WhiteboardMode) return;
+        if (pwr == null || pwr.WhiteboardMode) return false;
         var layers = pwr.CurrentFile?.AnnotationLayers;
         if (layers != MuPDFRenderer.Layers)
+        {
             MuPDFRenderer.SetLayers(layers);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -724,9 +729,19 @@ public partial class PreView : UserControl
     }
 
 
+    private Avalonia.Threading.DispatcherTimer? _resizeDebounce;
+
     private void PreviewSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        ResetView(null, null);
+        // Debounce: during window resize SizeChanged fires every frame.
+        // Collapse into a single Contain() after the user stops dragging.
+        if (_resizeDebounce == null)
+        {
+            _resizeDebounce = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+            _resizeDebounce.Tick += (_, _) => { _resizeDebounce.Stop(); ResetView(null, null); };
+        }
+        _resizeDebounce.Stop();
+        _resizeDebounce.Start();
     }
 
     private void ResetView(object? sender, RoutedEventArgs? e)
