@@ -757,6 +757,22 @@ public partial class PreView : UserControl
         MuPDFRenderer.Contain();
     }
 
+    private static readonly Avalonia.Animation.Transitions s_rectTransition =
+    [
+        new Finn.Controls.RectTransition
+        {
+            Property = MuPDFCore.MuPDFRenderer.PDFRenderer.DisplayAreaProperty,
+            Duration = TimeSpan.FromMilliseconds(100)
+        }
+    ];
+
+    private void OnToggleSmoothTransition(object sender, RoutedEventArgs e)
+    {
+        bool on = SmoothTransitionToggle.IsChecked == true;
+        MuPDFRenderer.Transitions = on ? s_rectTransition : null;
+        MuPDFRendererSecondary.Transitions = on ? s_rectTransition : null;
+    }
+
     private void ModifiedControlPointerWheelChanged(object sender, PointerWheelEventArgs e)
     {
         bool ctrlHeld = e.KeyModifiers.HasFlag(KeyModifiers.Control);

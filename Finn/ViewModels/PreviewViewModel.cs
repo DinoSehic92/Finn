@@ -27,7 +27,7 @@ namespace Finn.ViewModels
     {
         #region Constants
         private const int MAX_RECENT_FILES = 20;
-        private const double ZOOM_LEVEL = 0.5;
+        private const double ZOOM_LEVEL = 0.2;
         private const int RENDER_DELAY = 5;
         #endregion
 
@@ -1055,6 +1055,8 @@ namespace Finn.ViewModels
                         // --- Render first page ---
                         if (mainRenderer != null)
                         {
+                            mainRenderer.IsVisible = false;
+                            mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile!, 1, desired, ZOOM_LEVEL);
                             mainRenderer.IsVisible = true;
                             SetSearchResults();
@@ -1067,6 +1069,8 @@ namespace Finn.ViewModels
                         {
                             requestPage2 = desired + 1;
                             OnPropertyChanged(nameof(RequestPage2));
+                            secondaryRenderer.IsVisible = false;
+                            secondaryRenderer.ReleaseResources();
                             secondaryRenderer.Initialize(MainPreviewFile!, 1, requestPage2, ZOOM_LEVEL);
                             secondaryRenderer.IsVisible = true;
                             SetSecondarySearchResults();
@@ -1495,7 +1499,10 @@ namespace Finn.ViewModels
                     {
                         if (MainPreviewFile != null && mainRenderer != null)
                         {
+                            mainRenderer.IsVisible = false;
+                            mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile, 1, targetPage, ZOOM_LEVEL);
+                            mainRenderer.IsVisible = true;
                             if (SearchPages?.Count > 0) SetSearchResults();
                             CurrentPage1 = targetPage;
                         }
@@ -1551,7 +1558,10 @@ namespace Finn.ViewModels
                             // will retry after layout completes.
                             if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
                             {
+                                secondaryRenderer.IsVisible = false;
+                                secondaryRenderer.ReleaseResources();
                                 secondaryRenderer.Initialize(doc, 1, targetPage, ZOOM_LEVEL);
+                                secondaryRenderer.IsVisible = true;
                                 if (!DualFileMode && SearchPages?.Count > 0) SetSecondarySearchResults();
                                 CurrentPage2 = targetPage;
                             }
@@ -1613,7 +1623,10 @@ namespace Finn.ViewModels
                                             mainRenderer.HighlightedRegions = null;
                                         try
                                         {
+                                            mainRenderer.IsVisible = false;
+                                            mainRenderer.ReleaseResources();
                                             mainRenderer.Initialize(MainPreviewFile, 1, page1, ZOOM_LEVEL);
+                                            mainRenderer.IsVisible = true;
                                             if (SearchPages?.Count > 0) SetSearchResults();
                                             CurrentPage1 = page1;
                                         }
@@ -1636,7 +1649,10 @@ namespace Finn.ViewModels
                                             {
                                                 if (secondaryRenderer.Bounds.Width > 0 && secondaryRenderer.Bounds.Height > 0)
                                                 {
+                                                    secondaryRenderer.IsVisible = false;
+                                                    secondaryRenderer.ReleaseResources();
                                                     secondaryRenderer.Initialize(doc, 1, page2, ZOOM_LEVEL);
+                                                    secondaryRenderer.IsVisible = true;
                                                     if (!DualFileMode && SearchPages?.Count > 0) SetSecondarySearchResults();
                                                     CurrentPage2 = page2;
                                                 }

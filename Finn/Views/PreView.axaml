@@ -44,11 +44,6 @@
 					 <ctrl:AnnotatedPDFRenderer Name="MuPDFRenderer" Grid.Column="0" Background="Transparent" PageBackground="White"
 						ZoomEnabled="False" PointerWheelChanged="ModifiedControlPointerWheelChanged"
 						ZoomIncrement="1.6" ClipToBounds="True" PointerEventHandlersType="PanHighlight" Focusable="True">
-						<ctrl:AnnotatedPDFRenderer.Transitions>
-							<Transitions>
-								<ctrl:RectTransition Property="DisplayArea" Duration="0:0:0.05" />
-							</Transitions>
-						</ctrl:AnnotatedPDFRenderer.Transitions>
 								 <ctrl:AnnotatedPDFRenderer.ContextMenu>
 									 <ContextMenu>
 										 <MenuItem Header="Copy" Command="{Binding PreviewVM.CopyToClipboard}" CommandParameter="{Binding $parent[Window]}">
@@ -62,11 +57,6 @@
 						ZoomEnabled="False" PointerWheelChanged="ModifiedControlPointerWheelChanged"
 						ZoomIncrement="1.6" ClipToBounds="True" PointerEventHandlersType="PanHighlight" IsVisible="False"
 						MinWidth="1" MinHeight="1">
-						<ctrl:AnnotatedPDFRenderer.Transitions>
-							<Transitions>
-								<ctrl:RectTransition Property="DisplayArea" Duration="0:0:0.05" />
-							</Transitions>
-						</ctrl:AnnotatedPDFRenderer.Transitions>
 						<ctrl:AnnotatedPDFRenderer.ContextMenu>
 							<ContextMenu>
 								<MenuItem Header="Copy" Command="{Binding PreviewVM.CopyToClipboard}" CommandParameter="{Binding $parent[Window]}">
@@ -843,6 +833,10 @@
 						<Button Name="CompareVersionsBtn" ToolTip.Tip="Compare Versions" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OnOpenVersionCompareDialog" IsVisible="{Binding CanCompareVersions}">
 							<ic:SymbolIcon Symbol="ArrowSwap" IconVariant="Regular" FontSize="16"/>
 						</Button>
+
+						<ToggleButton Name="SmoothTransitionToggle" ToolTip.Tip="Smooth Pan/Zoom Transition" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Click="OnToggleSmoothTransition">
+							<ic:SymbolIcon Symbol="Sparkle" IconVariant="Regular" FontSize="16"/>
+						</ToggleButton>
 
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="10 0 5 0" IsVisible="False">
 						<ic:SymbolIcon Symbol="Checkmark" IconVariant="Regular" FontSize="16" IsVisible="{Binding !FileWorkerBusy}"/>
