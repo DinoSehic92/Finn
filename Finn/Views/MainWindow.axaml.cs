@@ -38,30 +38,37 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     protected override async void OnClosing(WindowClosingEventArgs e)
     {
         if (this.DataContext is not MainViewModel ctx) return;
+
+        // When the close dialog has already made its decision (Save / Leave),
+        // it sets ConfirmLeave = false and calls Close() again — let it through.
+        if (!ConfirmLeave)
+        {
+            await ctx.PreviewVM.SafeDisposeAsync();
+            if (ctx.PreviewWindowOpen)
+                ctx.PreviewWindowOpen = false;
+            return;
+        }
+
+        // Cancel immediately so the window stays open while we do async work.
+        // Without this, the first await yields back to the framework which
+        // sees e.Cancel == false and closes the window before we get a chance
+        // to show the save prompt.
+        e.Cancel = true;
+
         await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);
 
         if (ctx.IsStorageDifferentFromFile())
         {
-            if (ConfirmLeave)
-            {
-                e.Cancel = true;
-                OpenClosingDia();
-            }
-            else
-            {
-                await ctx.PreviewVM.SafeDisposeAsync();
-
-                if (ctx.PreviewWindowOpen)
-                {
-                    ctx.PreviewWindowOpen = false;
-                }
-
-                e.Cancel = false;
-            }
+            OpenClosingDia();
         }
         else
         {
+            // No unsaved project changes — close for real.
             await ctx.PreviewVM.SafeDisposeAsync();
+            if (ctx.PreviewWindowOpen)
+                ctx.PreviewWindowOpen = false;
+            ConfirmLeave = false;
+            Close();
         }
     }
 

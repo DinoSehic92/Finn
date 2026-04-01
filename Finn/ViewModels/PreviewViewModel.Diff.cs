@@ -212,9 +212,8 @@ namespace Finn.ViewModels
             {
                 var file = _diffSourceFile ?? _versionSourceFile ?? currentFile;
                 if (file is { HasVersions: true }) return true;
-                if (file is { HasChildren: true }) return true;
-                // Appended files only show compare if they have their own versions
-                // (not inherited from parent).
+                // A diff is also available when explicit A/B paths have been set
+                // (e.g. from a previous comparison or version context menu).
                 return !string.IsNullOrEmpty(_diffOriginalPdfPath) && !string.IsNullOrEmpty(_diffRevisedPdfPath);
             }
         }

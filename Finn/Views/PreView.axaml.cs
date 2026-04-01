@@ -1116,23 +1116,7 @@ public partial class PreView : UserControl
         var mainVm = this.DataContext as Finn.ViewModels.MainViewModel
                   ?? (this.FindAncestorOfType<Window>()?.DataContext as Finn.ViewModels.MainViewModel);
         var currentFile = mainVm?.CurrentFile;
-        IEnumerable<FileData>? appendedFiles = null;
-
-        // Only include sibling/child attached files as comparison options when
-        // the file itself has no version history AND is not an appended child.
-        // Appended files without versions shouldn't show the parent's siblings
-        // as comparison targets — that's misleading.
-        if (currentFile != null && !currentFile.HasVersions
-            && !currentFile.IsAppendedFile
-            && mainVm?.CurrentProject?.StoredFiles != null)
-        {
-            if (currentFile.HasChildren)
-            {
-                appendedFiles = mainVm.CurrentProject.StoredFiles
-                    .Where(f => f.ParentNamn == currentFile.Namn);
-            }
-        }
-        var choices = pwr.GetVersionChoicesForDialog(currentFile, appendedFiles);
+        var choices = pwr.GetVersionChoicesForDialog(currentFile);
         if (choices.Count < 2)
         {
             pwr.StatusMessage = "Not enough versions to compare";

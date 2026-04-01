@@ -62,6 +62,37 @@
 			<Setter Property="CornerRadius" Value="0"/>
 		</ControlTheme>
 
+		<!-- Compact checkbox for use inside tight DataGrid rows -->
+		<ControlTheme x:Key="CompactCheckBox" TargetType="CheckBox">
+			<Setter Property="MinWidth" Value="0"/>
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Cursor" Value="Hand"/>
+			<Setter Property="Template">
+				<ControlTemplate>
+					<Border Name="Root" Width="14" Height="14" CornerRadius="2"
+							BorderThickness="1.5"
+							BorderBrush="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"
+							Background="Transparent"
+							HorizontalAlignment="Center" VerticalAlignment="Center">
+						<Border Name="Fill" Width="8" Height="8" CornerRadius="1"
+								IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
+								Background="White"/>
+					</Border>
+				</ControlTemplate>
+			</Setter>
+			<Style Selector="^:checked /template/ Border#Root">
+				<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+				<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+			</Style>
+			<Style Selector="^:checked /template/ Border#Fill">
+				<Setter Property="IsVisible" Value="True"/>
+			</Style>
+			<Style Selector="^:pointerover /template/ Border#Root">
+				<Setter Property="Opacity" Value="0.8"/>
+			</Style>
+		</ControlTheme>
+
 	</UserControl.Resources>
 
 	<UserControl.Styles>
@@ -1391,58 +1422,51 @@
 														</Grid>
 
 									<!-- To-Do List -->
-									<Grid Grid.Row="11" IsVisible="{Binding UI.TrayTodo}" ColumnDefinitions="*,30,30,30">
+									<Grid Grid.Row="11" IsVisible="{Binding UI.TrayTodo}" ColumnDefinitions="*,30,30">
 										<Border Classes="shadow" Grid.Column="0">
 											<TextBox Name="TodoInput" Watermark="Add task" KeyDown="OnTodoInputKeyDown"/>
 										</Border>
 										<Button Grid.Column="1" Width="30" Click="OnAddTodo"    ToolTip.Tip="Add task"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
 										<Button Grid.Column="2" Width="30" Click="OnRemoveTodo" ToolTip.Tip="Delete task"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-										<Button Grid.Column="3" Width="30" Name="TodoColorButton" ToolTip.Tip="Set color">
-											<ic:SymbolIcon Symbol="Color" FontSize="16"/>
-											<Button.Flyout>
-												<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway"
-													   FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
-													<Border Classes="shadow" MinHeight="0" Padding="6,4">
-														<Border.Background>
-															<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
-														</Border.Background>
-														<StackPanel Orientation="Vertical" Spacing="2">
-															<Button Width="22" Height="22" Background="#D64045" Opacity="0.85" Tag="#D64045" Click="OnTodoColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-															<Button Width="22" Height="22" Background="#E06830" Opacity="0.85" Tag="#E06830" Click="OnTodoColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-															<Button Width="22" Height="22" Background="#E5A820" Opacity="0.85" Tag="#E5A820" Click="OnTodoColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-															<Button Width="22" Height="22" Background="#3DA35F" Opacity="0.85" Tag="#3DA35F" Click="OnTodoColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-															<Button Width="22" Height="22" Background="#3B82D9" Opacity="0.85" Tag="#3B82D9" Click="OnTodoColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-															<Button Width="22" Height="22" Background="#9B5FC0" Opacity="0.85" Tag="#9B5FC0" Click="OnTodoColor" ToolTip.Tip="Purple"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-															<Button Width="22" Height="22" Tag="" Click="OnTodoColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"
-																	BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
-																<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
-															</Button>
-														</StackPanel>
-													</Border>
-												</Flyout>
-											</Button.Flyout>
-										</Button>
 									</Grid>
 
 									<DataGrid Grid.Row="12" Name="TodoGrid" IsVisible="{Binding UI.TrayTodo}"
 											  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
 											  AutoGenerateColumns="False" IsReadOnly="True"
-											  GridLinesVisibility="None" RowHeight="26"
+											  GridLinesVisibility="None" RowHeight="24" Padding="0"
 											  LoadingRow="TodoGrid_LoadingRow">
+										<DataGrid.ContextMenu>
+											<ContextMenu>
+												<MenuItem Header="Color">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
+													<MenuItem Header="None"   Tag=""        Click="OnTodoColor"/>
+													<MenuItem Background="#D64045" Opacity="0.6" Tag="#D64045" Click="OnTodoColor"/>
+													<MenuItem Background="#E06830" Opacity="0.6" Tag="#E06830" Click="OnTodoColor"/>
+													<MenuItem Background="#E5A820" Opacity="0.6" Tag="#E5A820" Click="OnTodoColor"/>
+													<MenuItem Background="#3DA35F" Opacity="0.6" Tag="#3DA35F" Click="OnTodoColor"/>
+													<MenuItem Background="#3B82D9" Opacity="0.6" Tag="#3B82D9" Click="OnTodoColor"/>
+													<MenuItem Background="#9B5FC0" Opacity="0.6" Tag="#9B5FC0" Click="OnTodoColor"/>
+												</MenuItem>
+												<Separator/>
+												<MenuItem Header="Remove" Click="OnRemoveTodo">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+												</MenuItem>
+											</ContextMenu>
+										</DataGrid.ContextMenu>
 										<DataGrid.Columns>
-											<DataGridTemplateColumn Width="28" CanUserResize="False">
+											<DataGridTemplateColumn Width="24" CanUserResize="False">
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
 														<CheckBox IsChecked="{Binding IsDone, Mode=TwoWay}"
-																  Width="20" Height="20" Padding="0" Margin="4,0,0,0"
-																  MinWidth="0" MinHeight="0"/>
+																  Theme="{StaticResource CompactCheckBox}"
+																  Margin="5,0,0,0" VerticalAlignment="Center"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
 											</DataGridTemplateColumn>
 											<DataGridTemplateColumn Width="8" CanUserResize="False">
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
-														<Border Width="4" Height="16" CornerRadius="2" VerticalAlignment="Center"
+														<Border Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center"
 																Background="{Binding Color, Converter={x:Static converter:TodoColorConverter.Instance}}"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
