@@ -57,6 +57,8 @@ namespace Finn.ViewModels
                 for (int batchStart = 0; batchStart < localPageCount; batchStart += searchBatchSize)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // Bail out if the document was replaced since we started.
+                    if (MainPreviewFile != doc) break;
                     int batchEnd = Math.Min(batchStart + searchBatchSize, localPageCount);
                     int bs = batchStart, be = batchEnd;
                     try
@@ -70,6 +72,9 @@ namespace Finn.ViewModels
                                 // block the UI thread for the remaining pages after
                                 // a file switch has fired the cancellation token.
                                 if (ct.IsCancellationRequested) break;
+                                // Guard: document was swapped out while this batch
+                                // was queued — stop before accessing disposed native memory.
+                                if (MainPreviewFile != doc) break;
                                 try
                                 {
                                     using var disposable = doc.GetStructuredTextPage(i);
@@ -137,7 +142,7 @@ namespace Finn.ViewModels
                 // SetMainPageAsync would compete for the render semaphore and
                 // run Initialize() for a page that's about to be replaced.
                 if (SearchItems > 0 && !cancellationToken.IsCancellationRequested)
-                    _ = SetMainPageAsync();
+                    FireAndForget(SetMainPageAsync(), nameof(SetMainPageAsync));
             }
         }
 

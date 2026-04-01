@@ -6,6 +6,7 @@ using Finn.Model;
 using MuPDFCore.MuPDFRenderer;
 using SkiaSharp;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -57,7 +58,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private List<TextOverlayDrawOp.TextItem> _textSnapshotB = new(64);
     private bool _useSnapshotA = true;
     // Cached SKTypeface lookups — FromFamilyName is expensive native interop
-    private static readonly Dictionary<string, SKTypeface> _typefaceCache = new();
+    private static readonly ConcurrentDictionary<string, SKTypeface> _typefaceCache = new();
     // Cached brushes / pens used every frame (static colors, scale-independent)
     private static readonly IBrush s_eraserHoverBrush =
         new SolidColorBrush(Color.FromArgb(60, 255, 50, 50)).ToImmutable();
@@ -97,6 +98,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private IPen? _cachedSelectionPen;
     private IPen? _cachedEraserHoverPen;
     private double _cachedChromePenScale;
+    // Constant-thickness vertex pen used by selection highlight (avoid per-frame allocation)
+    private static readonly IPen s_vertexPen =
+        new Pen(s_vertexPenBrush, 1.2, lineCap: PenLineCap.Round);
     // Polyline/arrow preview pens depend on user-chosen color/width.
     private IPen? _cachedPreviewPen;
     private Color _cachedPreviewColor;
@@ -579,12 +583,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static SKTypeface GetCachedTypeface(string fontFamily)
     {
         if (string.IsNullOrEmpty(fontFamily)) return SKTypeface.Default;
-        if (!_typefaceCache.TryGetValue(fontFamily, out var tf))
-        {
-            tf = SKTypeface.FromFamilyName(fontFamily) ?? SKTypeface.Default;
-            _typefaceCache[fontFamily] = tf;
-        }
-        return tf;
+        return _typefaceCache.GetOrAdd(fontFamily,
+            f => SKTypeface.FromFamilyName(f) ?? SKTypeface.Default);
     }
 
     #region Coordinate Transform
@@ -3122,15 +3122,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private void RenderAnnotations(DrawingContext context)
     {
-        // Draw the diff overlay between PDF content and annotations
-        if (HasDiffOverlay)
+        // Draw the diff overlay between PDF content and annotations.
+        // Capture the image reference locally so a concurrent ClearDiffOverlay
+        // on another thread cannot null it between the HasDiffOverlay check
+        // and the actual draw op construction.
+        var diffImage = _diffOverlayImage;
+        if (DiffOverlayVisible && diffImage != null && _diffOverlayPage == _currentPage)
         {
             var oda = DisplayArea;
             var obs = Bounds.Size;
             if (oda.Width > 0 && oda.Height > 0 && obs.Width > 0 && obs.Height > 0)
             {
                 context.Custom(new DiffOverlayDrawOp(
-                    new Rect(obs), _diffOverlayImage!, oda, DiffOverlayOpacity, _diffImageZoom));
+                    new Rect(obs), diffImage, oda, DiffOverlayOpacity, _diffImageZoom));
             }
         }
 
@@ -3478,8 +3482,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Selection UI uses constant screen-pixel sizes so handles don't
         // balloon when zoomed in or shrink when zoomed out.
         var selectPen = _cachedSelectionPen!;
-        var vertexPen = new Pen(s_vertexPenBrush,
-            1.2, lineCap: PenLineCap.Round);
+        var vertexPen = s_vertexPen;
         bool single = _selectHighlightItems.Count == 1;
         const double vtxSize = 7.0;     // constant screen pixels
         const double cornerSize = 3.0;  // constant screen pixels

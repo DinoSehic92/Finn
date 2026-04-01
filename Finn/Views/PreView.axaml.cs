@@ -36,6 +36,7 @@ public partial class PreView : UserControl
         this.AddHandler(KeyDownEvent, OnPreviewShortcutKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         this.AddHandler(LoadedEvent, InitSetup);
+        this.DetachedFromVisualTree += OnDetachedFromVisualTree;
     }
 
     private MainViewModel ctx = null!;
@@ -47,6 +48,10 @@ public partial class PreView : UserControl
     private bool _renderHandlersRegistered;
     /// <summary>Debounce guard: last time OnAnnotationDirty posted to the UI thread.</summary>
     private long _lastAnnotationDirtyTick;
+    /// <summary>Re-entrancy guard for SyncDiffOverlay so overlapping calls don't interleave.</summary>
+    private bool _syncingDiffOverlay;
+    /// <summary>Pending disposal task from CloseDiffViews so the next diff open can await it.</summary>
+    private Task? _pendingDiffDisposal;
 
     // Pan state — shared between PreView.axaml.cs and PreView.Annotation.cs
     private bool _middlePanning;
@@ -310,11 +315,13 @@ public partial class PreView : UserControl
             secCl.SetLayers(null);
     }
 
-    /// <summary>Synchronous overload — only use when the caller cannot await (e.g., PropertyChanged handler).
-    /// Cancels the secondary document open and fires disposal as fire-and-forget;
-    /// prefer CloseDiffViewsAsync when possible.</summary>
+    /// <summary>Synchronous entry point for PropertyChanged handlers that cannot await.
+    /// Resets local view state immediately, cancels in-flight opens, and
+    /// stores the async disposal task so <see cref="SyncDiffOverlayAsync"/> can
+    /// await it before opening a new diff view — preventing dispose-during-init races.</summary>
     private void CloseDiffViews()
     {
+        Task? disposal = null;
         if (_diffToggleOpen)
         {
             _diffToggleOpen = false;
@@ -322,18 +329,37 @@ public partial class PreView : UserControl
             // Cancel any in-flight secondary open so a racing OpenDiffToggle
             // won't assign a new document after we start disposing.
             pwr.CancelSecondaryOpen();
-            _ = pwr.CloseDiffToggleAsync();
+            disposal = pwr.CloseDiffToggleAsync();
         }
         if (_diffSideBySideOpen)
         {
             _diffSideBySideOpen = false;
             StopDisplayAreaSync();
             pwr.CancelSecondaryOpen();
-            _ = pwr.CloseDiffSideBySideAsync();
+            var sbs = pwr.CloseDiffSideBySideAsync();
+            disposal = disposal != null ? Task.WhenAll(disposal, sbs) : sbs;
         }
+        // Store so SyncDiffOverlayAsync can await completion before re-opening.
+        _pendingDiffDisposal = disposal;
         // Clear secondary layers to prevent stale diff annotations.
         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secCl)
             secCl.SetLayers(null);
+    }
+
+    /// <summary>
+    /// Fire-and-forget wrapper for <see cref="SyncDiffOverlayAsync"/>.
+    /// Safe to call from synchronous PropertyChanged handlers.
+    /// </summary>
+    private async void SyncDiffOverlay()
+    {
+        try
+        {
+            await SyncDiffOverlayAsync();
+        }
+        catch (Exception ex)
+        {
+            Finn.Utils.ErrorLogger.Log(ex, "SyncDiffOverlay");
+        }
     }
 
     /// <summary>
@@ -341,91 +367,109 @@ public partial class PreView : UserControl
     /// Overlay: red diff highlights. Toggle: A/B document swap. SideBySide: dual-page.
     /// Optimised: Toggle↔SBS transitions reuse the already-loaded secondary document
     /// via lightweight layout-only reconfiguration instead of dispose+recreate.
+    /// Re-entrant calls are skipped — the last property change wins.
     /// </summary>
-    private async void SyncDiffOverlay()
+    private async Task SyncDiffOverlayAsync()
     {
-        if (pwr == null)
+        if (_syncingDiffOverlay) return;
+        _syncingDiffOverlay = true;
+        try
         {
-            MuPDFRenderer.ClearDiffOverlay();
-            return;
-        }
+            // Await any in-flight disposal from a previous CloseDiffViews so we
+            // don't race with document dispose when opening a new diff view.
+            if (_pendingDiffDisposal != null)
+            {
+                await _pendingDiffDisposal;
+                _pendingDiffDisposal = null;
+            }
 
-        if (!pwr.DiffOverlayActive)
-        {
-            MuPDFRenderer.ClearDiffOverlay();
-            if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClear)
-                secClear.ClearDiffOverlay();
-            return;
-        }
-
-        // Annotation mode is not supported during diff — deactivate it
-        // before setting up the diff views so Escape can close diff cleanly.
-        DeactivateAnnotateMode();
-
-        int page = pwr.CurrentPage1;
-        switch (pwr.DiffViewMode)
-        {
-            case DiffViewMode.Overlay:
-                // Legacy: treat as Toggle if persisted state has Overlay.
-                pwr.DiffViewMode = DiffViewMode.Toggle;
-                return; // DiffViewMode change will re-trigger SyncDiffOverlay
-
-            case DiffViewMode.Toggle:
+            if (pwr == null)
+            {
                 MuPDFRenderer.ClearDiffOverlay();
-                if (_diffSideBySideOpen)
-                {
-                    // Fast path: SBS→Toggle — secondary document already loaded,
-                    // just reconfigure layout without disposing the document.
-                    _diffSideBySideOpen = false;
-                    StopDisplayAreaSync();
-                    await pwr.CollapseSecondaryLayoutAsync();
-                    _diffToggleOpen = true;
-                    await OpenDiffToggleAsync();
-                    MuPDFRenderer.Contain();
-                }
-                else if (!_diffToggleOpen)
-                {
-                    _diffToggleOpen = true;
-                    await OpenDiffToggleAsync();
-                    MuPDFRenderer.Contain();
-                }
-                break;
+                return;
+            }
 
-            case DiffViewMode.SideBySide:
+            if (!pwr.DiffOverlayActive)
+            {
                 MuPDFRenderer.ClearDiffOverlay();
-                if (_diffToggleOpen)
-                {
-                    // Fast path: Toggle→SBS — secondary document already loaded,
-                    // just reconfigure layout without disposing the document.
-                    _diffToggleOpen = false;
-                    CloseDiffToggleSync();
-                    // Don't dispose — OpenDiffSideBySideAsync will reuse secondaryFile
-                }
-                if (!_diffSideBySideOpen && pwr.DiffOriginalPdfPath != null)
-                {
-                    _diffSideBySideOpen = true;
-                    bool opened = await pwr.OpenDiffSideBySideAsync();
-                    if (opened)
+                if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClear)
+                    secClear.ClearDiffOverlay();
+                return;
+            }
+
+            // Annotation mode is not supported during diff — deactivate it
+            // before setting up the diff views so Escape can close diff cleanly.
+            DeactivateAnnotateMode();
+
+            int page = pwr.CurrentPage1;
+            switch (pwr.DiffViewMode)
+            {
+                case DiffViewMode.Overlay:
+                    // Legacy: treat as Toggle if persisted state has Overlay.
+                    pwr.DiffViewMode = DiffViewMode.Toggle;
+                    return; // DiffViewMode change will re-trigger SyncDiffOverlay
+
+                case DiffViewMode.Toggle:
+                    MuPDFRenderer.ClearDiffOverlay();
+                    if (_diffSideBySideOpen)
                     {
-                        SyncSecondaryLayers();
-                        // Show pixel diff overlays on both renderers: red on A, blue on B.
-                        if (pwr.HasDiffResults)
-                        {
-                            var diffA = pwr.GetDiffImagePath(page);
-                            if (diffA != null)
-                                MuPDFRenderer.SetDiffOverlay(diffA, page, PdfDiffService.ZOOM);
-                            var diffB = pwr.GetDiffImagePathB(page);
-                            if (diffB != null && MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secRdr)
-                                secRdr.SetDiffOverlay(diffB, page, PdfDiffService.ZOOM);
-                        }
+                        // Fast path: SBS→Toggle — secondary document already loaded,
+                        // just reconfigure layout without disposing the document.
+                        _diffSideBySideOpen = false;
+                        StopDisplayAreaSync();
+                        await pwr.CollapseSecondaryLayoutAsync();
+                        _diffToggleOpen = true;
+                        await OpenDiffToggleAsync();
                         MuPDFRenderer.Contain();
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Render);
-                        if (MuPDFRendererSecondary.IsVisible && MuPDFRendererSecondary.Bounds is { Width: > 0, Height: > 0 })
-                            MuPDFRendererSecondary.Contain();
-                        StartDisplayAreaSync();
                     }
-                }
-                break;
+                    else if (!_diffToggleOpen)
+                    {
+                        _diffToggleOpen = true;
+                        await OpenDiffToggleAsync();
+                        MuPDFRenderer.Contain();
+                    }
+                    break;
+
+                case DiffViewMode.SideBySide:
+                    MuPDFRenderer.ClearDiffOverlay();
+                    if (_diffToggleOpen)
+                    {
+                        // Fast path: Toggle→SBS — secondary document already loaded,
+                        // just reconfigure layout without disposing the document.
+                        _diffToggleOpen = false;
+                        CloseDiffToggleSync();
+                        // Don't dispose — OpenDiffSideBySideAsync will reuse secondaryFile
+                    }
+                    if (!_diffSideBySideOpen && pwr.DiffOriginalPdfPath != null)
+                    {
+                        _diffSideBySideOpen = true;
+                        bool opened = await pwr.OpenDiffSideBySideAsync();
+                        if (opened)
+                        {
+                            SyncSecondaryLayers();
+                            // Show pixel diff overlays on both renderers: red on A, blue on B.
+                            if (pwr.HasDiffResults)
+                            {
+                                var diffA = pwr.GetDiffImagePath(page);
+                                if (diffA != null)
+                                    MuPDFRenderer.SetDiffOverlay(diffA, page, PdfDiffService.ZOOM);
+                                var diffB = pwr.GetDiffImagePathB(page);
+                                if (diffB != null && MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secRdr)
+                                    secRdr.SetDiffOverlay(diffB, page, PdfDiffService.ZOOM);
+                            }
+                            MuPDFRenderer.Contain();
+                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { }, Avalonia.Threading.DispatcherPriority.Render);
+                            if (MuPDFRendererSecondary.IsVisible && MuPDFRendererSecondary.Bounds is { Width: > 0, Height: > 0 })
+                                MuPDFRendererSecondary.Contain();
+                            StartDisplayAreaSync();
+                        }
+                    }
+                    break;
+            }
+        }
+        finally
+        {
+            _syncingDiffOverlay = false;
         }
     }
 
@@ -779,6 +823,13 @@ public partial class PreView : UserControl
 
 
     private Avalonia.Threading.DispatcherTimer? _resizeDebounce;
+
+    private void OnDetachedFromVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
+    {
+        _resizeDebounce?.Stop();
+        _resizeDebounce = null;
+        StopDisplayAreaSync();
+    }
 
     private void PreviewSizeChanged(object? sender, SizeChangedEventArgs e)
     {

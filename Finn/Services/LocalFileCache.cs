@@ -58,8 +58,9 @@ namespace Finn.Services
         /// <summary>Number of files currently tracked in the cache.</summary>
         public int CachedFileCount => _entries.Count;
 
-        /// <summary>Total size (bytes) of all tracked cached files.</summary>
-        public long CachedTotalBytes => _entries.Values.Sum(e => e.Size);
+        /// <summary>Total size (bytes) of all tracked cached files.
+        /// Takes a snapshot of the dictionary to avoid inconsistent reads during concurrent modifications.</summary>
+        public long CachedTotalBytes => _entries.ToArray().Sum(kv => kv.Value.Size);
 
         public LocalFileCache()
             : this(Path.Combine(Path.GetTempPath(), "Finn_FileCache"))
@@ -183,6 +184,13 @@ namespace Finn.Services
             finally
             {
                 keyLock.Release();
+                // Trim the per-key lock if no one else is waiting, to prevent
+                // unbounded dictionary growth over the session lifetime.
+                if (keyLock.CurrentCount == 1)
+                {
+                    if (_keyLocks.TryRemove(serverPath, out var removed) && removed != keyLock)
+                        _keyLocks.TryAdd(serverPath, removed); // race: another thread re-added, restore
+                }
             }
         }
 
@@ -308,12 +316,14 @@ namespace Finn.Services
         /// </summary>
         private void EvictIfNeeded()
         {
-            long total = _entries.Values.Sum(e => e.Size);
+            // Snapshot the dictionary for a consistent view during eviction.
+            var snapshot = _entries.ToArray();
+            long total = snapshot.Sum(kv => kv.Value.Size);
             if (total <= MaxCacheBytes)
                 return;
 
             // Sort by LRU — oldest access first
-            var candidates = _entries
+            var candidates = snapshot
                 .OrderBy(kv => kv.Value.LastAccessUtc)
                 .ToList();
 
