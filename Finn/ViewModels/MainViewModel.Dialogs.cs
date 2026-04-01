@@ -46,7 +46,9 @@ namespace Finn.ViewModels
                 PreviewWindow = new PreWindow()
                 {
                     DataContext = this,
-                    RequestedThemeVariant = theme
+                    // Use Default so the window inherits the app-level theme and
+                    // stays in sync when the user toggles dark mode at runtime.
+                    RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Default
                 };
                 // Sync font so disabled buttons and all controls
                 // look the same as in the main window.

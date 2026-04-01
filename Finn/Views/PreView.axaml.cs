@@ -27,7 +27,7 @@ public partial class PreView : UserControl
         ScrollSlider.AddHandler(Slider.ValueChangedEvent, PageNrSlider);
         ScrollSliderSecondary.AddHandler(Slider.ValueChangedEvent, SecondaryPageNrSlider);
         PreviewGrid.AddHandler(Grid.SizeChangedEvent, PreviewSizeChanged);
-        TextInputBox.AddHandler(KeyDownEvent, OnTextInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        PropertyTextBox.AddHandler(KeyDownEvent, OnTextInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, OnOpacitySliderChanged);
         PropertyOpacitySlider.AddHandler(Slider.ValueChangedEvent, OnPropertyOpacityChanged);
 
@@ -44,6 +44,9 @@ public partial class PreView : UserControl
     private bool ZoomMode = false;
     private PDFRenderer? _panRenderer;
     private ListBox? _searchResultList;
+    private bool _renderHandlersRegistered;
+    /// <summary>Debounce guard: last time OnAnnotationDirty posted to the UI thread.</summary>
+    private long _lastAnnotationDirtyTick;
 
     // Pan state — shared between PreView.axaml.cs and PreView.Annotation.cs
     private bool _middlePanning;
@@ -75,6 +78,11 @@ public partial class PreView : UserControl
 
     private void OnAnnotationDirty()
     {
+        // Debounce: skip if less than 80ms since last post to avoid flooding
+        // the UI thread during fast freehand drawing.
+        long now = Environment.TickCount64;
+        if (now - _lastAnnotationDirtyTick < 80) return;
+        _lastAnnotationDirtyTick = now;
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             ctx.MarkDirty();
@@ -350,6 +358,10 @@ public partial class PreView : UserControl
             return;
         }
 
+        // Annotation mode is not supported during diff — deactivate it
+        // before setting up the diff views so Escape can close diff cleanly.
+        DeactivateAnnotateMode();
+
         int page = pwr.CurrentPage1;
         switch (pwr.DiffViewMode)
         {
@@ -555,14 +567,17 @@ public partial class PreView : UserControl
         MuPDFRendererSecondary.ActivateLinks = false;
         MuPDFRendererSecondary.DrawLinks = false;
 
-        MuPDFRenderer.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
-        MuPDFRenderer.RemoveHandler(PointerMovedEvent, OnRendererPointerMoved);
-        MuPDFRenderer.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
-        MuPDFRenderer.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
-        MuPDFRendererSecondary.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
-        MuPDFRendererSecondary.RemoveHandler(PointerMovedEvent, OnRendererPointerMoved);
-        MuPDFRendererSecondary.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
-        MuPDFRendererSecondary.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+        if (_renderHandlersRegistered)
+        {
+            MuPDFRenderer.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
+            MuPDFRenderer.RemoveHandler(PointerMovedEvent, OnRendererPointerMoved);
+            MuPDFRenderer.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
+            MuPDFRenderer.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+            MuPDFRendererSecondary.RemoveHandler(PointerPressedEvent, OnRendererPointerPressed);
+            MuPDFRendererSecondary.RemoveHandler(PointerMovedEvent, OnRendererPointerMoved);
+            MuPDFRendererSecondary.RemoveHandler(PointerReleasedEvent, OnRendererPointerReleased);
+            MuPDFRendererSecondary.RemoveHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+        }
 
         MuPDFRenderer.AddHandler(PointerPressedEvent, OnRendererPointerPressed);
         MuPDFRenderer.AddHandler(PointerMovedEvent, OnRendererPointerMoved);
@@ -572,12 +587,19 @@ public partial class PreView : UserControl
         MuPDFRendererSecondary.AddHandler(PointerMovedEvent, OnRendererPointerMoved);
         MuPDFRendererSecondary.AddHandler(PointerReleasedEvent, OnRendererPointerReleased);
         MuPDFRendererSecondary.AddHandler(PointerCaptureLostEvent, OnRendererPointerCaptureLost);
+        _renderHandlersRegistered = true;
 
         ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
 
         // Re-sync diff view state after renderer swap (e.g. embedded → windowed).
         // The ViewModel retains diff state (DiffOverlayActive, DualFileMode) but
-        // this PreView instance has fresh _diffToggleOpen/_diffSideBySideOpen flags.
+        // the renderers are new and need fresh initialization. Reset the local
+        // flags so SyncDiffOverlay re-opens the correct mode from scratch instead
+        // of thinking it's already established.
+        _diffToggleOpen = false;
+        _diffSideBySideOpen = false;
+        StopDisplayAreaSync();
+        CloseDiffToggleSync();
         if (pwr.DiffOverlayActive)
             SyncDiffOverlay();
     }
@@ -591,6 +613,33 @@ public partial class PreView : UserControl
     private void OnPreviewShortcutKeyDown(object? sender, KeyEventArgs e)
     {
         if (pwr == null) return;
+
+        // Escape: close diff/dual-file mode (no modifier required).
+        // Annotation mode handles its own Escape in OnAnnotateKeyDown.
+        if (e.Key == Key.Escape && !_annotateMode
+            && !PropertyPanelCanvas.IsVisible && !CalibrationCanvas.IsVisible && !ColorInputCanvas.IsVisible)
+        {
+            if (pwr.SearchMode)
+            {
+                pwr.SearchMode = false;
+                e.Handled = true;
+                return;
+            }
+            if (pwr.DiffOverlayActive || pwr.ShowDiffToolbar || _diffToggleOpen || _diffSideBySideOpen)
+            {
+                // Use the same handler as the close button so all cleanup runs.
+                OnCloseDiffMode(this, new RoutedEventArgs());
+                e.Handled = true;
+                return;
+            }
+            if (pwr.DualFileMode)
+            {
+                pwr.DualFileMode = false;
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
 
         // Annotation mode has its own Ctrl+ shortcuts (Z, Y, C, V, D, S, A).
@@ -598,7 +647,7 @@ public partial class PreView : UserControl
         if (_annotateMode) return;
 
         // Don't intercept while a text input overlay is visible
-        if (TextInputCanvas.IsVisible || CalibrationCanvas.IsVisible || ColorInputCanvas.IsVisible)
+        if (PropertyPanelCanvas.IsVisible || CalibrationCanvas.IsVisible || ColorInputCanvas.IsVisible)
             return;
 
         bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -878,6 +927,17 @@ public partial class PreView : UserControl
     private void OnCancelFileLoad(object? sender, RoutedEventArgs e) => pwr?.CancelFileLoad();
 
     private void OnToggleDiffPageList(object? sender, RoutedEventArgs e) => pwr?.ToggleDiffPageList();
+
+    /// <summary>Re-run text diff after changing header/footer exclusion zones.</summary>
+    private async void OnRerunTextDiffWithZones(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (pwr == null || !pwr.CanRerunDiff || !pwr.HasTextDiffResults) return;
+            await RerunDiffCoreAsync(DiffRunKind.Text);
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnRerunTextDiffWithZones"); }
+    }
 
     /// <summary>Close Dual File mode from the banner close button.</summary>
     private void OnCloseDualFileMode(object? sender, RoutedEventArgs e)

@@ -91,6 +91,20 @@
 			<Setter Property="Opacity" Value="0.8"/>
 		</Style>
 
+		<!-- Disabled buttons: transparent background, faded foreground -->
+		<Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="Button:disabled">
+			<Setter Property="Opacity" Value="0.35"/>
+		</Style>
+		<Style Selector="ToggleButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="Transparent"/>
+		</Style>
+		<Style Selector="ToggleButton:disabled">
+			<Setter Property="Opacity" Value="0.35"/>
+		</Style>
+
 		<Style Selector="ComboBox">
 			<Setter Property="MinHeight" Value="30"/>
 			<Setter Property="VerticalAlignment" Value="Top"/>

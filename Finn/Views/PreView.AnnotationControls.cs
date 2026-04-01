@@ -532,18 +532,29 @@ public partial class PreView
         _editingTextAnnotation = null;
         _pendingArrowOrigin = arrowOrigin;
         _pendingStickyNote = isStickyNote;
-        Canvas.SetLeft(TextInputBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 240));
-        Canvas.SetTop(TextInputBorder, Math.Min(screenPos.Y, MuPDFRenderer.Bounds.Height - 100));
-        TextInputBox.Text = "";
-        TextInputCanvas.IsVisible = true;
-        TextInputBox.Focus();
+
+        // Use the property panel with text row visible, but hide non-text rows
+        _propertyPanelTarget = null;
+        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 240));
+        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y, MuPDFRenderer.Bounds.Height - 100));
+        PropertyStrokeRow.IsVisible = false;
+        PropertyFillBtn.IsVisible = false;
+        PropertyCornerRadiusRow.IsVisible = false;
+        PropertyActionsRow.IsVisible = false;
+        var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
+        if (closePolyBtn != null) closePolyBtn.IsVisible = false;
+        PropertyTextRow.IsVisible = true;
+        PropertyTextBox.Text = "";
+        PropertyTextBox.Width = double.NaN; // stretch to panel width
+        PropertyPanelCanvas.IsVisible = true;
+        PropertyTextBox.Focus();
     }
 
     private void ShowTextEdit(TextAnnotation existing, Point screenPos)
     {
         _textPlacementPdfPoint = existing.Position;
         _editingTextAnnotation = existing;
-        // Position the overlay directly over the annotation for in-place editing
+        // Position the property panel directly over the annotation for in-place editing
         var da = MuPDFRenderer.DisplayArea;
         var bounds = MuPDFRenderer.Bounds;
         if (da.Width > 0 && bounds.Width > 0)
@@ -553,40 +564,37 @@ public partial class PreView
             screenPos = new Point(annotX, annotY);
             // Match text input width to annotation's MaxWidth for WYSIWYG editing
             if (existing.MaxWidth > 0)
-                TextInputBox.Width = Math.Clamp(existing.MaxWidth / da.Width * bounds.Width, 120, 600);
+                PropertyTextBox.Width = Math.Clamp(existing.MaxWidth / da.Width * bounds.Width, 120, 600);
             else
-                TextInputBox.Width = 220;
+                PropertyTextBox.Width = double.NaN; // stretch to panel width
         }
-        Canvas.SetLeft(TextInputBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 240));
-        Canvas.SetTop(TextInputBorder, Math.Min(screenPos.Y, MuPDFRenderer.Bounds.Height - 100));
-        TextInputBox.Text = existing.Text;
-        TextInputCanvas.IsVisible = true;
-        TextInputBox.Focus();
+        // Show the property panel with text editing for the annotation
+        ShowPropertyPanel(existing, screenPos);
     }
 
     private void OnTextInputCommit(object sender, RoutedEventArgs e)
     {
-        if (_textPlacementPdfPoint.HasValue && !string.IsNullOrWhiteSpace(TextInputBox.Text))
+        if (_textPlacementPdfPoint.HasValue && !string.IsNullOrWhiteSpace(PropertyTextBox.Text))
         {
             if (_editingTextAnnotation != null)
             {
                 var snap = MuPDFRenderer.CapturePropertySnapshot(_editingTextAnnotation);
-                _editingTextAnnotation.Text = TextInputBox.Text;
+                _editingTextAnnotation.Text = PropertyTextBox.Text;
                 MuPDFRenderer.AutoSizeTextWidth(_editingTextAnnotation);
                 if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
             }
             else if (_pendingStickyNote)
             {
-                MuPDFRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, TextInputBox.Text);
+                MuPDFRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
             }
             else if (_pendingArrowOrigin.HasValue)
             {
                 MuPDFRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
-                    _textPlacementPdfPoint.Value, TextInputBox.Text);
+                    _textPlacementPdfPoint.Value, PropertyTextBox.Text);
             }
             else
             {
-                MuPDFRenderer.PlaceText(_textPlacementPdfPoint.Value, TextInputBox.Text);
+                MuPDFRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
             }
         }
 
@@ -607,21 +615,6 @@ public partial class PreView
         else if (e.Key == Key.Escape)
         {
             OnTextInputCancel(sender!, e);
-            e.Handled = true;
-        }
-    }
-
-    /// <summary>
-    /// Clicking the canvas background (outside the text input border) auto-commits
-    /// the current text, making the input feel more direct — no Done button needed.
-    /// </summary>
-    private void OnTextInputBackgroundClick(object? sender, PointerPressedEventArgs e)
-    {
-        // Only commit if the click is outside the TextInputBorder
-        var pos = e.GetPosition(TextInputBorder);
-        if (pos.X < 0 || pos.Y < 0 || pos.X > TextInputBorder.Bounds.Width || pos.Y > TextInputBorder.Bounds.Height)
-        {
-            OnTextInputCommit(this, e);
             e.Handled = true;
         }
     }
@@ -679,19 +672,6 @@ public partial class PreView
         {
             OnCalibrationCancel(sender!, e);
             e.Handled = true;
-        }
-    }
-
-    private void OnPropertyEditText(object sender, RoutedEventArgs e)
-    {
-        if (_propertyPanelTarget is TextAnnotation t)
-        {
-            ClosePropertyPanel();
-            var da = MuPDFRenderer.DisplayArea;
-            var bounds = MuPDFRenderer.Bounds;
-            double screenX = da.Width > 0 ? (t.Position.X - da.X) / da.Width * bounds.Width : 0;
-            double screenY = da.Height > 0 ? (t.Position.Y - da.Y) / da.Height * bounds.Height : 0;
-            ShowTextEdit(t, new Point(screenX, screenY));
         }
     }
 
@@ -864,9 +844,7 @@ public partial class PreView
         PropertyStrokeRow.IsVisible = hasStroke;
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
-        var editTextBtn = this.FindControl<Button>("PropertyEditTextBtn");
         var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
-        if (editTextBtn != null) editTextBtn.IsVisible = isText;
         if (closePolyBtn != null) closePolyBtn.IsVisible = isPolyline;
 
         if (isPolyline && closePolyBtn != null)
@@ -892,12 +870,22 @@ public partial class PreView
         };
         PropertyOpacitySlider.Value = opacity;
 
+        // Show inline text editor for text annotations
+        PropertyTextRow.IsVisible = isText;
+        if (isText && item is TextAnnotation textItem)
+            PropertyTextBox.Text = textItem.Text;
+
         PropertyPanelCanvas.IsVisible = true;
+
+        if (isText)
+            PropertyTextBox.Focus();
     }
 
     private void ClosePropertyPanel()
     {
         PropertyPanelCanvas.IsVisible = false;
+        // Restore the transparent background for normal (non-text-edit) usage
+        PropertyPanelCanvas.Background = Avalonia.Media.Brushes.Transparent;
         _propertyPanelTarget = null;
         MuPDFRenderer.Focus();
     }
@@ -907,7 +895,11 @@ public partial class PreView
         var pos = e.GetPosition(PropertyPanelBorder);
         if (pos.X < 0 || pos.Y < 0 || pos.X > PropertyPanelBorder.Bounds.Width || pos.Y > PropertyPanelBorder.Bounds.Height)
         {
-            ClosePropertyPanel();
+            // If text editing is active, commit on outside click
+            if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null)
+                OnTextInputCommit(this, e);
+            else
+                ClosePropertyPanel();
             e.Handled = true;
         }
     }

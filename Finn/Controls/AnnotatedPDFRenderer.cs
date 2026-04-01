@@ -51,7 +51,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // ── Cached rendering resources (avoid per-frame allocations) ────────
     private readonly List<TextOverlayDrawOp.TextItem> _textItemPool = new(64);
-    private readonly List<TextOverlayDrawOp.TextItem> _textItemSwap = new(64);
+    // Double-buffered snapshot list: alternates between two pre-allocated lists
+    // so the render thread reads one while the UI thread populates the other.
+    private List<TextOverlayDrawOp.TextItem> _textSnapshotA = new(64);
+    private List<TextOverlayDrawOp.TextItem> _textSnapshotB = new(64);
+    private bool _useSnapshotA = true;
     // Cached SKTypeface lookups — FromFamilyName is expensive native interop
     private static readonly Dictionary<string, SKTypeface> _typefaceCache = new();
     // Cached brushes / pens used every frame (static colors, scale-independent)
@@ -320,6 +324,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// CPU→GPU pixel uploads on every frame during pan/zoom.
     /// </summary>
     private SKImage? _diffOverlayImage;
+    /// <summary>Previous diff overlay image kept alive for one render cycle
+    /// so a deferred DiffOverlayDrawOp on the render thread can finish safely.</summary>
+    private SKImage? _prevDiffOverlayImage;
     private int _diffOverlayPage = -1;
     private float _diffImageZoom = 1f;
 
@@ -340,8 +347,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (!forceReload && _diffOverlayImage != null && _diffOverlayPage == page && DiffOverlayVisible)
             return;
 
-        // Don't Dispose the SKImage — a deferred DiffOverlayDrawOp on the render thread
-        // may still hold a reference. Nulling the field lets GC finalize it safely.
+        // Dispose the N-2 image (safe — the render thread can only reference N-1 at most).
+        // Then shift current → previous so it stays alive for any in-flight draw op.
+        _prevDiffOverlayImage?.Dispose();
+        _prevDiffOverlayImage = _diffOverlayImage;
         _diffOverlayImage = null;
         _diffOverlayPage = page;
         _diffImageZoom = zoom;
@@ -366,7 +375,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         // Skip if already cleared to avoid unnecessary InvalidateVisual
         if (_diffOverlayImage == null && !DiffOverlayVisible) return;
-        // Don't Dispose — see SetDiffOverlay comment.
+        _prevDiffOverlayImage?.Dispose();
+        _prevDiffOverlayImage = _diffOverlayImage;
         _diffOverlayImage = null;
         _diffOverlayPage = -1;
         DiffOverlayVisible = false;
@@ -494,7 +504,44 @@ public class AnnotatedPDFRenderer : PDFRenderer
         Layers.Remove(layer);
         if (ActiveLayer == layer)
             ActiveLayer = Layers.Count > 0 ? Layers[0] : null;
+        PurgeEntriesForLayer(layer);
         InvalidateVisual();
+        NotifyAnnotationChanged();
+    }
+
+    /// <summary>Removes all undo/redo entries that reference a specific layer.</summary>
+    private void PurgeEntriesForLayer(AnnotationLayer layer)
+    {
+        PurgeStack(_undoStack, layer);
+        PurgeRedoStack(_redoStack, layer);
+    }
+
+    private static void PurgeStack(
+        Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> stack,
+        AnnotationLayer target)
+    {
+        if (stack.Count == 0) return;
+        var keep = new Stack<(UndoType, int, object?, AnnotationLayer?)>();
+        while (stack.Count > 0)
+        {
+            var entry = stack.Pop();
+            if (entry.layer != target) keep.Push(entry);
+        }
+        while (keep.Count > 0) stack.Push(keep.Pop());
+    }
+
+    private static void PurgeRedoStack(
+        Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> stack,
+        AnnotationLayer target)
+    {
+        if (stack.Count == 0) return;
+        var keep = new Stack<(UndoType, int, object, AnnotationLayer?)>();
+        while (stack.Count > 0)
+        {
+            var entry = stack.Pop();
+            if (entry.layer != target) keep.Push(entry);
+        }
+        while (keep.Count > 0) stack.Push(keep.Pop());
     }
 
     public void ClearLayer(AnnotationLayer layer)
@@ -513,6 +560,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         layer.MeasurementCount = 0;
         layer.RefreshStatus();
         InvalidateVisual();
+        NotifyAnnotationChanged();
     }
 
     /// <summary>Ensure at least one layer exists; create the default if empty.</summary>
@@ -2805,15 +2853,26 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.ClearPage:
                 if (item is ClearPageSnapshot snap)
                 {
+                    // Capture any annotations added after the undo so they aren't silently lost
+                    List<InkStroke>? newStrokes = null;
+                    List<ShapeAnnotation>? newShapes = null;
+                    List<TextAnnotation>? newTexts = null;
+                    List<MeasurementAnnotation>? newMeasurements = null;
                     if (layer.PageStrokes.TryGetValue(page, out var cs) && cs.Count > 0)
-                    { layer.StrokeCount -= cs.Count; _totalStrokeCount -= cs.Count; cs.Clear(); }
+                    { newStrokes = new List<InkStroke>(cs); layer.StrokeCount -= cs.Count; _totalStrokeCount -= cs.Count; cs.Clear(); }
                     if (layer.PageShapes.TryGetValue(page, out var csh) && csh.Count > 0)
-                    { layer.ShapeCount -= csh.Count; _totalShapeCount -= csh.Count; csh.Clear(); }
+                    { newShapes = new List<ShapeAnnotation>(csh); layer.ShapeCount -= csh.Count; _totalShapeCount -= csh.Count; csh.Clear(); }
                     if (layer.PageTexts.TryGetValue(page, out var ct) && ct.Count > 0)
-                    { layer.TextCount -= ct.Count; _totalTextCount -= ct.Count; ct.Clear(); }
+                    { newTexts = new List<TextAnnotation>(ct); layer.TextCount -= ct.Count; _totalTextCount -= ct.Count; ct.Clear(); }
                     if (layer.PageMeasurements.TryGetValue(page, out var cm) && cm.Count > 0)
-                    { layer.MeasurementCount -= cm.Count; _totalMeasurementCount -= cm.Count; cm.Clear(); }
-                    restored = true;
+                    { newMeasurements = new List<MeasurementAnnotation>(cm); layer.MeasurementCount -= cm.Count; _totalMeasurementCount -= cm.Count; cm.Clear(); }
+                    // Push the captured state so undo can restore what was cleared by redo
+                    var redoUndoSnap = new ClearPageSnapshot(newStrokes, newShapes, newTexts, newMeasurements);
+                    _undoStack.Push((UndoType.ClearPage, page, redoUndoSnap, entryLayer));
+                    layer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
                 }
                 break;
             case UndoType.Move:
@@ -3256,14 +3315,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
-        // Render all text via SkiaSharp overlay (swap the pool into the draw op
-        // without copying — the swap list holds the previous frame's items until
-        // the next render clears it, keeping the draw-op's reference alive).
+        // Render all text via SkiaSharp overlay.
+        // Double-buffered: swap between two pre-allocated lists so the
+        // render thread reads the previous frame's list while we populate the next.
         if (textItems.Count > 0)
         {
-            _textItemSwap.Clear();
-            _textItemSwap.AddRange(textItems);
-            context.Custom(new TextOverlayDrawOp(new Rect(boundsSize), _textItemSwap));
+            var snapshot = _useSnapshotA ? _textSnapshotA : _textSnapshotB;
+            _useSnapshotA = !_useSnapshotA;
+            snapshot.Clear();
+            snapshot.AddRange(textItems);
+            context.Custom(new TextOverlayDrawOp(new Rect(boundsSize), snapshot));
         }
 
         // Eraser hover highlight: draw a translucent red overlay on the hovered item
@@ -4519,12 +4580,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
             // Use the annotation's own font size; fall back to a sensible default
             float popupFontSize = annotFontSize > 0 ? annotFontSize : MathF.Max(11f, iconSize * 0.75f);
             float lineHeight = popupFontSize * 1.35f;
-            string[] lines = text.Split('\n');
 
             using var popupFont = new SKFont(SKTypeface.Default, popupFontSize);
+
+            // Word-wrap to a reasonable popup width (200px or ~20 chars)
+            float maxPopupWidth = MathF.Max(200f, popupFontSize * 18f);
+            var wrappedLines = WrapTextLines(text, maxPopupWidth, popupFont);
+
             float maxW = 0;
             var lineBounds = new List<(string line, SKRect bounds)>();
-            foreach (var line in lines)
+            foreach (var line in wrappedLines)
             {
                 if (line.Length == 0) { lineBounds.Add((line, default)); continue; }
                 popupFont.MeasureText(line, out var tb);
@@ -4532,7 +4597,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 maxW = Math.Max(maxW, tb.Width);
             }
             maxW = Math.Max(maxW, popupFontSize * 3);
-            float contentH = lines.Length * lineHeight;
+            float contentH = wrappedLines.Count * lineHeight;
 
             float pad = 7f;
             float popupW = maxW + pad * 2;

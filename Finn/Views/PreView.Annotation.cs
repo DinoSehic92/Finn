@@ -188,13 +188,15 @@ public partial class PreView
     /// <summary>Resets text input overlay state and restores focus.</summary>
     private void CloseTextInput()
     {
-        TextInputCanvas.IsVisible = false;
         _textPlacementPdfPoint = null;
         _editingTextAnnotation = null;
         _pendingArrowOrigin = null;
         _pendingStickyNote = false;
         _arrowTextOrigin = null;
         MuPDFRenderer.ClearArrowTextPreview();
+        // Re-show the actions row that was hidden for new text placement
+        PropertyActionsRow.IsVisible = true;
+        ClosePropertyPanel();
         MuPDFRenderer.Focus();
     }
 
@@ -506,10 +508,10 @@ public partial class PreView
         pwr.AnnotationActive = false;
         AnnotateToggle.IsChecked = false;
         AnnotateToolbar.IsVisible = false;
-        TextInputCanvas.IsVisible = false;
         CalibrationCanvas.IsVisible = false;
         ColorInputCanvas.IsVisible = false;
         PropertyPanelCanvas.IsVisible = false;
+        PropertyPanelCanvas.Background = Avalonia.Media.Brushes.Transparent;
         ResetDragState();
         _selectedAnnotation = null;
         _calibrationMode = false;
@@ -558,7 +560,7 @@ public partial class PreView
 
         // While the text input is open, only intercept Escape so the user
         // can still type Shift+digits (!, @, …), capital letters, brackets, etc.
-        if (TextInputCanvas.IsVisible)
+        if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null)
         {
             if (e.Key == Key.Escape)
             {

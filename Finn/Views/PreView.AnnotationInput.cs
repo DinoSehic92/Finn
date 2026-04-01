@@ -61,7 +61,7 @@ public partial class PreView
                 e.Handled = true;
                 return;
             }
-            if (TextInputCanvas.IsVisible)
+            if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null)
             {
                 OnTextInputCommit(this, e);
                 e.Handled = true;
@@ -172,7 +172,16 @@ public partial class PreView
                 }
                 if (e.ClickCount >= 2)
                 {
-                    ShowPropertyPanel(hitText, e.GetPosition(MuPDFRenderer));
+                    if (!MuPDFRenderer.IsActiveLayerLocked)
+                    {
+                        // Double-click text: open property panel with inline text editor
+                        var screenPos = e.GetPosition(MuPDFRenderer);
+                        ShowTextEdit(hitText, screenPos);
+                    }
+                    else
+                    {
+                        ShowPropertyPanel(hitText, e.GetPosition(MuPDFRenderer));
+                    }
                     e.Pointer.Capture(null);
                     return;
                 }
@@ -500,7 +509,7 @@ public partial class PreView
                         e.KeyModifiers.HasFlag(KeyModifiers.Shift));
             }
             // ArrowText preview: track cursor after first click sets origin (freeze while typing)
-            else if (_annotateMode && _arrowTextOrigin != null && !TextInputCanvas.IsVisible)
+            else if (_annotateMode && _arrowTextOrigin != null && _textPlacementPdfPoint == null)
             {
                 if (hoverPdf.HasValue)
                     MuPDFRenderer.UpdateArrowTextPreview(hoverPdf.Value);

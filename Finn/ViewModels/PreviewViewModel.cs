@@ -860,8 +860,8 @@ namespace Finn.ViewModels
                 WhiteboardMode = true;
                 fileAvailable = true;
 
-                prevDoc?.Dispose();
-                prevCtx?.Dispose();
+                try { prevDoc?.Dispose(); } catch { }
+                try { prevCtx?.Dispose(); } catch { }
 
                 StatusMessage = "Whiteboard";
 
@@ -1054,8 +1054,8 @@ namespace Finn.ViewModels
                         Pagecount = previewDoc.Pages.Count;
                         CurrentFile = reqFile;
                         fileAvailable = true;
-                        prevDoc?.Dispose();
-                        prevCtx?.Dispose();
+                        try { prevDoc?.Dispose(); } catch { }
+                        try { prevCtx?.Dispose(); } catch { }
 
                         // --- Page setup ---
                         if (!DualFileMode) LinkedPageMode = true;
@@ -1186,18 +1186,24 @@ namespace Finn.ViewModels
                         mainRenderer?.ReleaseResources();
                         if (!dualFileMode)
                             secondaryRenderer?.ReleaseResources();
-                        MainPreviewFile?.Dispose();
-                        context?.Dispose();
+
+                        // Null the fields BEFORE disposing so the GC finalizer
+                        // cannot race against explicit disposal. Capture the old
+                        // references locally for strict document-before-context disposal.
+                        var prevDoc = MainPreviewFile;
+                        var prevCtx = context;
+                        MainPreviewFile = null;
+                        context = null;
+                        fileAvailable = false;
+
+                        try { prevDoc?.Dispose(); } catch { }
+                        try { prevCtx?.Dispose(); } catch { }
                     }
                     catch (Exception ex)
                     {
                         logger?.LogWarning(ex, "Error during quick dispose");
                     }
                 }).GetTask().ConfigureAwait(false);
-
-                fileAvailable = false;
-                MainPreviewFile = null;
-                context = null;
 
                 // Unpin cached path now that the native handle is closed
                 UnpinMainCachePath();

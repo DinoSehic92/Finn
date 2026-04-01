@@ -123,18 +123,7 @@
 		</Style>
 
 		<!-- Disabled buttons: transparent background, faded foreground -->
-		<Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
-			<Setter Property="Background" Value="Transparent"/>
-		</Style>
-		<Style Selector="Button:disabled">
-			<Setter Property="Opacity" Value="0.35"/>
-		</Style>
-		<Style Selector="ToggleButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
-			<Setter Property="Background" Value="Transparent"/>
-		</Style>
-		<Style Selector="ToggleButton:disabled">
-			<Setter Property="Opacity" Value="0.35"/>
-		</Style>
+		<!-- (Styles moved to App.axaml for global scope — applies to windowed previewer too) -->
 	</UserControl.Styles>
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
@@ -884,9 +873,9 @@
 			</Grid.ColumnDefinitions>
 		<!-- Calendar panel -->
 		<Grid Grid.Column="0" RowDefinitions="Auto,Auto,2*,2*,40,Auto,Auto" IsVisible="{Binding UI.CalendarOpen}" Width="320">
-			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource TextControlBackground}" Width="310" Height="330">
+			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource TextControlBackground}" Width="310" Height="345">
 				<StackPanel Orientation="Vertical">
-					<Calendar Name="MainCalendar" Height="295" Background="Transparent" HorizontalAlignment="Center"
+					<Calendar Name="MainCalendar" Height="305" Background="Transparent" HorizontalAlignment="Center"
 							  DisplayDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
 							  SelectedDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
 							  BorderBrush="Transparent" FontSize="{Binding UI.FontSize}"
@@ -1090,7 +1079,7 @@
 			<Border Grid.Row="6" Classes="shadow" IsVisible="{Binding UI.ShowClock}"
 					Background="{DynamicResource TextControlBackground}"
 					Padding="8" Margin="5" HorizontalAlignment="Stretch">
-				<controls:AnalogWatchControl HorizontalAlignment="Center" Height="150" Width="150">
+				<controls:AnalogWatchControl HorizontalAlignment="Center" Height="190" Width="190">
 					<controls:AnalogWatchControl.FaceBrush>
 						<SolidColorBrush Color="White"/>
 					</controls:AnalogWatchControl.FaceBrush>

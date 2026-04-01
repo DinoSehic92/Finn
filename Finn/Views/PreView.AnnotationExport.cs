@@ -96,7 +96,7 @@ public partial class PreView
             };
 
             var pts = stroke.Points;
-            var path = new SKPath();
+            using var path = new SKPath();
             float z = (float)renderZoom;
 
             if (pts.Count == 2)
@@ -255,7 +255,7 @@ public partial class PreView
 
                 case InlineAnnotationTool.RevisionCloud:
                 {
-                    var cloudPath = RenderSkiaCloudPath(sx, sy, ex, ey, renderZoom);
+                    using var cloudPath = RenderSkiaCloudPath(sx, sy, ex, ey, renderZoom);
                     if (fillPaint != null)
                         canvas.DrawPath(cloudPath, fillPaint);
                     canvas.DrawPath(cloudPath, paint);
@@ -494,7 +494,7 @@ public partial class PreView
         using var brdPaint = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeWidth = MathF.Max(0.8f, sz * 0.05f) };
 
         // Body
-        var body = new SKPath();
+        using var body = new SKPath();
         body.MoveTo(x, y);
         body.LineTo(x + sz - fold, y);
         body.LineTo(x + sz, y + fold);
@@ -507,7 +507,7 @@ public partial class PreView
         canvas.DrawPath(body, brdPaint);
 
         // Fold triangle
-        var foldPath = new SKPath();
+        using var foldPath = new SKPath();
         foldPath.MoveTo(x + sz - fold, y);
         foldPath.LineTo(x + sz, y + fold);
         foldPath.LineTo(x + sz - fold, y + fold);
@@ -554,7 +554,7 @@ public partial class PreView
             IsAntialias = true
         };
 
-        var path = new SKPath();
+        using var path = new SKPath();
         float lx = (float)(tx - headLen * Math.Cos(angle - headAngle));
         float ly = (float)(ty - headLen * Math.Sin(angle - headAngle));
         float rx = (float)(tx - headLen * Math.Cos(angle + headAngle));
@@ -592,7 +592,7 @@ public partial class PreView
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        var path = new SKPath();
+        using var path = new SKPath();
         path.MoveTo(p1x, p1y);
         path.LineTo(tipX, tipY);
         path.LineTo(p2x, p2y);
