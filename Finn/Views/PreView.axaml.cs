@@ -1112,6 +1112,12 @@ public partial class PreView : UserControl
     {
         if (pwr == null) return;
 
+        // Deactivate annotation mode BEFORE any document operations.
+        // RequestPreviewAsync below disposes the current MuPDF document;
+        // if annotation mode is still active the renderer accesses freed
+        // native memory → unlogged native crash.
+        DeactivateAnnotateMode();
+
         // Build choices from the real file (via MainViewModel.CurrentFile)
         var mainVm = this.DataContext as Finn.ViewModels.MainViewModel
                   ?? (this.FindAncestorOfType<Window>()?.DataContext as Finn.ViewModels.MainViewModel);

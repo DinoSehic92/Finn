@@ -648,14 +648,30 @@
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 							<MenuItem Header="Color">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
-								<MenuItem Header="None"        Tag=""        Click="EditColor"/>
-								<MenuItem Background="#E5A820" Opacity="0.6" Tag="Yellow"  Click="EditColor"/>
-								<MenuItem Background="#E06830" Opacity="0.6" Tag="Orange"  Click="EditColor"/>
-								<MenuItem Background="#9C6B3C" Opacity="0.6" Tag="Brown"   Click="EditColor"/>
-								<MenuItem Background="#3DA35F" Opacity="0.6" Tag="Green"   Click="EditColor"/>
-								<MenuItem Background="#3B82D9" Opacity="0.6" Tag="Blue"    Click="EditColor"/>
-								<MenuItem Background="#D64045" Opacity="0.6" Tag="Red"     Click="EditColor"/>
-								<MenuItem Background="#9B5FC0" Opacity="0.6" Tag="Magenta" Click="EditColor"/>
+								<MenuItem Header="None"    Tag=""        Click="EditColor">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss" FontSize="14"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Yellow"  Tag="Yellow"  Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E5A820"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Orange"  Tag="Orange"  Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E06830"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Brown"   Tag="Brown"   Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9C6B3C"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Green"   Tag="Green"   Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3DA35F"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Blue"    Tag="Blue"    Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3B82D9"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Red"     Tag="Red"     Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#D64045"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Magenta" Tag="Magenta" Click="EditColor">
+									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9B5FC0"/></MenuItem.Icon>
+								</MenuItem>
 							</MenuItem>
 							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
@@ -1439,13 +1455,27 @@
 											<ContextMenu>
 												<MenuItem Header="Color">
 													<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
-													<MenuItem Header="None"   Tag=""        Click="OnTodoColor"/>
-													<MenuItem Background="#D64045" Opacity="0.6" Tag="#D64045" Click="OnTodoColor"/>
-													<MenuItem Background="#E06830" Opacity="0.6" Tag="#E06830" Click="OnTodoColor"/>
-													<MenuItem Background="#E5A820" Opacity="0.6" Tag="#E5A820" Click="OnTodoColor"/>
-													<MenuItem Background="#3DA35F" Opacity="0.6" Tag="#3DA35F" Click="OnTodoColor"/>
-													<MenuItem Background="#3B82D9" Opacity="0.6" Tag="#3B82D9" Click="OnTodoColor"/>
-													<MenuItem Background="#9B5FC0" Opacity="0.6" Tag="#9B5FC0" Click="OnTodoColor"/>
+													<MenuItem Header="None"    Tag=""        Click="OnTodoColor">
+														<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss" FontSize="14"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Header="Red"     Tag="#D64045" Click="OnTodoColor">
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#D64045"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Header="Orange"  Tag="#E06830" Click="OnTodoColor">
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E06830"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Header="Yellow"  Tag="#E5A820" Click="OnTodoColor">
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E5A820"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Header="Green"   Tag="#3DA35F" Click="OnTodoColor">
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3DA35F"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Header="Blue"    Tag="#3B82D9" Click="OnTodoColor">
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3B82D9"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Header="Magenta" Tag="#9B5FC0" Click="OnTodoColor">
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9B5FC0"/></MenuItem.Icon>
+													</MenuItem>
 												</MenuItem>
 												<Separator/>
 												<MenuItem Header="Remove" Click="OnRemoveTodo">
