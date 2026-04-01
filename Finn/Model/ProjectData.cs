@@ -317,6 +317,16 @@ namespace Finn.Model
             }
         }
 
+        private ObservableCollection<TodoItem> todoItems = new();
+        /// <summary>
+        /// Per-project to-do list. Serialized with the project JSON.
+        /// </summary>
+        public ObservableCollection<TodoItem> TodoItems
+        {
+            get => todoItems;
+            set { todoItems = value ?? new(); RaisePropertyChanged(nameof(TodoItems)); }
+        }
+
         private void RaisePropertyChanged(string propName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));

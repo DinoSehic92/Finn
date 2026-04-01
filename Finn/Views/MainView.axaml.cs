@@ -1376,6 +1376,137 @@ public partial class MainView : UserControl
 
     #endregion
 
+    #region Todo
+
+    private void OnAddTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var input = this.FindControl<TextBox>("TodoInput");
+        if (input == null || string.IsNullOrWhiteSpace(input.Text)) return;
+        _ctx.CurrentProject?.TodoItems.Add(new Model.TodoItem { Text = input.Text.Trim() });
+        input.Clear();
+    }
+
+    private void OnTodoInputKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    {
+        if (e.Key == Avalonia.Input.Key.Enter)
+        {
+            OnAddTodo(sender, e);
+            e.Handled = true;
+        }
+    }
+
+    private void OnRemoveTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        if (grid?.SelectedItem is Model.TodoItem item)
+            _ctx.CurrentProject?.TodoItems.Remove(item);
+    }
+
+    private void OnTodoColor(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        if (grid?.SelectedItem is Model.TodoItem item && sender is Button btn)
+        {
+            item.Color = btn.Tag as string ?? string.Empty;
+        }
+        this.FindControl<Button>("TodoColorButton")?.Flyout?.Hide();
+    }
+
+    // --- Drag-reorder for Todo items ---
+    private Model.TodoItem? _todoDragItem;
+    private Point _todoDragStart;
+    private bool _todoDragging;
+    private const double TodoDragThreshold = 4;
+
+    private void TodoGrid_LoadingRow(object? sender, DataGridRowEventArgs e)
+    {
+        // Attach drag-reorder events to the DataGrid itself on first row load.
+        // DataGrid captures the pointer for selection, so row-level pointer
+        // events don't fire during a drag — we must handle it at grid level.
+        var grid = sender as DataGrid;
+        if (grid != null && !_todoGridEventsAttached)
+        {
+            _todoGridEventsAttached = true;
+            grid.PointerPressed += TodoGrid_PointerPressed;
+            grid.PointerMoved += TodoGrid_PointerMoved;
+            grid.PointerReleased += TodoGrid_PointerReleased;
+        }
+    }
+
+    private bool _todoGridEventsAttached;
+
+    private void TodoGrid_PointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(null).Properties.IsLeftButtonPressed) return;
+        var grid = sender as DataGrid;
+        if (grid?.SelectedItem is Model.TodoItem item)
+        {
+            var items = _ctx.CurrentProject?.TodoItems;
+            if (items == null) return;
+            _todoDragItem = item;
+            _todoDragStart = e.GetPosition(grid);
+            _todoDragging = false;
+        }
+    }
+
+    private void TodoGrid_PointerMoved(object? sender, Avalonia.Input.PointerEventArgs e)
+    {
+        if (_todoDragItem == null) return;
+        if (!e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
+        {
+            _todoDragItem = null;
+            _todoDragging = false;
+            return;
+        }
+
+        var grid = sender as DataGrid;
+        var items = _ctx.CurrentProject?.TodoItems;
+        if (grid == null || items == null) return;
+
+        var pos = e.GetPosition(grid);
+
+        // Require a minimum drag distance before starting reorder
+        if (!_todoDragging)
+        {
+            double dy = Math.Abs(pos.Y - _todoDragStart.Y);
+            if (dy < TodoDragThreshold) return;
+            _todoDragging = true;
+        }
+
+        // Find which row the pointer is over
+        int targetIndex = -1;
+        foreach (var row in grid.GetVisualDescendants().OfType<DataGridRow>())
+        {
+            var rowPos = row.TranslatePoint(new Point(0, 0), grid);
+            if (rowPos == null) continue;
+            double top = rowPos.Value.Y;
+            double bottom = top + row.Bounds.Height;
+            if (pos.Y >= top && pos.Y < bottom && row.DataContext is Model.TodoItem target)
+            {
+                targetIndex = items.IndexOf(target);
+                break;
+            }
+        }
+
+        if (targetIndex >= 0 && targetIndex < items.Count)
+        {
+            int currentIndex = items.IndexOf(_todoDragItem);
+            if (currentIndex >= 0 && currentIndex != targetIndex)
+            {
+                items.Move(currentIndex, targetIndex);
+                grid.SelectedItem = _todoDragItem;
+            }
+        }
+    }
+
+    private void TodoGrid_PointerReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs e)
+    {
+        _todoDragItem = null;
+        _todoDragging = false;
+    }
+
+    #endregion
+
     #region Collections
 
     private void OnNewCollection(object? sender, RoutedEventArgs e)
