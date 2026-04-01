@@ -1,10 +1,28 @@
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Finn.Converters
 {
+    /// <summary>
+    /// Returns false (hidden) when the item is done AND hide-completed is enabled.
+    /// Values[0] = IsDone (bool), Values[1] = HideCompletedTodos (bool).
+    /// </summary>
+    public class TodoRowVisibilityConverter : IMultiValueConverter
+    {
+        public static readonly TodoRowVisibilityConverter Instance = new();
+
+        public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (values.Count >= 2 && values[0] is bool isDone && values[1] is bool hideCompleted)
+                return !(isDone && hideCompleted);
+            return true;
+        }
+    }
+
     /// <summary>
     /// Returns <see cref="TextDecorations.Strikethrough"/> when the value is true, null otherwise.
     /// Used for completed to-do items.
@@ -52,6 +70,20 @@ namespace Finn.Converters
             }
             return Brushes.Transparent;
         }
+
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Converts an IndentLevel (int) to a left-margin Thickness (24px per level).
+    /// </summary>
+    public class TodoIndentConverter : IValueConverter
+    {
+        public static readonly TodoIndentConverter Instance = new();
+
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+            => value is int level && level > 0 ? new Thickness(24 * level, 0, 0, 0) : new Thickness(0);
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotSupportedException();

@@ -41,6 +41,16 @@ namespace Finn.Model
             set { createdDate = value; RaisePropertyChanged(nameof(CreatedDate)); }
         }
 
+        private int indentLevel;
+        /// <summary>
+        /// Nesting depth of the item (0 = top-level, 1+ = subtask).
+        /// </summary>
+        public int IndentLevel
+        {
+            get => indentLevel;
+            set { indentLevel = value; RaisePropertyChanged(nameof(IndentLevel)); }
+        }
+
         private void RaisePropertyChanged(string propName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));

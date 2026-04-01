@@ -58,6 +58,7 @@ namespace Finn.ViewModels
             TrayOtherFiles = true;
             ColorTagDot = false;
             TrayTodo = true;
+            HideCompletedTodos = false;
 
             TreeViewWidth = Defaults.DefaultTreeViewWidth;
             TrayWidth = Defaults.DefaultTrayWidth;
@@ -192,6 +193,9 @@ namespace Finn.ViewModels
         private bool trayTodo;
         public bool TrayTodo { get => trayTodo; set { trayTodo = value; OnPropertyChanged(nameof(TrayTodo)); } }
 
+        private bool hideCompletedTodos;
+        public bool HideCompletedTodos { get => hideCompletedTodos; set { hideCompletedTodos = value; OnPropertyChanged(nameof(HideCompletedTodos)); } }
+
         private bool showClock;
         /// <summary>Auto-toggled based on window height. Not persisted.</summary>
         [Newtonsoft.Json.JsonIgnore]
@@ -254,6 +258,7 @@ namespace Finn.ViewModels
                 TrayOtherFiles = this.TrayOtherFiles,
                 TrayAnnotations = this.TrayAnnotations,
                     TrayTodo = this.TrayTodo,
+                    HideCompletedTodos = this.HideCompletedTodos,
                     ShowIcons = this.ShowIcons,
                 ColorTagDot = this.ColorTagDot,
                 TreeViewOpen = this.TreeViewOpen,
@@ -299,6 +304,7 @@ namespace Finn.ViewModels
                 this.TrayOtherFiles = ui.TrayOtherFiles;
                 this.TrayAnnotations = ui.TrayAnnotations;
                 this.TrayTodo = ui.TrayTodo;
+                this.HideCompletedTodos = ui.HideCompletedTodos;
                 this.ShowIcons = ui.ShowIcons;
                 this.ColorTagDot = ui.ColorTagDot;
 

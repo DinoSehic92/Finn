@@ -126,6 +126,7 @@ public partial class MainView : UserControl
                 catch (Exception ex) { Utils.ErrorLogger.Log(ex, "InitStartup"); }
 
                 UpdateEmptyState();
+                SubscribeTodoItems();
 
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;
@@ -150,6 +151,9 @@ public partial class MainView : UserControl
                 break;
             case nameof(MainViewModel.CurrentFile):
                 UpdateOtherFilesEmptyState();
+                break;
+            case nameof(MainViewModel.CurrentProject):
+                SubscribeTodoItems();
                 break;
         }
     }
@@ -1384,28 +1388,91 @@ public partial class MainView : UserControl
 
     #region Todo
 
-    private void OnAddTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void OnTodoContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        var input = this.FindControl<TextBox>("TodoInput");
-        if (input == null || string.IsNullOrWhiteSpace(input.Text)) return;
-        _ctx.CurrentProject?.TodoItems.Add(new Model.TodoItem { Text = input.Text.Trim() });
-        input.Clear();
+        if (sender is not ContextMenu menu) return;
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+
+        // Find the "Add Subtask" menu item by name
+        MenuItem? subtaskItem = null;
+        foreach (var child in menu.Items)
+        {
+            if (child is MenuItem mi && mi.Name == "AddSubtaskMenuItem")
+            {
+                subtaskItem = mi;
+                break;
+            }
+        }
+        if (subtaskItem == null) return;
+
+        // Hide "Add Subtask" when no item is selected or the selected item is already a subtask
+        subtaskItem.IsVisible = grid?.SelectedItem is Model.TodoItem item && item.IndentLevel == 0;
     }
 
-    private void OnTodoInputKeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
+    private void OnAddTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (e.Key == Avalonia.Input.Key.Enter)
+        var items = _ctx.CurrentProject?.TodoItems;
+        if (items == null) return;
+        var task = new Model.TodoItem { Text = "New task" };
+        items.Add(task);
+        _ctx.MarkDirty();
+
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        if (grid != null)
         {
-            OnAddTodo(sender, e);
-            e.Handled = true;
+            grid.SelectedItem = task;
+            Dispatcher.UIThread.Post(() => grid.BeginEdit(), DispatcherPriority.Input);
         }
+    }
+
+    private void OnAddSubtask(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        var items = _ctx.CurrentProject?.TodoItems;
+        if (grid == null || items == null) return;
+
+        if (grid.SelectedItem is not Model.TodoItem parent) return;
+        // Only allow subtasks on top-level items
+        if (parent.IndentLevel > 0) return;
+
+        int parentIndex = items.IndexOf(parent);
+        if (parentIndex < 0) return;
+
+        // Find the insertion point: after the parent and all its existing children
+        int insertAt = parentIndex + 1;
+        while (insertAt < items.Count && items[insertAt].IndentLevel > parent.IndentLevel)
+            insertAt++;
+
+        var subtask = new Model.TodoItem
+        {
+            Text = "New subtask",
+            IndentLevel = 1
+        };
+        items.Insert(insertAt, subtask);
+        _ctx.MarkDirty();
+
+        grid.SelectedItem = subtask;
+        Dispatcher.UIThread.Post(() => grid.BeginEdit(), DispatcherPriority.Input);
     }
 
     private void OnRemoveTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var grid = this.FindControl<DataGrid>("TodoGrid");
-        if (grid?.SelectedItem is Model.TodoItem item)
-            _ctx.CurrentProject?.TodoItems.Remove(item);
+        var items = _ctx.CurrentProject?.TodoItems;
+        if (grid == null || items == null) return;
+        if (grid.SelectedItem is not Model.TodoItem item) return;
+
+        int index = items.IndexOf(item);
+        if (index < 0) return;
+
+        // Remove the item and any children nested beneath it
+        int removeCount = 1;
+        while (index + removeCount < items.Count && items[index + removeCount].IndentLevel > item.IndentLevel)
+            removeCount++;
+
+        for (int i = 0; i < removeCount; i++)
+            items.RemoveAt(index);
+        _ctx.MarkDirty();
     }
 
     private void OnTodoColor(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -1419,94 +1486,221 @@ public partial class MainView : UserControl
             _ => null
         };
         if (color != null)
+        {
             item.Color = color;
-    }
-
-    // --- Drag-reorder for Todo items ---
-    private Model.TodoItem? _todoDragItem;
-    private Point _todoDragStart;
-    private bool _todoDragging;
-    private bool _todoGridEventsAttached;
-    private const double TodoDragThreshold = 5;
-
-    private void TodoGrid_LoadingRow(object? sender, DataGridRowEventArgs e)
-    {
-        if (sender is DataGrid grid && !_todoGridEventsAttached)
-        {
-            _todoGridEventsAttached = true;
-            // Use AddHandler with handledEventsToo because the DataGrid
-            // marks pointer events as handled for its own selection logic.
-            grid.AddHandler(Avalonia.Input.InputElement.PointerPressedEvent, TodoGrid_PointerPressed, RoutingStrategies.Bubble, handledEventsToo: true);
-            grid.AddHandler(Avalonia.Input.InputElement.PointerMovedEvent, TodoGrid_PointerMoved, RoutingStrategies.Bubble, handledEventsToo: true);
-            grid.AddHandler(Avalonia.Input.InputElement.PointerReleasedEvent, TodoGrid_PointerReleased, RoutingStrategies.Bubble, handledEventsToo: true);
+            _ctx.MarkDirty();
         }
     }
 
-    private void TodoGrid_PointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(null).Properties.IsLeftButtonPressed) return;
-        if (sender is not DataGrid grid) return;
+    // ── Todo list helpers ──────────────────────────────────────────────
 
-        // Find the row under the pointer by walking the visual tree from the event source
-        var source = e.Source as Avalonia.Visual;
-        var row = source?.FindAncestorOfType<DataGridRow>();
-        if (row?.DataContext is Model.TodoItem item)
-        {
-            _todoDragItem = item;
-            _todoDragStart = e.GetPosition(grid);
-            _todoDragging = false;
-        }
+    /// <summary>
+    /// Returns the number of contiguous children that follow <paramref name="index"/>
+    /// (items whose IndentLevel is greater than items[index].IndentLevel).
+    /// </summary>
+    private static int CountChildren(System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int index)
+    {
+        int level = items[index].IndentLevel;
+        int count = 0;
+        while (index + 1 + count < items.Count && items[index + 1 + count].IndentLevel > level)
+            count++;
+        return count;
     }
 
-    private void TodoGrid_PointerMoved(object? sender, Avalonia.Input.PointerEventArgs e)
+    /// <summary>
+    /// For a subtask, returns the flat-list index range [childrenStart, childrenEnd)
+    /// of the parent's children block. The subtask can only move within this range.
+    /// For a top-level item the range is the whole list, restricted to top-level peers.
+    /// </summary>
+    private static (int Start, int End) GetParentChildrenRange(
+        System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int itemIndex)
     {
-        if (_todoDragItem == null) return;
-        if (!e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
-        {
-            _todoDragItem = null;
-            _todoDragging = false;
-            return;
-        }
+        var item = items[itemIndex];
+        if (item.IndentLevel == 0)
+            return (0, items.Count);
 
-        if (sender is not DataGrid grid) return;
+        // Walk backwards to the parent (first item with lower indent level)
+        int parentIndex = itemIndex - 1;
+        while (parentIndex >= 0 && items[parentIndex].IndentLevel >= item.IndentLevel)
+            parentIndex--;
+        if (parentIndex < 0) return (0, items.Count); // shouldn't happen, defensive
+
+        // The children block starts right after the parent and ends where indent drops
+        int start = parentIndex + 1;
+        int end = start;
+        while (end < items.Count && items[end].IndentLevel > items[parentIndex].IndentLevel)
+            end++;
+        return (start, end);
+    }
+
+    /// <summary>
+    /// Finds the previous sibling of the item at <paramref name="index"/> within the
+    /// given range, at the same indent level. Returns -1 if none exists.
+    /// A "sibling" is the nearest item at the same indent level scanning backwards,
+    /// skipping over any children blocks that belong to other siblings.
+    /// </summary>
+    private static int FindPrevSibling(
+        System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int index, int rangeStart)
+    {
+        int myLevel = items[index].IndentLevel;
+        int i = index - 1;
+        while (i >= rangeStart)
+        {
+            if (items[i].IndentLevel == myLevel) return i;
+            if (items[i].IndentLevel < myLevel) return -1; // crossed parent boundary
+            i--;
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Finds the next sibling of the block starting at <paramref name="index"/>
+    /// (with <paramref name="blockSize"/> items) within the given range.
+    /// Returns -1 if none exists.
+    /// </summary>
+    private static int FindNextSibling(
+        System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int index, int blockSize, int rangeEnd)
+    {
+        int nextIndex = index + blockSize;
+        if (nextIndex >= rangeEnd) return -1;
+        // Verify it's at the same level
+        if (items[nextIndex].IndentLevel != items[index].IndentLevel) return -1;
+        return nextIndex;
+    }
+
+    // ── Move ──────────────────────────────────────────────────────────
+
+    private void MoveTodoItem(int fromIndex, int direction)
+    {
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        var items = _ctx.CurrentProject?.TodoItems;
+        if (grid == null || items == null) return;
+        grid.CancelEdit();
+        if (fromIndex < 0 || fromIndex >= items.Count) return;
+
+        int myChildren = CountChildren(items, fromIndex);
+        int myBlock = 1 + myChildren;
+        var (rangeStart, rangeEnd) = GetParentChildrenRange(items, fromIndex);
+
+        if (direction < 0) // ── Move up ──
+        {
+            int prevSib = FindPrevSibling(items, fromIndex, rangeStart);
+            if (prevSib < 0) return; // already first among siblings
+
+            int prevChildren = CountChildren(items, prevSib);
+            int prevBlock = 1 + prevChildren;
+
+            // Extract our block, remove it, re-insert it before the previous sibling.
+            var myItems = new Model.TodoItem[myBlock];
+            for (int i = 0; i < myBlock; i++)
+                myItems[i] = items[fromIndex + i];
+            for (int i = myBlock - 1; i >= 0; i--)
+                items.RemoveAt(fromIndex + i);
+            for (int i = 0; i < myBlock; i++)
+                items.Insert(prevSib + i, myItems[i]);
+
+            grid.SelectedIndex = prevSib;
+        }
+        else // ── Move down ──
+        {
+            int nextSib = FindNextSibling(items, fromIndex, myBlock, rangeEnd);
+            if (nextSib < 0) return; // already last among siblings
+
+            int nextChildren = CountChildren(items, nextSib);
+            int nextBlock = 1 + nextChildren;
+
+            // Extract the next sibling's block, remove it, re-insert it before our block.
+            var nextItems = new Model.TodoItem[nextBlock];
+            for (int i = 0; i < nextBlock; i++)
+                nextItems[i] = items[nextSib + i];
+            for (int i = nextBlock - 1; i >= 0; i--)
+                items.RemoveAt(nextSib + i);
+            for (int i = 0; i < nextBlock; i++)
+                items.Insert(fromIndex + i, nextItems[i]);
+
+            grid.SelectedIndex = fromIndex + nextBlock;
+        }
+        _ctx.MarkDirty();
+    }
+
+    private void OnMoveTodoUp(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        if (grid == null) return;
+        int index = grid.SelectedIndex;
+        if (index > 0)
+            MoveTodoItem(index, -1);
+    }
+
+    private void OnMoveTodoDown(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var grid = this.FindControl<DataGrid>("TodoGrid");
+        var items = _ctx.CurrentProject?.TodoItems;
+        if (grid == null || items == null) return;
+        int index = grid.SelectedIndex;
+        if (index >= 0 && index < items.Count - 1)
+            MoveTodoItem(index, 1);
+    }
+
+    private void OnToggleHideCompleted(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _ctx.UI.HideCompletedTodos = !_ctx.UI.HideCompletedTodos;
+    }
+
+    private void OnClearCompletedTodos(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
         var items = _ctx.CurrentProject?.TodoItems;
         if (items == null) return;
-
-        var pos = e.GetPosition(grid);
-
-        if (!_todoDragging)
+        bool any = false;
+        for (int i = items.Count - 1; i >= 0; i--)
         {
-            if (Math.Abs(pos.Y - _todoDragStart.Y) < TodoDragThreshold) return;
-            _todoDragging = true;
-        }
-
-        // e.Source stays on the originally-pressed element while the pointer is
-        // captured by the DataGrid's selection logic, so we must hit-test by
-        // position to find which row the pointer is currently over.
-        foreach (var row in grid.GetVisualDescendants().OfType<DataGridRow>())
-        {
-            var rowPos = row.TranslatePoint(new Point(0, 0), grid);
-            if (rowPos == null) continue;
-            double top = rowPos.Value.Y;
-            double bottom = top + row.Bounds.Height;
-            if (pos.Y >= top && pos.Y < bottom && row.DataContext is Model.TodoItem target)
+            if (items[i].IsDone)
             {
-                int targetIndex = items.IndexOf(target);
-                int currentIndex = items.IndexOf(_todoDragItem);
-                if (targetIndex >= 0 && currentIndex >= 0 && currentIndex != targetIndex)
-                {
-                    items.Move(currentIndex, targetIndex);
-                    grid.SelectedItem = _todoDragItem;
-                }
-                break;
+                int indent = items[i].IndentLevel;
+                int end = i + 1;
+                while (end < items.Count && items[end].IndentLevel > indent)
+                    end++;
+                for (int j = end - 1; j >= i; j--)
+                    items.RemoveAt(j);
+                any = true;
             }
         }
+        if (any) _ctx.MarkDirty();
     }
 
-    private void TodoGrid_PointerReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs e)
+    private System.Collections.ObjectModel.ObservableCollection<Model.TodoItem>? _subscribedTodoItems;
+
+    internal void SubscribeTodoItems()
     {
-        _todoDragItem = null;
-        _todoDragging = false;
+        // Unsubscribe from previous collection
+        if (_subscribedTodoItems != null)
+        {
+            _subscribedTodoItems.CollectionChanged -= TodoItems_CollectionChanged;
+            foreach (var item in _subscribedTodoItems)
+                item.PropertyChanged -= TodoItem_PropertyChanged;
+        }
+
+        _subscribedTodoItems = _ctx.CurrentProject?.TodoItems;
+        if (_subscribedTodoItems == null) return;
+
+        _subscribedTodoItems.CollectionChanged += TodoItems_CollectionChanged;
+        foreach (var item in _subscribedTodoItems)
+            item.PropertyChanged += TodoItem_PropertyChanged;
+    }
+
+    private void TodoItems_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+            foreach (Model.TodoItem item in e.OldItems)
+                item.PropertyChanged -= TodoItem_PropertyChanged;
+        if (e.NewItems != null)
+            foreach (Model.TodoItem item in e.NewItems)
+                item.PropertyChanged += TodoItem_PropertyChanged;
+    }
+
+    private void TodoItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        _ctx.MarkDirty();
     }
 
     #endregion

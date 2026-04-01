@@ -30,6 +30,7 @@ namespace Finn.Storage
         public bool TrayOtherFiles { get; set; }
         public bool TrayAnnotations { get; set; }
         public bool TrayTodo { get; set; }
+        public bool HideCompletedTodos { get; set; }
         public bool ShowIcons { get; set; }
         public bool ColorTagDot { get; set; }
 

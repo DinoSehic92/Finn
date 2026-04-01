@@ -1149,7 +1149,6 @@
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
 							<RowDefinition Height="{Binding UI.TrayAnnotations, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
-							<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource RowDefConverter}, ConverterParameter=0.5}"/>
 							<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
 						</Grid.RowDefinitions>
 
@@ -1438,21 +1437,42 @@
 														</Grid>
 
 									<!-- To-Do List -->
-									<Grid Grid.Row="11" IsVisible="{Binding UI.TrayTodo}" ColumnDefinitions="*,30,30">
-										<Border Classes="shadow" Grid.Column="0">
-											<TextBox Name="TodoInput" Watermark="Add task" KeyDown="OnTodoInputKeyDown"/>
-										</Border>
-										<Button Grid.Column="1" Width="30" Click="OnAddTodo"    ToolTip.Tip="Add task"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
-										<Button Grid.Column="2" Width="30" Click="OnRemoveTodo" ToolTip.Tip="Delete task"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-									</Grid>
-
-									<DataGrid Grid.Row="12" Name="TodoGrid" IsVisible="{Binding UI.TrayTodo}"
-											  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
-											  AutoGenerateColumns="False" IsReadOnly="True"
-											  GridLinesVisibility="None" RowHeight="24" Padding="0"
-											  LoadingRow="TodoGrid_LoadingRow">
+										<DataGrid Grid.Row="11" Name="TodoGrid" IsVisible="{Binding UI.TrayTodo}"
+												  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
+												  AutoGenerateColumns="False" IsReadOnly="False"
+												  GridLinesVisibility="None" Padding="0">
+										<DataGrid.Styles>
+												<Style Selector="DataGridRow">
+													<Setter Property="MinHeight" Value="24"/>
+													<Setter Property="IsVisible">
+														<Setter.Value>
+															<MultiBinding Converter="{x:Static converter:TodoRowVisibilityConverter.Instance}">
+																<ReflectionBinding Path="IsDone"/>
+																<ReflectionBinding Path="$parent[DataGrid].DataContext.UI.HideCompletedTodos"/>
+															</MultiBinding>
+														</Setter.Value>
+													</Setter>
+												</Style>
+											</DataGrid.Styles>
 										<DataGrid.ContextMenu>
-											<ContextMenu>
+											<ContextMenu Opening="OnTodoContextMenuOpening">
+												<MenuItem Header="New Task" Click="OnAddTodo">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="Add"/></MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Name="AddSubtaskMenuItem" Header="Add Subtask" Click="OnAddSubtask">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="TextIndentIncrease"/></MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Remove" Click="OnRemoveTodo">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+												</MenuItem>
+												<Separator/>
+												<MenuItem Header="Move Up" Click="OnMoveTodoUp">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUp"/></MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Move Down" Click="OnMoveTodoDown">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDown"/></MenuItem.Icon>
+												</MenuItem>
+												<Separator/>
 												<MenuItem Header="Color">
 													<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
 													<MenuItem Header="None"    Tag=""        Click="OnTodoColor">
@@ -1478,22 +1498,26 @@
 													</MenuItem>
 												</MenuItem>
 												<Separator/>
-												<MenuItem Header="Remove" Click="OnRemoveTodo">
-													<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+												<MenuItem Header="Clear Completed" Click="OnClearCompletedTodos">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="DismissCircle"/></MenuItem.Icon>
+												</MenuItem>
+												<MenuItem Header="Hide Completed" Click="OnToggleHideCompleted">
+													<MenuItem.Icon><ic:SymbolIcon Symbol="EyeOff"/></MenuItem.Icon>
 												</MenuItem>
 											</ContextMenu>
 										</DataGrid.ContextMenu>
 										<DataGrid.Columns>
-											<DataGridTemplateColumn Width="24" CanUserResize="False">
+											<DataGridTemplateColumn Width="Auto" CanUserResize="False" IsReadOnly="True">
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
 														<CheckBox IsChecked="{Binding IsDone, Mode=TwoWay}"
 																  Theme="{StaticResource CompactCheckBox}"
-																  Margin="5,0,0,0" VerticalAlignment="Center"/>
+																  Margin="{Binding IndentLevel, Converter={x:Static converter:TodoIndentConverter.Instance}}"
+																  Padding="5,0,0,0" VerticalAlignment="Center"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
 											</DataGridTemplateColumn>
-											<DataGridTemplateColumn Width="8" CanUserResize="False">
+											<DataGridTemplateColumn Width="8" CanUserResize="False" IsReadOnly="True">
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
 														<Border Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center"
@@ -1504,18 +1528,28 @@
 											<DataGridTemplateColumn Header="Tasks" Width="*">
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
-														<TextBlock Text="{Binding Text}" VerticalAlignment="Center" Margin="4,0"
-																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}"
+														<TextBlock Text="{Binding Text}" VerticalAlignment="Center" Margin="4,2"
+																   TextWrapping="Wrap"
+																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 																   TextDecorations="{Binding IsDone, Converter={x:Static converter:TodoStrikethroughConverter.Instance}}"
 																   Opacity="{Binding IsDone, Converter={x:Static converter:TodoOpacityConverter.Instance}}"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
+												<DataGridTemplateColumn.CellEditingTemplate>
+													<DataTemplate x:DataType="model:TodoItem">
+														<TextBox Text="{Binding Text, Mode=TwoWay}"
+																 TextWrapping="Wrap" AcceptsReturn="False"
+																 FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+																 VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+																 Margin="0" Padding="4,2" BorderThickness="0"/>
+													</DataTemplate>
+												</DataGridTemplateColumn.CellEditingTemplate>
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
 									</DataGrid>
 
-														</Grid>
-														</Grid>
+								</Grid>
+							</Grid>
 
 		<!-- Embedded preview -->
 		<Grid Name="PreviewArea" Grid.Column="3" Grid.Row="2" ClipToBounds="True"
