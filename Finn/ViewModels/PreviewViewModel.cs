@@ -903,54 +903,75 @@ namespace Finn.ViewModels
 
             int myGeneration = Interlocked.Increment(ref fileGeneration);
 
-            // Cancel previous load
+            // Signal early that a file switch is in progress so page-change
+            // methods (SetMainPageAsync etc.) bail out immediately instead of
+            // competing for the render semaphore during the debounce window.
+            FileWorkerBusy = true;
+
+            // Cancel previous load — use synchronous Cancel() to avoid
+            // blocking on callback completion (CancelAsync waits for all
+            // registered callbacks which can be slow for cache/search I/O).
             try
             {
-                await mainCts.CancelAsync().ConfigureAwait(false);
+                mainCts.Cancel();
                 mainCts.Dispose();
             }
             catch { }
 
             mainCts = new CancellationTokenSource();
 
+            // Cancel any running search BEFORE the debounce so search batches
+            // stop blocking the UI thread immediately. When a search is started
+            // by the user (not by SetFileAsync), its token is only linked to
+            // searchCts — mainCts.Cancel() above won't reach it. Without this,
+            // search batches keep running on the UI thread for the entire
+            // debounce window, freezing the UI.
+            try
+            {
+                searchCts.Cancel();
+                searchCts.Dispose();
+            }
+            catch { }
+            searchCts = new CancellationTokenSource();
+            SearchBusy = false;
+            ClearSearch();
+
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, mainCts.Token);
             var token = linkedCts.Token;
 
-            // Small debounce to coalesce rapid selection changes. This reduces
+            // Debounce to coalesce rapid selection changes. This reduces
             // race conditions when users quickly toggle files and avoids rapidly
             // creating/disposing native MuPDF objects which can cause crashes.
+            // 60ms is long enough to coalesce keyboard-repeat and rapid clicks
+            // but short enough to feel responsive for intentional switches.
             try
             {
-                await Task.Delay(25, token).ConfigureAwait(false);
+                await Task.Delay(60, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 // A newer request or cancellation arrived — abort early.
+                // Only clear FileWorkerBusy if no newer call will handle it.
+                if (!IsStale(myGeneration))
+                    FileWorkerBusy = false;
                 return;
             }
 
             StatusMessage = "Setting File";
             fileAvailable = false;
-            FileWorkerBusy = true;
             var swTotal = Stopwatch.StartNew();
+
+            // Declared outside try so the finally block can dispose them
+            // if an exception (e.g. OCE from semaphore wait) prevents the
+            // atomic swap. Without this, leaked documents whose context was
+            // disposed elsewhere crash in the GC finalizer with
+            // MuPDFCore.LifetimeManagementException.
+            MuPDFContext? previewContext = null;
+            MuPDFDocument? previewDoc = null;
 
             try
             {
-                // Cancel any running search immediately. The old document
-                // stays alive while the new one is created on a background
-                // thread — both are disposed/swapped atomically in a single
-                // UI dispatch below, saving two round-trips.
-                try
-                {
-                    await searchCts.CancelAsync().ConfigureAwait(false);
-                    searchCts.Dispose();
-                }
-                catch { }
-                searchCts = new CancellationTokenSource();
-                SearchBusy = false;
-                ClearSearch();
-
                 if (IsStale(myGeneration)) return;
 
                 string path = RequestFile.Sökväg;
@@ -962,14 +983,20 @@ namespace Finn.ViewModels
                 bool cachedLocally = false;
                 bool wasStale = false;
                 string originalPath = path;
+                bool isNetworkPath = LocalFileCache.IsNetworkPath(path);
+                // Always cache network files in ReadBytesMode — without this,
+                // ReadAllBytesAsync reads the entire file over the network on
+                // every switch. Multiple rapid switches pile up concurrent
+                // multi-MB reads that saturate the network and thread pool.
                 bool useCache = RequestFile.IsCached
-                    || (_autoCacheNetworkFiles && LocalFileCache.IsNetworkPath(path));
+                    || ((_autoCacheNetworkFiles || _readBytesMode) && isNetworkPath);
 
                 if (useCache)
                 {
                     StatusMessage = "Caching…";
                     var result = await _fileCache.GetLocalPathAsync(path, token, p => Progress = p).ConfigureAwait(false);
                     Progress = 0;
+                    if (IsStale(myGeneration)) return;
                     cacheHit = result.WasCacheHit;
                     wasStale = result.WasStale;
                     cachedLocally = !string.Equals(result.Path, path, StringComparison.OrdinalIgnoreCase);
@@ -991,32 +1018,35 @@ namespace Finn.ViewModels
                 // construction is pure native file I/O with no UI dependency.
                 // Only the renderer (Initialize) requires the UI thread.
                 StatusMessage = "Opening…";
-                MuPDFContext previewContext;
-                MuPDFDocument previewDoc;
+
+                // Final staleness check before the expensive, non-cancellable
+                // native MuPDF call. Without this, if the user selects files
+                // at intervals wider than the debounce (60ms), each selection
+                // passes the debounce and starts a blocking native file read.
+                // On slow servers this queues up many concurrent reads that
+                // saturate the network and thread pool.
+                if (IsStale(myGeneration))
+                    return;
+
                 var sw = Stopwatch.StartNew();
-                previewContext = new MuPDFContext();
-                try
+                if (_readBytesMode)
                 {
-                    if (_readBytesMode)
-                    {
-                        byte[] fileBytes = await File.ReadAllBytesAsync(openPath, token).ConfigureAwait(false);
-                        previewDoc = new MuPDFDocument(previewContext, fileBytes, InputFileTypes.PDF);
-                    }
-                    else
-                    {
-                        previewDoc = new MuPDFDocument(previewContext, openPath);
-                    }
+                    byte[] fileBytes = await File.ReadAllBytesAsync(openPath, token).ConfigureAwait(false);
+                    if (IsStale(myGeneration))
+                        return;
+                    (previewDoc, previewContext) = CreateMuPDFDocument(openPath, true, fileBytes);
                 }
-                catch
+                else
                 {
-                    previewContext.Dispose();
-                    throw;
+                    (previewDoc, previewContext) = CreateMuPDFDocument(openPath, false);
                 }
 
                 if (token.IsCancellationRequested || IsStale(myGeneration))
                 {
                     previewDoc.Dispose();
                     previewContext.Dispose();
+                    previewDoc = null;
+                    previewContext = null;
                     return;
                 }
 
@@ -1035,6 +1065,17 @@ namespace Finn.ViewModels
                 await renderSemaphore.WaitAsync(token).ConfigureAwait(false);
                 try
                 {
+                    // A newer SetFileAsync call may have arrived while we waited
+                    // for the semaphore. Bail out before the expensive UI dispatch.
+                    if (IsStale(myGeneration))
+                    {
+                        previewDoc.Dispose();
+                        previewContext.Dispose();
+                        previewDoc = null;
+                        previewContext = null;
+                        return;
+                    }
+
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         // --- Release old renderer resources ---
@@ -1051,7 +1092,11 @@ namespace Finn.ViewModels
                         var prevCtx = context;
                         MainPreviewFile = previewDoc;
                         context = previewContext;
-                        Pagecount = previewDoc.Pages.Count;
+                        // Ownership transferred — null the locals so the outer
+                        // finally block won't double-dispose them.
+                        previewDoc = null;
+                        previewContext = null;
+                        Pagecount = MainPreviewFile!.Pages.Count;
                         CurrentFile = reqFile;
                         fileAvailable = true;
                         try { prevDoc?.Dispose(); } catch { }
@@ -1071,7 +1116,9 @@ namespace Finn.ViewModels
                         }
 
                         // --- Render first page ---
-                        if (mainRenderer != null)
+                        // Final staleness check: skip the expensive Initialize
+                        // if a newer request arrived while queued for the UI thread.
+                        if (mainRenderer != null && !IsStale(myGeneration))
                         {
                             mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile!, 1, desired, ZOOM_LEVEL);
@@ -1082,7 +1129,8 @@ namespace Finn.ViewModels
 
                         // --- Secondary page (two-page linked mode) ---
                         if (!DualFileMode && LinkedPageMode && TwopageMode
-                            && PageInRange(desired + 1) && secondaryRenderer != null)
+                            && PageInRange(desired + 1) && secondaryRenderer != null
+                            && !IsStale(myGeneration))
                         {
                             requestPage2 = desired + 1;
                             OnPropertyChanged(nameof(RequestPage2));
@@ -1117,6 +1165,16 @@ namespace Finn.ViewModels
             }
             finally
             {
+                // Safety net: dispose doc (before ctx!) if they were never
+                // swapped into the ViewModel fields. This covers all exception
+                // paths — e.g. OCE from renderSemaphore.WaitAsync, or any
+                // unexpected throw between document creation and the swap.
+                if (previewDoc != null)
+                {
+                    try { previewDoc.Dispose(); } catch { }
+                    try { previewContext?.Dispose(); } catch { }
+                }
+
                 if (!IsStale(myGeneration))
                     FileWorkerBusy = false;
             }
@@ -1127,6 +1185,49 @@ namespace Finn.ViewModels
         /// </summary>
         private bool IsStale(int myGeneration)
             => Volatile.Read(ref fileGeneration) != myGeneration;
+
+        /// <summary>
+        /// Safely creates a <see cref="MuPDFDocument"/> and its owning
+        /// <see cref="MuPDFContext"/>. If the document constructor throws
+        /// (file locked, corrupt, network error), the partially-constructed
+        /// document's GC finalizer would crash with
+        /// <c>LifetimeManagementException</c> if the context were disposed
+        /// first. This helper keeps the context alive until the partial
+        /// document has been finalized, preventing the crash.
+        /// </summary>
+        private static (MuPDFDocument doc, MuPDFContext ctx) CreateMuPDFDocument(
+            string path, bool readBytesMode, byte[]? fileBytes = null)
+        {
+            var ctx = new MuPDFContext();
+            try
+            {
+                var doc = readBytesMode && fileBytes != null
+                    ? new MuPDFDocument(ctx, fileBytes, InputFileTypes.PDF)
+                    : new MuPDFDocument(ctx, path);
+                return (doc, ctx);
+            }
+            catch
+            {
+                // A partially-constructed MuPDFDocument is on the heap with
+                // OwnerContext = ctx. Its GC finalizer checks
+                // OwnerContext.disposedValue and crashes with
+                // LifetimeManagementException if the context was disposed first.
+                //
+                // We cannot dispose or finalize the context safely because:
+                // - Disposing it guarantees the crash (disposedValue = true).
+                // - GC.Collect+WaitForPendingFinalizers is unreliable in debug
+                //   mode and causes multi-hundred-ms freezes on large heaps.
+                //
+                // Instead, suppress the context's finalizer so its
+                // disposedValue stays false permanently. When the GC later
+                // finalizes the partial document, the lifetime check passes
+                // and the native DisposeDocument(ctx, NativeDocument=0) call
+                // is a safe no-op. The ~100 bytes of native context memory
+                // leak on this exceptional error path.
+                GC.SuppressFinalize(ctx);
+                throw;
+            }
+        }
 
         /// <summary>Unpins the main document's cached path (if any) so the cache can clean it up.</summary>
         private void UnpinMainCachePath()
@@ -1158,7 +1259,7 @@ namespace Finn.ViewModels
             // Cancel any running search without polling
             try
             {
-                await searchCts.CancelAsync().ConfigureAwait(false);
+                searchCts.Cancel();
                 searchCts.Dispose();
             }
             catch { }
@@ -1250,7 +1351,7 @@ namespace Finn.ViewModels
             int myGen = Interlocked.Increment(ref secondaryFileGeneration);
             try
             {
-                await secondaryCts.CancelAsync().ConfigureAwait(false);
+                secondaryCts.Cancel();
                 secondaryCts.Dispose();
             }
             catch { }
@@ -1264,6 +1365,9 @@ namespace Finn.ViewModels
 
             bool IsStale2() => Volatile.Read(ref secondaryFileGeneration) != myGen;
 
+            MuPDFContext? newContext = null;
+            MuPDFDocument? newDoc = null;
+
             try
             {
                 await DisposeSecondaryDocumentAsync(token).ConfigureAwait(false);
@@ -1275,7 +1379,7 @@ namespace Finn.ViewModels
                 string filePath = file.Sökväg;
                 bool secondaryCachedLocally = false;
                 bool useCache2 = file.IsCached
-                    || (_autoCacheNetworkFiles && LocalFileCache.IsNetworkPath(filePath));
+                    || ((_autoCacheNetworkFiles || _readBytesMode) && LocalFileCache.IsNetworkPath(filePath));
 
                 if (useCache2)
                 {
@@ -1284,32 +1388,26 @@ namespace Finn.ViewModels
                     filePath = result.Path;
                 }
 
+                if (IsStale2()) return;
+
                 // Create MuPDF objects on the background thread (no UI dependency).
-                MuPDFContext newContext;
-                MuPDFDocument newDoc;
-                newContext = new MuPDFContext();
-                try
+                if (_readBytesMode)
                 {
-                    if (_readBytesMode)
-                    {
-                        byte[] fileBytes = await File.ReadAllBytesAsync(filePath, token).ConfigureAwait(false);
-                        newDoc = new MuPDFDocument(newContext, fileBytes, InputFileTypes.PDF);
-                    }
-                    else
-                    {
-                        newDoc = new MuPDFDocument(newContext, filePath);
-                    }
+                    byte[] fileBytes = await File.ReadAllBytesAsync(filePath, token).ConfigureAwait(false);
+                    if (IsStale2()) return;
+                    (newDoc, newContext) = CreateMuPDFDocument(filePath, true, fileBytes);
                 }
-                catch
+                else
                 {
-                    newContext.Dispose();
-                    throw;
+                    (newDoc, newContext) = CreateMuPDFDocument(filePath, false);
                 }
 
                 if (IsStale2() || token.IsCancellationRequested)
                 {
                     newDoc.Dispose();
                     newContext.Dispose();
+                    newDoc = null;
+                    newContext = null;
                     return;
                 }
 
@@ -1322,7 +1420,9 @@ namespace Finn.ViewModels
                 _secondaryPinnedCachePath = secondaryCachedLocally ? filePath : null;
 
                 SwapSecondaryDocument(newDoc, newContext);
-                Pagecount2 = newDoc.Pages.Count;
+                newDoc = null;     // ownership transferred
+                newContext = null;  // ownership transferred
+                Pagecount2 = secondaryFile!.Pages.Count;
                 CurrentFile2 = file;
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
@@ -1343,6 +1443,15 @@ namespace Finn.ViewModels
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Error in SetFile2Async");
+            }
+            finally
+            {
+                // Dispose doc before ctx if they were never swapped in.
+                if (newDoc != null)
+                {
+                    try { newDoc.Dispose(); } catch { }
+                    try { newContext?.Dispose(); } catch { }
+                }
             }
         }
         #endregion
@@ -1513,7 +1622,7 @@ namespace Finn.ViewModels
                 // while we waited for the semaphore, render the latest instead.
                 if (RequestPage1 != targetPage)
                     targetPage = RequestPage1;
-                if (!PageInRange(targetPage)) return;
+                if (!PageInRange(targetPage) || FileWorkerBusy) return;
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -1569,7 +1678,7 @@ namespace Finn.ViewModels
                 if (RequestPage2 != targetPage)
                     targetPage = RequestPage2;
                 inRange = DualFileMode ? PageInRange2(targetPage) : PageInRange(targetPage);
-                if (!inRange) return;
+                if (!inRange || FileWorkerBusy) return;
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -1641,7 +1750,7 @@ namespace Finn.ViewModels
                                 if (requestPage2 != page2) page2 = requestPage2;
                                 mainInRange = PageInRange(page1);
                                 secInRange = DualFileMode ? PageInRange2(page2) : PageInRange(page2);
-                                if (!mainInRange && !secInRange) return;
+                                if ((!mainInRange && !secInRange) || FileWorkerBusy) return;
 
                                 await Dispatcher.UIThread.InvokeAsync(() =>
                                 {
@@ -1732,9 +1841,9 @@ namespace Finn.ViewModels
                 await DisposeCurrentDocumentAsync(CancellationToken.None).ConfigureAwait(false);
                 await DisposeSecondaryDocumentAsync(CancellationToken.None).ConfigureAwait(false);
 
-                await mainCts.CancelAsync().ConfigureAwait(false);
-                await searchCts.CancelAsync().ConfigureAwait(false);
-                await secondaryCts.CancelAsync().ConfigureAwait(false);
+                mainCts.Cancel();
+                searchCts.Cancel();
+                secondaryCts.Cancel();
                 _diffCts?.Cancel();
                 _backgroundTaskCts?.Cancel();
                 mainCts.Dispose();

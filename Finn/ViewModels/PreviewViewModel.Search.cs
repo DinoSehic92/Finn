@@ -23,7 +23,7 @@ namespace Finn.ViewModels
 
             try
             {
-                await searchCts.CancelAsync().ConfigureAwait(false);
+                searchCts.Cancel();
                 searchCts.Dispose();
             }
             catch { }
@@ -53,9 +53,10 @@ namespace Finn.ViewModels
                 // — batch pages per UI dispatch to reduce context-switch overhead.
                 const int searchBatchSize = 10;
                 List<(int pageIndex, int matchCount)> foundPagesLocal = [];
+                var ct = cancellationToken;
                 for (int batchStart = 0; batchStart < localPageCount; batchStart += searchBatchSize)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    ct.ThrowIfCancellationRequested();
                     int batchEnd = Math.Min(batchStart + searchBatchSize, localPageCount);
                     int bs = batchStart, be = batchEnd;
                     try
@@ -65,6 +66,10 @@ namespace Finn.ViewModels
                             var results = new List<(int, int)>();
                             for (int i = bs; i < be; i++)
                             {
+                                // Check cancellation inside the batch so we don't
+                                // block the UI thread for the remaining pages after
+                                // a file switch has fired the cancellation token.
+                                if (ct.IsCancellationRequested) break;
                                 try
                                 {
                                     using var disposable = doc.GetStructuredTextPage(i);
@@ -127,7 +132,11 @@ namespace Finn.ViewModels
             {
                 SearchBusy = false;
                 tcs.TrySetResult();
-                if (SearchItems > 0)
+                // Only navigate to the first search result if the search completed
+                // successfully. When cancelled (e.g. file switch), firing
+                // SetMainPageAsync would compete for the render semaphore and
+                // run Initialize() for a page that's about to be replaced.
+                if (SearchItems > 0 && !cancellationToken.IsCancellationRequested)
                     _ = SetMainPageAsync();
             }
         }
@@ -176,7 +185,7 @@ namespace Finn.ViewModels
             try
             {
                 var done = searchDone;
-                await searchCts.CancelAsync().ConfigureAwait(false);
+                searchCts.Cancel();
                 if (done != null)
                     await done.Task.ConfigureAwait(false);
             }

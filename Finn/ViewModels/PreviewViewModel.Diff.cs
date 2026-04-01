@@ -1037,17 +1037,7 @@ namespace Finn.ViewModels
 
                     // Resolve through local cache
                     string path = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
-                    var newCtx = new MuPDFContext();
-                    MuPDFDocument newDoc;
-                    try
-                    {
-                        newDoc = new MuPDFDocument(newCtx, path);
-                    }
-                    catch
-                    {
-                        newCtx.Dispose();
-                        throw;
-                    }
+                    var (newDoc, newCtx) = CreateMuPDFDocument(path, false);
 
                     if (_secondaryCloseGen != openStartGen)
                     {
@@ -1057,7 +1047,7 @@ namespace Finn.ViewModels
                     }
 
                     SwapSecondaryDocument(newDoc, newCtx);
-                    Pagecount2 = newDoc.Pages.Count;
+                    Pagecount2 = secondaryFile!.Pages.Count;
                     CurrentFile2 = null;
                 }
 
@@ -1121,17 +1111,7 @@ namespace Finn.ViewModels
 
                     // Resolve through local cache
                     string resolvedPath = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
-                    var newCtx = new MuPDFContext();
-                    MuPDFDocument newDoc;
-                    try
-                    {
-                        newDoc = new MuPDFDocument(newCtx, resolvedPath);
-                    }
-                    catch
-                    {
-                        newCtx.Dispose();
-                        throw;
-                    }
+                    var (newDoc, newCtx) = CreateMuPDFDocument(resolvedPath, false);
 
                     if (_secondaryCloseGen != openStartGen)
                     {
@@ -1141,7 +1121,7 @@ namespace Finn.ViewModels
                     }
 
                     SwapSecondaryDocument(newDoc, newCtx);
-                    Pagecount2 = newDoc.Pages.Count;
+                    Pagecount2 = secondaryFile!.Pages.Count;
                     CurrentFile2 = null;
                 }
 
