@@ -41,7 +41,7 @@
 						<ColumnDefinition Width="{Binding PreviewVM.TwopageMode, Converter={StaticResource GridDefConverter}}"/>
 					</Grid.ColumnDefinitions>
 
-					 <ctrl:AnnotatedPDFRenderer Name="MuPDFRenderer" Grid.Column="0" Background="Transparent" PageBackground="White"
+					 <ctrl:AnnotatedPDFRenderer Name="MuPDFRenderer" Grid.Column="0" Background="Transparent" PageBackground="{Binding PreviewVM.LightPaperColor}"
 						ZoomEnabled="False" PointerWheelChanged="ModifiedControlPointerWheelChanged"
 						ZoomIncrement="1.2" ClipToBounds="True" PointerEventHandlersType="PanHighlight" Focusable="True">
 								 <ctrl:AnnotatedPDFRenderer.ContextMenu>
@@ -53,7 +53,7 @@
 								 </ctrl:AnnotatedPDFRenderer.ContextMenu>
 							 </ctrl:AnnotatedPDFRenderer>
 
-							 <ctrl:AnnotatedPDFRenderer Name="MuPDFRendererSecondary" Grid.Column="2" Background="Transparent" PageBackground="White"
+							 <ctrl:AnnotatedPDFRenderer Name="MuPDFRendererSecondary" Grid.Column="2" Background="Transparent" PageBackground="{Binding PreviewVM.LightPaperColor}"
 						ZoomEnabled="False" PointerWheelChanged="ModifiedControlPointerWheelChanged"
 						ZoomIncrement="1.2" ClipToBounds="True" PointerEventHandlersType="PanHighlight" IsVisible="False"
 						MinWidth="1" MinHeight="1">
@@ -70,6 +70,8 @@
 						<ctrl:InvertColorControl Grid.ColumnSpan="3"
 						IsInverted="{Binding PreviewVM.DarkMode}"
 						BackgroundColor="{Binding PreviewVM.ThemeRegionColor}"
+						TintColor="{Binding PreviewVM.DarkModeTintColor}"
+						TintIntensity="{Binding PreviewVM.DarkModeTintIntensity}"
 						IsHitTestVisible="False" />
 
 					<!-- Loading overlay shown while previewer is busy -->

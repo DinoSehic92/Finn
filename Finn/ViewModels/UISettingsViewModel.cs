@@ -66,6 +66,9 @@ namespace Finn.ViewModels
             // View visibility flags persisted in UI settings
             ShowActionBar = false;
             PreviewDarkMode = false;
+            PreviewDarkModeTint = "None";
+            PreviewTintIntensity = 15;
+            PreviewLightPaper = "White";
             TreeViewOpen = true;
             CalendarOpen = false;
             TimeSheetOpen = false;
@@ -116,6 +119,15 @@ namespace Finn.ViewModels
 
         private bool previewDarkMode;
         public bool PreviewDarkMode { get => previewDarkMode; set { previewDarkMode = value; OnPropertyChanged(nameof(PreviewDarkMode)); } }
+
+        private string previewDarkModeTint = "None";
+        public string PreviewDarkModeTint { get => previewDarkModeTint; set { previewDarkModeTint = value ?? "None"; OnPropertyChanged(nameof(PreviewDarkModeTint)); } }
+
+        private int previewTintIntensity = 15;
+        public int PreviewTintIntensity { get => previewTintIntensity; set { previewTintIntensity = Math.Clamp(value, 0, 50); OnPropertyChanged(nameof(PreviewTintIntensity)); } }
+
+        private string previewLightPaper = "White";
+        public string PreviewLightPaper { get => previewLightPaper; set { previewLightPaper = value ?? "White"; OnPropertyChanged(nameof(PreviewLightPaper)); } }
 
         private Color color1;
         public Color Color1 { get => color1; set { color1 = value; OnPropertyChanged(nameof(Color1)); } }
@@ -269,6 +281,9 @@ namespace Finn.ViewModels
                 TrayViewOpen = this.TrayViewOpen,
                 ShowActionBar = this.ShowActionBar,
                 PreviewDarkMode = this.PreviewDarkMode,
+                PreviewDarkModeTint = this.PreviewDarkModeTint,
+                PreviewTintIntensity = this.PreviewTintIntensity,
+                PreviewLightPaper = this.PreviewLightPaper,
                 TreeViewWidth = this.TreeViewWidth,
                 TrayWidth = this.TrayWidth,
                 ReadBytesMode = this.ReadBytesMode,
@@ -316,6 +331,11 @@ namespace Finn.ViewModels
                 this.TrayViewOpen = ui.TrayViewOpen;
                 this.ShowActionBar = ui.ShowActionBar;
                 this.PreviewDarkMode = ui.PreviewDarkMode;
+                if (!string.IsNullOrWhiteSpace(ui.PreviewDarkModeTint))
+                    this.PreviewDarkModeTint = ui.PreviewDarkModeTint;
+                this.PreviewTintIntensity = ui.PreviewTintIntensity;
+                if (!string.IsNullOrWhiteSpace(ui.PreviewLightPaper))
+                    this.PreviewLightPaper = ui.PreviewLightPaper;
                 if (ui.TreeViewWidth >= 250 && ui.TreeViewWidth <= 350)
                     this.TreeViewWidth = ui.TreeViewWidth;
                 if (ui.TrayWidth >= 250 && ui.TrayWidth <= 400)

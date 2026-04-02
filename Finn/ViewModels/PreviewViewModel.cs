@@ -477,14 +477,231 @@ namespace Finn.ViewModels
             set => SetProperty(ref rotation, value);
         }
 
-        private bool darkMode = false;
+        private bool darkMode;
         public bool DarkMode
         {
             get => darkMode;
             set
             {
                 if (SetProperty(ref darkMode, value))
+                {
                     OnPropertyChanged(nameof(PreviewBackground));
+                    OnPropertyChanged(nameof(LightPaperColor));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Available tint presets for dark mode.
+        /// The tint colors the inverted paper via additive (Plus) + Multiply blending.
+        /// </summary>
+        public static IReadOnlyList<string> DarkModeTintOptions { get; } =
+        [
+            "None",
+            // Cool
+            "Blueprint",
+            "Midnight",
+            "Cobalt",
+            "Steel",
+            "Indigo",
+            "Violet",
+            "Lavender",
+            "Cyan",
+            "Teal",
+            "Arctic",
+            // Warm
+            "Sepia",
+            "Amber",
+            "Mocha",
+            "Copper",
+            "Parchment",
+            // Nature
+            "Emerald",
+            "Forest",
+            "Sage",
+            "Pine",
+            // Red / Pink
+            "Rose",
+            "Burgundy",
+            "Mauve",
+            "Crimson",
+            // Neutral
+            "Slate",
+            "Plum",
+        ];
+
+        private static Color TintColorForKey(string key) => key switch
+        {
+            // Cool
+            "Blueprint"  => Color.FromRgb(8,  14, 28),
+            "Midnight"   => Color.FromRgb(5,  8,  22),
+            "Cobalt"     => Color.FromRgb(10, 16, 30),
+            "Steel"      => Color.FromRgb(15, 18, 25),
+            "Indigo"     => Color.FromRgb(12, 8,  30),
+            "Violet"     => Color.FromRgb(18, 8,  28),
+            "Lavender"   => Color.FromRgb(16, 12, 24),
+            "Cyan"       => Color.FromRgb(8,  22, 28),
+            "Teal"       => Color.FromRgb(8,  24, 22),
+            "Arctic"     => Color.FromRgb(10, 20, 25),
+            // Warm
+            "Sepia"      => Color.FromRgb(22, 15, 8),
+            "Amber"      => Color.FromRgb(25, 18, 6),
+            "Mocha"      => Color.FromRgb(25, 18, 12),
+            "Copper"     => Color.FromRgb(28, 14, 8),
+            "Parchment"  => Color.FromRgb(28, 24, 16),
+            // Nature
+            "Emerald"    => Color.FromRgb(8,  25, 12),
+            "Forest"     => Color.FromRgb(6,  22, 10),
+            "Sage"       => Color.FromRgb(14, 22, 16),
+            "Pine"       => Color.FromRgb(8,  28, 18),
+            // Red / Pink
+            "Rose"       => Color.FromRgb(25, 8,  14),
+            "Burgundy"   => Color.FromRgb(28, 8,  12),
+            "Mauve"      => Color.FromRgb(22, 12, 20),
+            "Crimson"    => Color.FromRgb(28, 6,  10),
+            // Neutral
+            "Slate"      => Color.FromRgb(14, 16, 20),
+            "Plum"       => Color.FromRgb(22, 10, 25),
+            _            => Colors.Black, // no tint
+        };
+
+        private string darkModeTint = "None";
+        /// <summary>
+        /// The currently selected dark-mode tint preset key (e.g. "Blueprint").
+        /// </summary>
+        public string DarkModeTint
+        {
+            get => darkModeTint;
+            set
+            {
+                if (SetProperty(ref darkModeTint, value ?? "None"))
+                {
+                    OnPropertyChanged(nameof(DarkModeTintColor));
+                    OnPropertyChanged(nameof(PreviewBackground));
+                }
+            }
+        }
+
+        private int darkModeTintIntensity = 15;
+        /// <summary>
+        /// Strength of the Multiply pass that shifts colors toward the tint hue.
+        /// 0 = no effect, 50 = maximum shift. Default 15.
+        /// </summary>
+        public int DarkModeTintIntensity
+        {
+            get => darkModeTintIntensity;
+            set
+            {
+                if (SetProperty(ref darkModeTintIntensity, Math.Clamp(value, 0, 50)))
+                {
+                    OnPropertyChanged(nameof(PreviewBackground));
+                }
+            }
+        }
+
+        /// <summary>
+        /// The resolved tint color for the current <see cref="DarkModeTint"/> key.
+        /// Bound to <c>InvertColorControl.TintColor</c>.
+        /// </summary>
+        public Color DarkModeTintColor => TintColorForKey(DarkModeTint);
+
+        /// <summary>
+        /// Available light-mode page background presets.
+        /// These are subtle near-white colors that tint the PDF paper
+        /// without a Skia overlay — set directly as the renderer's PageBackground.
+        /// </summary>
+        public static IReadOnlyList<string> LightPaperOptions { get; } =
+        [
+            "White",
+            // Light
+            "Eggshell",
+            "Vanilla",
+            "Ivory",
+            "Cream",
+            "Buttermilk",
+            // Medium-light
+            "Champagne",
+            "Linen",
+            "Bisque",
+            "Parchment",
+            "Bone",
+            // Medium
+            "Sand",
+            "Wheat",
+            "Honey",
+            "Peach",
+            "Apricot",
+            // Medium-dark
+            "Tan",
+            "Khaki",
+            "Amber",
+            "Mocha",
+            "Sepia",
+        ];
+
+        private static Color LightPaperColorForKey(string key) => key switch
+        {
+            // Light — barely tinted
+            "Eggshell"   => Color.FromRgb(252, 249, 242),
+            "Vanilla"    => Color.FromRgb(252, 248, 235),
+            "Ivory"      => Color.FromRgb(255, 250, 230),
+            "Cream"      => Color.FromRgb(255, 248, 225),
+            "Buttermilk" => Color.FromRgb(255, 246, 218),
+            // Medium-light — noticeable warmth
+            "Champagne"  => Color.FromRgb(250, 240, 210),
+            "Linen"      => Color.FromRgb(248, 235, 205),
+            "Bisque"     => Color.FromRgb(250, 235, 200),
+            "Parchment"  => Color.FromRgb(245, 232, 195),
+            "Bone"       => Color.FromRgb(242, 230, 200),
+            // Medium — clearly warm paper
+            "Sand"       => Color.FromRgb(240, 225, 190),
+            "Wheat"      => Color.FromRgb(238, 222, 182),
+            "Honey"      => Color.FromRgb(242, 222, 175),
+            "Peach"      => Color.FromRgb(245, 218, 185),
+            "Apricot"    => Color.FromRgb(245, 215, 175),
+            // Medium-dark — strong warm tint
+            "Tan"        => Color.FromRgb(232, 210, 170),
+            "Khaki"      => Color.FromRgb(228, 212, 172),
+            "Amber"      => Color.FromRgb(235, 208, 158),
+            "Mocha"      => Color.FromRgb(225, 205, 170),
+            "Sepia"      => Color.FromRgb(220, 200, 162),
+            _            => Colors.White,
+        };
+
+        private string lightPaper = "White";
+        /// <summary>
+        /// The currently selected light-mode paper preset key (e.g. "Cream").
+        /// </summary>
+        public string LightPaper
+        {
+            get => lightPaper;
+            set
+            {
+                if (SetProperty(ref lightPaper, value ?? "White"))
+                    OnPropertyChanged(nameof(LightPaperColor));
+            }
+        }
+
+        private IBrush? _cachedPageBgBrush;
+        private Color _cachedPageBgColor;
+        private bool _cachedPageBgDarkMode;
+        /// <summary>
+        /// The resolved page background brush bound to both renderers' PageBackground.
+        /// Returns white when dark mode is active so the inversion pipeline
+        /// works on a clean base; applies the paper tint only in light mode.
+        /// </summary>
+        public IBrush LightPaperColor
+        {
+            get
+            {
+                var color = DarkMode ? Colors.White : LightPaperColorForKey(LightPaper);
+                if (_cachedPageBgBrush == null || _cachedPageBgColor != color || _cachedPageBgDarkMode != DarkMode)
+                {
+                    _cachedPageBgColor = color;
+                    _cachedPageBgDarkMode = DarkMode;
+                    _cachedPageBgBrush = new SolidColorBrush(color).ToImmutable();
+                }
+                return _cachedPageBgBrush;
             }
         }
 
@@ -522,11 +739,16 @@ namespace Finn.ViewModels
             }
         }
 
+        private IBrush? _cachedPreviewBg;
+        private Color _cachedPreviewBgTheme;
+        private Color _cachedPreviewBgTint;
+        private int _cachedPreviewBgIntensity;
+        private bool _cachedPreviewBgDark;
         /// <summary>
-        /// Background for the preview area. When DarkMode is on, this returns the
-        /// RGB-inverse of the actual theme background so that after the
-        /// InvertColorControl's Difference blend the visible result matches
-        /// the original theme color.
+        /// Background for the preview area. When DarkMode is on, this returns
+        /// a pre-computed color so that after the InvertColorControl's
+        /// Difference + Plus + Multiply passes the visible result matches the
+        /// original theme color.
         /// </summary>
         public IBrush PreviewBackground
         {
@@ -535,15 +757,51 @@ namespace Finn.ViewModels
                 if (!DarkMode)
                     return Brushes.Transparent;
 
-                // Compute the RGB inverse: the Difference blend does |dst - src|
-                // with white (1,1,1), i.e. 1 - dst.  If we set dst = inverse(bg),
-                // the result is 1 - (1 - bg) = bg — the original theme color.
-                var inverted = Color.FromRgb(
-                    (byte)(255 - ThemeRegionColor.R),
-                    (byte)(255 - ThemeRegionColor.G),
-                    (byte)(255 - ThemeRegionColor.B));
+                var tint = DarkModeTintColor;
 
-                return new SolidColorBrush(inverted);
+                // Return cached brush if inputs haven't changed
+                if (_cachedPreviewBg != null
+                    && _cachedPreviewBgDark
+                    && _cachedPreviewBgTheme == ThemeRegionColor
+                    && _cachedPreviewBgTint == tint
+                    && _cachedPreviewBgIntensity == darkModeTintIntensity)
+                    return _cachedPreviewBg;
+
+                Color result;
+                bool hasTint = tint.R != 0 || tint.G != 0 || tint.B != 0;
+
+                if (!hasTint)
+                {
+                    result = Color.FromRgb(
+                        (byte)(255 - ThemeRegionColor.R),
+                        (byte)(255 - ThemeRegionColor.G),
+                        (byte)(255 - ThemeRegionColor.B));
+                }
+                else
+                {
+                    int maxT = Math.Max(tint.R, Math.Max(tint.G, tint.B));
+                    int intensity = darkModeTintIntensity;
+
+                    static byte Inv(byte theme, byte tintCh, int maxTint, int strength)
+                    {
+                        int mul = 255 - (maxTint - tintCh) * strength / maxTint;
+                        if (mul <= 0) return 255;
+                        int p = 255 + tintCh - (int)(theme * 255.0 / mul + 0.5);
+                        return (byte)Math.Clamp(p, 0, 255);
+                    }
+
+                    result = Color.FromRgb(
+                        Inv(ThemeRegionColor.R, tint.R, maxT, intensity),
+                        Inv(ThemeRegionColor.G, tint.G, maxT, intensity),
+                        Inv(ThemeRegionColor.B, tint.B, maxT, intensity));
+                }
+
+                _cachedPreviewBgDark = true;
+                _cachedPreviewBgTheme = ThemeRegionColor;
+                _cachedPreviewBgTint = tint;
+                _cachedPreviewBgIntensity = darkModeTintIntensity;
+                _cachedPreviewBg = new SolidColorBrush(result).ToImmutable();
+                return _cachedPreviewBg;
             }
         }
         #endregion
@@ -796,8 +1054,6 @@ namespace Finn.ViewModels
         {
             try
             {
-                var background = new SolidColorBrush(Colors.White);
-
                 if (this.mainRenderer != null)
                     this.mainRenderer.ReleaseResources();
                 if (this.secondaryRenderer != null && this.secondaryRenderer != secondaryRenderer)
@@ -805,9 +1061,6 @@ namespace Finn.ViewModels
 
                 this.mainRenderer = mainRenderer;
                 this.secondaryRenderer = secondaryRenderer;
-
-                this.mainRenderer.PageBackground = background;
-                this.secondaryRenderer.PageBackground = background;
 
                 if (CurrentFile != null)
                     FireAndForget(SetMainPageAsync(), nameof(SetMainPageAsync));

@@ -43,6 +43,9 @@ namespace Finn.Storage
         public bool TrayViewOpen { get; set; }
         public bool ShowActionBar { get; set; }
         public bool PreviewDarkMode { get; set; }
+        public string PreviewDarkModeTint { get; set; } = "None";
+        public int PreviewTintIntensity { get; set; } = 15;
+        public string PreviewLightPaper { get; set; } = "White";
         public int TreeViewWidth { get; set; }
         public int TrayWidth { get; set; }
         public bool ReadBytesMode { get; set; }

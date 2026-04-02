@@ -85,6 +85,9 @@ public partial class MainView : UserControl
         _ctx = (MainViewModel)DataContext!;
         _pwr = _ctx.PreviewVM;
         _pwr.DarkMode = _ctx.UI.PreviewDarkMode;
+        _pwr.DarkModeTint = _ctx.UI.PreviewDarkModeTint;
+        _pwr.DarkModeTintIntensity = _ctx.UI.PreviewTintIntensity;
+        _pwr.LightPaper = _ctx.UI.PreviewLightPaper;
         _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
         _pwr.ReadBytesMode = _ctx.UI.ReadBytesMode;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
@@ -208,6 +211,15 @@ public partial class MainView : UserControl
                 break;
             case nameof(_ctx.UI.ReadBytesMode):
                 _pwr.ReadBytesMode = _ctx.UI.ReadBytesMode;
+                break;
+            case nameof(_ctx.UI.PreviewDarkModeTint):
+                _pwr.DarkModeTint = _ctx.UI.PreviewDarkModeTint;
+                break;
+            case nameof(_ctx.UI.PreviewTintIntensity):
+                _pwr.DarkModeTintIntensity = _ctx.UI.PreviewTintIntensity;
+                break;
+            case nameof(_ctx.UI.PreviewLightPaper):
+                _pwr.LightPaper = _ctx.UI.PreviewLightPaper;
                 break;
             case nameof(_ctx.UI.CalendarOpen):
                 if (_ctx.UI.CalendarOpen)

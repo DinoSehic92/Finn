@@ -4,7 +4,7 @@
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="690"
 		Width="540" MinWidth="540" MaxWidth="540"
-		Height="690" MinHeight="690" MaxHeight="690"
+		Height="780" MinHeight="780" MaxHeight="780"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xColorDia"
 		Title="UI Settings"
@@ -132,6 +132,24 @@
 					<Label Content="Tray Width"/><Slider Grid.Column="1" Minimum="300" Maximum="400" Value="{Binding UI.TrayWidth}" IsSnapToTickEnabled="True" TickFrequency="10" Width="120" HorizontalAlignment="Left"/>
 				</Grid>
 
+				<!-- PDF Preview -->
+				<TextBlock Classes="SectionHeader" Text="PDF Preview" HorizontalAlignment="Center"/>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Tint"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="DarkTintCombo" Width="120" ItemsSource="{x:Static vm:PreviewViewModel.DarkModeTintOptions}" SelectedValue="{Binding UI.PreviewDarkModeTint}" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+						<Label Content="Tint Intensity"/><Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding UI.PreviewTintIntensity}" IsSnapToTickEnabled="True" TickFrequency="1" Width="120" HorizontalAlignment="Left"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Paper"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="LightPaperCombo" Width="120" ItemsSource="{x:Static vm:PreviewViewModel.LightPaperOptions}" SelectedValue="{Binding UI.PreviewLightPaper}" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
+
 			</StackPanel>
 
 			<!-- Vertical separator -->
@@ -171,17 +189,17 @@
 				</Grid>
 
 				<!-- PDF Preview -->
-					<TextBlock Classes="SectionHeader" Text="PDF Preview" HorizontalAlignment="Center"/>
-					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-						<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
-					</Grid>
-					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-							<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
-						</Grid>
-						<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-							<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
-						</Grid>
-					</StackPanel>
+				<TextBlock Classes="SectionHeader" Text="PDF Preview" HorizontalAlignment="Center"/>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
+				</Grid>
+			</StackPanel>
 
 		</Grid>
 

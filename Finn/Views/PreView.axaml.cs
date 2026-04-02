@@ -235,6 +235,12 @@ public partial class PreView : UserControl
                 DiffABLabel.Text = pwr.DiffShowingOriginal ? "A" : "B";
                 break;
 
+            case nameof(pwr.LightPaperColor):
+                MuPDFRenderer.InvalidateVisual();
+                if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secPaper)
+                    secPaper.InvalidateVisual();
+                break;
+
             case "WhiteboardMode":
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
