@@ -1686,6 +1686,8 @@ public partial class MainView : UserControl
         _subscribedTodoItems.CollectionChanged += TodoItems_CollectionChanged;
         foreach (var item in _subscribedTodoItems)
             item.PropertyChanged += TodoItem_PropertyChanged;
+
+        UpdateTodoEmptyHint();
     }
 
     private void TodoItems_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -1696,11 +1698,20 @@ public partial class MainView : UserControl
         if (e.NewItems != null)
             foreach (Model.TodoItem item in e.NewItems)
                 item.PropertyChanged += TodoItem_PropertyChanged;
+        UpdateTodoEmptyHint();
     }
 
     private void TodoItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         _ctx.MarkDirty();
+    }
+
+    private void UpdateTodoEmptyHint()
+    {
+        var hint = this.FindControl<StackPanel>("TodoEmptyHint");
+        if (hint == null) return;
+        var items = _ctx.CurrentProject?.TodoItems;
+        hint.IsVisible = items == null || items.Count == 0;
     }
 
     #endregion

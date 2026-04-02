@@ -1437,7 +1437,8 @@
 														</Grid>
 
 									<!-- To-Do List -->
-										<DataGrid Grid.Row="11" Name="TodoGrid" IsVisible="{Binding UI.TrayTodo}"
+									<Panel Grid.Row="11" IsVisible="{Binding UI.TrayTodo}">
+										<DataGrid Name="TodoGrid"
 												  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
 												  AutoGenerateColumns="False" IsReadOnly="False"
 												  GridLinesVisibility="None" Padding="0">
@@ -1547,6 +1548,13 @@
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
 									</DataGrid>
+									<StackPanel Name="TodoEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
+												IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
+										<ic:SymbolIcon Symbol="Checkmark" FontSize="26" HorizontalAlignment="Center"/>
+										<TextBlock Text="No tasks" FontSize="13" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,4,0,2"/>
+										<TextBlock Text="Right-click to add a task" FontSize="11" HorizontalAlignment="Center" Opacity="0.7"/>
+									</StackPanel>
+									</Panel>
 
 								</Grid>
 							</Grid>
