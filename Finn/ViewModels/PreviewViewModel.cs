@@ -601,7 +601,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// The resolved tint color for the current <see cref="DarkModeTint"/> key.
-        /// Bound to <c>InvertColorControl.TintColor</c>.
+        /// Pushed to renderers via <c>SyncInversion</c>.
         /// </summary>
         public Color DarkModeTintColor => TintColorForKey(DarkModeTint);
 
@@ -746,7 +746,7 @@ namespace Finn.ViewModels
         private bool _cachedPreviewBgDark;
         /// <summary>
         /// Background for the preview area. When DarkMode is on, this returns
-        /// a pre-computed color so that after the InvertColorControl's
+        /// a pre-computed color so that after the renderer's inline
         /// Difference + Plus + Multiply passes the visible result matches the
         /// original theme color.
         /// </summary>
@@ -1088,6 +1088,29 @@ namespace Finn.ViewModels
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Error clearing renderer");
+            }
+        }
+
+        /// <summary>
+        /// Re-initializes the secondary renderer after an embedded/windowed swap
+        /// while TwopageMode was already active. The caller must have already set
+        /// IsVisible=true and deferred this call until after layout so that
+        /// SetSecondaryPageAsync's bounds guard passes.
+        /// </summary>
+        public async Task ReinitSecondaryAfterSwapAsync()
+        {
+            try
+            {
+                await SetSecondaryPageAsync().ConfigureAwait(false);
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (secondaryRenderer?.Bounds is { Width: > 0, Height: > 0 })
+                        secondaryRenderer.Contain();
+                }).GetTask().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error reinitializing secondary renderer after swap");
             }
         }
 

@@ -81,6 +81,26 @@ public partial class PreView : UserControl
         }
     }
 
+    /// <summary>
+    /// Pushes the current dark-mode inversion properties from PreviewVM
+    /// to both renderers and invalidates their visuals.
+    /// </summary>
+    private void SyncInversion()
+    {
+        SyncInversionTo(MuPDFRenderer);
+        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)
+            SyncInversionTo(sec);
+    }
+
+    private void SyncInversionTo(Finn.Controls.AnnotatedPDFRenderer renderer)
+    {
+        renderer.IsInverted = pwr.DarkMode;
+        renderer.InvertBackgroundColor = pwr.ThemeRegionColor;
+        renderer.InvertTintColor = pwr.DarkModeTintColor;
+        renderer.InvertTintIntensity = pwr.DarkModeTintIntensity;
+        renderer.InvalidateVisual();
+    }
+
     private void OnAnnotationDirty()
     {
         // Debounce: skip if less than 80ms since last post to avoid flooding
@@ -239,6 +259,13 @@ public partial class PreView : UserControl
                 MuPDFRenderer.InvalidateVisual();
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secPaper)
                     secPaper.InvalidateVisual();
+                break;
+
+            case nameof(pwr.DarkMode):
+            case nameof(pwr.DarkModeTintColor):
+            case nameof(pwr.DarkModeTintIntensity):
+            case nameof(pwr.ThemeRegionColor):
+                SyncInversion();
                 break;
 
             case "WhiteboardMode":
@@ -641,6 +668,8 @@ public partial class PreView : UserControl
 
         ctx.PreviewVM.GetRenderControl(MuPDFRenderer, MuPDFRendererSecondary);
 
+        SyncInversion();
+
         // Re-sync diff view state after renderer swap (e.g. embedded → windowed).
         // The ViewModel retains diff state (DiffOverlayActive, DualFileMode) but
         // the renderers are new and need fresh initialization. Reset the local
@@ -651,7 +680,23 @@ public partial class PreView : UserControl
         StopDisplayAreaSync();
         CloseDiffToggleSync();
         if (pwr.DiffOverlayActive)
+        {
             SyncDiffOverlay();
+        }
+        else if (pwr.TwopageMode)
+        {
+            // TwopageMode (including DualFileMode) was already active before the
+            // renderer swap, but the new secondary renderer starts IsVisible=False
+            // from XAML and ToggleDualViewAsync won't re-fire (the value didn't
+            // change). Restore visibility and defer secondary page init until
+            // after layout so SetSecondaryPageAsync's bounds guard passes.
+            MuPDFRendererSecondary.IsVisible = true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+            {
+                try { await pwr.ReinitSecondaryAfterSwapAsync(); }
+                catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "ReinitSecondaryAfterSwap"); }
+            }, Avalonia.Threading.DispatcherPriority.Render);
+        }
     }
 
     /// <summary>

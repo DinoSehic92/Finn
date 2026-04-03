@@ -340,6 +340,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Whether the diff overlay is currently visible.</summary>
     public bool DiffOverlayVisible { get; set; }
 
+    // ── Dark-mode inversion (applied between PDF content and annotations) ──
+    /// <summary>When true, PDF content is inverted via Difference + tint before annotations are drawn.</summary>
+    public bool IsInverted { get; set; }
+    /// <summary>Background color whose alpha channel is preserved through inversion.</summary>
+    public Color InvertBackgroundColor { get; set; } = Colors.Transparent;
+    /// <summary>Tint color applied additively after inversion. Black = no tint.</summary>
+    public Color InvertTintColor { get; set; } = Colors.Black;
+    /// <summary>Strength of the Multiply tint pass (0–50). Default 15.</summary>
+    public int InvertTintIntensity { get; set; } = 15;
+
     /// <summary>
     /// Sets a diff-highlight image to render as a semi-transparent overlay
     /// between the PDF page and annotations. Pass null to clear.
@@ -3106,6 +3116,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         base.Render(context);
 
+        // Apply dark-mode inversion AFTER the PDF content but BEFORE annotations
+        // so that annotations retain their original colors.
+        if (IsInverted)
+            context.Custom(new InvertContentDrawOp(new Rect(Bounds.Size), InvertBackgroundColor, InvertTintColor, InvertTintIntensity));
+
         // Fast path: skip annotation rendering entirely when there's nothing to draw.
         // HasDiffOverlay is checked separately since it's independent of annotations.
         if (!HasDiffOverlay && !HasAnyStrokes) return;
@@ -4346,6 +4361,81 @@ public class AnnotatedPDFRenderer : PDFRenderer
             HasBackground: false, HasBorder: false, IsTextAnnotation: false,
             IsStickyNote: true, IsExpandedStickyNote: true, IsPopupOnly: true,
             PopupFontSize: fontSize));
+    }
+
+    /// <summary>
+    /// Custom draw operation that inverts colors of everything already drawn
+    /// (the PDF content) using the same Skia pipeline formerly in InvertColorControl.
+    /// Inserted between <c>base.Render</c> and <c>RenderAnnotations</c> so that
+    /// annotations are drawn AFTER the inversion and retain their original colors.
+    /// </summary>
+    private sealed class InvertContentDrawOp(Rect bounds, Color backgroundColor, Color tintColor, int tintIntensity) : ICustomDrawOperation
+    {
+        public Rect Bounds => bounds;
+        public void Dispose() { }
+        public bool Equals(ICustomDrawOperation? other) => false;
+        public bool HitTest(Point p) => false;
+
+        public void Render(ImmediateDrawingContext context)
+        {
+            if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature leaseFeature)
+                return;
+            using var lease = leaseFeature.Lease();
+            var canvas = lease.SkCanvas;
+            if (canvas == null) return;
+
+            var rect = new SKRect(0, 0, (float)bounds.Width, (float)bounds.Height);
+
+            canvas.Save();
+            canvas.ClipRect(rect);
+
+            // Pass 1: invert via Difference with white.
+            using var invertPaint = new SKPaint
+            {
+                Color = SKColors.White,
+                BlendMode = SKBlendMode.Difference
+            };
+            canvas.DrawRect(rect, invertPaint);
+
+            // Pass 2 (optional): tint via Plus (additive) blend.
+            bool hasTint = tintColor.R != 0 || tintColor.G != 0 || tintColor.B != 0;
+            if (hasTint)
+            {
+                using var tintPaint = new SKPaint
+                {
+                    Color = new SKColor(tintColor.R, tintColor.G, tintColor.B, 255),
+                    BlendMode = SKBlendMode.Plus
+                };
+                canvas.DrawRect(rect, tintPaint);
+
+                // Pass 2b: Multiply with a near-white color derived from the tint.
+                int maxT = Math.Max(tintColor.R, Math.Max(tintColor.G, tintColor.B));
+                int intensity = Math.Clamp(tintIntensity, 0, 50);
+                if (maxT > 0 && intensity > 0)
+                {
+                    byte mR = (byte)(255 - (maxT - tintColor.R) * intensity / maxT);
+                    byte mG = (byte)(255 - (maxT - tintColor.G) * intensity / maxT);
+                    byte mB = (byte)(255 - (maxT - tintColor.B) * intensity / maxT);
+
+                    using var mulPaint = new SKPaint
+                    {
+                        Color = new SKColor(mR, mG, mB, 255),
+                        BlendMode = SKBlendMode.Multiply
+                    };
+                    canvas.DrawRect(rect, mulPaint);
+                }
+            }
+
+            // Pass 3: preserve original alpha from the background color.
+            using var alphaPaint = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, backgroundColor.A),
+                BlendMode = SKBlendMode.DstIn
+            };
+            canvas.DrawRect(rect, alphaPaint);
+
+            canvas.Restore();
+        }
     }
 
     /// <summary>
