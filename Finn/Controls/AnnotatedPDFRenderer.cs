@@ -98,6 +98,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private IPen? _cachedSelectionPen;
     private IPen? _cachedEraserHoverPen;
     private double _cachedChromePenScale;
+    // Cached grid-dots geometry: rebuilt only when viewport or spacing changes.
+    private StreamGeometry? _cachedGridGeometry;
+    private Rect _cachedGridDa;
+    private double _cachedGridSpacing;
+    // Static group selection pen (constant style, no per-frame allocation).
+    private static readonly IPen s_groupPen =
+        new Pen(s_selectPenBrush, 1.2, dashStyle: s_dashStyle5_4, lineCap: PenLineCap.Round);
     // Constant-thickness vertex pen used by selection highlight (avoid per-frame allocation)
     private static readonly IPen s_vertexPen =
         new Pen(s_vertexPenBrush, 1.2, lineCap: PenLineCap.Round);
@@ -3164,10 +3171,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double scaleY = boundsSize.Height / da.Height;
         double penScale = (scaleX + scaleY) * 0.5;
 
-        // Precomputed values for the fast PdfToScreen overload (#10)
+        // Precomputed values for the fast PdfToScreen overload
         double offsetX = da.X, offsetY = da.Y;
 
-        // Rebuild scale-dependent chrome pens only when penScale changes (#1)
+        // Rebuild scale-dependent chrome pens only when penScale changes
         if (_cachedSelectHoverPen == null || Math.Abs(_cachedChromePenScale - penScale) > 0.05)
         {
             _cachedChromePenScale = penScale;
@@ -3195,12 +3202,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
             {
                 foreach (var stroke in strokes)
-                    RenderStroke(context, stroke, da, boundsSize, scaleX, scaleY);
+                    RenderStroke(context, stroke, da, boundsSize, scaleX, scaleY, penScale);
             }
             if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
             {
                 foreach (var shape in shapes)
-                    RenderShape(context, shape, da, boundsSize, scaleX, scaleY);
+                    RenderShape(context, shape, da, boundsSize, scaleX, scaleY, penScale);
             }
             if (layer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
             {
@@ -3230,12 +3237,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         // Draw the active stroke being drawn
         if (_activeStroke != null)
-            RenderStroke(context, _activeStroke, da, boundsSize, scaleX, scaleY);
+            RenderStroke(context, _activeStroke, da, boundsSize, scaleX, scaleY, penScale);
 
         // Draw the active polyline being constructed (with preview segment)
         if (_activePolyline != null)
         {
-            RenderStroke(context, _activePolyline, da, boundsSize, scaleX, scaleY);
+            RenderStroke(context, _activePolyline, da, boundsSize, scaleX, scaleY, penScale);
             // Preview segment from last committed point to cursor
             if (_polylinePreviewEnd.HasValue && _activePolyline.Points.Count > 0)
             {
@@ -3259,7 +3266,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (_activeShape != null)
         {
             var dashPen = _activeShape.GetOrCreateDashedPen(penScale);
-            RenderShape(context, _activeShape, da, boundsSize, scaleX, scaleY, dashPen);
+            RenderShape(context, _activeShape, da, boundsSize, scaleX, scaleY, penScale, dashPen);
         }
 
         // Draw the active measurement being constructed
@@ -3354,6 +3361,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (_selectHoverItem != null && !_selectHighlightItems.Contains(_selectHoverItem))
         {
             var hoverPen = _cachedSelectHoverPen!;
+            double ox = da.X, oy = da.Y;
             Rect? hoverBounds = null;
             switch (_selectHoverItem)
             {
@@ -3362,7 +3370,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
                     foreach (var p in hoverStroke.Points)
                     {
-                        var sp = PdfToScreen(p, da, boundsSize);
+                        var sp = PdfToScreen(p, ox, oy, scaleX, scaleY);
                         minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
                         maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
                     }
@@ -3371,15 +3379,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
                 case ShapeAnnotation hoverShape:
                 {
-                    var hs = PdfToScreen(hoverShape.Start, da, boundsSize);
-                    var he = PdfToScreen(hoverShape.End, da, boundsSize);
+                    var hs = PdfToScreen(hoverShape.Start, ox, oy, scaleX, scaleY);
+                    var he = PdfToScreen(hoverShape.End, ox, oy, scaleX, scaleY);
                     hoverBounds = new Rect(Math.Min(hs.X, he.X), Math.Min(hs.Y, he.Y),
                         Math.Abs(he.X - hs.X), Math.Abs(he.Y - hs.Y));
                     break;
                 }
                 case TextAnnotation hoverText:
                 {
-                    var hp = PdfToScreen(hoverText.Position, da, boundsSize);
+                    var hp = PdfToScreen(hoverText.Position, ox, oy, scaleX, scaleY);
                     if (hoverText.IsStickyNote)
                     {
                         double sz = 13.0 * penScale;
@@ -3394,8 +3402,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
                 case MeasurementAnnotation hoverMeas when hoverMeas.Points.Count >= 2:
                 {
-                    var hm0 = PdfToScreen(hoverMeas.Points[0], da, boundsSize);
-                    var hm1 = PdfToScreen(hoverMeas.Points[1], da, boundsSize);
+                    var hm0 = PdfToScreen(hoverMeas.Points[0], ox, oy, scaleX, scaleY);
+                    var hm1 = PdfToScreen(hoverMeas.Points[1], ox, oy, scaleX, scaleY);
                     hoverBounds = new Rect(Math.Min(hm0.X, hm1.X), Math.Min(hm0.Y, hm1.Y),
                         Math.Abs(hm1.X - hm0.X), Math.Abs(hm1.Y - hm0.Y));
                     break;
@@ -3502,6 +3510,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         const double vtxSize = 7.0;     // constant screen pixels
         const double cornerSize = 3.0;  // constant screen pixels
         const double padSize = 4.0;     // constant screen pixels
+        double ox = da.X, oy = da.Y;
 
         // Determine if ALL highlighted items belong to a single group.
         // If so, we render only the combined bounding box (not per-item boxes).
@@ -3534,7 +3543,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         double maxX = double.MinValue, maxY = double.MinValue;
                         foreach (var p in stroke.Points)
                         {
-                            var sp = PdfToScreen(p, da, boundsSize);
+                            var sp = PdfToScreen(p, ox, oy, scaleX, scaleY);
                             minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
                             maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
                         }
@@ -3543,8 +3552,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     case ShapeAnnotation shape:
                     {
-                        var s = PdfToScreen(shape.Start, da, boundsSize);
-                        var e = PdfToScreen(shape.End, da, boundsSize);
+                        var s = PdfToScreen(shape.Start, ox, oy, scaleX, scaleY);
+                        var e = PdfToScreen(shape.End, ox, oy, scaleX, scaleY);
                         bounds = new Rect(
                             Math.Min(s.X, e.X), Math.Min(s.Y, e.Y),
                             Math.Abs(e.X - s.X), Math.Abs(e.Y - s.Y));
@@ -3552,7 +3561,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     case TextAnnotation t:
                     {
-                        var sp = PdfToScreen(t.Position, da, boundsSize);
+                        var sp = PdfToScreen(t.Position, ox, oy, scaleX, scaleY);
                         if (t.IsStickyNote)
                         {
                             double sz = 13.0 * penScale;
@@ -3569,8 +3578,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     {
                         if (m.Points.Count >= 2)
                         {
-                            var s0 = PdfToScreen(m.Points[0], da, boundsSize);
-                            var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+                            var s0 = PdfToScreen(m.Points[0], ox, oy, scaleX, scaleY);
+                            var s1 = PdfToScreen(m.Points[1], ox, oy, scaleX, scaleY);
                             bounds = new Rect(
                                 Math.Min(s0.X, s1.X), Math.Min(s0.Y, s1.Y),
                                 Math.Abs(s1.X - s0.X), Math.Abs(s1.Y - s0.Y));
@@ -3593,20 +3602,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
                         if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
                         {
-                            var arrowScreen = PdfToScreen(ao, da, boundsSize);
+                            var arrowScreen = PdfToScreen(ao, ox, oy, scaleX, scaleY);
                             context.DrawEllipse(s_vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
                         }
                         if (highlightItem is ShapeAnnotation selShape)
                         {
-                            var ss = PdfToScreen(selShape.Start, da, boundsSize);
-                            var se = PdfToScreen(selShape.End, da, boundsSize);
+                            var ss = PdfToScreen(selShape.Start, ox, oy, scaleX, scaleY);
+                            var se = PdfToScreen(selShape.End, ox, oy, scaleX, scaleY);
                             context.DrawEllipse(s_vertexBrush, vertexPen, ss, vtxSize, vtxSize);
                             context.DrawEllipse(s_vertexBrush, vertexPen, se, vtxSize, vtxSize);
                         }
                         if (highlightItem is MeasurementAnnotation selMeas && selMeas.Points.Count >= 2)
                         {
-                            var mp0 = PdfToScreen(selMeas.Points[0], da, boundsSize);
-                            var mp1 = PdfToScreen(selMeas.Points[1], da, boundsSize);
+                            var mp0 = PdfToScreen(selMeas.Points[0], ox, oy, scaleX, scaleY);
+                            var mp1 = PdfToScreen(selMeas.Points[1], ox, oy, scaleX, scaleY);
                             context.DrawEllipse(s_vertexBrush, vertexPen, mp0, vtxSize, vtxSize);
                             context.DrawEllipse(s_vertexBrush, vertexPen, mp1, vtxSize, vtxSize);
                         }
@@ -3614,7 +3623,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         {
                             foreach (var p in selPoly.Points)
                             {
-                                var sp = PdfToScreen(p, da, boundsSize);
+                                var sp = PdfToScreen(p, ox, oy, scaleX, scaleY);
                                 context.DrawEllipse(s_vertexBrush, vertexPen, sp, vtxSize, vtxSize);
                             }
                         }
@@ -3636,15 +3645,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var combinedPdf = GetCombinedBounds(_selectHighlightItems);
             if (combinedPdf is { Width: > 0 } or { Height: > 0 })
             {
-                var ctl = PdfToScreen(combinedPdf.TopLeft, da, boundsSize);
-                var cbr = PdfToScreen(combinedPdf.BottomRight, da, boundsSize);
+                var ctl = PdfToScreen(combinedPdf.TopLeft, ox, oy, scaleX, scaleY);
+                var cbr = PdfToScreen(combinedPdf.BottomRight, ox, oy, scaleX, scaleY);
                 var combinedScreen = new Rect(
                     Math.Min(ctl.X, cbr.X), Math.Min(ctl.Y, cbr.Y),
                     Math.Abs(cbr.X - ctl.X), Math.Abs(cbr.Y - ctl.Y))
                     .Inflate(padSize + 3);
-                var groupPen = new Pen(s_selectPenBrush, 1.2,
-                    dashStyle: s_dashStyle5_4, lineCap: PenLineCap.Round);
-                context.DrawRectangle(null, groupPen, combinedScreen, 2, 2);
+                context.DrawRectangle(null, s_groupPen, combinedScreen, 2, 2);
 
                 // Corner resize handles
                 const double resizeHandleSize = 5.0;
@@ -3685,29 +3692,36 @@ public class AnnotatedPDFRenderer : PDFRenderer
         int countY = (int)Math.Ceiling((endY - startY) / g);
         if (countX > 100 || countY > 100) return;
 
-        // Batch all dots into a single geometry for one draw call (#9)
-        double dotRadius = 1.0;
-        double offsetX = da.X, offsetY = da.Y;
-        var geometry = new StreamGeometry();
-        using (var ctx = geometry.Open())
+        // Reuse cached geometry when viewport and spacing haven't changed
+        if (_cachedGridGeometry == null || _cachedGridDa != da
+            || Math.Abs(_cachedGridSpacing - g) > 0.001)
         {
-            for (double py = startY; py <= endY; py += g)
+            double dotRadius = 1.0;
+            double offsetX = da.X, offsetY = da.Y;
+            var geometry = new StreamGeometry();
+            using (var ctx = geometry.Open())
             {
-                double sy = (py - offsetY) * scaleY;
-                for (double px = startX; px <= endX; px += g)
+                for (double py = startY; py <= endY; py += g)
                 {
-                    double sx = (px - offsetX) * scaleX;
-                    var center = new Point(sx, sy);
-                    ctx.BeginFigure(new Point(center.X + dotRadius, center.Y), true);
-                    ctx.ArcTo(new Point(center.X - dotRadius, center.Y),
-                        new Size(dotRadius, dotRadius), 0, false, SweepDirection.Clockwise);
-                    ctx.ArcTo(new Point(center.X + dotRadius, center.Y),
-                        new Size(dotRadius, dotRadius), 0, false, SweepDirection.Clockwise);
-                    ctx.EndFigure(true);
+                    double sy = (py - offsetY) * scaleY;
+                    for (double px = startX; px <= endX; px += g)
+                    {
+                        double sx = (px - offsetX) * scaleX;
+                        var center = new Point(sx, sy);
+                        ctx.BeginFigure(new Point(center.X + dotRadius, center.Y), true);
+                        ctx.ArcTo(new Point(center.X - dotRadius, center.Y),
+                            new Size(dotRadius, dotRadius), 0, false, SweepDirection.Clockwise);
+                        ctx.ArcTo(new Point(center.X + dotRadius, center.Y),
+                            new Size(dotRadius, dotRadius), 0, false, SweepDirection.Clockwise);
+                        ctx.EndFigure(true);
+                    }
                 }
             }
+            _cachedGridGeometry = geometry;
+            _cachedGridDa = da;
+            _cachedGridSpacing = g;
         }
-        context.DrawGeometry(s_gridDotBrush, null, geometry);
+        context.DrawGeometry(s_gridDotBrush, null, _cachedGridGeometry);
     }
 
     private void RenderEraserHover(DrawingContext context, Rect da, Size boundsSize,
@@ -3718,14 +3732,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         switch (_eraserHoverItem)
         {
             case InkStroke stroke:
-                RenderStroke(context, stroke, da, boundsSize, scaleX, scaleY, hoverPen);
+                RenderStroke(context, stroke, da, boundsSize, scaleX, scaleY, penScale, hoverPen);
                 break;
             case ShapeAnnotation shape:
-                RenderShape(context, shape, da, boundsSize, scaleX, scaleY, hoverPen);
+                RenderShape(context, shape, da, boundsSize, scaleX, scaleY, penScale, hoverPen);
                 break;
             case TextAnnotation text:
             {
-                var screenPos = PdfToScreen(text.Position, da, boundsSize);
+                double ox = da.X, oy = da.Y;
+                var screenPos = PdfToScreen(text.Position, ox, oy, scaleX, scaleY);
                 if (text.IsStickyNote)
                 {
                     double sz = 13.0 * penScale;
@@ -3743,8 +3758,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case MeasurementAnnotation m:
                 if (m.Points.Count >= 2)
                 {
-                    var s0 = PdfToScreen(m.Points[0], da, boundsSize);
-                    var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+                    double ox = da.X, oy = da.Y;
+                    var s0 = PdfToScreen(m.Points[0], ox, oy, scaleX, scaleY);
+                    var s1 = PdfToScreen(m.Points[1], ox, oy, scaleX, scaleY);
                     context.DrawLine(hoverPen, s0, s1);
                 }
                 break;
@@ -3753,23 +3769,60 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private void RenderStroke(DrawingContext context, InkStroke stroke,
                               Rect da, Size boundsSize,
-                              double scaleX, double scaleY, IPen? overridePen = null)
+                              double scaleX, double scaleY, double penScale,
+                              IPen? overridePen = null)
     {
         var pts = stroke.Points;
         if (pts.Count < 2) return;
 
-        double penScale = (scaleX + scaleY) * 0.5;
         var pen = overridePen ?? stroke.GetOrCreatePen(penScale);
 
-        // Pre-transform all points to screen space once (fast overload avoids per-point division)
-        int n = pts.Count;
+        bool closed = stroke.IsClosed && stroke.IsPolyline && pts.Count >= 3;
+
+        // Try to reuse cached geometry when the view transform and points haven't changed.
+        // This avoids rebuilding StreamGeometry (incl. Catmull-Rom splines) every frame
+        // for committed strokes during static renders (hover, mode toggle, etc.).
         double offsetX = da.X, offsetY = da.Y;
-        Span<Point> sp = n <= 256 ? stackalloc Point[n] : new Point[n];
-        for (int i = 0; i < n; i++)
-            sp[i] = PdfToScreen(pts[i], offsetX, offsetY, scaleX, scaleY);
+        var geometry = stroke.CachedGeometry;
+        bool cacheHit = geometry != null
+            && stroke.CachedGeometryPointCount == pts.Count
+            && stroke.CachedGeometryClosed == closed
+            && stroke.CachedGeoScaleX == scaleX && stroke.CachedGeoScaleY == scaleY
+            && stroke.CachedGeoOffX == offsetX && stroke.CachedGeoOffY == offsetY;
 
-        bool closed = stroke.IsClosed && stroke.IsPolyline && n >= 3;
+        if (!cacheHit)
+        {
+            // Pre-transform all points to screen space once (fast overload avoids per-point division)
+            int n = pts.Count;
+            Span<Point> sp = n <= 256 ? stackalloc Point[n] : new Point[n];
+            for (int i = 0; i < n; i++)
+                sp[i] = PdfToScreen(pts[i], offsetX, offsetY, scaleX, scaleY);
 
+            geometry = BuildStrokeGeometry(stroke, sp, n, closed, penScale);
+
+            // Only cache for committed strokes (not the active stroke being drawn)
+            if (overridePen == null)
+            {
+                stroke.CachedGeometry = geometry;
+                stroke.CachedGeometryClosed = closed;
+                stroke.CachedGeoScaleX = scaleX;
+                stroke.CachedGeoScaleY = scaleY;
+                stroke.CachedGeoOffX = offsetX;
+                stroke.CachedGeoOffY = offsetY;
+                stroke.CachedGeometryPointCount = pts.Count;
+            }
+        }
+
+        // For closed polylines with fill, draw a translucent fill
+        IBrush? fillBrush = null;
+        if (closed && overridePen == null)
+            fillBrush = stroke.GetOrCreateFillBrush();
+        context.DrawGeometry(fillBrush, pen, geometry);
+    }
+
+    /// <summary>Builds a StreamGeometry from pre-transformed screen-space points.</summary>
+    private static StreamGeometry BuildStrokeGeometry(InkStroke stroke, Span<Point> sp, int n, bool closed, double penScale)
+    {
         var geometry = new StreamGeometry();
         using (var ctx = geometry.Open())
         {
@@ -3876,12 +3929,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
             ctx.EndFigure(closed);
         }
-
-        // For closed polylines with fill, draw a translucent fill
-        IBrush? fillBrush = null;
-        if (closed && overridePen == null)
-            fillBrush = stroke.GetOrCreateFillBrush();
-        context.DrawGeometry(fillBrush, pen, geometry);
+        return geometry;
     }
 
     /// <summary>Computes the effective arc radius for a polyline vertex, clamped to half the shorter adjacent segment.</summary>
@@ -3897,13 +3945,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private void RenderShape(DrawingContext context, ShapeAnnotation shape,
                              Rect da, Size boundsSize,
-                             double scaleX, double scaleY, IPen? overridePen = null)
+                             double scaleX, double scaleY, double penScale,
+                             IPen? overridePen = null)
     {
-        double penScale = (scaleX + scaleY) * 0.5;
         var pen = overridePen ?? shape.GetOrCreatePen(penScale);
 
-        var screenStart = PdfToScreen(shape.Start, da, boundsSize);
-        var screenEnd = PdfToScreen(shape.End, da, boundsSize);
+        double offsetX = da.X, offsetY = da.Y;
+        var screenStart = PdfToScreen(shape.Start, offsetX, offsetY, scaleX, scaleY);
+        var screenEnd = PdfToScreen(shape.End, offsetX, offsetY, scaleX, scaleY);
 
         // Create optional fill brush for filled shapes (cached on the annotation)
         IBrush? fillBrush = null;
@@ -3937,13 +3986,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double cy = (screenStart.Y + screenEnd.Y) / 2;
                 double rx = Math.Abs(screenEnd.X - screenStart.X) / 2;
                 double ry = Math.Abs(screenEnd.Y - screenStart.Y) / 2;
-                var geometry = new EllipseGeometry(new Rect(cx - rx, cy - ry, rx * 2, ry * 2));
-                context.DrawGeometry(fillBrush, pen, geometry);
+                context.DrawEllipse(fillBrush, pen, new Point(cx, cy), rx, ry);
                 break;
             }
             case InlineAnnotationTool.RevisionCloud:
             {
-                var cloudGeometry = CreateCloudPath(screenStart, screenEnd, penScale);
+                var cloudGeometry = shape.GetOrCreateCloudGeometry(screenStart, screenEnd, penScale);
                 context.DrawGeometry(fillBrush, pen, cloudGeometry);
                 break;
             }
@@ -3951,86 +3999,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 // Dot radius is based on StrokeWidth (diameter = StrokeWidth * 2 screen units)
                 double r = shape.StrokeWidth * penScale;
-                var dotBrush = new SolidColorBrush(
-                    shape.Opacity < 1.0
-                        ? Color.FromArgb((byte)(shape.Opacity * 255), shape.Color.R, shape.Color.G, shape.Color.B)
-                        : shape.Color).ToImmutable();
-                context.DrawEllipse(dotBrush, pen, screenStart, r, r);
+                context.DrawEllipse(shape.GetOrCreateDotBrush(), pen, screenStart, r, r);
                 break;
             }
         }
-    }
-
-    /// <summary>
-    /// Creates a revision cloud geometry: a closed path of small arc segments
-    /// running around the perimeter of the bounding rectangle.
-    /// </summary>
-    private static StreamGeometry CreateCloudPath(Point screenStart, Point screenEnd, double penScale)
-    {
-        double x1 = Math.Min(screenStart.X, screenEnd.X);
-        double y1 = Math.Min(screenStart.Y, screenEnd.Y);
-        double x2 = Math.Max(screenStart.X, screenEnd.X);
-        double y2 = Math.Max(screenStart.Y, screenEnd.Y);
-
-        double arcRadius = 8 * penScale;
-        if (arcRadius < 4) arcRadius = 4;
-
-        // Collect perimeter points (clockwise: top → right → bottom → left)
-        var perimeterPoints = new List<Point>();
-        void AddEdge(Point from, Point to)
-        {
-            double dx = to.X - from.X;
-            double dy = to.Y - from.Y;
-            double edgeLen = Math.Sqrt(dx * dx + dy * dy);
-            int segments = Math.Max(1, (int)(edgeLen / (arcRadius * 1.6)));
-            for (int i = 0; i < segments; i++)
-            {
-                double t = (double)i / segments;
-                perimeterPoints.Add(new Point(from.X + dx * t, from.Y + dy * t));
-            }
-        }
-        AddEdge(new Point(x1, y1), new Point(x2, y1)); // top
-        AddEdge(new Point(x2, y1), new Point(x2, y2)); // right
-        AddEdge(new Point(x2, y2), new Point(x1, y2)); // bottom
-        AddEdge(new Point(x1, y2), new Point(x1, y1)); // left
-
-        var geometry = new StreamGeometry();
-        using (var ctx = geometry.Open())
-        {
-            if (perimeterPoints.Count < 2)
-            {
-                ctx.BeginFigure(new Point(x1, y1), true);
-                ctx.LineTo(new Point(x2, y2));
-                ctx.EndFigure(true);
-            }
-            else
-            {
-                ctx.BeginFigure(perimeterPoints[0], true);
-                for (int i = 0; i < perimeterPoints.Count; i++)
-                {
-                    var next = perimeterPoints[(i + 1) % perimeterPoints.Count];
-                    var mid = new Point(
-                        (perimeterPoints[i].X + next.X) / 2,
-                        (perimeterPoints[i].Y + next.Y) / 2);
-
-                    // Compute outward bulge perpendicular to the edge
-                    double edx = next.X - perimeterPoints[i].X;
-                    double edy = next.Y - perimeterPoints[i].Y;
-                    double elen = Math.Sqrt(edx * edx + edy * edy);
-                    if (elen < 0.5) { ctx.LineTo(next); continue; }
-
-                    // Outward normal (for clockwise winding, outward is to the right)
-                    double nx = edy / elen;
-                    double ny = -edx / elen;
-                    double bulge = arcRadius * 0.6;
-
-                    var cp = new Point(mid.X + nx * bulge, mid.Y + ny * bulge);
-                    ctx.QuadraticBezierTo(cp, next);
-                }
-                ctx.EndFigure(true);
-            }
-        }
-        return geometry;
     }
 
     private static void DrawArrowhead(DrawingContext context, IPen pen,
@@ -4376,6 +4348,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
         public bool Equals(ICustomDrawOperation? other) => false;
         public bool HitTest(Point p) => false;
 
+        // Reuse paint objects per render thread to avoid native alloc+dispose every frame.
+        [ThreadStatic] private static SKPaint? s_invertPaint;
+        [ThreadStatic] private static SKPaint? s_tintPaint;
+        [ThreadStatic] private static SKPaint? s_mulPaint;
+        [ThreadStatic] private static SKPaint? s_alphaPaint;
+
         public void Render(ImmediateDrawingContext context)
         {
             if (context.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature leaseFeature)
@@ -4390,22 +4368,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
             canvas.ClipRect(rect);
 
             // Pass 1: invert via Difference with white.
-            using var invertPaint = new SKPaint
-            {
-                Color = SKColors.White,
-                BlendMode = SKBlendMode.Difference
-            };
+            var invertPaint = s_invertPaint ??= new SKPaint();
+            invertPaint.Color = SKColors.White;
+            invertPaint.BlendMode = SKBlendMode.Difference;
             canvas.DrawRect(rect, invertPaint);
 
             // Pass 2 (optional): tint via Plus (additive) blend.
             bool hasTint = tintColor.R != 0 || tintColor.G != 0 || tintColor.B != 0;
             if (hasTint)
             {
-                using var tintPaint = new SKPaint
-                {
-                    Color = new SKColor(tintColor.R, tintColor.G, tintColor.B, 255),
-                    BlendMode = SKBlendMode.Plus
-                };
+                var tintPaint = s_tintPaint ??= new SKPaint();
+                tintPaint.Color = new SKColor(tintColor.R, tintColor.G, tintColor.B, 255);
+                tintPaint.BlendMode = SKBlendMode.Plus;
                 canvas.DrawRect(rect, tintPaint);
 
                 // Pass 2b: Multiply with a near-white color derived from the tint.
@@ -4417,21 +4391,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     byte mG = (byte)(255 - (maxT - tintColor.G) * intensity / maxT);
                     byte mB = (byte)(255 - (maxT - tintColor.B) * intensity / maxT);
 
-                    using var mulPaint = new SKPaint
-                    {
-                        Color = new SKColor(mR, mG, mB, 255),
-                        BlendMode = SKBlendMode.Multiply
-                    };
+                    var mulPaint = s_mulPaint ??= new SKPaint();
+                    mulPaint.Color = new SKColor(mR, mG, mB, 255);
+                    mulPaint.BlendMode = SKBlendMode.Multiply;
                     canvas.DrawRect(rect, mulPaint);
                 }
             }
 
             // Pass 3: preserve original alpha from the background color.
-            using var alphaPaint = new SKPaint
-            {
-                Color = new SKColor(255, 255, 255, backgroundColor.A),
-                BlendMode = SKBlendMode.DstIn
-            };
+            var alphaPaint = s_alphaPaint ??= new SKPaint();
+            alphaPaint.Color = new SKColor(255, 255, 255, backgroundColor.A);
+            alphaPaint.BlendMode = SKBlendMode.DstIn;
             canvas.DrawRect(rect, alphaPaint);
 
             canvas.Restore();
@@ -4835,6 +4805,13 @@ public class InkStroke
     private double _cachedPenScale;
     private IBrush? _cachedFillBrush;
 
+    // Cached geometry to avoid rebuilding StreamGeometry every frame.
+    // Invalidated when points change (InvalidateGeometry) or the view transform shifts.
+    internal StreamGeometry? CachedGeometry;
+    internal bool CachedGeometryClosed;
+    internal double CachedGeoScaleX, CachedGeoScaleY, CachedGeoOffX, CachedGeoOffY;
+    internal int CachedGeometryPointCount;
+
     internal IPen GetOrCreatePen(double penScale)
     {
         // Recreate only when the scale changes (zoom/resize) or first call
@@ -4860,5 +4837,5 @@ public class InkStroke
         return _cachedFillBrush;
     }
 
-    public void InvalidatePen() { _cachedPen = null; _cachedFillBrush = null; }
+    public void InvalidatePen() { _cachedPen = null; _cachedFillBrush = null; CachedGeometry = null; }
 }
