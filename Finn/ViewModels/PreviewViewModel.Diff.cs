@@ -17,6 +17,30 @@ namespace Finn.ViewModels
 {
     public partial class PreviewViewModel
     {
+        /// <summary>
+        /// Removes stale FinnDiff_* directories from the system temp folder
+        /// that were left behind by a previous crash. Called once at startup.
+        /// </summary>
+        public static void CleanupStaleDiffTempDirs(TimeSpan maxAge = default)
+        {
+            if (maxAge == default) maxAge = TimeSpan.FromHours(1);
+            try
+            {
+                var tempRoot = Path.GetTempPath();
+                var cutoff = DateTime.UtcNow - maxAge;
+                foreach (var dir in Directory.EnumerateDirectories(tempRoot, "FinnDiff_*"))
+                {
+                    try
+                    {
+                        if (Directory.GetLastWriteTimeUtc(dir) < cutoff)
+                            Directory.Delete(dir, true);
+                    }
+                    catch { /* best effort per-directory */ }
+                }
+            }
+            catch { /* best effort */ }
+        }
+
         #region Diff State
 
         /// <summary>Diff results from the last comparison, keyed by page index.</summary>
@@ -94,7 +118,7 @@ namespace Finn.ViewModels
         /// True when the diff toolbar should be visible: either diff mode is active
         /// OR a comparison is running (so the toolbar doesn't flash away and back).
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool ShowDiffToolbar => _diffOverlayActive || diffBusy;
 
         /// <summary>Whether diff results are loaded (controls toggle button visibility).</summary>

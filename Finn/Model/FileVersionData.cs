@@ -1,16 +1,17 @@
-using Newtonsoft.Json;
+using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Finn.Model
 {
     /// <summary>
     /// Represents a single version entry for a file that has been revised.
     /// </summary>
-    public class FileVersionData : INotifyPropertyChanged
+    public class FileVersionData : ObservableObject
     {
         /// <summary>
         /// Predefined revision labels in display/sort order.
@@ -93,10 +94,5 @@ namespace Finn.Model
 
         [JsonIgnore]
         public string DirectoryPath => Path.GetDirectoryName(_sökväg) ?? string.Empty;
-
-        private void OnPropertyChanged(string name) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

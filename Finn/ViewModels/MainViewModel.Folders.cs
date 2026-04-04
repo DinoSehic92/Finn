@@ -86,10 +86,17 @@ namespace Finn.ViewModels
                     await SyncFolderAsync(folder, mainWindow);
                 }
 
-                int added = CurrentProject.StoredFiles.Count - fileCountBefore;
-                PreviewVM.StatusMessage = added > 0
-                    ? $"Sync complete — {added} file(s) added"
-                    : "All folders up to date";
+                int delta = CurrentProject.StoredFiles.Count - fileCountBefore;
+                if (delta > 0)
+                    PreviewVM.StatusMessage = $"Sync complete — {delta} file(s) added";
+                else if (delta < 0)
+                    PreviewVM.StatusMessage = $"Sync complete — {-delta} file(s) removed";
+                else
+                    PreviewVM.StatusMessage = "All folders up to date";
+
+                // Ensure the grid reflects any changes from non-project-level syncs
+                // (project-level SyncFolderAsync already calls UpdateFilter internally).
+                UpdateFilter();
             }
 
             /// <summary>
@@ -152,6 +159,7 @@ namespace Finn.ViewModels
                 if (folder.Types == VERSIONS_TYPE)
                 {
                     await SyncVersionFolderAsync(folder, mainWindow);
+                    folder.LastSyncedUtc = DateTime.UtcNow;
                     return;
                 }
 
@@ -273,11 +281,8 @@ namespace Finn.ViewModels
                                 CurrentProject.StoredFiles.AddRange(confirmed);
                         }
                     }
-                    else if (actualAdds.Count > 0)
-                    {
-                        // No window available (e.g. auto-sync) — add directly
-                        CurrentProject.StoredFiles.AddRange(actualAdds);
-                    }
+                    // No window → can't show import dialog, skip adds so the
+                    // user is prompted on next manual sync instead.
 
                     if (versionCandidates.Count > 0 && mainWindow != null)
                     {
@@ -295,6 +300,8 @@ namespace Finn.ViewModels
                     UpdateFilter();
                     BuildTreeData();
                 }
+
+                folder.LastSyncedUtc = DateTime.UtcNow;
             }
 
             public void NewVersionFolder(string path)
@@ -370,6 +377,28 @@ namespace Finn.ViewModels
                 var allPdfs = Directory.EnumerateFiles(folder.Path, "*.pdf", SearchOption.AllDirectories)
                     .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                     .ToList();
+
+                // Remove stale versions whose files no longer exist on disk
+                var diskPaths = new HashSet<string>(allPdfs, StringComparer.OrdinalIgnoreCase);
+                string root = folder.Path.EndsWith(Path.DirectorySeparatorChar)
+                    ? folder.Path
+                    : folder.Path + Path.DirectorySeparatorChar;
+                int removedCount = 0;
+                foreach (var file in CurrentProject.StoredFiles)
+                {
+                    for (int i = file.Versions.Count - 1; i >= 0; i--)
+                    {
+                        var v = file.Versions[i];
+                        if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                            && !diskPaths.Contains(v.Sökväg))
+                        {
+                            file.RemoveVersion(v);
+                            removedCount++;
+                        }
+                    }
+                }
+                if (removedCount > 0)
+                    MarkDirty();
 
                 // Shared lookup: includes parents AND attached children
                 var filesByName = BuildFileNameLookup();

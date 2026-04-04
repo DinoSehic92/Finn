@@ -1,30 +1,24 @@
-﻿using Finn.Model;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using Finn.Model;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
 namespace Finn.Storage
 {
-    public class ProjectStorage : INotifyPropertyChanged
+    public class ProjectStorage : ObservableObject
     {
         private ObservableCollection<ProjectData> storedProjects = new ObservableCollection<ProjectData>();
         public ObservableCollection<ProjectData> StoredProjects
         {
             get { return storedProjects; }
-            set { storedProjects = value; RaisePropertyChanged("StoredProjects"); }
+            set { storedProjects = value; OnPropertyChanged(nameof(StoredProjects)); }
         }
 
         private ObservableCollection<string> collections = new ObservableCollection<string>();
         public ObservableCollection<string> Collections
         {
             get { return collections; }
-            set { collections = value; RaisePropertyChanged("Collections"); }
+            set { collections = value; OnPropertyChanged(nameof(Collections)); }
         }
-
-
-        private void RaisePropertyChanged(string propName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
-        }
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

@@ -57,7 +57,9 @@ public partial class MainView : UserControl
         OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
 
         FolderGrid.AddHandler(DataGrid.DoubleTappedEvent, OnFolderDoubleClick);
-        if (FolderGrid.Parent is Control folderDropTarget)
+        // The outer Grid (grandparent) has DragDrop.AllowDrop
+        var folderDropTarget = FolderGrid.Parent?.Parent as Control;
+        if (folderDropTarget != null)
             folderDropTarget.AddHandler(DragDrop.DropEvent, OnDropVersionFolder);
 
         RecentGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectRecent);
@@ -102,6 +104,9 @@ public partial class MainView : UserControl
 
         try
         {
+            // Clean up stale diff temp directories from previous crashes
+            PreviewViewModel.CleanupStaleDiffTempDirs();
+
             _ctx.LoadFileAuto();
             _ctx.ReconcileFileCache();
             UpdateFont();
@@ -130,6 +135,11 @@ public partial class MainView : UserControl
 
                 UpdateEmptyState();
                 SubscribeTodoItems();
+
+                // Start watching sync folders for file changes (if enabled)
+                _ctx.RefreshFolderWatchers();
+                // Check if any folders changed while the app was closed
+                _ctx.CheckFolderSyncOnStartup();
 
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;
@@ -184,6 +194,33 @@ public partial class MainView : UserControl
             _ctx.UI.ShowClock = e.NewSize.Height > 1250;
     }
 
+    /// <summary>
+    /// User clicked "Sync Now" on the folder-change notification bar.
+    /// Runs a full sync of the current project's folders with the import
+    /// dialog so file types are assigned correctly.
+    /// </summary>
+    private async void OnSyncFolderNotification(object? sender, RoutedEventArgs e)
+    {
+        _ctx.FolderSyncPending = false;
+        try
+        {
+            var window = TopLevel.GetTopLevel(this) as MainWindow;
+            if (window == null) return; // Can't show import dialogs without the host window
+            await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
+            _ctx.MarkDirty();
+        }
+        catch (Exception ex)
+        {
+            Utils.ErrorLogger.Log(ex, "FolderWatcher.SyncNotification");
+        }
+    }
+
+    /// <summary>User dismissed the folder-change notification.</summary>
+    private void OnDismissFolderNotification(object? sender, RoutedEventArgs e)
+    {
+        _ctx.DismissFolderSyncNotification();
+    }
+
     #endregion
 
     #region Preview Window & Grid
@@ -224,6 +261,13 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.CalendarOpen):
                 if (_ctx.UI.CalendarOpen)
                     Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
+                break;
+            case nameof(_ctx.UI.FolderWatchEnabled):
+                _ctx.RefreshFolderWatchers();
+                if (_ctx.UI.FolderWatchEnabled)
+                    _ctx.CheckFolderSyncOnStartup();
+                else
+                    _ctx.DismissFolderSyncNotification();
                 break;
         }
     }
@@ -650,7 +694,11 @@ public partial class MainView : UserControl
     }
 
     private async void OnSaveFile(object? sender, RoutedEventArgs e) => await _ctx.SaveFile(this);
-    private async void OnSaveFileAuto(object? sender, RoutedEventArgs e) => await _ctx.SaveFileAuto();
+    private async void OnSaveFileAuto(object? sender, RoutedEventArgs e)
+    {
+        await _ctx.SaveFileAuto();
+        _ctx.RefreshFolderWatchers();
+    }
 
     private async void OnRemoveFiles(object? sender, RoutedEventArgs e)
     {
@@ -789,12 +837,14 @@ public partial class MainView : UserControl
 
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.SyncFoldersAsync(folders, window);
+        _ctx.FolderSyncPending = false;
     }
 
     private async void OnSyncAllFolders(object? sender, RoutedEventArgs e)
     {
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
+        _ctx.FolderSyncPending = false;
     }
 
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)

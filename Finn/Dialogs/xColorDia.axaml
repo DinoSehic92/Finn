@@ -197,8 +197,14 @@
 					<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-					<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
-				</Grid>
+						<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
+					</Grid>
+
+					<!-- Folder Sync -->
+					<TextBlock Classes="SectionHeader" Text="Folder Sync" HorizontalAlignment="Center"/>
+					<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+						<Label Content="Auto Watch" ToolTip.Tip="Monitor sync folders for changes and check for differences at startup."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.FolderWatchEnabled}" HorizontalAlignment="Left"/>
+					</Grid>
 			</StackPanel>
 
 		</Grid>

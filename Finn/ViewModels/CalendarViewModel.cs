@@ -5,7 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using Finn.Storage;
 using System.IO;
-using Newtonsoft.Json;
+using Finn.Utils;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -94,7 +94,7 @@ namespace Finn.ViewModels
                 if (File.Exists(file))
                 {
                     string json = await File.ReadAllTextAsync(file);
-                    var cs = JsonConvert.DeserializeObject<CalendarStorage>(json);
+                    var cs = JsonHelper.Deserialize<CalendarStorage>(json);
                     if (cs != null)
                     {
                         CalendarStorage = cs;
@@ -108,7 +108,7 @@ namespace Finn.ViewModels
                 }
                 else
                 {
-                    string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
+                    string json = JsonHelper.Serialize(CalendarStorage);
                     await File.WriteAllTextAsync(file, json);
                 }
 
@@ -145,7 +145,7 @@ namespace Finn.ViewModels
                 // Prune empty entries before saving to keep Calendar.json compact (D1)
                 PruneEmptyEntries();
 
-                string json = JsonConvert.SerializeObject(CalendarStorage, Formatting.Indented);
+                string json = JsonHelper.Serialize(CalendarStorage);
 
                 await File.WriteAllTextAsync(tmpFile, json);
 

@@ -67,7 +67,7 @@ public partial class App : Application
             if (System.IO.File.Exists(file))
             {
                 var json = System.IO.File.ReadAllText(file);
-                var ui = Newtonsoft.Json.JsonConvert.DeserializeObject<Finn.Storage.UIStorage>(json);
+                    var ui = Finn.Utils.JsonHelper.Deserialize<Finn.Storage.UIStorage>(json);
                 if (ui != null)
                 {
                     vm.UI.FromStorage(ui);

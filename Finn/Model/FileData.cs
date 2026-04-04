@@ -1,5 +1,5 @@
-﻿using Finn.Utils;
-using Newtonsoft.Json;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using Finn.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,13 +9,14 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Finn.Model
 {
     /// <summary>
     /// Represents a file and its associated metadata, status, and collections.
     /// </summary>
-    public class FileData : INotifyPropertyChanged
+    public class FileData : ObservableObject
     {
         #region Constants
         private const string PdfExtension = ".pdf";
@@ -683,26 +684,6 @@ namespace Finn.Model
                 _sortingVersions = false;
             }
         }
-        #endregion
-
-        #region Property Changed Implementation
-
-        private bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
-        {
-            if (EqualityComparer<T>.Default.Equals(field, newValue))
-                return false;
-
-            field = newValue;
-            OnPropertyChanged(propertyName);
-            return true;
-        }
-
-        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        public event PropertyChangedEventHandler? PropertyChanged;
         #endregion
     }
 }

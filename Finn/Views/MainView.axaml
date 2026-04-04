@@ -842,7 +842,8 @@
 			</Panel>
 
 			<!-- Folder sync grid -->
-					<Panel Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}" DragDrop.AllowDrop="True">
+					<Grid Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}" RowDefinitions="*,Auto" DragDrop.AllowDrop="True">
+						<Panel Grid.Row="0">
 						<DataGrid Name="FolderGrid"
 								  ItemsSource="{Binding CurrentProject.Folders}"
 								  SelectionMode="Extended" IsReadOnly="True">
@@ -901,7 +902,25 @@
 								<TextBlock Text="Drop to create Version Delivery folder" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 							</StackPanel>
 						</Border>
-				</Panel>
+						</Panel>
+						<!-- Notification bar — sits in its own layout row below the grid -->
+						<Border Grid.Row="1" IsVisible="{Binding FolderSyncPending}"
+								Background="{DynamicResource SystemAccentColor}"
+								CornerRadius="5" Padding="8,5" Margin="4,4,4,4">
+							<Grid ColumnDefinitions="Auto,*,Auto,Auto">
+								<ic:SymbolIcon Grid.Column="0" Symbol="ArrowSync" FontSize="14" Foreground="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
+								<TextBlock Grid.Column="1" Text="{Binding FolderSyncMessage}" FontSize="12.5"
+										   Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+								<Button Grid.Column="2" Content="Sync Now" Click="OnSyncFolderNotification"
+										FontSize="12" Padding="10,3" Margin="0,0,4,0"
+										Background="White" Foreground="{DynamicResource SystemAccentColor}" CornerRadius="4"/>
+								<Button Grid.Column="3" Click="OnDismissFolderNotification" Padding="4,2" Background="Transparent"
+										ToolTip.Tip="Dismiss">
+									<ic:SymbolIcon Symbol="Dismiss" FontSize="12" Foreground="White"/>
+								</Button>
+							</Grid>
+						</Border>
+				</Grid>
 		</Grid>
 
 		<!-- Preview splitter -->

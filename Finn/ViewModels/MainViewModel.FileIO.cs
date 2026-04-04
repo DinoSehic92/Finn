@@ -3,14 +3,14 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Finn.Model;
 using Finn.Storage;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Finn.Utils;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -94,17 +94,17 @@ namespace Finn.ViewModels
             public void DeserializeLoadFile(string fileContent)
             {
                 Storage = new ProjectStorage();
-                try // Trying reading v.2 save file
+                try // Try reading as v.2 format (ProjectStorage wrapper)
                 {
-                    var deserialized = JsonConvert.DeserializeObject<ProjectStorage>(fileContent);
+                    var deserialized = JsonHelper.Deserialize<ProjectStorage>(fileContent);
                     if (deserialized != null)
                         Storage = deserialized;
                 }
-                catch // If not, try read as v.1 save file
+                catch // If not, try read as v.1 save file (bare project list)
                 {
                     try
                     {
-                        var projects = JsonConvert.DeserializeObject<ObservableCollection<ProjectData>>(fileContent);
+                        var projects = JsonHelper.Deserialize<ObservableCollection<ProjectData>>(fileContent);
                         if (projects != null)
                         {
                             Storage.StoredProjects = projects;
@@ -197,9 +197,7 @@ namespace Finn.ViewModels
                     try { CurrentProjectsFilePath = file.Path.LocalPath; } catch { CurrentProjectsFilePath = null; }
 
                     await using var stream = await file.OpenWriteAsync();
-                    using var streamWriter = new StreamWriter(stream);
-                    var data = JsonConvert.SerializeObject(Storage);
-                    await streamWriter.WriteLineAsync(data);
+                    await JsonHelper.SerializeAsync(Storage, stream);
                     await Calendar.SaveStorageAsync(SavePath);
                     ClearDirty();
                 }
@@ -216,20 +214,16 @@ namespace Finn.ViewModels
 
                     string path = Path.Combine(SavePath, "Projects.json");
                     string tmpPath = path + ".tmp";
-                    string bakPath = path + ".bak";
                     try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
-                    var data = JsonConvert.SerializeObject(Storage);
-
-                    // Write to a temp file first, then swap atomically to prevent
-                    // data loss if the app crashes or is killed mid-write.
-                    await File.WriteAllTextAsync(tmpPath, data);
-
-                    if (File.Exists(path))
+                    // Stream-serialize to a temp file first (no intermediate string)
+                    await using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
                     {
-                        // Keep one backup of the previous save
-                        File.Copy(path, bakPath, overwrite: true);
+                        await JsonHelper.SerializeAsync(Storage, fs);
                     }
+
+                    // Rotate backups: keep last 3 copies
+                    JsonHelper.RotateBackups(path, maxBackups: 3);
 
                     File.Move(tmpPath, path, overwrite: true);
 
@@ -267,25 +261,21 @@ namespace Finn.ViewModels
                         return true;
                     }
 
-                    string fileContent = File.ReadAllText(path);
+                    // Serialize current storage using the same pipeline as Save
+                    string currentJson = JsonHelper.Serialize(Storage);
 
-                    // Parse saved JSON
-                    JToken saved = JToken.Parse(fileContent);
+                    // Read the on-disk file
+                    string savedJson = File.ReadAllText(path);
 
-                    // Prune transient UI-related fields that may exist in older save files
-                    // but are no longer part of StoreData. This avoids false positives when
-                    // comparing the in-memory model to an on-disk file from an older format.
-                    PruneTransientUiFields(saved);
+                    // Normalize both through JsonDocument to ignore formatting/whitespace
+                    // and prune transient fields before comparing.
+                    using var savedDoc = JsonDocument.Parse(savedJson);
+                    using var currentDoc = JsonDocument.Parse(currentJson);
 
-                    // Serialize current storage using same JsonConvert pipeline as Save to avoid
-                    // differences caused by serializer variations (null vs omitted, converters, etc.)
-                    string currentJson = JsonConvert.SerializeObject(Storage);
-                    var current = JToken.Parse(currentJson);
+                    var savedNorm = NormalizeElement(savedDoc.RootElement);
+                    var currentNorm = NormalizeElement(currentDoc.RootElement);
 
-                    // Prune transient fields from the current representation as well
-                    PruneTransientUiFields(current);
-
-                    return !JToken.DeepEquals(saved, current);
+                    return savedNorm != currentNorm;
                 }
                 catch
                 {
@@ -297,8 +287,8 @@ namespace Finn.ViewModels
             // Remove transient UI fields that used to be stored in Projects.json but
             // are now part of UISettings.json / UI viewmodel. This prevents the
             // comparison from treating those legacy fields as meaningful differences.
-            private static readonly string[] TransientPropertyNames = new[]
-            {
+            private static readonly HashSet<string> TransientPropertyNames =
+            [
                 "ThumbnailSource",
                 "IsFileMissing",
                 // Derived / UI-only properties that should not affect storage equality
@@ -306,35 +296,47 @@ namespace Finn.ViewModels
                 "HasBookmarks",
                 "HasAppendedFiles",
                 "FiletypesTree",
-            };
+            ];
 
-            private static void PruneTransientUiFields(JToken? token)
+            /// <summary>
+            /// Produces a normalized JSON string from a <see cref="JsonElement"/>,
+            /// pruning transient fields so comparison is stable across formats.
+            /// </summary>
+            private static string NormalizeElement(JsonElement element)
             {
-                if (token == null) return;
-
-                // Recursively remove any properties with names considered transient.
-                void Recurse(JToken t)
+                using var ms = new MemoryStream();
+                using (var writer = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = false }))
                 {
-                    if (t.Type == JTokenType.Object)
-                    {
-                        var obj = (JObject)t;
-                        // Collect properties to remove to avoid modifying collection during enumeration
-                        var toRemove = obj.Properties().Where(p => TransientPropertyNames.Contains(p.Name)).ToList();
-                        foreach (var p in toRemove)
-                            p.Remove();
-
-                        // Recurse into remaining properties
-                        foreach (var child in obj.Properties())
-                            Recurse(child.Value);
-                    }
-                    else if (t.Type == JTokenType.Array)
-                    {
-                        foreach (var item in (JArray)t)
-                            Recurse(item);
-                    }
+                    WriteNormalized(writer, element);
                 }
+                return System.Text.Encoding.UTF8.GetString(ms.ToArray());
+            }
 
-                Recurse(token);
+            private static void WriteNormalized(Utf8JsonWriter writer, JsonElement element)
+            {
+                switch (element.ValueKind)
+                {
+                    case JsonValueKind.Object:
+                        writer.WriteStartObject();
+                        foreach (var prop in element.EnumerateObject()
+                            .Where(p => !TransientPropertyNames.Contains(p.Name))
+                            .OrderBy(p => p.Name, StringComparer.Ordinal))
+                        {
+                            writer.WritePropertyName(prop.Name);
+                            WriteNormalized(writer, prop.Value);
+                        }
+                        writer.WriteEndObject();
+                        break;
+                    case JsonValueKind.Array:
+                        writer.WriteStartArray();
+                        foreach (var item in element.EnumerateArray())
+                            WriteNormalized(writer, item);
+                        writer.WriteEndArray();
+                        break;
+                    default:
+                        element.WriteTo(writer);
+                        break;
+                }
             }
 
             public void BackupSaveFile()

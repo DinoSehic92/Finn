@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.IO;
 
 namespace Finn.Model
@@ -76,9 +77,16 @@ namespace Finn.Model
         }
 
         /// <summary>
+        /// UTC timestamp recorded after the last successful sync.
+        /// Used by the startup check to detect disk changes that happened
+        /// while the app was closed — avoids complex per-type comparisons.
+        /// </summary>
+        public DateTime? LastSyncedUtc { get; set; }
+
+        /// <summary>
         /// True when this folder syncs to the project file grid rather than a specific file.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool IsProjectLevel =>
             AttachToFile is null or "PROJECT";
 
@@ -87,7 +95,7 @@ namespace Finn.Model
         /// <see cref="AttachToFile"/> fields. Backward-compatible with data
         /// created before the enum existed.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public SyncFolderMode Mode => Types switch
         {
             "Versions" => SyncFolderMode.VersionDelivery,
@@ -97,7 +105,7 @@ namespace Finn.Model
         };
 
         /// <summary>Short user-facing label for the folder's sync mode.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string DisplayType => Mode switch
         {
             SyncFolderMode.ProjectFiles => "Sync",
@@ -108,7 +116,7 @@ namespace Finn.Model
         };
 
         /// <summary>Describes what this folder does, for tooltips or empty-state hints.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string Description => Mode switch
         {
             SyncFolderMode.ProjectFiles => "Watches for PDFs → adds to project file list",
@@ -119,7 +127,7 @@ namespace Finn.Model
         };
 
         /// <summary>Display text for the "Target" column — project name or attached file.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string DisplayTarget => Mode switch
         {
             SyncFolderMode.ProjectFiles => "Project",
@@ -128,7 +136,7 @@ namespace Finn.Model
         };
 
         /// <summary>Sort key that groups folders by mode in a natural order.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public int SortOrder => (int)Mode;
 
         public bool IsValid()

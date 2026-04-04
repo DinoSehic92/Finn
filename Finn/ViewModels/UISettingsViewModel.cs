@@ -75,6 +75,7 @@ namespace Finn.ViewModels
             ShowFolders = false;
             ShowThumbnails = false;
             TrayViewOpen = false;
+            FolderWatchEnabled = false;
 
         }
 
@@ -165,7 +166,7 @@ namespace Finn.ViewModels
         public int FontSize { get => fontSize; set { fontSize = value; OnPropertyChanged(nameof(FontSize)); OnPropertyChanged(nameof(FontSizeCompact)); } }
 
         /// <summary>FontSize - 2, for compact controls like calendar grids and timesheet entries.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public int FontSizeCompact => Math.Max(fontSize - 2, 11);
 
         private bool showIcons;
@@ -178,7 +179,7 @@ namespace Finn.ViewModels
         public bool ColorTagDot { get => colorTagDot; set { colorTagDot = value; OnPropertyChanged(nameof(ColorTagDot)); OnPropertyChanged(nameof(ColorTagRow)); } }
 
         /// <summary>Inverse of <see cref="ColorTagDot"/> for convenience bindings.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool ColorTagRow => !colorTagDot;
 
         private bool trayNote;
@@ -210,11 +211,18 @@ namespace Finn.ViewModels
 
         private bool showClock;
         /// <summary>Auto-toggled based on window height. Not persisted.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool ShowClock { get => showClock; set { showClock = value; OnPropertyChanged(nameof(ShowClock)); } }
 
         private bool trayViewOpen;
         public bool TrayViewOpen { get => trayViewOpen; set { trayViewOpen = value; OnPropertyChanged(nameof(TrayViewOpen)); } }
+
+        private bool folderWatchEnabled;
+        /// <summary>
+        /// When true, folder watchers monitor sync folders for changes and
+        /// a startup check detects files that changed while the app was closed.
+        /// </summary>
+        public bool FolderWatchEnabled { get => folderWatchEnabled; set { folderWatchEnabled = value; OnPropertyChanged(nameof(FolderWatchEnabled)); } }
 
         private bool previewEmbeddedOpen;
         public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); } }
@@ -287,6 +295,7 @@ namespace Finn.ViewModels
                 TreeViewWidth = this.TreeViewWidth,
                 TrayWidth = this.TrayWidth,
                 ReadBytesMode = this.ReadBytesMode,
+                FolderWatchEnabled = this.FolderWatchEnabled,
             };
         }
 
@@ -341,6 +350,7 @@ namespace Finn.ViewModels
                 if (ui.TrayWidth >= 250 && ui.TrayWidth <= 400)
                     this.TrayWidth = ui.TrayWidth;
                 this.ReadBytesMode = ui.ReadBytesMode;
+                this.FolderWatchEnabled = ui.FolderWatchEnabled;
             }
             catch
             {

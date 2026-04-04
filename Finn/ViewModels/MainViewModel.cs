@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Finn.Model;
+using Finn.Services;
 using Finn.Storage;
 using Finn.Utils;
 using System;
@@ -122,6 +123,161 @@ namespace Finn.ViewModels
                 set { storage = value; OnPropertyChanged(nameof(Storage)); }
             }
 
+            // Folder watcher service for detecting file changes in sync folders
+            private readonly FolderWatcherService _folderWatcher = new();
+
+            private bool _folderSyncPending;
+            /// <summary>
+            /// True when the folder watcher has detected changes in watched
+            /// folders. The UI shows a notification bar so the user can choose
+            /// to sync manually.
+            /// </summary>
+            public bool FolderSyncPending
+            {
+                get => _folderSyncPending;
+                set { _folderSyncPending = value; OnPropertyChanged(nameof(FolderSyncPending)); }
+            }
+
+            private string _folderSyncMessage = string.Empty;
+            /// <summary>
+            /// Describes which folder(s) detected changes, shown in the sync notification bar.
+            /// </summary>
+            public string FolderSyncMessage
+            {
+                get => _folderSyncMessage;
+                set { _folderSyncMessage = value; OnPropertyChanged(nameof(FolderSyncMessage)); }
+            }
+
+            /// <summary>
+            /// Refreshes the set of watched folders based on the current projects.
+            /// Call after loading/saving projects or adding/removing folders.
+            /// Only activates watchers when <see cref="UISettingsViewModel.FolderWatchEnabled"/> is on.
+            /// </summary>
+            public void RefreshFolderWatchers()
+            {
+                _folderWatcher.FolderChanged -= OnFolderWatcherChanged;
+
+                if (UI.FolderWatchEnabled)
+                {
+                    _folderWatcher.Refresh(Storage.StoredProjects);
+                    _folderWatcher.FolderChanged += OnFolderWatcherChanged;
+                }
+                else
+                {
+                    _folderWatcher.StopAll();
+                }
+            }
+
+            /// <summary>Stops all folder watchers (e.g. on shutdown).</summary>
+            public void StopFolderWatchers() => _folderWatcher.Dispose();
+
+            /// <summary>Dismisses the sync notification without syncing.</summary>
+            public void DismissFolderSyncNotification()
+            {
+                FolderSyncPending = false;
+                FolderSyncMessage = string.Empty;
+            }
+
+            /// <summary>
+            /// Performs a one-time comparison of every sync folder's tracked files
+            /// against the actual disk contents. Detects additions and removals
+            /// that happened while the app was closed and raises the notification
+            /// bar so the user can sync.
+            /// </summary>
+            public void CheckFolderSyncOnStartup()
+            {
+                if (!UI.FolderWatchEnabled) return;
+
+                var changedNames = new List<string>();
+
+                foreach (var project in Storage.StoredProjects)
+                {
+                    foreach (var folder in project.Folders)
+                    {
+                        if (!folder.IsValid() || string.IsNullOrEmpty(folder.Path))
+                            continue;
+
+                        try
+                        {
+                            if (IsFolderOutOfSync(folder))
+                                changedNames.Add(folder.Name);
+                        }
+                        catch
+                        {
+                            // Folder may be inaccessible (network share offline, etc.)
+                        }
+                    }
+                }
+
+                if (changedNames.Count > 0)
+                {
+                    FolderSyncMessage = changedNames.Count switch
+                    {
+                        1 => $"Changes detected in \"{changedNames[0]}\"",
+                        _ => $"Changes detected in {changedNames.Count} folders"
+                    };
+                    FolderSyncPending = true;
+                }
+            }
+
+            /// <summary>
+            /// Checks whether a single folder's disk contents may have changed
+            /// since the last successful sync, using directory timestamps.
+            /// Returns false for folders that have never been synced.
+            /// </summary>
+            private static bool IsFolderOutOfSync(FolderData folder)
+            {
+                if (folder.LastSyncedUtc is not { } lastSync)
+                    return false; // Never synced — nothing to compare against
+
+                bool recursive = folder.Types == VERSIONS_TYPE;
+                DateTime latestChange = GetLatestDirectoryWriteTimeUtc(folder.Path, recursive);
+                return latestChange > lastSync;
+            }
+
+            /// <summary>
+            /// Returns the most recent write-time of <paramref name="path"/> and,
+            /// when <paramref name="recursive"/> is true, all its subdirectories.
+            /// Only reads directory metadata — no file enumeration.
+            /// </summary>
+            private static DateTime GetLatestDirectoryWriteTimeUtc(string path, bool recursive)
+            {
+                var latest = Directory.GetLastWriteTimeUtc(path);
+                if (recursive)
+                {
+                    foreach (var dir in Directory.EnumerateDirectories(path, "*", SearchOption.AllDirectories))
+                    {
+                        var dt = Directory.GetLastWriteTimeUtc(dir);
+                        if (dt > latest) latest = dt;
+                    }
+                }
+                return latest;
+            }
+
+            private void OnFolderWatcherChanged(IReadOnlySet<string> changedPaths)
+            {
+                // Match changed watcher paths to folder names in the current project.
+                var changedNames = new List<string>();
+                foreach (var folder in CurrentProject?.Folders ?? [])
+                {
+                    if (!string.IsNullOrEmpty(folder.Path) && changedPaths.Contains(folder.Path))
+                        changedNames.Add(folder.Name);
+                }
+
+                string message = changedNames.Count switch
+                {
+                    0 => "Files changed in sync folders",
+                    1 => $"Changes detected in \"{changedNames[0]}\"",
+                    _ => $"Changes detected in {changedNames.Count} folders"
+                };
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    FolderSyncMessage = message;
+                    FolderSyncPending = true;
+                });
+            }
+
             // CalendarStorage moved into CalendarViewModel
 
             // Calendar viewmodel extracted to keep calendar logic separate
@@ -164,14 +320,14 @@ namespace Finn.ViewModels
             public ProjectData CurrentProject
             {
                 get { return currentProject; }
-                set { currentProject = value; OnPropertyChanged(nameof(CurrentProject)); OnPropertyChanged(nameof(IsSearchResult)); UpdateFilter(); }
+                set { currentProject = value; OnPropertyChanged(nameof(CurrentProject)); OnPropertyChanged(nameof(IsSearchResult)); ScheduleFilterUpdate(); }
             }
 
             private string type = null;
             public string Type
             {
                 get { return type; }
-                set { type = value; OnPropertyChanged(nameof(Type)); UpdateFilter(); }
+                set { type = value; OnPropertyChanged(nameof(Type)); ScheduleFilterUpdate(); }
             }
 
             private BulkObservableCollection<FileData> filteredFiles = new();

@@ -49,6 +49,7 @@ namespace Finn.Storage
         public int TreeViewWidth { get; set; }
         public int TrayWidth { get; set; }
         public bool ReadBytesMode { get; set; }
+        public bool FolderWatchEnabled { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

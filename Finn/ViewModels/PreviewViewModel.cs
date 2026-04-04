@@ -77,11 +77,11 @@ namespace Finn.ViewModels
         private MuPDFDocument? mainPreviewFile = null;
 
         /// <summary>Visible in the toolbar when the current file is cached.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool ShowForceServerRead => CurrentFile?.IsCached == true || RequestFile?.IsCached == true;
 
         /// <summary>Number of files currently in the local cache.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public int CacheFileCount => _fileCache.CachedFileCount;
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace Finn.ViewModels
         /// cache before preview — even if not explicitly marked <c>IsCached</c>.
         /// Set by MainViewModel from <see cref="UISettingsViewModel.AutoCacheNetworkFiles"/>.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool AutoCacheNetworkFiles
         {
             get => _autoCacheNetworkFiles;
@@ -102,7 +102,7 @@ namespace Finn.ViewModels
         /// MuPDF instead of opening by path. Avoids holding file locks on
         /// network shares but uses more memory. Set by MainView from UI settings.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool ReadBytesMode
         {
             get => _readBytesMode;
@@ -110,7 +110,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>Total size in bytes of all cached files.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public long CacheTotalBytes => _fileCache.CachedTotalBytes;
 
         /// <summary>Clears all cached files and removes the index.</summary>
@@ -906,7 +906,7 @@ namespace Finn.ViewModels
         /// the network server, "ArrowSync" when a stale cache was refreshed,
         /// null when caching is off or no file loaded.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? CacheSourceIcon
         {
             get => _cacheSourceIcon;
@@ -918,7 +918,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>Human-readable tooltip for the cache source icon.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? CacheSourceTooltip => _cacheSourceIcon switch
         {
             "Database" => "Loaded from local cache",
@@ -947,13 +947,13 @@ namespace Finn.ViewModels
         /// ticking on invisible controls and steals UI-thread time from the
         /// PDF renderer, causing pan/zoom stutter.
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool IsProgressIndeterminate => fileWorkerBusy && progress == 0;
 
         #region Background Task Progress
         private bool _backgroundTaskActive;
         /// <summary>True when a background task (pre-caching, etc.) is running.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool BackgroundTaskActive
         {
             get => _backgroundTaskActive;
@@ -966,7 +966,7 @@ namespace Finn.ViewModels
 
         private string _backgroundTaskMessage = "";
         /// <summary>Status text for the background task (e.g. "Pre-caching 3/10…").</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public string BackgroundTaskMessage
         {
             get => _backgroundTaskMessage;
@@ -975,7 +975,7 @@ namespace Finn.ViewModels
 
         private int _backgroundTaskProgress;
         /// <summary>Progress percentage (0–100) for the background task.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public int BackgroundTaskProgress
         {
             get => _backgroundTaskProgress;
@@ -983,7 +983,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>True when the active background task supports cancellation.</summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool BackgroundTaskCancellable => _backgroundTaskActive && _backgroundTaskCts != null;
 
         /// <summary>

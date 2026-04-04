@@ -1,7 +1,7 @@
 using Avalonia;
 using Avalonia.Media;
-using Newtonsoft.Json;
 using System;
+using System.Text.Json.Serialization;
 
 namespace Finn.Model;
 

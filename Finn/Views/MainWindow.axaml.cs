@@ -43,6 +43,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // it sets ConfirmLeave = false and calls Close() again — let it through.
         if (!ConfirmLeave)
         {
+            ctx.StopFolderWatchers();
             await ctx.PreviewVM.SafeDisposeAsync();
             if (ctx.PreviewWindowOpen)
                 ctx.PreviewWindowOpen = false;

@@ -1,17 +1,18 @@
 ﻿using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Finn.Utils;
-using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Finn.Model
 {
     /// <summary>
     /// Represents a project and its associated metadata, files, and folders.
     /// </summary>
-    public class ProjectData : INotifyPropertyChanged
+    public class ProjectData : ObservableObject
     {
         /// <summary>
         /// Gets or sets the collection of stored files for the project.
@@ -329,8 +330,7 @@ namespace Finn.Model
 
         private void RaisePropertyChanged(string propName)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
+            OnPropertyChanged(propName);
         }
-        public event PropertyChangedEventHandler? PropertyChanged;
     }
 }

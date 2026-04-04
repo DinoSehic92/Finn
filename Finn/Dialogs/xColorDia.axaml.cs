@@ -6,8 +6,8 @@ using Finn.Views;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
-using Newtonsoft.Json;
 using Finn.Storage;
+using Finn.Utils;
 using Finn.ViewModels;
 
 namespace Finn.Dialogs;
@@ -43,7 +43,7 @@ public partial class xColorDia : Window
             if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
 
             var ui = vm.UI.ToStorage();
-            string json = JsonConvert.SerializeObject(ui, Formatting.Indented);
+            string json = JsonHelper.Serialize(ui);
             string file = Path.Combine(savePath, "UISettings.json");
             await File.WriteAllTextAsync(file, json);
         }

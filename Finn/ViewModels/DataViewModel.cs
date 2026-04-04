@@ -1,15 +1,16 @@
 using Finn.Converters;
 using Finn.Model;
 using Finn.Storage;
+using Finn.Utils;
 using Microsoft.Extensions.Logging;
 using MuPDFCore;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -367,11 +368,8 @@ namespace Finn.ViewModels
             {
                 try
                 {
-                    using var stream = File.OpenRead(indexPath);
-                    using var reader = new StreamReader(stream);
-                    using var jsonReader = new JsonTextReader(reader);
-                    var serializer = JsonSerializer.CreateDefault();
-                    var content = serializer.Deserialize<ObservableCollection<ContentData>>(jsonReader);
+                    var json = File.ReadAllText(indexPath);
+                    var content = JsonHelper.Deserialize<ObservableCollection<ContentData>>(json);
                     if (content != null)
                     {
                         TextContent = content;
@@ -399,11 +397,8 @@ namespace Finn.ViewModels
             // Stream-deserialize so the raw JSON string is never held in memory.
             var content = await Task.Run(() =>
             {
-                using var stream = File.OpenRead(indexPath);
-                using var reader = new StreamReader(stream);
-                using var jsonReader = new JsonTextReader(reader);
-                var serializer = JsonSerializer.CreateDefault();
-                return serializer.Deserialize<ObservableCollection<ContentData>>(jsonReader);
+                var json = File.ReadAllText(indexPath);
+                return JsonHelper.Deserialize<ObservableCollection<ContentData>>(json);
             });
 
             TextContent = content;
@@ -437,10 +432,8 @@ namespace Finn.ViewModels
 
             // Stream-serialize directly to disk so the entire JSON is never
             // materialised as a single managed string (can be 100s of MB).
-            using var streamWriter = new StreamWriter(indexPath);
-            using var jsonWriter = new JsonTextWriter(streamWriter);
-            var serializer = JsonSerializer.CreateDefault();
-            serializer.Serialize(jsonWriter, TextContent);
+            using var stream = new FileStream(indexPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            System.Text.Json.JsonSerializer.Serialize(stream, TextContent, JsonHelper.Options);
         }
 
         #endregion
