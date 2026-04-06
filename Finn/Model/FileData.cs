@@ -110,7 +110,6 @@ namespace Finn.Model
         private int _defaultPage;
         private ObservableCollection<PageData> _favPages = new();
         private bool _isFromFolder;
-        private string _fromFolder = string.Empty;
         private string? _syncFolder = string.Empty;
         private BulkObservableCollection<FileData> _appendedFiles = new();
         private BulkObservableCollection<OtherData> _otherFiles = new();
@@ -310,12 +309,6 @@ namespace Finn.Model
         {
             get => _isFromFolder;
             set { SetProperty(ref _isFromFolder, value); }
-        }
-
-        public string FromFolder
-        {
-            get => _fromFolder;
-            set => SetProperty(ref _fromFolder, value);
         }
 
         public string? SyncFolder

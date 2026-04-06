@@ -237,14 +237,6 @@ namespace Finn.ViewModels
 
             // Theme/resource updates handled by UIService
 
-            public void AddFilesDrag(string path)
-            {
-                string assignedType = (Type != null && Type != ALL_TYPES) ? Type : "New";
-                CurrentProject.Newfile(path, assignedType);
-                ScheduleFilterUpdate();
-                MarkDirty();
-            }
-
             public void SetCategory(string category)
             {
                 SetProjecCategory(category);
@@ -569,6 +561,53 @@ namespace Finn.ViewModels
                 file.OtherFiles.ReplaceAll(file.OtherFiles.OrderBy(x => x.Name));
             }
 
+            /// <summary>
+            /// Updates all name-based links that reference a file after it is renamed.
+            /// Fixes child file <see cref="FileData.ParentNamn"/> and folder
+            /// <see cref="FolderData.AttachToFile"/> so the links don't break.
+            /// </summary>
+            private void UpdateFileLinks(string oldName, string newName, string? newPath)
+            {
+                if (string.Equals(oldName, newName, StringComparison.Ordinal))
+                    return;
+
+                // Update children that point back to this file by name
+                foreach (var child in CurrentProject.StoredFiles)
+                {
+                    if (string.Equals(child.ParentNamn, oldName, StringComparison.OrdinalIgnoreCase))
+                        child.ParentNamn = newName;
+                }
+
+                // Update folder entries attached to this file
+                foreach (var folder in CurrentProject.Folders)
+                {
+                    if (string.Equals(folder.AttachToFile, oldName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        folder.AttachToFile = newName;
+                        if (newPath != null)
+                            folder.AttachToFilePath = newPath;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Renames a file's display name and updates all child/folder links.
+            /// Use this instead of setting <see cref="FileData.Namn"/> directly
+            /// to keep name-based references consistent.
+            /// </summary>
+            public void RenameFile(FileData file, string newName)
+            {
+                if (file == null || string.IsNullOrEmpty(newName))
+                    return;
+
+                string oldName = file.Namn;
+                if (string.Equals(oldName, newName, StringComparison.Ordinal))
+                    return;
+
+                file.Namn = newName;
+                UpdateFileLinks(oldName, newName, file.Sökväg);
+            }
+
             public void RenameOriginal(string newName)
             {
                 string oldName = CurrentFile.Namn;
@@ -588,6 +627,7 @@ namespace Finn.ViewModels
 
                     CurrentFile.Sökväg = newPath;
                     CurrentFile.Namn = newName;
+                    UpdateFileLinks(oldName, newName, newPath);
                     MarkDirty();
                 }
             }
@@ -597,9 +637,12 @@ namespace Finn.ViewModels
                 if (CurrentFile == null || string.IsNullOrWhiteSpace(newPath))
                     return;
 
+                string oldName = CurrentFile.Namn;
+                string newName = System.IO.Path.GetFileNameWithoutExtension(newPath);
                 CurrentFile.Sökväg = newPath;
-                CurrentFile.Namn = System.IO.Path.GetFileNameWithoutExtension(newPath);
+                CurrentFile.Namn = newName;
                 CurrentFile.IsFileMissing = !fileExists;
+                UpdateFileLinks(oldName, newName, newPath);
                 MarkDirty();
             }
 

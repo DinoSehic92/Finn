@@ -168,7 +168,7 @@ public partial class xMetaDia : Window
         {
             if (NameCheck.IsChecked == true)
             {
-                file.Namn = FileNameInp.Text;
+                ctx.RenameFile(file, FileNameInp.Text);
             }
 
             if (HandlingCheck.IsChecked == true)

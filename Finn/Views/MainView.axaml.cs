@@ -195,30 +195,38 @@ public partial class MainView : UserControl
     }
 
     /// <summary>
-    /// User clicked "Sync Now" on the folder-change notification bar.
-    /// Runs a full sync of the current project's folders with the import
-    /// dialog so file types are assigned correctly.
+    /// User clicked the "Sync" button on an individual folder in the sync
+    /// status dropdown. Navigates to the project, syncs the single folder
+    /// (showing the import dialog), and removes the entry on success.
+    /// If the user cancels the import dialog the entry remains unsynced.
     /// </summary>
-    private async void OnSyncFolderNotification(object? sender, RoutedEventArgs e)
+    private async void OnSyncSingleFolder(object? sender, RoutedEventArgs e)
     {
-        _ctx.FolderSyncPending = false;
+        if (sender is not Button { Tag: SyncStatusEntry entry }) return;
+
+        SyncStatusButton.Flyout?.Hide();
         try
         {
             var window = TopLevel.GetTopLevel(this) as MainWindow;
-            if (window == null) return; // Can't show import dialogs without the host window
-            await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
-            _ctx.MarkDirty();
+            if (window == null) return;
+            await _ctx.SyncSingleEntryAsync(entry, window);
         }
         catch (Exception ex)
         {
-            Utils.ErrorLogger.Log(ex, "FolderWatcher.SyncNotification");
+            Utils.ErrorLogger.Log(ex, "FolderWatcher.SyncSingleFolder");
         }
     }
 
-    /// <summary>User dismissed the folder-change notification.</summary>
-    private void OnDismissFolderNotification(object? sender, RoutedEventArgs e)
+    private async void OnCheckAllFolders(object? sender, RoutedEventArgs e)
     {
-        _ctx.DismissFolderSyncNotification();
+        try
+        {
+            await _ctx.CheckAllFoldersAsync();
+        }
+        catch (Exception ex)
+        {
+            Utils.ErrorLogger.Log(ex, "FolderWatcher.CheckAllFolders");
+        }
     }
 
     #endregion
@@ -795,6 +803,10 @@ public partial class MainView : UserControl
 
         foreach (string folderPath in dialog.AcceptedFolders)
         {
+            if (_ctx.CurrentProject.Folders.Any(f =>
+                string.Equals(f.Path, folderPath, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
             _ctx.NewFileFolder();
             var folder = _ctx.CurrentProject.Folders.LastOrDefault();
             if (folder != null)
@@ -805,6 +817,8 @@ public partial class MainView : UserControl
                 await _ctx.SyncFolderAsync(folder);
             }
         }
+
+        _ctx.RefreshFolderWatchers();
 
         // Ensure the parent is expanded so newly attached children are visible
         if (_ctx.CurrentFile is { HasChildren: true, IsExpanded: false })
@@ -837,14 +851,12 @@ public partial class MainView : UserControl
 
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.SyncFoldersAsync(folders, window);
-        _ctx.FolderSyncPending = false;
     }
 
     private async void OnSyncAllFolders(object? sender, RoutedEventArgs e)
     {
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
         await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
-        _ctx.FolderSyncPending = false;
     }
 
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)

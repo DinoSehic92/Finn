@@ -487,6 +487,72 @@
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
 			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
+
+			<!-- Sync status indicator (visible only when folder watching is enabled) -->
+			<Button Name="SyncStatusButton" Height="30" Width="35" Padding="0" IsVisible="{Binding UI.FolderWatchEnabled}"
+					ToolTip.Tip="{Binding SyncStatusText}">
+				<Panel>
+					<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="18"
+								  Foreground="MediumSeaGreen"
+								  IsVisible="{Binding !HasPendingSyncFolders}"/>
+					<ic:SymbolIcon Symbol="ArrowSync" FontSize="18"
+								  Foreground="{DynamicResource SystemAccentColor}"
+								  IsVisible="{Binding HasPendingSyncFolders}"/>
+				</Panel>
+				<Button.Flyout>
+					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2">
+						<StackPanel Width="260" Margin="6" Spacing="6">
+							<!-- Up-to-date state -->
+							<StackPanel Orientation="Vertical" Spacing="6" IsVisible="{Binding !HasPendingSyncFolders}"
+										HorizontalAlignment="Center" Margin="8,12">
+								<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="28" HorizontalAlignment="Center"
+											   Foreground="MediumSeaGreen"/>
+								<TextBlock Text="All folders up to date" FontSize="13" FontWeight="SemiBold"
+										   HorizontalAlignment="Center" Opacity="0.8"/>
+							</StackPanel>
+							<!-- Pending changes header -->
+							<StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasPendingSyncFolders}">
+								<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemAccentColor}" VerticalAlignment="Center"/>
+								<TextBlock Text="{Binding SyncStatusText}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+							</StackPanel>
+								<!-- Folder list -->
+								<ItemsControl ItemsSource="{Binding PendingSyncFolders}" IsVisible="{Binding HasPendingSyncFolders}">
+									<ItemsControl.ItemTemplate>
+										<DataTemplate x:DataType="model:SyncStatusEntry">
+											<Border Background="{DynamicResource TextControlBackground}"
+													CornerRadius="5" Padding="10,7" Margin="0,1">
+												<Grid ColumnDefinitions="Auto,*,Auto">
+													<ic:SymbolIcon Grid.Column="0" Symbol="Folder" FontSize="16"
+																   VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.6"/>
+													<StackPanel Grid.Column="1" Orientation="Vertical" Spacing="1" VerticalAlignment="Center">
+														<TextBlock Text="{Binding FolderName}" FontSize="12.5"
+																   TextTrimming="CharacterEllipsis"/>
+														<StackPanel Orientation="Horizontal" Spacing="4">
+															<TextBlock Text="{Binding ProjectName}" FontSize="11"
+																	   Opacity="0.5" TextTrimming="CharacterEllipsis"/>
+															<TextBlock Text="·" FontSize="11" Opacity="0.35"
+																	   IsVisible="{Binding FolderType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+															<TextBlock Text="{Binding FolderType}" FontSize="11"
+																	   Opacity="0.35" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
+														</StackPanel>
+													</StackPanel>
+													<Button Grid.Column="2" Content="Sync" Click="OnSyncSingleFolder"
+															Tag="{Binding}" VerticalAlignment="Center"
+															FontSize="11" FontWeight="SemiBold"
+															Padding="8,3" CornerRadius="4" Margin="6,0,0,0"/>
+												</Grid>
+											</Border>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
+								<!-- Check All button -->
+								<Button Content="Check all folders" Click="OnCheckAllFolders"
+										HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+										FontSize="11.5" Padding="6,4" CornerRadius="4" Margin="0,2,0,0"/>
+							</StackPanel>
+					</Flyout>
+				</Button.Flyout>
+			</Button>
 		</StackPanel>
 
 		<!-- ═══════════════════════════════════════════════ -->
@@ -807,7 +873,7 @@
 
 						<Separator/>
 
-						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" IsVisible="{Binding SelectedFileIsTopLevel}">
+						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" IsVisible="{Binding CanMoveSelectedFiles}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding Namn, StringFormat=' - {0}'}"/></DataTemplate>
@@ -902,25 +968,8 @@
 								<TextBlock Text="Drop to create Version Delivery folder" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 							</StackPanel>
 						</Border>
-						</Panel>
-						<!-- Notification bar — sits in its own layout row below the grid -->
-						<Border Grid.Row="1" IsVisible="{Binding FolderSyncPending}"
-								Background="{DynamicResource SystemAccentColor}"
-								CornerRadius="5" Padding="8,5" Margin="4,4,4,4">
-							<Grid ColumnDefinitions="Auto,*,Auto,Auto">
-								<ic:SymbolIcon Grid.Column="0" Symbol="ArrowSync" FontSize="14" Foreground="White" Margin="0,0,6,0" VerticalAlignment="Center"/>
-								<TextBlock Grid.Column="1" Text="{Binding FolderSyncMessage}" FontSize="12.5"
-										   Foreground="White" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-								<Button Grid.Column="2" Content="Sync Now" Click="OnSyncFolderNotification"
-										FontSize="12" Padding="10,3" Margin="0,0,4,0"
-										Background="White" Foreground="{DynamicResource SystemAccentColor}" CornerRadius="4"/>
-								<Button Grid.Column="3" Click="OnDismissFolderNotification" Padding="4,2" Background="Transparent"
-										ToolTip.Tip="Dismiss">
-									<ic:SymbolIcon Symbol="Dismiss" FontSize="12" Foreground="White"/>
-								</Button>
-							</Grid>
-						</Border>
-				</Grid>
+							</Panel>
+						</Grid>
 		</Grid>
 
 		<!-- Preview splitter -->

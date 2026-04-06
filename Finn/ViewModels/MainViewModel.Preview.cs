@@ -88,22 +88,8 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Processes dropped file paths, adding PDFs to the current project.
-        /// Ignored when viewing search results to avoid adding files to a transient project.
-        /// </summary>
-        public void AddDroppedFiles(IEnumerable<string> paths)
-        {
-            if (IsSearchResult) return;
-
-            foreach (string path in paths)
-                AddFilesDrag(path);
-
-            UpdateTreeview();
-        }
-
-        /// <summary>
-        /// Async version of <see cref="AddDroppedFiles"/> that shows an import
-        /// dialog when files are dropped, letting the user confirm and pick a category.
+        /// Async version that shows an import dialog when files are dropped,
+        /// letting the user confirm and pick a category.
         /// </summary>
         public async Task AddDroppedFilesAsync(IEnumerable<string> paths, Window mainWindow)
         {
@@ -126,10 +112,15 @@ namespace Finn.ViewModels
 
             foreach (string path in folderPaths)
             {
+                if (IsDuplicateFolderPath(path))
+                    continue;
+
                 var folder = CreateAttachedFolder(path, "Other Files");
                 CurrentProject.Folders.Add(folder);
                 await SyncFolderAsync(folder);
             }
+
+            RefreshFolderWatchers();
         }
 
         /// <summary>
@@ -142,6 +133,9 @@ namespace Finn.ViewModels
 
             foreach (string path in paths)
             {
+                if (IsDuplicateFolderPath(path))
+                    continue;
+
                 var folder = new FolderData
                 {
                     Name = new System.IO.DirectoryInfo(path).Name,
@@ -152,6 +146,8 @@ namespace Finn.ViewModels
                 CurrentProject.Folders.Add(folder);
                 await SyncFolderAsync(folder, mainWindow);
             }
+
+            RefreshFolderWatchers();
         }
 
         private FolderData CreateAttachedFolder(string path, string types) => new()

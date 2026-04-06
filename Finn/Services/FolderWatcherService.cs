@@ -18,6 +18,7 @@ namespace Finn.Services
         private readonly object _lock = new();
         private Timer? _debounceTimer;
         private readonly HashSet<string> _changedFolders = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _faultedPaths = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Raised (on a thread-pool thread) after filesystem changes settle.
@@ -47,11 +48,12 @@ namespace Finn.Services
 
             lock (_lock)
             {
-                // Remove watchers for folders no longer in the project
+                // Remove watchers for folders no longer in the project,
+                // or faulted watchers that need recreation.
                 var toRemove = new List<string>();
                 foreach (var kvp in _watchers)
                 {
-                    if (!activePaths.Contains(kvp.Key))
+                    if (!activePaths.Contains(kvp.Key) || _faultedPaths.Contains(kvp.Key))
                     {
                         kvp.Value.EnableRaisingEvents = false;
                         kvp.Value.Dispose();
@@ -60,8 +62,9 @@ namespace Finn.Services
                 }
                 foreach (var key in toRemove)
                     _watchers.Remove(key);
+                _faultedPaths.Clear();
 
-                // Add watchers for new folders
+                // Add watchers for new folders (and recreate faulted ones)
                 foreach (var path in activePaths)
                 {
                     if (_watchers.ContainsKey(path))
@@ -71,7 +74,10 @@ namespace Finn.Services
                     {
                         var watcher = new FileSystemWatcher(path)
                         {
-                            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                            NotifyFilter = NotifyFilters.FileName
+                                         | NotifyFilters.DirectoryName
+                                         | NotifyFilters.LastWrite
+                                         | NotifyFilters.Size,
                             IncludeSubdirectories = true,
                             EnableRaisingEvents = true
                         };
@@ -79,6 +85,7 @@ namespace Finn.Services
                         watcher.Created += OnFileEvent;
                         watcher.Deleted += OnFileEvent;
                         watcher.Renamed += OnFileEvent;
+                        watcher.Changed += OnFileEvent;
                         watcher.Error += OnWatcherError;
 
                         _watchers[path] = watcher;
@@ -119,12 +126,15 @@ namespace Finn.Services
 
         private void OnWatcherError(object sender, ErrorEventArgs e)
         {
-            // Watcher buffer overflowed or folder was removed — treat as a change
+            // Watcher buffer overflowed or folder was removed.
+            // Flag it as changed AND mark it for recreation on next Refresh
+            // so the watcher recovers from buffer-overflow states.
             if (sender is FileSystemWatcher watcher)
             {
                 lock (_lock)
                 {
                     _changedFolders.Add(watcher.Path);
+                    _faultedPaths.Add(watcher.Path);
                 }
                 ResetDebounce();
             }
@@ -132,6 +142,14 @@ namespace Finn.Services
 
         private void ResetDebounce()
         {
+            // Reuse the existing timer when possible to avoid GC pressure
+            // during large copy operations (hundreds of file events).
+            var existing = _debounceTimer;
+            if (existing != null)
+            {
+                try { existing.Change(DebounceInterval, Timeout.InfiniteTimeSpan); return; }
+                catch (ObjectDisposedException) { /* timer was disposed — fall through to create new one */ }
+            }
             var newTimer = new Timer(_ => FireChanged(), null, DebounceInterval, Timeout.InfiniteTimeSpan);
             var old = Interlocked.Exchange(ref _debounceTimer, newTimer);
             old?.Dispose();

@@ -12,6 +12,21 @@ namespace Finn.ViewModels
     {
         public partial class MainViewModel
         {
+            /// <summary>
+            /// Returns <c>true</c> when the current project already contains a
+            /// folder entry whose <see cref="FolderData.Path"/> matches
+            /// <paramref name="path"/> (case-insensitive).
+            /// </summary>
+            private bool IsDuplicateFolderPath(string path)
+            {
+                foreach (var f in CurrentProject.Folders)
+                {
+                    if (string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                return false;
+            }
+
             public void NewFileFolder()
             {
                 if (CurrentFile != null)
@@ -24,7 +39,7 @@ namespace Finn.ViewModels
             {
                 foreach (var folder in folders)
                 {
-                    if (folder.Types == VERSIONS_TYPE)
+                    if (folder.Mode == SyncFolderMode.VersionDelivery)
                     {
                         // Remove all versions whose path falls under this version folder.
                         RemoveVersionsUnderPath(folder.Path);
@@ -32,7 +47,7 @@ namespace Finn.ViewModels
                     }
                     else if (folder.IsProjectLevel)
                     {
-                        CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && x.SyncFolder == folder.Path);
+                        CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase));
                         UpdateFilter();
                         CurrentProject.Folders.Remove(folder);
                         SignalTreeViewUpdate();
@@ -43,11 +58,12 @@ namespace Finn.ViewModels
 
                         if (file != null)
                         {
-                            if (folder.Types is PDF_TYPE or "" or null)
+                            if (folder.Mode is SyncFolderMode.AttachedFiles)
                             {
                                 string folderPath = folder.Path;
                                 var removed = CurrentProject.StoredFiles
-                                    .Where(x => x.ParentNamn == file.Namn && x.SyncFolder == folderPath)
+                                    .Where(x => x.ParentNamn == file.Namn
+                                        && string.Equals(x.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
                                     .ToList();
                                 foreach (var r in removed)
                                 {
@@ -60,11 +76,11 @@ namespace Finn.ViewModels
                                 UpdateFilter();
                             }
 
-                            if (folder.Types == OTHER_FILES_TYPE)
+                            if (folder.Mode is SyncFolderMode.OtherFiles)
                             {
                                 string folderPath = folder.Path;
                                 file.OtherFiles.ReplaceAll(
-                                    file.OtherFiles.Where(x => x.SyncFolder != folderPath).OrderBy(x => x.Name));
+                                    file.OtherFiles.Where(x => !string.Equals(x.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase)).OrderBy(x => x.Name));
                             }
                         }
 
@@ -74,16 +90,36 @@ namespace Finn.ViewModels
                 }
 
                 if (folders.Count > 0)
+                {
+                    // Clear any pending sync notifications for removed folders
+                    foreach (var folder in folders)
+                    {
+                        for (int i = PendingSyncFolders.Count - 1; i >= 0; i--)
+                        {
+                            var entry = PendingSyncFolders[i];
+                            if (string.Equals(entry.FolderPath, folder.Path, StringComparison.OrdinalIgnoreCase)
+                                && string.Equals(entry.ProjectName, CurrentProject.Namn, StringComparison.OrdinalIgnoreCase))
+                            {
+                                PendingSyncFolders.RemoveAt(i);
+                            }
+                        }
+                    }
+                    RaiseSyncStatusChanged();
                     MarkDirty();
+                    RefreshFolderWatchers();
+                }
             }
 
             public async Task SyncFoldersAsync(List<FolderData> folders, Window? mainWindow = null)
             {
                 int fileCountBefore = CurrentProject.StoredFiles.Count;
+                var syncedPaths = new List<string>();
 
                 foreach (var folder in folders)
                 {
-                    await SyncFolderAsync(folder, mainWindow);
+                    bool confirmed = await SyncFolderAsync(folder, mainWindow);
+                    if (confirmed && !string.IsNullOrEmpty(folder.Path))
+                        syncedPaths.Add(folder.Path);
                 }
 
                 int delta = CurrentProject.StoredFiles.Count - fileCountBefore;
@@ -93,6 +129,12 @@ namespace Finn.ViewModels
                     PreviewVM.StatusMessage = $"Sync complete — {-delta} file(s) removed";
                 else
                     PreviewVM.StatusMessage = "All folders up to date";
+
+                // Only clear entries for folders that actually completed.
+                // Cancelled folders stay in PendingSyncFolders so the user
+                // can retry them later.
+                if (syncedPaths.Count > 0)
+                    ClearSyncEntriesByPath(syncedPaths);
 
                 // Ensure the grid reflects any changes from non-project-level syncs
                 // (project-level SyncFolderAsync already calls UpdateFilter internally).
@@ -149,164 +191,284 @@ namespace Finn.ViewModels
                 }
             }
 
-            public async Task SyncFolderAsync(FolderData folder, Window? mainWindow = null)
+            /// <summary>
+            /// Syncs a single folder. Returns <c>true</c> when the sync completed
+            /// successfully (or there was nothing to do), <c>false</c> when the
+            /// user cancelled the import dialog.
+            /// </summary>
+            public async Task<bool> SyncFolderAsync(FolderData folder, Window? mainWindow = null)
             {
                 if (folder?.IsValid() != true || folder.Path == null)
                 {
-                    return;
+                    return false;
                 }
 
-                if (folder.Types == VERSIONS_TYPE)
+                if (folder.Mode == SyncFolderMode.VersionDelivery)
                 {
-                    await SyncVersionFolderAsync(folder, mainWindow);
-                    folder.LastSyncedUtc = DateTime.UtcNow;
-                    return;
+                    bool versionResult = await SyncVersionFolderAsync(folder, mainWindow);
+                    if (versionResult)
+                        RecordSyncBaseline(folder);
+                    return versionResult;
                 }
 
                 if (!folder.IsProjectLevel)
                 {
                     FileData file = CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile);
 
-                    if (file != null)
+                    if (file == null)
+                        return false; // Parent file not found — can't sync
+
+                    if (folder.Mode == SyncFolderMode.AttachedFiles)
                     {
-                        int count = 0;
+                        // Remove old synced appended files for this folder
+                        var oldSynced = CurrentProject.StoredFiles
+                            .Where(x => x.ParentNamn == file.Namn
+                                && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        foreach (var old in oldSynced)
+                            CurrentProject.StoredFiles.Remove(old);
 
-                        if (folder.Types == PDF_TYPE)
+                        var newFiles = GetFilesFromFolder(folder);
+                        foreach (var f in newFiles)
                         {
-                            // Remove old synced appended files for this folder
-                            var oldSynced = CurrentProject.StoredFiles
-                                .Where(x => x.ParentNamn == file.Namn && x.SyncFolder == folder.Path)
-                                .ToList();
-                            foreach (var old in oldSynced)
-                                CurrentProject.StoredFiles.Remove(old);
-
-                            var existingPaths = BuildKnownPathSet();
-                            var newFiles = GetFilesFromFolder(folder);
-                            var filesToAdd = new List<FileData>();
-                            foreach (var f in newFiles)
-                            {
-                                if (existingPaths.Contains(f.Sökväg))
-                                    continue;
-
-                                f.ParentNamn = file.Namn;
-                                f.ParentFile = file;
-                                f.Uppdrag = file.Uppdrag;
-                                f.Filtyp = file.Filtyp;
-                                filesToAdd.Add(f);
-                            }
-                            count = filesToAdd.Count;
-                            CurrentProject.StoredFiles.AddRange(filesToAdd);
-                            CurrentProject.RefreshHasChildren();
+                            f.ParentNamn = file.Namn;
+                            f.ParentFile = file;
+                            f.Uppdrag = file.Uppdrag;
+                            f.Filtyp = file.Filtyp;
                         }
-
-                        if (folder.Types == OTHER_FILES_TYPE)
-                        {
-                            var remaining = file.OtherFiles.Where(x => x.SyncFolder != folder.Path);
-                            var newFiles = GetOtherFilesFromFolder(folder);
-                            count = newFiles.Count;
-                            file.OtherFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Name));
-                        }
-
-                        folder.SyncedFileCount = count;
+                        CurrentProject.StoredFiles.AddRange(newFiles);
+                        CurrentProject.RefreshHasChildren();
                     }
+                    else if (folder.Mode == SyncFolderMode.OtherFiles)
+                    {
+                        var remaining = file.OtherFiles
+                            .Where(x => !string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase));
+                        var newFiles = GetOtherFilesFromFolder(folder);
+                        file.OtherFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Name));
+                    }
+
+                    // Record the sync baseline so startup detection
+                    // compares against actual disk state, not wall-clock time.
+                    RecordSyncBaseline(folder);
+                    return true;
                 }
-                else
+
+                return await SyncProjectFolderAsync(folder, mainWindow);
+            }
+
+            /// <summary>
+            /// Syncs a project-level folder: computes what changed on disk,
+            /// shows the appropriate confirmation dialogs, and applies the changes.
+            /// </summary>
+            private async Task<bool> SyncProjectFolderAsync(FolderData folder, Window? mainWindow)
+            {
+                var diff = ComputeProjectFolderDiff(folder);
+                bool userCancelled = false;
+
+                // 1. Handle removals
+                if (diff.Removals.Count > 0)
                 {
-                    List<FileData> files = GetFilesFromFolder(folder);
-
-                    // Use HashSets for O(1) path lookups instead of nested Any() which is O(n×m)
-                    var newPaths = new HashSet<string>(files.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
-                    List<FileData> existingFiles = CurrentProject.StoredFiles.Where(x => x.IsFromFolder).Where(x => x.SyncFolder == folder.Path).ToList();
-                    var existingPaths = new HashSet<string>(existingFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
-
-                    List<FileData> filesToRemove = existingFiles.Where(p => !newPaths.Contains(p.Sökväg)).ToList();
-                    List<FileData> filesToAdd = files.Where(p => !existingPaths.Contains(p.Sökväg)).ToList();
-
-                    var removeSet = new HashSet<FileData>(filesToRemove);
-                    if (removeSet.Count > 0)
-                        CurrentProject.StoredFiles.RemoveAll(f => removeSet.Contains(f));
-
-                    var actualAdds = new List<FileData>();
-                    var versionCandidates = new List<VersionImportEntry>();
-                    var filesByName = BuildFileNameLookup();
-                    int skippedCount = 0;
-
-                    foreach (FileData file in filesToAdd)
-                    {
-                        if (CurrentProject.StoredFiles.Any(x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            skippedCount++;
-                            continue;
-                        }
-
-                        if (filesByName.TryGetValue(file.Namn, out var existing))
-                        {
-                            versionCandidates.Add(new VersionImportEntry
-                            {
-                                ExistingFile = existing,
-                                NewFilePath = file.Sökväg
-                            });
-                        }
-                        else
-                        {
-                            actualAdds.Add(file);
-                        }
-                    }
-
-                    // Show import dialog for folder-synced files
-                    if (actualAdds.Count > 0 && mainWindow != null)
-                    {
-                        string folderName = new DirectoryInfo(folder.Path).Name;
-                        string defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
-
-                        var candidatePaths = actualAdds.Select(f => (f.Sökväg, folderName)).ToList();
-                        var dialog = new Dialogs.xImportDia
-                        {
-                            DataContext = this,
-                            RequestedThemeVariant = mainWindow.ActualThemeVariant
-                        };
-                        dialog.SetFiles(candidatePaths, skippedCount, CurrentProject.AllowedTypes, defaultCategory);
-                        await dialog.ShowDialog(mainWindow);
-
-                        if (dialog.Confirmed)
-                        {
-                            string assignedType = dialog.SelectedCategory;
-                            var acceptedSet = new HashSet<string>(dialog.AcceptedPaths, StringComparer.OrdinalIgnoreCase);
-
-                            var confirmed = actualAdds.Where(f => acceptedSet.Contains(f.Sökväg)).ToList();
-                            foreach (var f in confirmed)
-                                f.Filtyp = assignedType;
-
-                            if (confirmed.Count > 0)
-                                CurrentProject.StoredFiles.AddRange(confirmed);
-                        }
-                    }
-                    // No window → can't show import dialog, skip adds so the
-                    // user is prompted on next manual sync instead.
-
-                    if (versionCandidates.Count > 0 && mainWindow != null)
-                    {
-                        bool confirmed = await ShowVersionImportDialogAsync(mainWindow, versionCandidates);
-                        if (confirmed)
-                        {
-                            foreach (var entry in versionCandidates)
-                                entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
-                        }
-                    }
-
-                    folder.SyncedFileCount = CurrentProject.StoredFiles.Count(x => x.IsFromFolder && x.SyncFolder == folder.Path);
-
-                    CurrentProject.SetFiletypeList();
-                    UpdateFilter();
-                    BuildTreeData();
+                    userCancelled = !await ConfirmSyncRemovalsAsync(diff.Removals, folder, mainWindow);
                 }
 
-                folder.LastSyncedUtc = DateTime.UtcNow;
+                // 2. Handle additions (new files + version candidates)
+                if (!userCancelled && (diff.Additions.Count > 0 || diff.VersionCandidates.Count > 0))
+                {
+                    userCancelled = !await ConfirmSyncAdditionsAsync(
+                        diff.Additions, diff.VersionCandidates, diff.SkippedCount, folder, mainWindow);
+                }
+
+                CurrentProject.SetFiletypeList();
+                UpdateFilter();
+                BuildTreeData();
+
+                if (!userCancelled)
+                    RecordSyncBaseline(folder);
+
+                return !userCancelled;
+            }
+
+            /// <summary>
+            /// Result of comparing disk files against tracked files for a project-level folder.
+            /// </summary>
+            private sealed class ProjectFolderDiff
+            {
+                public List<FileData> Removals { get; init; } = [];
+                public List<FileData> Additions { get; init; } = [];
+                public List<VersionImportEntry> VersionCandidates { get; init; } = [];
+                public int SkippedCount { get; init; }
+            }
+
+            /// <summary>
+            /// Computes what needs to be added/removed to bring the project in
+            /// sync with the folder on disk. No side-effects other than adopting
+            /// orphaned files into the sync folder.
+            /// </summary>
+            private ProjectFolderDiff ComputeProjectFolderDiff(FolderData folder)
+            {
+                var diskFiles = GetFilesFromFolder(folder);
+                var diskPaths = new HashSet<string>(diskFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
+
+                var existingFiles = CurrentProject.StoredFiles
+                    .Where(x => x.IsFromFolder
+                        && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var existingPaths = new HashSet<string>(existingFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
+
+                var removals = existingFiles.Where(p => !diskPaths.Contains(p.Sökväg)).ToList();
+                var filesToAdd = diskFiles.Where(p => !existingPaths.Contains(p.Sökväg)).ToList();
+
+                // Classify additions: skip duplicates (adopt orphans), match
+                // existing names as version candidates, or treat as new files.
+                var additions = new List<FileData>();
+                var versionCandidates = new List<VersionImportEntry>();
+                var filesByName = BuildFileNameLookup();
+                int skippedCount = 0;
+
+                foreach (var file in filesToAdd)
+                {
+                    var alreadyTracked = CurrentProject.StoredFiles.FirstOrDefault(
+                        x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase));
+                    if (alreadyTracked != null)
+                    {
+                        AdoptFileIntoFolder(alreadyTracked, folder);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    if (filesByName.TryGetValue(file.Namn, out var existing))
+                    {
+                        versionCandidates.Add(new VersionImportEntry
+                        {
+                            ExistingFile = existing,
+                            NewFilePath = file.Sökväg
+                        });
+                    }
+                    else
+                    {
+                        additions.Add(file);
+                    }
+                }
+
+                return new ProjectFolderDiff
+                {
+                    Removals = removals,
+                    Additions = additions,
+                    VersionCandidates = versionCandidates,
+                    SkippedCount = skippedCount
+                };
+            }
+
+            /// <summary>
+            /// Claims an existing file for a sync folder so the set-based deep
+            /// check recognises it as tracked. Used when a file was imported
+            /// manually before the sync folder was created.
+            /// </summary>
+            private static void AdoptFileIntoFolder(FileData file, FolderData folder)
+            {
+                if (string.IsNullOrEmpty(file.SyncFolder))
+                {
+                    file.SyncFolder = folder.Path;
+                    file.IsFromFolder = true;
+                }
+            }
+
+            /// <summary>
+            /// Shows the removal confirmation dialog and applies the removals
+            /// if confirmed. Returns <c>true</c> when confirmed, <c>false</c> on cancel.
+            /// </summary>
+            private async Task<bool> ConfirmSyncRemovalsAsync(
+                List<FileData> filesToRemove, FolderData folder, Window? mainWindow)
+            {
+                if (mainWindow == null)
+                    return false; // No window — can't show dialog
+
+                string folderName = new DirectoryInfo(folder.Path).Name;
+                var removeEntries = filesToRemove.Select(f => (f.Namn, f.Sökväg)).ToList();
+                var removeDia = new Dialogs.xSyncRemoveDia
+                {
+                    DataContext = this,
+                    RequestedThemeVariant = mainWindow.ActualThemeVariant
+                };
+                removeDia.SetFiles(removeEntries, folderName);
+                await removeDia.ShowDialog(mainWindow);
+
+                if (removeDia.Confirmed)
+                {
+                    var removeSet = new HashSet<FileData>(filesToRemove);
+                    CurrentProject.StoredFiles.RemoveAll(f => removeSet.Contains(f));
+                    return true;
+                }
+                return false;
+            }
+
+            /// <summary>
+            /// Shows the import dialog for new files and the version import dialog
+            /// for name-matched files. Returns <c>true</c> when all dialogs were
+            /// confirmed, <c>false</c> if the user cancelled at any step.
+            /// </summary>
+            private async Task<bool> ConfirmSyncAdditionsAsync(
+                List<FileData> additions, List<VersionImportEntry> versionCandidates,
+                int skippedCount, FolderData folder, Window? mainWindow)
+            {
+                if (mainWindow == null && additions.Count > 0)
+                    return false; // No window — can't show dialog
+
+                if (additions.Count > 0 && mainWindow != null)
+                {
+                    string folderName = new DirectoryInfo(folder.Path).Name;
+                    string defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
+
+                    var candidatePaths = additions.Select(f => (f.Sökväg, folderName)).ToList();
+                    var dialog = new Dialogs.xImportDia
+                    {
+                        DataContext = this,
+                        RequestedThemeVariant = mainWindow.ActualThemeVariant
+                    };
+                    dialog.SetFiles(candidatePaths, skippedCount, CurrentProject.AllowedTypes, defaultCategory);
+                    await dialog.ShowDialog(mainWindow);
+
+                    if (dialog.Confirmed)
+                    {
+                        string assignedType = dialog.SelectedCategory;
+                        var acceptedSet = new HashSet<string>(dialog.AcceptedPaths, StringComparer.OrdinalIgnoreCase);
+
+                        var confirmed = additions.Where(f => acceptedSet.Contains(f.Sökväg)).ToList();
+                        foreach (var f in confirmed)
+                            f.Filtyp = assignedType;
+
+                        if (confirmed.Count > 0)
+                            CurrentProject.StoredFiles.AddRange(confirmed);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+                if (versionCandidates.Count > 0 && mainWindow != null)
+                {
+                    bool confirmed = await ShowVersionImportDialogAsync(mainWindow, versionCandidates);
+                    if (confirmed)
+                    {
+                        foreach (var entry in versionCandidates)
+                            entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
 
             public void NewVersionFolder(string path)
             {
                 if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+                    return;
+
+                if (IsDuplicateFolderPath(path))
                     return;
 
                 var folder = new FolderData
@@ -318,6 +480,7 @@ namespace Finn.ViewModels
                 };
                 CurrentProject.Folders.Add(folder);
                 MarkDirty();
+                RefreshFolderWatchers();
             }
 
             /// <summary>
@@ -368,10 +531,12 @@ namespace Finn.ViewModels
             /// by name, then presents a delivery import dialog grouped by subfolder.
             /// Each delivery folder gets one label applied to all matched files.
             /// Already-registered version paths are skipped.
+            /// Returns <c>true</c> when the sync completed (or nothing to do),
+            /// <c>false</c> when the user cancelled the delivery import dialog.
             /// </summary>
-            public async Task SyncVersionFolderAsync(FolderData folder, Window? mainWindow = null)
+            public async Task<bool> SyncVersionFolderAsync(FolderData folder, Window? mainWindow = null)
             {
-                if (folder?.IsValid() != true || folder.Path == null) return;
+                if (folder?.IsValid() != true || folder.Path == null) return false;
 
                 // Collect all PDFs recursively, sorted by path so subfolder order is consistent
                 var allPdfs = Directory.EnumerateFiles(folder.Path, "*.pdf", SearchOption.AllDirectories)
@@ -383,22 +548,51 @@ namespace Finn.ViewModels
                 string root = folder.Path.EndsWith(Path.DirectorySeparatorChar)
                     ? folder.Path
                     : folder.Path + Path.DirectorySeparatorChar;
-                int removedCount = 0;
+
+                // Collect stale versions before removing
+                var staleVersions = new List<(FileData File, FileVersionData Version)>();
                 foreach (var file in CurrentProject.StoredFiles)
                 {
-                    for (int i = file.Versions.Count - 1; i >= 0; i--)
+                    foreach (var v in file.Versions)
                     {
-                        var v = file.Versions[i];
                         if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase)
                             && !diskPaths.Contains(v.Sökväg))
                         {
-                            file.RemoveVersion(v);
-                            removedCount++;
+                            staleVersions.Add((file, v));
                         }
                     }
                 }
-                if (removedCount > 0)
-                    MarkDirty();
+
+                if (staleVersions.Count > 0 && mainWindow != null)
+                {
+                    string folderName = new DirectoryInfo(folder.Path).Name;
+                    var removeEntries = staleVersions
+                        .Select(sv => (sv.Version.ShortName, sv.Version.Sökväg))
+                        .ToList();
+                    var removeDia = new Dialogs.xSyncRemoveDia
+                    {
+                        DataContext = this,
+                        RequestedThemeVariant = mainWindow.ActualThemeVariant
+                    };
+                    removeDia.SetFiles(removeEntries, folderName);
+                    await removeDia.ShowDialog(mainWindow);
+
+                    if (removeDia.Confirmed)
+                    {
+                        foreach (var (file, v) in staleVersions)
+                            file.RemoveVersion(v);
+                        MarkDirty();
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else if (staleVersions.Count > 0)
+                {
+                    // No window — can't show dialog, leave unsynced
+                    return false;
+                }
 
                 // Shared lookup: includes parents AND attached children
                 var filesByName = BuildFileNameLookup();
@@ -430,9 +624,8 @@ namespace Finn.ViewModels
 
                 if (matchesPerFolder.Count == 0)
                 {
-                    // No new files to import, but still reflect total synced versions.
-                    folder.SyncedFileCount = CountVersionsUnderPath(folder.Path);
-                    return;
+                    // No new files to import — caller records baseline.
+                    return true;
                 }
 
                 // Build delivery entries — one row per subfolder, auto-label from date or letter.
@@ -455,8 +648,6 @@ namespace Finn.ViewModels
                     });
                 }
 
-                int importedCount = 0;
-
                 if (mainWindow != null)
                 {
                     bool confirmed = await ShowDeliveryImportDialogAsync(mainWindow, deliveries);
@@ -467,15 +658,23 @@ namespace Finn.ViewModels
                             foreach (var (file, pdfPath) in delivery.MatchedFiles)
                             {
                                 file.AddVersion(pdfPath, delivery.SelectedLabel);
-                                importedCount++;
                             }
                         }
                         MarkDirty();
                     }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    // No window — can't show dialog, leave unsynced
+                    return false;
                 }
 
-                // Count all versions under this folder, not just the ones imported this sync.
-                folder.SyncedFileCount = CountVersionsUnderPath(folder.Path);
+                // Caller records baseline via RecordSyncBaseline.
+                return true;
             }
 
             /// <summary>
@@ -557,20 +756,18 @@ namespace Finn.ViewModels
 
                 if (folder.IsValid())
                 {
-                    foreach (string path in Directory.GetFiles(folder.Path))
+                    var (pattern, search) = GetFileFilter(folder);
+                    foreach (string path in Directory.GetFiles(folder.Path, pattern, search))
                     {
-                        if (Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+                        files.Add(new FileData()
                         {
-                            files.Add(new FileData()
-                            {
-                                Namn = System.IO.Path.GetFileNameWithoutExtension(path),
-                                Sökväg = path,
-                                Uppdrag = CurrentProject.Namn,
-                                Filtyp = NEW_TYPE,
-                                SyncFolder = folder.Path,
-                                IsFromFolder = true
-                            });
-                        }
+                            Namn = System.IO.Path.GetFileNameWithoutExtension(path),
+                            Sökväg = path,
+                            Uppdrag = CurrentProject.Namn,
+                            Filtyp = NEW_TYPE,
+                            SyncFolder = folder.Path,
+                            IsFromFolder = true
+                        });
                     }
                 }
 
