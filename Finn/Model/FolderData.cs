@@ -69,13 +69,32 @@ namespace Finn.Model
 
         private int syncedFileCount;
         /// <summary>
-        /// Number of files synced from this folder during the last sync.
+        /// Number of files on disk for baseline comparison (out-of-sync detection).
+        /// For non-version folders this also serves as the display count.
         /// </summary>
         public int SyncedFileCount
         {
             get => syncedFileCount;
-            set { syncedFileCount = value; OnPropertyChanged(nameof(SyncedFileCount)); }
+            set { syncedFileCount = value; OnPropertyChanged(nameof(SyncedFileCount)); OnPropertyChanged(nameof(DisplayFileCount)); }
         }
+
+        private int trackedVersionCount;
+        /// <summary>
+        /// Number of actually imported versions for version delivery folders.
+        /// Only meaningful when <see cref="Mode"/> is <see cref="SyncFolderMode.VersionDelivery"/>.
+        /// </summary>
+        public int TrackedVersionCount
+        {
+            get => trackedVersionCount;
+            set { trackedVersionCount = value; OnPropertyChanged(nameof(TrackedVersionCount)); OnPropertyChanged(nameof(DisplayFileCount)); }
+        }
+
+        /// <summary>
+        /// The file count displayed in the folder grid.
+        /// Version folders show the tracked version count; other folders show the disk count.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int DisplayFileCount => Mode == SyncFolderMode.VersionDelivery ? trackedVersionCount : syncedFileCount;
 
         /// <summary>
         /// UTC timestamp recorded after the last successful sync.
@@ -145,19 +164,34 @@ namespace Finn.Model
 
         /// <summary>
         /// File names (without extension) excluded from sync.
+        /// For <see cref="SyncFolderMode.VersionDelivery"/> folders this stores
+        /// full file paths instead of names, since the same name can appear in
+        /// multiple subfolders.
         /// Persisted with the project so exclusions survive restarts.
         /// </summary>
         public List<string> ExcludedFiles { get; set; } = [];
 
         /// <summary>
         /// Returns <c>true</c> when <paramref name="fileName"/> (without extension)
-        /// is in the exclusion list.
+        /// is in the exclusion list. Used for non-version folders.
         /// </summary>
         public bool IsExcluded(string fileName)
         {
             if (ExcludedFiles.Count == 0) return false;
             _excludedSet ??= new HashSet<string>(ExcludedFiles, StringComparer.OrdinalIgnoreCase);
             return _excludedSet.Contains(fileName);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="filePath"/> is in the
+        /// exclusion list. Used for version delivery folders where exclusions
+        /// are stored as full paths.
+        /// </summary>
+        public bool IsExcludedPath(string filePath)
+        {
+            if (ExcludedFiles.Count == 0) return false;
+            _excludedSet ??= new HashSet<string>(ExcludedFiles, StringComparer.OrdinalIgnoreCase);
+            return _excludedSet.Contains(filePath);
         }
 
         /// <summary>Lazily built O(1) lookup for <see cref="ExcludedFiles"/>.</summary>

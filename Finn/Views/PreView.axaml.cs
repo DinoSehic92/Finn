@@ -1316,6 +1316,8 @@ public partial class PreView : UserControl
         {
             Namn = sketchName,
             Sökväg = pdfPath,
+            Filtyp = "Sketch",
+            Uppdrag = project.Namn,
         };
 
         foreach (var srcLayer in pwr.WhiteboardLayers)
@@ -1342,7 +1344,21 @@ public partial class PreView : UserControl
         }
 
         project.StoredFiles.Add(fileData);
+        project.SetFiletypeList();
+        mainVm?.UpdateFilter();
+        mainVm?.BuildTreeData();
         mainVm?.MarkDirty();
+
+        // Clear the whiteboard so the user starts fresh
+        foreach (var layer in pwr.WhiteboardLayers)
+        {
+            layer.PageStrokes.Clear();
+            layer.PageShapes.Clear();
+            layer.PageTexts.Clear();
+            layer.PageMeasurements.Clear();
+            layer.RecalculateCounts();
+        }
+        MuPDFRenderer?.InvalidateVisual();
 
         pwr.StatusMessage = $"Sketch saved to {project.Namn}: {sketchName}";
     }

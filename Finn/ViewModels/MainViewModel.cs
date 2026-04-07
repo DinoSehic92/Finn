@@ -579,9 +579,10 @@ namespace Finn.ViewModels
             /// Records the current disk state as the sync baseline so that
             /// <see cref="IsFolderOutOfSync"/> won't produce false positives.
             /// Stores the file count and the directory's own write timestamp.
+            /// For version folders, also records the tracked version count for display.
             /// Runs the file count on a background thread to avoid blocking the UI.
             /// </summary>
-            private static async Task RecordSyncBaselineAsync(FolderData folder)
+            private async Task RecordSyncBaselineAsync(FolderData folder)
             {
                 if (!folder.ExistsOnDisk())
                 {
@@ -593,6 +594,9 @@ namespace Finn.ViewModels
                 int count = await Task.Run(() => CountDiskFiles(folder));
                 folder.SyncedFileCount = count;
                 folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
+
+                if (folder.Mode == SyncFolderMode.VersionDelivery)
+                    folder.TrackedVersionCount = CountVersionsUnderPath(folder.Path);
             }
 
             private void OnFolderWatcherChanged(IReadOnlySet<string> changedPaths)
@@ -725,6 +729,9 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(CanMoveSelectedFiles));
                     OnPropertyChanged(nameof(SelectedFileIsLocal));
                     OnPropertyChanged(nameof(CanReplaceSelectedFiles));
+                    OnPropertyChanged(nameof(CanCacheSelectedFiles));
+                    OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
+                    OnPropertyChanged(nameof(SelectedFileIsNotSketch));
                 }
             }
 
@@ -750,6 +757,22 @@ namespace Finn.ViewModels
                 CurrentFile != null && !CurrentFile.IsAppendedFile;
 
             /// <summary>
+            /// True when the Category menu should be shown.
+            /// Hidden for appended files and sketches (sketches have a
+            /// fixed category that should not be changed).
+            /// </summary>
+            public bool CanCategorizeSelectedFiles =>
+                CurrentFile != null && !CurrentFile.IsAppendedFile && !CurrentFile.IsSketch;
+
+            /// <summary>
+            /// True when the selected file is a real file (not a sketch).
+            /// Used to hide Open, Clipboard, Data, Watermark for sketches
+            /// since they reference a shared blank PDF with no real file path.
+            /// </summary>
+            public bool SelectedFileIsNotSketch =>
+                CurrentFile != null && !CurrentFile.IsSketch;
+
+            /// <summary>
             /// True when the selected files can be moved to another project.
             /// Synced files (from a sync folder) cannot be moved because it would
             /// break the folder's tracked file count.
@@ -768,11 +791,20 @@ namespace Finn.ViewModels
             /// <summary>
             /// True when Replace makes sense for the selected files.
             /// Synced files should not be replaced because the sync would
-            /// revert them on the next run.
+            /// revert them on the next run. Sketches cannot be replaced
+            /// because they share a single blank PDF canvas.
             /// </summary>
             public bool CanReplaceSelectedFiles =>
                 CurrentFiles != null && CurrentFiles.Count > 0
-                && CurrentFiles.All(f => !f.IsFromFolder);
+                && CurrentFiles.All(f => !f.IsFromFolder && !f.IsSketch);
+
+            /// <summary>
+            /// True when caching makes sense for the selected files.
+            /// Sketches are local files and should not be cached.
+            /// </summary>
+            public bool CanCacheSelectedFiles =>
+                CurrentFiles != null && CurrentFiles.Count > 0
+                && CurrentFiles.All(f => !f.IsSketch);
 
             private FileVersionData? selectedVersion;
             /// <summary>

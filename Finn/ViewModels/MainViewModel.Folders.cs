@@ -664,12 +664,20 @@ namespace Finn.ViewModels
             {
                 if (folder?.ExistsOnDisk() != true || folder.Path == null) return false;
 
+                string folderName = new DirectoryInfo(folder.Path).Name;
+                PreviewVM.BackgroundTaskActive = true;
+                PreviewVM.BackgroundTaskMessage = $"Scanning \"{folderName}\"…";
+                PreviewVM.BackgroundTaskProgress = -1;
+
                 // Collect all PDFs recursively on a background thread
                 // to avoid blocking the UI on network shares.
                 var allPdfs = await Task.Run(() =>
                     Directory.EnumerateFiles(folder.Path, "*.pdf", SearchOption.AllDirectories)
                         .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
                         .ToList());
+
+                PreviewVM.BackgroundTaskMessage = $"Matching versions in \"{folderName}\"…";
+                PreviewVM.BackgroundTaskProgress = 50;
 
                 // Remove stale versions whose files no longer exist on disk
                 var diskPaths = new HashSet<string>(allPdfs, StringComparer.OrdinalIgnoreCase);
@@ -693,7 +701,7 @@ namespace Finn.ViewModels
 
                 if (staleVersions.Count > 0 && mainWindow != null)
                 {
-                    string folderName = new DirectoryInfo(folder.Path).Name;
+                    PreviewVM.BackgroundTaskActive = false;
                     var removeEntries = staleVersions
                         .Select(sv => (sv.Version.ShortName, sv.Version.Sökväg))
                         .ToList();
@@ -738,7 +746,7 @@ namespace Finn.ViewModels
                         continue;
 
                     string name = Path.GetFileNameWithoutExtension(pdfPath);
-                    if (folder.IsExcluded(name))
+                    if (folder.IsExcludedPath(pdfPath))
                         continue;
 
                     if (filesByName.TryGetValue(name, out var existing))
@@ -756,6 +764,8 @@ namespace Finn.ViewModels
                 if (matchesPerFolder.Count == 0)
                 {
                     // No new files to import — caller records baseline.
+                    PreviewVM.BackgroundTaskActive = false;
+                    PreviewVM.StatusMessage = $"Version folder \"{folderName}\" — no new versions found";
                     return true;
                 }
 
@@ -778,6 +788,8 @@ namespace Finn.ViewModels
                         SelectedLabel = label
                     });
                 }
+
+                PreviewVM.BackgroundTaskActive = false;
 
                 if (mainWindow != null)
                 {
@@ -940,53 +952,143 @@ namespace Finn.ViewModels
                 if (folder == null || !folder.ExistsOnDisk()) return;
 
                 var (pattern, search) = GetFileFilter(folder);
+
+                // For version delivery folders, only show files that match
+                // an existing project file by name — the rest are irrelevant.
+                IReadOnlySet<string>? versionFilter = null;
+                if (folder.Mode == SyncFolderMode.VersionDelivery)
+                {
+                    versionFilter = new HashSet<string>(
+                        CurrentProject.StoredFiles.Select(f => f.Namn),
+                        StringComparer.OrdinalIgnoreCase);
+                }
+
+                PreviewVM.BackgroundTaskActive = true;
+                PreviewVM.BackgroundTaskMessage = "Scanning folder…";
+                PreviewVM.BackgroundTaskProgress = -1;
+
                 var dialog = new Dialogs.xSyncFilterDia
                 {
                     DataContext = this,
                     RequestedThemeVariant = mainWindow.ActualThemeVariant
                 };
-                dialog.SetFolder(folder, pattern, search);
+                await dialog.SetFolderAsync(folder, pattern, search, versionFilter);
+
+                PreviewVM.BackgroundTaskActive = false;
+
                 await dialog.ShowDialog(mainWindow);
 
                 if (!dialog.Confirmed) return;
 
-                var newExcluded = dialog.GetExcludedFileNames();
-                var oldExcluded = new HashSet<string>(folder.ExcludedFiles, StringComparer.OrdinalIgnoreCase);
-                var newExcludedSet = new HashSet<string>(newExcluded, StringComparer.OrdinalIgnoreCase);
-
-                // Files that were just excluded — remove from project
-                var justExcluded = newExcludedSet.Except(oldExcluded).ToList();
-                if (justExcluded.Count > 0)
+                if (folder.Mode == SyncFolderMode.VersionDelivery)
                 {
-                    var nameSet = new HashSet<string>(justExcluded, StringComparer.OrdinalIgnoreCase);
-                    var filesToRemove = CurrentProject.StoredFiles
-                        .Where(f => f.IsFromFolder
-                            && string.Equals(f.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)
-                            && nameSet.Contains(f.Namn))
-                        .ToList();
-                    foreach (var f in filesToRemove)
-                        CurrentProject.StoredFiles.Remove(f);
-                }
+                    // Version folders use path-based exclusion because the same
+                    // file name can appear in multiple delivery subfolders.
+                    var newExcludedPaths = dialog.GetExcludedFilePaths();
+                    var oldExcludedSet = new HashSet<string>(folder.ExcludedFiles, StringComparer.OrdinalIgnoreCase);
+                    var newExcludedSet = new HashSet<string>(newExcludedPaths, StringComparer.OrdinalIgnoreCase);
 
-                folder.ExcludedFiles = newExcluded;
-                folder.InvalidateExclusionCache();
+                    // Paths that were just unchecked → remove matching versions
+                    var justExcludedPaths = newExcludedSet.Except(oldExcludedSet).ToList();
+                    if (justExcludedPaths.Count > 0)
+                    {
+                        // Find versions whose exact path matches a newly-excluded disk path
+                        var versionsToRemove = new List<(FileData File, FileVersionData Version)>();
+                        var pathSet = new HashSet<string>(justExcludedPaths, StringComparer.OrdinalIgnoreCase);
+                        foreach (var file in CurrentProject.StoredFiles)
+                        {
+                            foreach (var v in file.Versions)
+                            {
+                                if (pathSet.Contains(v.Sökväg))
+                                    versionsToRemove.Add((file, v));
+                            }
+                        }
 
-                CurrentProject.RefreshHasChildren();
-                UpdateFilter();
-                MarkDirty();
+                        if (versionsToRemove.Count > 0)
+                        {
+                            string folderName = new DirectoryInfo(folder.Path).Name;
+                            var removeEntries = versionsToRemove
+                                .Select(sv => (sv.Version.ShortName, sv.Version.Sökväg))
+                                .ToList();
+                            string subtitle = versionsToRemove.Count == 1
+                                ? "1 version will be removed"
+                                : $"{versionsToRemove.Count} versions will be removed";
+                            var removeDia = new Dialogs.xSyncRemoveDia
+                            {
+                                DataContext = this,
+                                RequestedThemeVariant = mainWindow.ActualThemeVariant
+                            };
+                            removeDia.SetFiles(removeEntries, folderName, subtitle);
+                            await removeDia.ShowDialog(mainWindow);
 
-                // Only auto-sync when files were re-included so they get
-                // imported. Pure exclusions are already handled above and
-                // don't need a sync (which would just show "up to date").
-                bool hasReIncluded = oldExcluded.Except(newExcludedSet).Any();
-                if (hasReIncluded)
-                {
-                    await SyncFolderAsync(folder, mainWindow);
+                            if (removeDia.Confirmed)
+                            {
+                                foreach (var (file, v) in versionsToRemove)
+                                    file.RemoveVersion(v);
+                            }
+                            else
+                            {
+                                return; // User declined — abort
+                            }
+                        }
+                    }
+
+                    folder.ExcludedFiles = newExcludedPaths;
+                    folder.InvalidateExclusionCache();
+
+                    CurrentProject.RefreshHasChildren();
                     UpdateFilter();
+                    MarkDirty();
+
+                    // Re-include: paths that were excluded before but are now checked
+                    bool hasReIncluded = oldExcludedSet.Except(newExcludedSet).Any();
+                    if (hasReIncluded)
+                    {
+                        await SyncFolderAsync(folder, mainWindow);
+                        UpdateFilter();
+                    }
+                    else
+                    {
+                        await RecordSyncBaselineAsync(folder);
+                    }
                 }
                 else
                 {
-                    await RecordSyncBaselineAsync(folder);
+                    // Non-version folders use name-based exclusion (original logic)
+                    var newExcluded = dialog.GetExcludedFileNames();
+                    var oldExcluded = new HashSet<string>(folder.ExcludedFiles, StringComparer.OrdinalIgnoreCase);
+                    var newExcludedSet = new HashSet<string>(newExcluded, StringComparer.OrdinalIgnoreCase);
+
+                    var justExcluded = newExcludedSet.Except(oldExcluded).ToList();
+                    if (justExcluded.Count > 0)
+                    {
+                        var nameSet = new HashSet<string>(justExcluded, StringComparer.OrdinalIgnoreCase);
+                        var filesToRemove = CurrentProject.StoredFiles
+                            .Where(f => f.IsFromFolder
+                                && string.Equals(f.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)
+                                && nameSet.Contains(f.Namn))
+                            .ToList();
+                        foreach (var f in filesToRemove)
+                            CurrentProject.StoredFiles.Remove(f);
+                    }
+
+                    folder.ExcludedFiles = newExcluded;
+                    folder.InvalidateExclusionCache();
+
+                    CurrentProject.RefreshHasChildren();
+                    UpdateFilter();
+                    MarkDirty();
+
+                    bool hasReIncluded = oldExcluded.Except(newExcludedSet).Any();
+                    if (hasReIncluded)
+                    {
+                        await SyncFolderAsync(folder, mainWindow);
+                        UpdateFilter();
+                    }
+                    else
+                    {
+                        await RecordSyncBaselineAsync(folder);
+                    }
                 }
             }
         }

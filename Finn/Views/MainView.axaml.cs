@@ -1353,6 +1353,14 @@ public partial class MainView : UserControl
         _ctx.RunDiffInPreviewer(pathA, pathB);
     }
 
+    private void OnLabelSelectedVersion(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { SelectedItem: string label }) return;
+        if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
+        _ctx.CurrentFile.SetVersionLabel(_ctx.SelectedVersion, label);
+        _ctx.MarkDirty();
+    }
+
     private void OnLabelFromFolderDate(object? sender, RoutedEventArgs e)
     {
         if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;

@@ -341,8 +341,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private int _diffOverlayPage = -1;
     private float _diffImageZoom = 1f;
 
-    /// <summary>Opacity for the diff overlay image (0..1). Default 0.45.</summary>
-    public double DiffOverlayOpacity { get; set; } = 0.45;
+    /// <summary>Opacity for the diff overlay image (0..1). Default 0.55.</summary>
+    public double DiffOverlayOpacity { get; set; } = 0.55;
 
     /// <summary>Whether the diff overlay is currently visible.</summary>
     public bool DiffOverlayVisible { get; set; }

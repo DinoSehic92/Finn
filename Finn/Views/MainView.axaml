@@ -312,16 +312,16 @@
 
 			<!-- Action bar (toggled via UI.ShowActionBar) -->
 			<StackPanel Orientation="Horizontal" Spacing="1" IsVisible="{Binding UI.ShowActionBar}" IsEnabled="{Binding FileSelected}" VerticalAlignment="Center">
-				<Button ToolTip.Tip="Open PDF"        Height="28" Width="28" Padding="0" Command="{Binding OpenFile}">
-					<ic:SymbolIcon Symbol="DocumentPdf" IconVariant="Regular" FontSize="15"/>
-				</Button>
-				<Button ToolTip.Tip="Open Folder"     Height="28" Width="28" Padding="0" Command="{Binding OpenPath}">
+				<Button ToolTip.Tip="Open PDF"        Height="28" Width="28" Padding="0" Command="{Binding OpenFile}" IsVisible="{Binding SelectedFileIsNotSketch}">
+						<ic:SymbolIcon Symbol="DocumentPdf" IconVariant="Regular" FontSize="15"/>
+					</Button>
+					<Button ToolTip.Tip="Open Folder"     Height="28" Width="28" Padding="0" Command="{Binding OpenPath}" IsVisible="{Binding SelectedFileIsNotSketch}">
 					<ic:SymbolIcon Symbol="FolderOpen" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
 				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
 
-				<Button ToolTip.Tip="Copy Name"       Height="28" Width="28" Padding="0" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}">
+				<Button ToolTip.Tip="Copy Name"       Height="28" Width="28" Padding="0" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
 					<ic:SymbolIcon Symbol="ClipboardText" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
@@ -654,7 +654,7 @@
 
 				<DataGrid.ContextMenu>
 					<ContextMenu Name="Menu">
-						<MenuItem Header="Open">
+						<MenuItem Header="Open" IsVisible="{Binding SelectedFileIsNotSketch}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
 							<MenuItem Header="Open PDF"      Command="{Binding OpenFile}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentPdf"/></MenuItem.Icon>
@@ -690,7 +690,7 @@
 							</MenuItem.ItemTemplate>
 						</MenuItem>
 
-						<MenuItem Header="Clipboard">
+						<MenuItem Header="Clipboard" IsVisible="{Binding SelectedFileIsNotSketch}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Clipboard"/></MenuItem.Icon>
 							<MenuItem Header="Name"  Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="TextBulletListAdd"/></MenuItem.Icon>
@@ -709,7 +709,7 @@
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Star"/></MenuItem.Icon>
 						</MenuItem>
 
-						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" IsVisible="{Binding SelectedFileIsTopLevel}">
+						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" IsVisible="{Binding CanCategorizeSelectedFiles}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Folder"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
@@ -790,7 +790,7 @@
 
 						<Separator/>
 
-						<MenuItem Header="Data">
+						<MenuItem Header="Data" IsVisible="{Binding SelectedFileIsNotSketch}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="ContentSettings"/></MenuItem.Icon>
 							<MenuItem Header="Metadata">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Database"/></MenuItem.Icon>
@@ -850,7 +850,7 @@
 							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
 								</MenuItem>
-							<MenuItem Header="Watermark">
+							<MenuItem Header="Watermark" IsVisible="{Binding SelectedFileIsNotSketch}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
 								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
@@ -865,7 +865,7 @@
 							<MenuItem Header="Replace" IsVisible="{Binding CanReplaceSelectedFiles}" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Cache Locally" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
+							<MenuItem Header="Cache Locally" IsVisible="{Binding CanCacheSelectedFiles}" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 							</MenuItem>
 									<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsTopLevel}">
@@ -932,7 +932,7 @@
 											</DataGridTemplateColumn>
 											<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="{Binding UI.FontSize}"/>
 											<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="{Binding UI.FontSize}" Foreground="Gray"/>
-											<DataGridTextColumn Binding="{Binding SyncedFileCount}"    Header="Files"             Width="60"   FontSize="{Binding UI.FontSize}"/>
+											<DataGridTextColumn Binding="{Binding DisplayFileCount}"    Header="Files"             Width="60"   FontSize="{Binding UI.FontSize}"/>
 											<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="{Binding UI.FontSize}" FontStyle="Italic" IsVisible="false"/>
 						</DataGrid.Columns>
 						<DataGrid.ContextMenu>
@@ -1224,7 +1224,7 @@
 				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}, ConverterParameter=0.7}"/>
 				<RowDefinition Height="{Binding UI.TrayOtherFiles,  Converter={StaticResource GridDefConverter}}"/>
 				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
+				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.6}"/>
 							<RowDefinition Height="{Binding UI.TrayAnnotations, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
 							<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
 						</Grid.RowDefinitions>
@@ -1390,16 +1390,8 @@
 			</Panel>
 
 			<!-- File versions panel -->
-								<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}" RowDefinitions="Auto,*">
-										<!-- Toolbar -->
-										<Grid Grid.Row="0" ColumnDefinitions="*,30,30" Margin="0,0,0,3">
-											<Border Grid.Column="0" Classes="shadow">
-												<ComboBox ItemsSource="{Binding VersionLabels}" SelectedItem="{Binding SelectedVersionLabel}" FontSize="{Binding UI.FontSize}" Height="30" HorizontalAlignment="Stretch"/>
-											</Border>
-											<Button Grid.Column="1" Width="30" Command="{Binding SetActiveVersionCommand}" ToolTip.Tip="Set as Active Version"><ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="16"/></Button>
-											<Button Grid.Column="2" Width="30" Command="{Binding ResetToOriginalCommand}" ToolTip.Tip="Reset to Original"><ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/></Button>
-										</Grid>
-										<DataGrid Grid.Row="1" Name="VersionsGrid"
+								<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}">
+										<DataGrid Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
 									<DataGrid.Styles>
@@ -1447,13 +1439,13 @@
 										<MenuItem Header="Open Folder" Command="{Binding OpenSelectedVersionFolderCommand}">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Header="Compare with Original" Click="OnCompareVersionWithOriginal">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Header="Compare with Previous" Click="OnCompareVersionWithPrevious">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentSearch"/></MenuItem.Icon>
-										</MenuItem>
 										<Separator/>
+										<MenuItem Header="Label" ItemsSource="{Binding VersionLabels}" Click="OnLabelSelectedVersion">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
+											<MenuItem.ItemTemplate>
+												<DataTemplate><TextBlock Text="{Binding StringFormat=' - {0}'}"/></DataTemplate>
+											</MenuItem.ItemTemplate>
+										</MenuItem>
 										<MenuItem Header="Label from Folder Date" Click="OnLabelFromFolderDate">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="CalendarSearch"/></MenuItem.Icon>
 										</MenuItem>

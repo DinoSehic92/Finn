@@ -21,7 +21,7 @@ public partial class xSyncRemoveDia : Window
         KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
     }
 
-    public void SetFiles(IReadOnlyList<(string Name, string Path)> files, string folderName)
+    public void SetFiles(IReadOnlyList<(string Name, string Path)> files, string folderName, string? subtitle = null)
     {
         foreach (var (name, path) in files)
         {
@@ -32,9 +32,10 @@ public partial class xSyncRemoveDia : Window
             });
         }
 
-        SubHeaderText.Text = files.Count == 1
-            ? "1 file no longer exists on disk"
-            : $"{files.Count} files no longer exist on disk";
+        SubHeaderText.Text = subtitle
+            ?? (files.Count == 1
+                ? "1 file no longer exists on disk"
+                : $"{files.Count} files no longer exist on disk");
 
         StatusText.Text = $"{files.Count} file(s) will be removed from the project on Accept";
     }

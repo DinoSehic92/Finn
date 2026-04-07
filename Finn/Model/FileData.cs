@@ -614,6 +614,15 @@ namespace Finn.Model
         }
 
         /// <summary>
+        /// True when this file is a saved whiteboard sketch.
+        /// Sketches share a single blank PDF canvas and should not be
+        /// replaced or cached since the file is local and shared.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsSketch => !string.IsNullOrEmpty(_sökväg)
+            && _sökväg.EndsWith("blank_whiteboard.pdf", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Registers a new version path for this file. On the first call the existing
         /// Sökväg is also recorded as the original so the history is complete.
         /// </summary>

@@ -18,25 +18,25 @@ public class AnnotationLayer : ObservableObject
 
     /// <summary>Strokes keyed by page number.</summary>
     [JsonInclude]
-    internal Dictionary<int, List<InkStroke>> PageStrokes { get; } = [];
+    internal Dictionary<int, List<InkStroke>> PageStrokes { get; set; } = [];
     [JsonIgnore]
     internal int StrokeCount { get; set; }
 
     /// <summary>Shapes keyed by page number.</summary>
     [JsonInclude]
-    internal Dictionary<int, List<ShapeAnnotation>> PageShapes { get; } = [];
+    internal Dictionary<int, List<ShapeAnnotation>> PageShapes { get; set; } = [];
     [JsonIgnore]
     internal int ShapeCount { get; set; }
 
     /// <summary>Text annotations keyed by page number.</summary>
     [JsonInclude]
-    internal Dictionary<int, List<TextAnnotation>> PageTexts { get; } = [];
+    internal Dictionary<int, List<TextAnnotation>> PageTexts { get; set; } = [];
     [JsonIgnore]
     internal int TextCount { get; set; }
 
     /// <summary>Measurement annotations keyed by page number.</summary>
     [JsonInclude]
-    internal Dictionary<int, List<MeasurementAnnotation>> PageMeasurements { get; } = [];
+    internal Dictionary<int, List<MeasurementAnnotation>> PageMeasurements { get; set; } = [];
     [JsonIgnore]
     internal int MeasurementCount { get; set; }
 

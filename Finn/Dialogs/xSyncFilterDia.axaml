@@ -50,7 +50,7 @@
 
         <DataGrid Name="FilterGrid" Grid.Row="2"
                   AutoGenerateColumns="False" IsReadOnly="False"
-                  GridLinesVisibility="None" SelectionMode="Single"
+                  GridLinesVisibility="None" SelectionMode="Extended"
                   CanUserReorderColumns="False" CanUserSortColumns="False"
                   Margin="5" VerticalAlignment="Stretch" RowHeight="22">
             <DataGrid.Styles>
@@ -92,7 +92,8 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="model:SyncFilterEntry">
                             <CheckBox Classes="compact" IsChecked="{Binding IsIncluded, Mode=TwoWay}"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"/>
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"
+                                      Click="OnCheckToggled"/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

@@ -1309,11 +1309,6 @@ namespace Finn.ViewModels
 
                 string openPath = path;
 
-                // Mark the file as cached so the UI shows the cache indicator
-                // and the setting persists for future sessions.
-                if (useCache && cachedLocally && !reqFileRef.IsCached)
-                    reqFileRef.IsCached = true;
-
                 // Create MuPDF objects on the background thread — document
                 // construction is pure native file I/O with no UI dependency.
                 // Only the renderer (Initialize) requires the UI thread.
@@ -1938,7 +1933,15 @@ namespace Finn.ViewModels
                         {
                             // Skip redundant re-render when already showing
                             // this page (e.g. DarkMode toggle, layout changes).
-                            if (CurrentPage1 == targetPage && mainRenderer.IsViewerInitialized)
+                            // Exception: when search results arrived after the
+                            // initial render, force re-Initialize so highlights
+                            // are composited into the render pass — Search()
+                            // alone doesn't repaint an already-rendered page.
+                            bool needsSearchHighlight = SearchPages?.Count > 0
+                                && SearchPages.Contains(targetPage) && regex != null;
+
+                            if (CurrentPage1 == targetPage && mainRenderer.IsViewerInitialized
+                                && !needsSearchHighlight)
                                 return;
 
                             mainRenderer.ReleaseResources();
