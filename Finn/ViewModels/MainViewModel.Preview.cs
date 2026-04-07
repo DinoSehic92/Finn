@@ -105,22 +105,29 @@ namespace Finn.ViewModels
         /// </summary>
         public async Task AddDroppedOtherFilesAsync(IEnumerable<string> filePaths, IEnumerable<string> folderPaths)
         {
-            if (OtherFilesOwner == null || IsSearchResult) return;
-
-            foreach (string path in filePaths)
-                AddOtherFile(path);
-
-            foreach (string path in folderPaths)
+            if (OtherFilesOwner == null || IsSearchResult || IsSyncing) return;
+            IsSyncing = true;
+            try
             {
-                if (IsDuplicateFolderPath(path))
-                    continue;
+                foreach (string path in filePaths)
+                    AddOtherFile(path);
 
-                var folder = CreateAttachedFolder(path, "Other Files");
-                CurrentProject.Folders.Add(folder);
-                await SyncFolderAsync(folder);
+                foreach (string path in folderPaths)
+                {
+                    if (IsDuplicateFolderPath(path))
+                        continue;
+
+                    var folder = CreateAttachedFolder(path, "Other Files");
+                    CurrentProject.Folders.Add(folder);
+                    await SyncFolderAsync(folder);
+                }
+
+                RefreshFolderWatchers();
             }
-
-            RefreshFolderWatchers();
+            finally
+            {
+                IsSyncing = false;
+            }
         }
 
         /// <summary>
@@ -129,25 +136,86 @@ namespace Finn.ViewModels
         /// </summary>
         public async Task AddDroppedFoldersAsync(IEnumerable<string> paths, Window? mainWindow = null)
         {
-            if (IsSearchResult) return;
-
-            foreach (string path in paths)
+            if (IsSearchResult || IsSyncing) return;
+            IsSyncing = true;
+            try
             {
-                if (IsDuplicateFolderPath(path))
-                    continue;
-
-                var folder = new FolderData
+                foreach (string path in paths)
                 {
-                    Name = new System.IO.DirectoryInfo(path).Name,
-                    AttachToFile = "PROJECT",
-                    Types = "PDF",
-                    Path = path
-                };
-                CurrentProject.Folders.Add(folder);
-                await SyncFolderAsync(folder, mainWindow);
-            }
+                    if (IsDuplicateFolderPath(path))
+                        continue;
 
-            RefreshFolderWatchers();
+                    var folder = new FolderData
+                    {
+                        Name = new System.IO.DirectoryInfo(path).Name,
+                        AttachToFile = "PROJECT",
+                        Types = "PDF",
+                        Path = path
+                    };
+                    CurrentProject.Folders.Add(folder);
+                    await SyncFolderAsync(folder, mainWindow);
+                }
+
+                RefreshFolderWatchers();
+            }
+            finally
+            {
+                IsSyncing = false;
+            }
+        }
+
+        /// <summary>
+        /// Processes dropped folder paths for the folder grid as version-delivery folders.
+        /// Guards against concurrent syncs.
+        /// </summary>
+        public async Task AddDroppedVersionFoldersAsync(IEnumerable<string> paths, Window? mainWindow = null)
+        {
+            if (IsSearchResult || IsSyncing) return;
+            IsSyncing = true;
+            try
+            {
+                foreach (string path in paths)
+                {
+                    NewVersionFolder(path);
+                    var folder = CurrentProject.Folders.LastOrDefault();
+                    if (folder != null)
+                        await SyncFolderAsync(folder, mainWindow);
+                }
+            }
+            finally
+            {
+                IsSyncing = false;
+            }
+        }
+
+        /// <summary>
+        /// Creates and syncs an attached-files folder for the current file.
+        /// Skips duplicate paths. Guards against concurrent syncs.
+        /// Called from the Attach Files dialog.
+        /// </summary>
+        public async Task AddAttachedFolderAsync(string folderPath)
+        {
+            if (CurrentFile == null || string.IsNullOrEmpty(folderPath)) return;
+            if (IsDuplicateFolderPath(folderPath)) return;
+
+            IsSyncing = true;
+            try
+            {
+                NewFileFolder();
+                var folder = CurrentProject.Folders.LastOrDefault();
+                if (folder != null)
+                {
+                    folder.Path = folderPath;
+                    folder.Name = new System.IO.DirectoryInfo(folderPath).Name;
+                    folder.Types = "PDF";
+                    await SyncFolderAsync(folder);
+                }
+                RefreshFolderWatchers();
+            }
+            finally
+            {
+                IsSyncing = false;
+            }
         }
 
         private FolderData CreateAttachedFolder(string path, string types) => new()

@@ -859,10 +859,10 @@
 									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
 								</MenuItem>
 							</MenuItem>
-							<MenuItem Header="Rename" IsEnabled="{Binding CurrentFile.IsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}">
+							<MenuItem Header="Rename" IsVisible="{Binding SelectedFileIsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
 							</MenuItem>
-							<MenuItem Header="Replace" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
+							<MenuItem Header="Replace" IsVisible="{Binding CanReplaceSelectedFiles}" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Cache Locally" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
@@ -946,6 +946,9 @@
 								</MenuItem>
 								<MenuItem Header="Sync All" Click="OnSyncAllFolders">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Manage Synced Files…" Click="OnManageSyncFilter">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Filter"/></MenuItem.Icon>
 								</MenuItem>
 								<Separator/>
 								<MenuItem Header="Delete" Click="OnRemoveFolder">

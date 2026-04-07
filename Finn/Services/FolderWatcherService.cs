@@ -75,9 +75,7 @@ namespace Finn.Services
                         var watcher = new FileSystemWatcher(path)
                         {
                             NotifyFilter = NotifyFilters.FileName
-                                         | NotifyFilters.DirectoryName
-                                         | NotifyFilters.LastWrite
-                                         | NotifyFilters.Size,
+                                         | NotifyFilters.DirectoryName,
                             IncludeSubdirectories = true,
                             EnableRaisingEvents = true
                         };
@@ -85,7 +83,6 @@ namespace Finn.Services
                         watcher.Created += OnFileEvent;
                         watcher.Deleted += OnFileEvent;
                         watcher.Renamed += OnFileEvent;
-                        watcher.Changed += OnFileEvent;
                         watcher.Error += OnWatcherError;
 
                         _watchers[path] = watcher;

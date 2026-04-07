@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Finn.Model
@@ -49,14 +50,14 @@ namespace Finn.Model
         public string Types
         {
             get => types;
-            set { types = value; OnPropertyChanged(nameof(Types)); }
+            set { types = value; _cachedMode = null; OnPropertyChanged(nameof(Types)); }
         }
 
         private string? attachToFile;
         public string? AttachToFile
         {
             get { return attachToFile; }
-            set { attachToFile = value; OnPropertyChanged(nameof(AttachToFile)); }
+            set { attachToFile = value; _cachedMode = null; OnPropertyChanged(nameof(AttachToFile)); }
         }
 
         private string? attachToFilePath = null;
@@ -93,16 +94,19 @@ namespace Finn.Model
         /// <summary>
         /// Infers the sync mode from the existing <see cref="Types"/> and
         /// <see cref="AttachToFile"/> fields. Backward-compatible with data
-        /// created before the enum existed.
+        /// created before the enum existed. Cached to avoid re-evaluating
+        /// the switch on every access; invalidated when <see cref="Types"/>
+        /// or <see cref="AttachToFile"/> changes.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
-        public SyncFolderMode Mode => Types switch
+        public SyncFolderMode Mode => _cachedMode ??= Types switch
         {
             "Versions" => SyncFolderMode.VersionDelivery,
             "Other Files" when !IsProjectLevel => SyncFolderMode.OtherFiles,
             _ when !IsProjectLevel => SyncFolderMode.AttachedFiles,
             _ => SyncFolderMode.ProjectFiles
         };
+        private SyncFolderMode? _cachedMode;
 
         /// <summary>Short user-facing label for the folder's sync mode.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
@@ -138,6 +142,30 @@ namespace Finn.Model
         /// <summary>Sort key that groups folders by mode in a natural order.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public int SortOrder => (int)Mode;
+
+        /// <summary>
+        /// File names (without extension) excluded from sync.
+        /// Persisted with the project so exclusions survive restarts.
+        /// </summary>
+        public List<string> ExcludedFiles { get; set; } = [];
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="fileName"/> (without extension)
+        /// is in the exclusion list.
+        /// </summary>
+        public bool IsExcluded(string fileName)
+        {
+            if (ExcludedFiles.Count == 0) return false;
+            _excludedSet ??= new HashSet<string>(ExcludedFiles, StringComparer.OrdinalIgnoreCase);
+            return _excludedSet.Contains(fileName);
+        }
+
+        /// <summary>Lazily built O(1) lookup for <see cref="ExcludedFiles"/>.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        private HashSet<string>? _excludedSet;
+
+        /// <summary>Invalidates the cached exclusion set. Call after modifying <see cref="ExcludedFiles"/>.</summary>
+        public void InvalidateExclusionCache() => _excludedSet = null;
 
         /// <summary>
         /// Checks whether the folder exists on disk.

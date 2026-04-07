@@ -275,18 +275,15 @@ namespace Finn.ViewModels
                 SignalColumnsChanged();
                 BuildTreeData();
 
-                // Snapshot pre-sync state for non-project folders so we can report changes
+                // Snapshot pre-sync state for OtherFiles folders so we can report changes.
+                // AttachedFiles, VersionDelivery, and ProjectFiles show their own dialogs.
                 int preCount = 0;
-                if (!folder.IsProjectLevel)
+                bool showNotification = folder.Mode is SyncFolderMode.OtherFiles;
+                if (showNotification)
                 {
-                    preCount = folder.Mode == SyncFolderMode.AttachedFiles
-                        ? CurrentProject.StoredFiles.Count(x =>
-                            x.ParentNamn == folder.AttachToFile
-                            && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
-                        : folder.Mode == SyncFolderMode.OtherFiles
-                            ? CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile)
-                                ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0
-                            : 0;
+                    preCount = CurrentProject.StoredFiles.FirstOrDefault(
+                                x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase))
+                            ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0;
                 }
 
                 // Run the sync for this single folder
@@ -299,17 +296,11 @@ namespace Finn.ViewModels
                     UpdateFilter();
                     BuildTreeData();
 
-                    // Show a notification for non-project folders that sync silently
-                    if (confirmed && mainWindow != null)
+                    if (confirmed && showNotification && mainWindow != null)
                     {
-                        int postCount = folder.Mode == SyncFolderMode.AttachedFiles
-                            ? CurrentProject.StoredFiles.Count(x =>
-                                x.ParentNamn == folder.AttachToFile
-                                && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
-                            : folder.Mode == SyncFolderMode.OtherFiles
-                                ? CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile)
-                                    ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0
-                                : 0;
+                        int postCount = CurrentProject.StoredFiles.FirstOrDefault(
+                                    x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase))
+                                ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0;
 
                         string folderName = new System.IO.DirectoryInfo(folder.Path).Name;
                         string message = postCount == preCount
@@ -732,6 +723,8 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(AllSelectedFilesHaveVersions));
                     OnPropertyChanged(nameof(SelectedFileIsTopLevel));
                     OnPropertyChanged(nameof(CanMoveSelectedFiles));
+                    OnPropertyChanged(nameof(SelectedFileIsLocal));
+                    OnPropertyChanged(nameof(CanReplaceSelectedFiles));
                 }
             }
 
@@ -764,6 +757,22 @@ namespace Finn.ViewModels
             public bool CanMoveSelectedFiles =>
                 CurrentFiles != null && CurrentFiles.Count > 0
                 && CurrentFiles.All(f => !f.IsAppendedFile && !f.IsFromFolder);
+
+            /// <summary>
+            /// True when the selected file is local (path starts with C:).
+            /// Used to hide Rename for non-local files.
+            /// </summary>
+            public bool SelectedFileIsLocal =>
+                CurrentFile != null && CurrentFile.IsLocal();
+
+            /// <summary>
+            /// True when Replace makes sense for the selected files.
+            /// Synced files should not be replaced because the sync would
+            /// revert them on the next run.
+            /// </summary>
+            public bool CanReplaceSelectedFiles =>
+                CurrentFiles != null && CurrentFiles.Count > 0
+                && CurrentFiles.All(f => !f.IsFromFolder);
 
             private FileVersionData? selectedVersion;
             /// <summary>

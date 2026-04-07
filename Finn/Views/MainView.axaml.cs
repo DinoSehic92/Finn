@@ -353,13 +353,7 @@ public partial class MainView : UserControl
             if (folders.Count == 0) return;
 
             var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-            foreach (string path in folders)
-            {
-                _ctx.NewVersionFolder(path);
-                var folder = _ctx.CurrentProject.Folders.LastOrDefault();
-                if (folder != null)
-                    await _ctx.SyncVersionFolderAsync(folder, window);
-            }
+            await _ctx.AddDroppedVersionFoldersAsync(folders, window);
             UpdateFolderEmptyState();
         }
         catch (Exception ex) { Utils.ErrorLogger.Log(ex, "OnDropVersionFolder"); }
@@ -802,21 +796,7 @@ public partial class MainView : UserControl
             _ctx.AddAppendedFile(path);
 
         foreach (string folderPath in dialog.AcceptedFolders)
-        {
-            if (_ctx.CurrentProject.Folders.Any(f =>
-                string.Equals(f.Path, folderPath, StringComparison.OrdinalIgnoreCase)))
-                continue;
-
-            _ctx.NewFileFolder();
-            var folder = _ctx.CurrentProject.Folders.LastOrDefault();
-            if (folder != null)
-            {
-                folder.Path = folderPath;
-                folder.Name = new System.IO.DirectoryInfo(folderPath).Name;
-                folder.Types = "PDF";
-                await _ctx.SyncFolderAsync(folder);
-            }
-        }
+            await _ctx.AddAttachedFolderAsync(folderPath);
 
         _ctx.RefreshFolderWatchers();
 
@@ -873,6 +853,13 @@ public partial class MainView : UserControl
             _ctx.MarkDirty();
             UpdateFolderEmptyState();
         }
+    }
+
+    private async void OnManageSyncFilter(object? sender, RoutedEventArgs e)
+    {
+        if (FolderGrid.SelectedItem is not FolderData folder) return;
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.ShowSyncFilterDialogAsync(folder, window);
     }
 
     private void OnFolderTypesInfo(object? sender, RoutedEventArgs e)
