@@ -139,7 +139,12 @@ namespace Finn.Model
         [System.Text.Json.Serialization.JsonIgnore]
         public int SortOrder => (int)Mode;
 
-        public bool IsValid()
+        /// <summary>
+        /// Checks whether the folder exists on disk.
+        /// WARNING: This performs I/O (<see cref="Directory.Exists"/>).
+        /// Do not call on the UI thread for network paths.
+        /// </summary>
+        public bool ExistsOnDisk()
         {
             return Directory.Exists(Path);
         }

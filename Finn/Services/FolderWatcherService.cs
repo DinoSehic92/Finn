@@ -41,7 +41,7 @@ namespace Finn.Services
             {
                 foreach (var folder in project.Folders)
                 {
-                    if (folder.IsValid() && !string.IsNullOrEmpty(folder.Path))
+                    if (!string.IsNullOrEmpty(folder.Path))
                         activePaths.Add(folder.Path);
                 }
             }

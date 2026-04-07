@@ -138,8 +138,8 @@ public partial class MainView : UserControl
 
                 // Start watching sync folders for file changes (if enabled)
                 _ctx.RefreshFolderWatchers();
-                // Check if any folders changed while the app was closed
-                _ctx.CheckFolderSyncOnStartup();
+                // Check if any folders changed while the app was closed (async — no UI freeze)
+                _ = _ctx.CheckFolderSyncOnStartupAsync();
 
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;
@@ -273,7 +273,7 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.FolderWatchEnabled):
                 _ctx.RefreshFolderWatchers();
                 if (_ctx.UI.FolderWatchEnabled)
-                    _ctx.CheckFolderSyncOnStartup();
+                    _ = _ctx.CheckFolderSyncOnStartupAsync();
                 else
                     _ctx.DismissFolderSyncNotification();
                 break;

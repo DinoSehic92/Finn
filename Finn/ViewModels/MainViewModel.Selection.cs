@@ -47,8 +47,15 @@ namespace Finn.ViewModels
 
         public void RemoveSelectedFiles()
         {
+            // Track sync folders affected by removal so we can
+            // flag them as pending sync immediately.
+            var affectedSyncFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             foreach (FileData file in CurrentFiles.ToList())
             {
+                if (file.IsFromFolder && !string.IsNullOrEmpty(file.SyncFolder))
+                    affectedSyncFolders.Add(file.SyncFolder);
+
                 if (file.IsAppendedFile)
                 {
                     // Detach appended file
@@ -65,6 +72,9 @@ namespace Finn.ViewModels
                     .Where(x => x.ParentNamn == file.Namn).ToList();
                 foreach (var child in children)
                 {
+                    if (child.IsFromFolder && !string.IsNullOrEmpty(child.SyncFolder))
+                        affectedSyncFolders.Add(child.SyncFolder);
+
                     child.PartOfCollections.Clear();
                     child.ParentNamn = string.Empty;
                     child.ParentFile = null;
@@ -80,6 +90,10 @@ namespace Finn.ViewModels
             CurrentProject.RefreshHasChildren();
             CurrentProject.SetFiletypeList();
             MarkDirty();
+
+            // Flag affected sync folders as needing re-sync
+            if (affectedSyncFolders.Count > 0)
+                FlagSyncFoldersAsPending(affectedSyncFolders);
         }
 
         public void SetDefaultType()

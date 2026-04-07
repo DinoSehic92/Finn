@@ -12,6 +12,16 @@ namespace Finn.ViewModels
     {
         public partial class MainViewModel
         {
+            private bool _isSyncing;
+            /// <summary>
+            /// True while a sync operation is in progress. Prevents concurrent syncs.
+            /// </summary>
+            public bool IsSyncing
+            {
+                get => _isSyncing;
+                private set { _isSyncing = value; OnPropertyChanged(nameof(IsSyncing)); }
+            }
+
             /// <summary>
             /// Returns <c>true</c> when the current project already contains a
             /// folder entry whose <see cref="FolderData.Path"/> matches
@@ -112,33 +122,43 @@ namespace Finn.ViewModels
 
             public async Task SyncFoldersAsync(List<FolderData> folders, Window? mainWindow = null)
             {
-                int fileCountBefore = CurrentProject.StoredFiles.Count;
-                var syncedPaths = new List<string>();
-
-                foreach (var folder in folders)
+                if (IsSyncing) return;
+                IsSyncing = true;
+                try
                 {
-                    bool confirmed = await SyncFolderAsync(folder, mainWindow);
-                    if (confirmed && !string.IsNullOrEmpty(folder.Path))
-                        syncedPaths.Add(folder.Path);
+                    int fileCountBefore = CurrentProject.StoredFiles.Count;
+                    var syncedPaths = new List<string>();
+
+                    for (int i = 0; i < folders.Count; i++)
+                    {
+                        PreviewVM.BackgroundTaskActive = true;
+                        PreviewVM.BackgroundTaskMessage = $"Syncing folder {i + 1}/{folders.Count}…";
+                        PreviewVM.BackgroundTaskProgress = (int)(100.0 * i / folders.Count);
+
+                        bool confirmed = await SyncFolderAsync(folders[i], mainWindow);
+                        if (confirmed && !string.IsNullOrEmpty(folders[i].Path))
+                            syncedPaths.Add(folders[i].Path);
+                    }
+
+                    PreviewVM.BackgroundTaskActive = false;
+
+                    int delta = CurrentProject.StoredFiles.Count - fileCountBefore;
+                    if (delta > 0)
+                        PreviewVM.StatusMessage = $"Sync complete — {delta} file(s) added";
+                    else if (delta < 0)
+                        PreviewVM.StatusMessage = $"Sync complete — {-delta} file(s) removed";
+                    else
+                        PreviewVM.StatusMessage = "All folders up to date";
+
+                    if (syncedPaths.Count > 0)
+                        ClearSyncEntriesByPath(syncedPaths);
+
+                    UpdateFilter();
                 }
-
-                int delta = CurrentProject.StoredFiles.Count - fileCountBefore;
-                if (delta > 0)
-                    PreviewVM.StatusMessage = $"Sync complete — {delta} file(s) added";
-                else if (delta < 0)
-                    PreviewVM.StatusMessage = $"Sync complete — {-delta} file(s) removed";
-                else
-                    PreviewVM.StatusMessage = "All folders up to date";
-
-                // Only clear entries for folders that actually completed.
-                // Cancelled folders stay in PendingSyncFolders so the user
-                // can retry them later.
-                if (syncedPaths.Count > 0)
-                    ClearSyncEntriesByPath(syncedPaths);
-
-                // Ensure the grid reflects any changes from non-project-level syncs
-                // (project-level SyncFolderAsync already calls UpdateFilter internally).
-                UpdateFilter();
+                finally
+                {
+                    IsSyncing = false;
+                }
             }
 
             /// <summary>
@@ -180,17 +200,6 @@ namespace Finn.ViewModels
                 return known;
             }
 
-            public async Task SyncFileAsync()
-            {
-                if (CurrentFile != null)
-                {
-                    foreach (FolderData folder in CurrentProject.Folders.Where(x => x.AttachToFilePath == CurrentFile.Sökväg))
-                    {
-                        await SyncFolderAsync(folder);
-                    }
-                }
-            }
-
             /// <summary>
             /// Syncs a single folder. Returns <c>true</c> when the sync completed
             /// successfully (or there was nothing to do), <c>false</c> when the
@@ -198,16 +207,22 @@ namespace Finn.ViewModels
             /// </summary>
             public async Task<bool> SyncFolderAsync(FolderData folder, Window? mainWindow = null)
             {
-                if (folder?.IsValid() != true || folder.Path == null)
-                {
+                if (folder == null || string.IsNullOrEmpty(folder.Path))
                     return false;
-                }
 
+                // Acquire the sync guard if not already held by a parent call
+                bool ownGuard = !IsSyncing;
+                if (ownGuard) IsSyncing = true;
+
+                try
+                {
+                if (!folder.ExistsOnDisk())
+                    return false;
                 if (folder.Mode == SyncFolderMode.VersionDelivery)
                 {
                     bool versionResult = await SyncVersionFolderAsync(folder, mainWindow);
                     if (versionResult)
-                        RecordSyncBaseline(folder);
+                        await RecordSyncBaselineAsync(folder);
                     return versionResult;
                 }
 
@@ -220,7 +235,6 @@ namespace Finn.ViewModels
 
                     if (folder.Mode == SyncFolderMode.AttachedFiles)
                     {
-                        // Remove old synced appended files for this folder
                         var oldSynced = CurrentProject.StoredFiles
                             .Where(x => x.ParentNamn == file.Namn
                                 && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
@@ -228,7 +242,7 @@ namespace Finn.ViewModels
                         foreach (var old in oldSynced)
                             CurrentProject.StoredFiles.Remove(old);
 
-                        var newFiles = GetFilesFromFolder(folder);
+                        var newFiles = await Task.Run(() => GetFilesFromFolder(folder, CurrentProject.Namn));
                         foreach (var f in newFiles)
                         {
                             f.ParentNamn = file.Namn;
@@ -243,17 +257,20 @@ namespace Finn.ViewModels
                     {
                         var remaining = file.OtherFiles
                             .Where(x => !string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase));
-                        var newFiles = GetOtherFilesFromFolder(folder);
+                        var newFiles = await Task.Run(() => GetOtherFilesFromFolder(folder));
                         file.OtherFiles.ReplaceAll(remaining.Concat(newFiles).OrderBy(x => x.Name));
                     }
 
-                    // Record the sync baseline so startup detection
-                    // compares against actual disk state, not wall-clock time.
-                    RecordSyncBaseline(folder);
+                    await RecordSyncBaselineAsync(folder);
                     return true;
                 }
 
                 return await SyncProjectFolderAsync(folder, mainWindow);
+                }
+                finally
+                {
+                    if (ownGuard) IsSyncing = false;
+                }
             }
 
             /// <summary>
@@ -262,8 +279,32 @@ namespace Finn.ViewModels
             /// </summary>
             private async Task<bool> SyncProjectFolderAsync(FolderData folder, Window? mainWindow)
             {
-                var diff = ComputeProjectFolderDiff(folder);
+                string folderName = new DirectoryInfo(folder.Path).Name;
+                PreviewVM.BackgroundTaskActive = true;
+                PreviewVM.BackgroundTaskMessage = $"Scanning \"{folderName}\"…";
+                PreviewVM.BackgroundTaskProgress = -1;
+
+                var diff = await ComputeProjectFolderDiffAsync(folder);
+
+                PreviewVM.BackgroundTaskActive = false;
                 bool userCancelled = false;
+
+                // Nothing on disk has changed — show a brief notification and heal the baseline
+                if (diff.Removals.Count == 0 && diff.Additions.Count == 0
+                    && diff.VersionCandidates.Count == 0 && diff.SkippedCount == 0)
+                {
+                    await RecordSyncBaselineAsync(folder);
+                    if (mainWindow != null)
+                    {
+                        var msgDia = new Dialogs.xMessageDia
+                        {
+                            RequestedThemeVariant = mainWindow.ActualThemeVariant
+                        };
+                        msgDia.SetMessage($"Folder \"{folderName}\" is already up to date.\nBaseline refreshed.");
+                        await msgDia.ShowDialog(mainWindow);
+                    }
+                    return true;
+                }
 
                 // 1. Handle removals
                 if (diff.Removals.Count > 0)
@@ -283,7 +324,7 @@ namespace Finn.ViewModels
                 BuildTreeData();
 
                 if (!userCancelled)
-                    RecordSyncBaseline(folder);
+                    await RecordSyncBaselineAsync(folder);
 
                 return !userCancelled;
             }
@@ -301,12 +342,13 @@ namespace Finn.ViewModels
 
             /// <summary>
             /// Computes what needs to be added/removed to bring the project in
-            /// sync with the folder on disk. No side-effects other than adopting
-            /// orphaned files into the sync folder.
+            /// sync with the folder on disk. Runs the directory scan on a
+            /// background thread so the UI stays responsive.
             /// </summary>
-            private ProjectFolderDiff ComputeProjectFolderDiff(FolderData folder)
+            private async Task<ProjectFolderDiff> ComputeProjectFolderDiffAsync(FolderData folder)
             {
-                var diskFiles = GetFilesFromFolder(folder);
+                string projectName = CurrentProject.Namn;
+                var diskFiles = await Task.Run(() => GetFilesFromFolder(folder, projectName));
                 var diskPaths = new HashSet<string>(diskFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
 
                 var existingFiles = CurrentProject.StoredFiles
@@ -536,12 +578,14 @@ namespace Finn.ViewModels
             /// </summary>
             public async Task<bool> SyncVersionFolderAsync(FolderData folder, Window? mainWindow = null)
             {
-                if (folder?.IsValid() != true || folder.Path == null) return false;
+                if (folder?.ExistsOnDisk() != true || folder.Path == null) return false;
 
-                // Collect all PDFs recursively, sorted by path so subfolder order is consistent
-                var allPdfs = Directory.EnumerateFiles(folder.Path, "*.pdf", SearchOption.AllDirectories)
-                    .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
+                // Collect all PDFs recursively on a background thread
+                // to avoid blocking the UI on network shares.
+                var allPdfs = await Task.Run(() =>
+                    Directory.EnumerateFiles(folder.Path, "*.pdf", SearchOption.AllDirectories)
+                        .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                        .ToList());
 
                 // Remove stale versions whose files no longer exist on disk
                 var diskPaths = new HashSet<string>(allPdfs, StringComparer.OrdinalIgnoreCase);
@@ -750,11 +794,11 @@ namespace Finn.ViewModels
             [GeneratedRegex(@"(?<!\d)\d{6}(?!\d)")]
             private static partial Regex DatePatternShort();
 
-            private List<FileData> GetFilesFromFolder(FolderData folder)
+            private List<FileData> GetFilesFromFolder(FolderData folder, string projectName)
             {
                 List<FileData> files = new();
 
-                if (folder.IsValid())
+                if (folder.ExistsOnDisk())
                 {
                     var (pattern, search) = GetFileFilter(folder);
                     foreach (string path in Directory.GetFiles(folder.Path, pattern, search))
@@ -763,7 +807,7 @@ namespace Finn.ViewModels
                         {
                             Namn = System.IO.Path.GetFileNameWithoutExtension(path),
                             Sökväg = path,
-                            Uppdrag = CurrentProject.Namn,
+                            Uppdrag = projectName,
                             Filtyp = NEW_TYPE,
                             SyncFolder = folder.Path,
                             IsFromFolder = true
@@ -778,7 +822,7 @@ namespace Finn.ViewModels
             {
                 List<OtherData> files = new();
 
-                if (folder.IsValid())
+                if (folder.ExistsOnDisk())
                 {
                     foreach (string path in Directory.GetFiles(folder.Path))
                     {

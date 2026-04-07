@@ -188,6 +188,43 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
+            /// Immediately flags the sync folders at the given paths as pending
+            /// sync. Called when synced files are removed from the app so the
+            /// user sees the folder is out of sync without waiting for a check.
+            /// </summary>
+            private void FlagSyncFoldersAsPending(HashSet<string> folderPaths)
+            {
+                string projectName = CurrentProject?.Namn ?? string.Empty;
+
+                foreach (var folder in CurrentProject?.Folders ?? [])
+                {
+                    if (string.IsNullOrEmpty(folder.Path) || !folderPaths.Contains(folder.Path))
+                        continue;
+
+                    TryAddPendingSyncEntry(SyncStatusEntry.FromFolder(folder, projectName, "File(s) removed"));
+                }
+
+                RaiseSyncStatusChanged();
+            }
+
+            /// <summary>
+            /// Adds a sync entry to <see cref="PendingSyncFolders"/> if no entry
+            /// with the same folder path and project name already exists.
+            /// Must be called on the UI thread.
+            /// </summary>
+            private bool TryAddPendingSyncEntry(SyncStatusEntry entry)
+            {
+                foreach (var existing in PendingSyncFolders)
+                {
+                    if (string.Equals(existing.FolderPath, entry.FolderPath, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(existing.ProjectName, entry.ProjectName, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                }
+                PendingSyncFolders.Add(entry);
+                return true;
+            }
+
+            /// <summary>
             /// Removes pending entries whose folder path matches any of the
             /// supplied paths (current project only). Used by batch-sync so
             /// only folders that actually completed are cleared.
@@ -218,7 +255,10 @@ namespace Finn.ViewModels
             /// </summary>
             public async Task<bool> SyncSingleEntryAsync(SyncStatusEntry entry, Window? mainWindow)
             {
-                if (entry == null || mainWindow == null) return false;
+                if (entry == null || mainWindow == null || IsSyncing) return false;
+                IsSyncing = true;
+                try
+                {
 
                 // Find the project and folder
                 var project = Storage.StoredProjects.FirstOrDefault(
@@ -235,14 +275,55 @@ namespace Finn.ViewModels
                 SignalColumnsChanged();
                 BuildTreeData();
 
+                // Snapshot pre-sync state for non-project folders so we can report changes
+                int preCount = 0;
+                if (!folder.IsProjectLevel)
+                {
+                    preCount = folder.Mode == SyncFolderMode.AttachedFiles
+                        ? CurrentProject.StoredFiles.Count(x =>
+                            x.ParentNamn == folder.AttachToFile
+                            && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
+                        : folder.Mode == SyncFolderMode.OtherFiles
+                            ? CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile)
+                                ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0
+                            : 0;
+                }
+
                 // Run the sync for this single folder
                 bool confirmed = await SyncFolderAsync(folder, mainWindow);
 
-                // Refresh the grid/tree — project-level SyncFolderAsync does this
-                // internally, but attached/other-files folders don't, so always
-                // call it here to ensure the UI reflects the changes.
-                UpdateFilter();
-                BuildTreeData();
+                // Refresh the grid/tree for non-project-level folders.
+                // SyncProjectFolderAsync already calls these internally.
+                if (folder.Mode != SyncFolderMode.ProjectFiles)
+                {
+                    UpdateFilter();
+                    BuildTreeData();
+
+                    // Show a notification for non-project folders that sync silently
+                    if (confirmed && mainWindow != null)
+                    {
+                        int postCount = folder.Mode == SyncFolderMode.AttachedFiles
+                            ? CurrentProject.StoredFiles.Count(x =>
+                                x.ParentNamn == folder.AttachToFile
+                                && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
+                            : folder.Mode == SyncFolderMode.OtherFiles
+                                ? CurrentProject.StoredFiles.FirstOrDefault(x => x.Namn == folder.AttachToFile)
+                                    ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0
+                                : 0;
+
+                        string folderName = new System.IO.DirectoryInfo(folder.Path).Name;
+                        string message = postCount == preCount
+                            ? $"Folder \"{folderName}\" is already up to date.\nBaseline refreshed."
+                            : $"Folder \"{folderName}\" synced.\n{postCount} file(s) (was {preCount}).";
+
+                        var msgDia = new Dialogs.xMessageDia
+                        {
+                            RequestedThemeVariant = mainWindow.ActualThemeVariant
+                        };
+                        msgDia.SetMessage(message);
+                        await msgDia.ShowDialog(mainWindow);
+                    }
+                }
 
                 if (confirmed)
                 {
@@ -253,218 +334,228 @@ namespace Finn.ViewModels
                 }
 
                 return confirmed;
+                }
+                finally
+                {
+                    IsSyncing = false;
+                }
             }
 
             /// <summary>
-            /// Performs a one-time comparison of every sync folder's tracked files
-            /// against the actual disk contents. Detects additions and removals
-            /// that happened while the app was closed and populates
-            /// <see cref="PendingSyncFolders"/> so the toolbar indicator can show them.
+            /// Performs a lightweight comparison of every sync folder's tracked
+            /// file count and timestamp against the stored baseline. Runs disk
+            /// I/O on a background thread so the UI stays responsive.
+            /// Populates <see cref="PendingSyncFolders"/> for the toolbar indicator.
             /// </summary>
-            public void CheckFolderSyncOnStartup()
+            public async Task CheckFolderSyncOnStartupAsync()
             {
                 if (!UI.FolderWatchEnabled) return;
-                CheckAllFoldersCore();
-            }
 
-            /// <summary>
-            /// Manually re-checks every sync folder across all projects.
-            /// Runs disk I/O on a background thread and updates the UI when done.
-            /// <para>
-            /// This is a <b>deep check</b>: for project-level and attached-file
-            /// folders it compares the actual set of disk files against the
-            /// tracked set — not just a count — so it catches additions and
-            /// removals even when the net count stays the same.
-            /// For folders that are genuinely in sync it heals stale baselines.
-            /// </para>
-            /// </summary>
-            public async Task CheckAllFoldersAsync()
-            {
-                // Snapshot project/folder pairs on the UI thread.
-                // For ProjectFiles / AttachedFiles we also snapshot the tracked
-                // file paths so we can do a set comparison on the background thread.
-                var pairs = new List<(string ProjectName, FolderData Folder, HashSet<string>? TrackedPaths)>();
+                // Snapshot the folder list on the UI thread.
+                // Don't call IsValid() here — it does Directory.Exists.
+                var pairs = new List<(string ProjectName, FolderData Folder)>();
                 foreach (var project in Storage.StoredProjects)
                 {
                     foreach (var folder in project.Folders)
                     {
-                        if (!folder.IsValid() || string.IsNullOrEmpty(folder.Path))
-                            continue;
-
-                        HashSet<string>? tracked = null;
-                        if (folder.Mode is SyncFolderMode.ProjectFiles or SyncFolderMode.AttachedFiles)
-                        {
-                            tracked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                            string folderPrefix = folder.Path.TrimEnd(System.IO.Path.DirectorySeparatorChar)
-                                                + System.IO.Path.DirectorySeparatorChar;
-                            foreach (var f in project.StoredFiles)
-                            {
-                                if (string.IsNullOrEmpty(f.Sökväg))
-                                    continue;
-
-                                bool belongsToFolder =
-                                    string.Equals(f.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase);
-
-                                // Adopt orphaned files whose path lives inside
-                                // this folder but were imported before the sync
-                                // folder was created (SyncFolder not set).
-                                if (!belongsToFolder
-                                    && string.IsNullOrEmpty(f.SyncFolder)
-                                    && f.Sökväg.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    AdoptFileIntoFolder(f, folder);
-                                    belongsToFolder = true;
-                                }
-
-                                if (belongsToFolder)
-                                    tracked.Add(f.Sökväg);
-                            }
-                        }
-
-                        pairs.Add((project.Namn, folder, tracked));
+                        if (!string.IsNullOrEmpty(folder.Path))
+                            pairs.Add((project.Namn, folder));
                     }
                 }
 
-                // Run the expensive disk I/O on a background thread
-                bool baselineUpdated = false;
+                // Run checks off the UI thread
                 var outOfSync = await Task.Run(() =>
                 {
-                    var results = new List<(string ProjectName, FolderData Folder)>();
-                    foreach (var (projectName, folder, tracked) in pairs)
+                    var results = new List<(string ProjectName, FolderData Folder, string Summary)>();
+                    foreach (var (projectName, folder) in pairs)
                     {
                         try
                         {
-                            bool isOutOfSync;
+                            if (!folder.ExistsOnDisk())
+                                continue;
 
-                            if (tracked != null)
-                            {
-                                // Deep set-based comparison for ProjectFiles /
-                                // AttachedFiles — catches additions and removals
-                                // even when the net count stays the same.
-                                var (pattern, search) = GetFileFilter(folder);
-                                var diskFiles = new HashSet<string>(
-                                    Directory.EnumerateFiles(folder.Path, pattern, search),
-                                    StringComparer.OrdinalIgnoreCase);
+                            if (folder.SyncedFileCount <= 0)
+                                continue; // Never synced
 
-                                isOutOfSync = !diskFiles.SetEquals(tracked);
-                            }
-                            else
-                            {
-                                // OtherFiles / VersionDelivery: count + timestamp
-                                isOutOfSync = IsFolderOutOfSync(folder);
-                            }
+                            // Fast path: root-dir timestamp.
+                            // Catches all changes for TopDirectoryOnly folders
+                            // and new delivery subfolders for VersionDelivery.
+                            if (folder.LastSyncedUtc is { } ts
+                                && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
+                                continue; // Nothing changed
 
-                            if (isOutOfSync)
-                            {
-                                results.Add((projectName, folder));
-                            }
-                            else
-                            {
-                                // Folder is genuinely in sync — heal stale baselines
-                                // so future startup / watcher checks don't false-positive.
-                                int diskCount = CountDiskFiles(folder);
-                                DateTime latestFile = GetLatestFileWriteTimeUtc(folder);
-                                bool needsHeal = folder.LastSyncedUtc == null
-                                    || folder.SyncedFileCount != diskCount
-                                    || latestFile > folder.LastSyncedUtc.Value;
+                            // Count files (the authoritative check).
+                            int diskCount = CountDiskFiles(folder);
+                            if (diskCount == folder.SyncedFileCount)
+                                continue; // Same count — in sync
 
-                                if (needsHeal)
-                                {
-                                    folder.SyncedFileCount = diskCount;
-                                    folder.LastSyncedUtc = latestFile;
-                                    baselineUpdated = true;
-                                }
-                            }
+                            int diff = diskCount - folder.SyncedFileCount;
+                            string summary = diff switch
+                            {
+                                > 0 => $"+{diff} new file(s)",
+                                < 0 => $"{diff} file(s)",
+                                _ => "Files changed"
+                            };
+                            results.Add((projectName, folder, summary));
                         }
                         catch { /* inaccessible folder — skip */ }
                     }
                     return results;
                 });
 
+                foreach (var (projectName, folder, summary) in outOfSync)
+                    TryAddPendingSyncEntry(SyncStatusEntry.FromFolder(folder, projectName, summary));
+                RaiseSyncStatusChanged();
+            }
+
+            /// <summary>
+            /// Manually re-checks every sync folder across all projects.
+            /// Compares file count and directory timestamp against the stored
+            /// baseline. Heals stale baselines for folders that are in sync.
+            /// Runs disk I/O on a background thread and updates the UI when done.
+            /// </summary>
+            public async Task CheckAllFoldersAsync()
+            {
+                // Snapshot project/folder pairs on the UI thread.
+                // Don't call IsValid() here — it does Directory.Exists
+                // which blocks on network shares.
+                var pairs = new List<(string ProjectName, FolderData Folder)>();
+                foreach (var project in Storage.StoredProjects)
+                {
+                    foreach (var folder in project.Folders)
+                    {
+                        if (string.IsNullOrEmpty(folder.Path))
+                            continue;
+
+                        pairs.Add((project.Namn, folder));
+                    }
+                }
+
+                if (pairs.Count == 0) return;
+
+                // Show progress via the existing background-task indicator
+                PreviewVM.BackgroundTaskActive = true;
+                PreviewVM.BackgroundTaskMessage = $"Checking 0/{pairs.Count} folders…";
+                PreviewVM.BackgroundTaskProgress = 0;
+
+                // Run disk I/O on a background thread.
+                bool baselineUpdated = false;
+                int checked_ = 0;
+                var progress = new Progress<int>(i =>
+                {
+                    PreviewVM.BackgroundTaskMessage = $"Checking {i}/{pairs.Count} folders…";
+                    PreviewVM.BackgroundTaskProgress = (int)(100.0 * i / pairs.Count);
+                });
+
+                var outOfSync = await Task.Run(() =>
+                {
+                    var results = new List<(string ProjectName, FolderData Folder, string Summary)>();
+                    foreach (var (projectName, folder) in pairs)
+                    {
+                        try
+                        {
+                            if (!folder.ExistsOnDisk())
+                            {
+                                checked_++;
+                                ((IProgress<int>)progress).Report(checked_);
+                                continue;
+                            }
+
+                            bool hasBaseline = folder.SyncedFileCount > 0;
+
+                            // Fast path: one root-dir timestamp read.
+                            // For TopDirectoryOnly this catches all changes.
+                            // For AllDirectories (version folders) this catches
+                            // new delivery subfolders being added, which is the
+                            // primary change vector. Changes inside existing
+                            // subfolders are handled by the FileSystemWatcher.
+                            if (hasBaseline
+                                && folder.LastSyncedUtc is { } ts
+                                && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
+                            {
+                                // Root directory unchanged — skip.
+                            }
+                            else
+                            {
+                                int diskCount = CountDiskFiles(folder);
+
+                                if (hasBaseline && diskCount != folder.SyncedFileCount)
+                                {
+                                    int diff = diskCount - folder.SyncedFileCount;
+                                    string summary = diff switch
+                                    {
+                                        > 0 => $"+{diff} new file(s)",
+                                        < 0 => $"{diff} file(s)",
+                                        _ => "Files changed"
+                                    };
+                                    results.Add((projectName, folder, summary));
+                                }
+                                else if (folder.SyncedFileCount != diskCount
+                                         || folder.LastSyncedUtc == null)
+                                {
+                                    // Heal baseline
+                                    folder.SyncedFileCount = diskCount;
+                                    folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
+                                    baselineUpdated = true;
+                                }
+                            }
+                        }
+                        catch { /* inaccessible folder — skip */ }
+
+                        checked_++;
+                        ((IProgress<int>)progress).Report(checked_);
+                    }
+                    return results;
+                });
+
                 // Rebuild PendingSyncFolders from scratch so stale entries are removed
                 PendingSyncFolders.Clear();
-                foreach (var (projectName, folder) in outOfSync)
+                foreach (var (projectName, folder, summary) in outOfSync)
                 {
-                    PendingSyncFolders.Add(SyncStatusEntry.FromFolder(folder, projectName));
+                    PendingSyncFolders.Add(SyncStatusEntry.FromFolder(folder, projectName, summary));
                 }
                 RaiseSyncStatusChanged();
 
                 if (baselineUpdated)
                     MarkDirty();
+
+                // Show result briefly, then hide
+                PreviewVM.BackgroundTaskMessage = outOfSync.Count == 0
+                    ? $"All {pairs.Count} folders up to date"
+                    : $"Found {outOfSync.Count} folder(s) with changes";
+                PreviewVM.BackgroundTaskProgress = 100;
+                await Task.Delay(2000);
+                PreviewVM.BackgroundTaskActive = false;
             }
 
             /// <summary>
-            /// Core logic shared by startup check — runs synchronously on the
-            /// calling thread (startup is fine since it's before the UI is interactive).
-            /// </summary>
-            private void CheckAllFoldersCore()
-            {
-                foreach (var project in Storage.StoredProjects)
-                {
-                    foreach (var folder in project.Folders)
-                    {
-                        if (!folder.IsValid() || string.IsNullOrEmpty(folder.Path))
-                            continue;
-
-                        // Skip if already tracked (avoids duplicates on double-call)
-                        bool alreadyTracked = false;
-                        foreach (var existing in PendingSyncFolders)
-                        {
-                            if (string.Equals(existing.FolderPath, folder.Path, StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(existing.ProjectName, project.Namn, StringComparison.OrdinalIgnoreCase))
-                            {
-                                alreadyTracked = true;
-                                break;
-                            }
-                        }
-                        if (alreadyTracked) continue;
-
-                        try
-                        {
-                            if (IsFolderOutOfSync(folder))
-                                PendingSyncFolders.Add(SyncStatusEntry.FromFolder(folder, project.Namn));
-                        }
-                        catch
-                        {
-                            // Folder may be inaccessible (network share offline, etc.)
-                        }
-                    }
-                }
-
-                RaiseSyncStatusChanged();
-            }
-
-            /// <summary>
-            /// Checks whether a single folder is out of sync by comparing the
-            /// current disk file count against the count stored at last sync.
-            /// Falls back to a file-timestamp check for content modifications
-            /// that don't change the file count.
+            /// Checks whether a folder's disk state differs from the stored
+            /// baseline. For <see cref="SearchOption.TopDirectoryOnly"/> folders
+            /// the root-dir timestamp provides a cheap fast exit. For
+            /// <see cref="SearchOption.AllDirectories"/> (version folders) only
+            /// the file count is compared — subdirectory timestamp walks are too
+            /// expensive on network shares.
             /// Returns false for folders that have never been synced.
             /// </summary>
             private static bool IsFolderOutOfSync(FolderData folder)
             {
-                if (folder.LastSyncedUtc == null && folder.SyncedFileCount == 0)
-                    return false; // Never synced
+                if (folder.SyncedFileCount <= 0 || !folder.ExistsOnDisk())
+                    return false; // Never synced, invalid, or missing
 
-                // Primary check: did the number of files on disk change?
-                int diskCount = CountDiskFiles(folder);
-                if (diskCount != folder.SyncedFileCount)
-                    return true;
+                // Fast path: root-dir timestamp covers direct children
+                // (TopDirectoryOnly) and new delivery subfolders
+                // (VersionDelivery). Changes inside existing subdirectories
+                // are caught by the FileSystemWatcher instead.
+                if (folder.LastSyncedUtc is { } baseline
+                    && Directory.GetLastWriteTimeUtc(folder.Path) <= baseline)
+                    return false;
 
-                // Secondary check: did any file get modified/replaced without
-                // affecting the count?  Compare the newest file write-time
-                // against the snapshot taken at last sync.
-                if (folder.LastSyncedUtc is { } lastSync)
-                {
-                    DateTime latestFile = GetLatestFileWriteTimeUtc(folder);
-                    return latestFile > lastSync;
-                }
-
-                return false;
+                // Authoritative check: file count.
+                return CountDiskFiles(folder) != folder.SyncedFileCount;
             }
 
             /// <summary>
-            /// Returns the search pattern and <see cref="SearchOption"/> appropriate
+            /// Returns the search pattern
             /// for the folder's <see cref="FolderData.Mode"/>.
             /// </summary>
             private static (string Pattern, SearchOption Search) GetFileFilter(FolderData folder)
@@ -480,29 +571,6 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
-            /// Returns the most recent <see cref="File.GetLastWriteTimeUtc"/>
-            /// across the files in <paramref name="folder"/> that match the
-            /// folder's sync filter (e.g. *.pdf for ProjectFiles).
-            /// Only inspects the same files that <see cref="CountDiskFiles"/> counts
-            /// so the baseline comparison is consistent.
-            /// </summary>
-            private static DateTime GetLatestFileWriteTimeUtc(FolderData folder)
-            {
-                var (pattern, search) = GetFileFilter(folder);
-                var latest = DateTime.MinValue;
-                foreach (var file in Directory.EnumerateFiles(folder.Path, pattern, search))
-                {
-                    try
-                    {
-                        var dt = File.GetLastWriteTimeUtc(file);
-                        if (dt > latest) latest = dt;
-                    }
-                    catch { /* inaccessible file — skip */ }
-                }
-                return latest;
-            }
-
-            /// <summary>
             /// Counts the actual files on disk for the given folder.
             /// Uses the same file-type filter as the sync logic for each mode.
             /// Returns <c>-1</c> when the folder no longer exists so callers
@@ -510,7 +578,7 @@ namespace Finn.ViewModels
             /// </summary>
             private static int CountDiskFiles(FolderData folder)
             {
-                if (!folder.IsValid()) return -1;
+                if (!folder.ExistsOnDisk()) return -1;
 
                 var (pattern, search) = GetFileFilter(folder);
                 return Directory.EnumerateFiles(folder.Path, pattern, search).Count();
@@ -519,23 +587,25 @@ namespace Finn.ViewModels
             /// <summary>
             /// Records the current disk state as the sync baseline so that
             /// <see cref="IsFolderOutOfSync"/> won't produce false positives.
-            /// Uses the actual latest file write-time from disk rather than
-            /// <see cref="DateTime.UtcNow"/> to avoid clock/granularity races.
+            /// Stores the file count and the directory's own write timestamp.
+            /// Runs the file count on a background thread to avoid blocking the UI.
             /// </summary>
-            private static void RecordSyncBaseline(FolderData folder)
+            private static async Task RecordSyncBaselineAsync(FolderData folder)
             {
-                folder.SyncedFileCount = CountDiskFiles(folder);
-                folder.LastSyncedUtc = folder.IsValid()
-                    ? GetLatestFileWriteTimeUtc(folder)
-                    : DateTime.UtcNow;
+                if (!folder.ExistsOnDisk())
+                {
+                    folder.SyncedFileCount = -1;
+                    folder.LastSyncedUtc = DateTime.UtcNow;
+                    return;
+                }
+
+                int count = await Task.Run(() => CountDiskFiles(folder));
+                folder.SyncedFileCount = count;
+                folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
             }
 
             private void OnFolderWatcherChanged(IReadOnlySet<string> changedPaths)
             {
-                // Match changed watcher paths to folder names across all projects.
-                // Only flag folders that are genuinely out of sync — avoids false
-                // positives from temp files, metadata writes, etc.
-                //
                 // Snapshot StoredProjects so we don't read the collection on this
                 // thread-pool thread while the UI thread may be modifying it.
                 List<(string ProjectName, FolderData Folder)> candidates;
@@ -555,8 +625,19 @@ namespace Finn.ViewModels
                 var newEntries = new List<SyncStatusEntry>();
                 foreach (var (projectName, folder) in candidates)
                 {
-                    // Skip folders that aren't actually out of sync
-                    try { if (!IsFolderOutOfSync(folder)) continue; }
+                    try
+                    {
+                        // For TopDirectoryOnly folders, verify with file count
+                        // to filter out false positives from temp files.
+                        // For AllDirectories (version folders), skip the
+                        // expensive recursive count — the watcher already
+                        // confirmed a filesystem event, and CountDiskFiles
+                        // with AllDirectories is too slow for a callback.
+                        var (_, search) = GetFileFilter(folder);
+                        if (search == SearchOption.TopDirectoryOnly
+                            && !IsFolderOutOfSync(folder))
+                            continue;
+                    }
                     catch { continue; }
 
                     newEntries.Add(SyncStatusEntry.FromFolder(folder, projectName));
@@ -567,22 +648,7 @@ namespace Finn.ViewModels
                     Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                     {
                         foreach (var entry in newEntries)
-                        {
-                            // Avoid duplicates — checked on the UI thread where
-                            // PendingSyncFolders is safely accessible.
-                            bool alreadyTracked = false;
-                            foreach (var existing in PendingSyncFolders)
-                            {
-                                if (string.Equals(existing.FolderPath, entry.FolderPath, StringComparison.OrdinalIgnoreCase)
-                                    && string.Equals(existing.ProjectName, entry.ProjectName, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    alreadyTracked = true;
-                                    break;
-                                }
-                            }
-                            if (!alreadyTracked)
-                                PendingSyncFolders.Add(entry);
-                        }
+                            TryAddPendingSyncEntry(entry);
                         RaiseSyncStatusChanged();
                     });
                 }

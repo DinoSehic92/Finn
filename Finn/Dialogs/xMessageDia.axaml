@@ -1,21 +1,21 @@
 <Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="175"
-		MinWidth="300"
-		MinHeight="175"
-		MaxWidth="300"
-		MaxHeight="175"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+		mc:Ignorable="d" d:DesignWidth="360" d:DesignHeight="220"
+		MinWidth="360"
+		MinHeight="220"
+		MaxWidth="400"
+		MaxHeight="280"
 		xmlns:ic="using:FluentIcons.Avalonia"
-        x:Class="Finn.Dialogs.xMessageDia"
-        Title="xMessageDia"
+		x:Class="Finn.Dialogs.xMessageDia"
+		Title="xMessageDia"
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True"
+		ExtendClientAreaToDecorationsHint="True"
 		x:DataType="vm:MainViewModel">
-	    <Window.Styles>
+		<Window.Styles>
 			<Style Selector="Button.accent">
 				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
 				<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
@@ -27,7 +27,7 @@
 		</Window.Styles>
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
-			<StackPanel Grid.Row="1" Width="300" Height="180" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+			<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0">
 			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,10,0,20">
 				<Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
 					<ContentControl>

@@ -523,8 +523,13 @@ namespace Finn.ViewModels
 
             public void RemoveAttachedFile(IList<FileData> files)
             {
+                var affectedSyncFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (FileData file in files)
                 {
+                    if (file.IsFromFolder && !string.IsNullOrEmpty(file.SyncFolder))
+                        affectedSyncFolders.Add(file.SyncFolder);
+
                     file.PartOfCollections.Clear();
                     file.ParentNamn = string.Empty;
                     file.ParentFile = null;
@@ -535,15 +540,24 @@ namespace Finn.ViewModels
                 UpdateFilter();
                 Collections.SetCollectionContent();
                 MarkDirty();
+
+                if (affectedSyncFolders.Count > 0)
+                    FlagSyncFoldersAsPending(affectedSyncFolders);
             }
 
             public void RemoveOtherFile(OtherData file)
             {
                 if (file != null)
                 {
+                    bool wasSynced = file.IsFromFolder && !string.IsNullOrEmpty(file.SyncFolder);
+                    string? syncFolder = file.SyncFolder;
+
                     OtherFilesOwner?.OtherFiles.Remove(file);
                     SortOtherFiles();
                     MarkDirty();
+
+                    if (wasSynced && syncFolder != null)
+                        FlagSyncFoldersAsPending(new HashSet<string>(StringComparer.OrdinalIgnoreCase) { syncFolder });
                 }
             }
 
