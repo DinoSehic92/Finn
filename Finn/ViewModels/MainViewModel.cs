@@ -33,9 +33,12 @@ namespace Finn.ViewModels
 
             private static string ResolveSavePath()
             {
-                const string legacyPath = @"C:\Finn";
-                if (OperatingSystem.IsWindows() && Directory.Exists(legacyPath))
-                    return legacyPath;
+                const string defaultPath = @"C:\Finn";
+                if (OperatingSystem.IsWindows())
+                {
+                    Directory.CreateDirectory(defaultPath);
+                    return defaultPath;
+                }
 
                 return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Finn");
