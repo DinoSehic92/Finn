@@ -55,9 +55,8 @@ public partial class xEditDia : Window
 
             ctx.SetGroup(group);
 
-            ComboBoxItem selectedCombo = (ComboBoxItem)ProjectCategory.SelectedItem;
-
-            ctx.SetCategory(selectedCombo.Content.ToString());
+            if (ProjectCategory.SelectedItem is ComboBoxItem selectedCombo)
+                ctx.SetCategory(selectedCombo.Content?.ToString() ?? "Project");
 
             ctx.CurrentProject.ReviewFolder = ReviewFolder.Text?.Trim() ?? string.Empty;
 
