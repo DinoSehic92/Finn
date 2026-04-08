@@ -1,6 +1,7 @@
 ﻿using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Finn.Utils;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -328,9 +329,77 @@ namespace Finn.Model
             set { todoItems = value ?? new(); RaisePropertyChanged(nameof(TodoItems)); }
         }
 
+        private string? sharedPath;
+        /// <summary>
+        /// UNC/network path to the shared copy of this project.
+        /// When set, the project supports Push/Pull operations.
+        /// Persisted to local Projects.json. Stripped from server
+        /// files by <see cref="ViewModels.MainViewModel.WriteFiltered"/>.
+        /// </summary>
+        public string? SharedPath
+        {
+            get => sharedPath;
+            set { sharedPath = value; RaisePropertyChanged(nameof(SharedPath)); RaisePropertyChanged(nameof(IsShared)); }
+        }
+
+        private DateTime? lastPushedUtc;
+        /// <summary>
+        /// UTC timestamp of the last successful push to the shared location.
+        /// Persisted to local Projects.json. Stripped from server files.
+        /// </summary>
+        public DateTime? LastPushedUtc
+        {
+            get => lastPushedUtc;
+            set { lastPushedUtc = value; RaisePropertyChanged(nameof(LastPushedUtc)); }
+        }
+
+        /// <summary>True when this project is linked to a shared server copy.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsShared => !string.IsNullOrEmpty(SharedPath);
+
+        private SharedSyncState _sharedSyncState = SharedSyncState.Unknown;
+        /// <summary>
+        /// Sync status relative to the server file. Updated on startup,
+        /// after push/pull, and when the file watcher detects changes.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public SharedSyncState SharedSyncStatus
+        {
+            get => _sharedSyncState;
+            set { _sharedSyncState = value; RaisePropertyChanged(nameof(SharedSyncStatus)); RaisePropertyChanged(nameof(SharedSyncIcon)); }
+        }
+
+        /// <summary>
+        /// Unicode indicator for the tree view: ✓ in sync, ↓ server ahead, ↑ local ahead, ? unknown.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string SharedSyncIcon => SharedSyncStatus switch
+        {
+            SharedSyncState.InSync => "✓",
+            SharedSyncState.ServerAhead => "↓",
+            SharedSyncState.LocalAhead => "↑",
+            SharedSyncState.ServerMissing => "✕",
+            _ => "⇄"
+        };
+
         private void RaisePropertyChanged(string propName)
         {
             OnPropertyChanged(propName);
         }
+    }
+
+    /// <summary>Sync state of a shared project relative to its server file.</summary>
+    public enum SharedSyncState
+    {
+        /// <summary>Not yet checked.</summary>
+        Unknown,
+        /// <summary>Local and server are in sync (server timestamp ≤ last push).</summary>
+        InSync,
+        /// <summary>Server file is newer than last push (someone else pushed).</summary>
+        ServerAhead,
+        /// <summary>Local has been modified since last push.</summary>
+        LocalAhead,
+        /// <summary>Server file doesn't exist.</summary>
+        ServerMissing,
     }
 }

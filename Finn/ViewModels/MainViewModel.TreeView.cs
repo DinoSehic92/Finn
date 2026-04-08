@@ -217,9 +217,9 @@ namespace Finn.ViewModels
 
             var node = new TreeNodeData
             {
-                Header = project.Namn,
+                Header = project.IsShared ? $"{project.Namn}  {project.SharedSyncIcon}" : project.Namn,
                 Tag = "All Types",
-                IconSymbol = "Folder",
+                IconSymbol = project.IsShared ? "People" : "Folder",
                 FontSize = 15,
                 IsExpanded = isCurrent,
                 Foreground = foreground,

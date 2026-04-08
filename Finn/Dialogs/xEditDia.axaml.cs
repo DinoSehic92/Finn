@@ -37,6 +37,24 @@ public partial class xEditDia : Window
 
         ProjectCategory.SelectedItem = comboBoxItem;
 
+        // Shared projects cannot be renamed — disable the name field
+        if (ctx.CurrentProject.IsShared)
+        {
+            ProjectName.IsEnabled = false;
+            ProjectName.Watermark = "Rename disabled (shared)";
+
+            var panel = this.FindControl<StackPanel>("SharedInfoPanel");
+            var pathText = this.FindControl<TextBlock>("SharedPathText");
+            var syncText = this.FindControl<TextBlock>("SharedSyncText");
+            if (panel != null) panel.IsVisible = true;
+            if (pathText != null) pathText.Text = $"Server: {ctx.CurrentProject.SharedPath}";
+            if (syncText != null)
+            {
+                syncText.Text = ctx.CurrentProject.LastPushedUtc is { } pushed
+                    ? $"Last pushed: {pushed.ToLocalTime():g}  •  {ctx.CurrentProject.SharedSyncIcon}"
+                    : "Never pushed";
+            }
+        }
     }
 
     private void OnEditProject(object sender, RoutedEventArgs e)
@@ -44,7 +62,10 @@ public partial class xEditDia : Window
         if (ProjectName.Text != null)
         {
             MainViewModel ctx = (MainViewModel)this.DataContext;
-            ctx.RenameProject(ProjectName.Text.ToString());
+
+            // Only allow rename on non-shared projects
+            if (!ctx.CurrentProject.IsShared)
+                ctx.RenameProject(ProjectName.Text.ToString());
 
             string group = null;
 

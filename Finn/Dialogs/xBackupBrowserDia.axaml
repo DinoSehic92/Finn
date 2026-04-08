@@ -1,0 +1,50 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Width="520" Height="380"
+        MinWidth="400" MinHeight="280"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialogs.xBackupBrowserDia"
+        Title="Restore from Backup"
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        CanResize="True"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        x:DataType="vm:MainViewModel">
+    <Window.Styles>
+        <Style Selector="Button.accent">
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+        <Style Selector="Button.normal">
+            <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+    </Window.Styles>
+    <Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
+            <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+                <ic:SymbolIcon Symbol="History" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="Restore from Backup" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            <TextBlock Name="SubHeaderText" Text="Select a backup to restore." FontSize="12" Opacity="0.7" HorizontalAlignment="Center"/>
+        </StackPanel>
+        <ListBox Name="BackupList" Grid.Row="2" Margin="10,0,10,0" SelectionMode="Single"/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">
+            <Button Name="RestoreButton" Width="90" Classes="accent" Content="Restore" Click="OnRestore" IsEnabled="False"/>
+            <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
+        </StackPanel>
+    </Grid>
+</Window>

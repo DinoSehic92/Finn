@@ -1668,7 +1668,7 @@
 									</TreeDataTemplate>
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>
-								<ContextMenu Name="TreeMenu">
+								<ContextMenu Name="TreeMenu" Opening="OnTreeContextMenuOpening">
 									<MenuItem Header="Add Files" Click="OnAddFiles">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
 									</MenuItem>
@@ -1677,6 +1677,25 @@
 									</MenuItem>
 									<MenuItem Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
+									</MenuItem>
+									<Separator/>
+									<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowDown"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Name="UnshareMenuItem" Header="Unshare Project" Click="OnUnshareProject">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
 									</MenuItem>
 									<Separator/>
 									<MenuItem Header="Remove" Click="OnRemoveProject">

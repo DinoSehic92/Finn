@@ -1,0 +1,59 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Width="340" Height="500"
+        MinWidth="300" MinHeight="420"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialogs.xSharedPushDia"
+        Title="Push to Server"
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        x:DataType="vm:MainViewModel">
+    <Window.Styles>
+        <Style Selector="Button.accent">
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+        <Style Selector="Button.normal">
+            <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+    </Window.Styles>
+    <Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
+            <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+                <ic:SymbolIcon Symbol="ArrowUpload" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Name="HeaderText" Text="Push to Server" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            <TextBlock Name="SubHeaderText" Text="Select what to include in the push." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="280"/>
+            <TextBlock Name="WarningText" Text="" FontSize="11" Foreground="Orange" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="280"/>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Vertical" Spacing="3" Margin="30,0" VerticalAlignment="Top">
+            <CheckBox Name="IncludeFiles"       Content="Files"            Height="30" IsChecked="True"/>
+            <CheckBox Name="IncludeVersions"     Content="Versions"         Height="30" IsChecked="True"/>
+            <CheckBox Name="IncludeFolders"      Content="Sync Folders"     Height="30" IsChecked="True"/>
+            <CheckBox Name="IncludeTodo"         Content="To-Do Items"      Height="30" IsChecked="True"/>
+            <CheckBox Name="IncludeAnnotations"  Content="Annotations"      Height="30" IsChecked="True"/>
+            <CheckBox Name="IncludeOtherFiles"   Content="Other Files"      Height="30" IsChecked="True"/>
+            <CheckBox Name="IncludeSettings"     Content="Column Settings"  Height="30" IsChecked="True"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,12,0,16">
+            <Button Name="AcceptButton" HotKey="Enter" Width="90" Classes="accent" Content="Push" Click="OnAccept"/>
+            <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
+        </StackPanel>
+    </Grid>
+</Window>

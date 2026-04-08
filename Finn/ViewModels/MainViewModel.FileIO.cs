@@ -316,6 +316,10 @@ namespace Finn.ViewModels
                 "HasBookmarks",
                 "HasAppendedFiles",
                 "FiletypesTree",
+                // Shared-project metadata changes on every push/pull
+                // but shouldn't trigger unsaved-changes detection.
+                "SharedPath",
+                "LastPushedUtc",
             ];
 
             /// <summary>

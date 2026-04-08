@@ -7,7 +7,7 @@
 		MinWidth="290"
 		MinHeight="400"
 		MaxWidth="290"
-		MaxHeight="400"
+		MaxHeight="450"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xEditDia"
 		Title="Edit Project"
@@ -68,6 +68,10 @@
 					</Button>
 				</StackPanel>
 			</Grid>
+			<StackPanel Name="SharedInfoPanel" IsVisible="False" Orientation="Vertical" Spacing="2" HorizontalAlignment="Center" Margin="0,6,0,0">
+				<TextBlock Name="SharedPathText" FontSize="10" Opacity="0.5" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="260"/>
+				<TextBlock Name="SharedSyncText" FontSize="10" Opacity="0.6" HorizontalAlignment="Center"/>
+			</StackPanel>
 			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
 				<Button Name="RenameAccept" Classes="accent" HotKey="Enter" Content="Accept" Width="70" Background="{DynamicResource SystemAccentColor}" Click="OnEditProject"/>
 			</StackPanel>

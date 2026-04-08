@@ -16,7 +16,7 @@ namespace Finn.ViewModels
         public partial class MainViewModel
         {
             // Helper method for common window setup
-            private void ConfigureWindow(Window window, Window mainWindow)
+            internal void ConfigureWindow(Window window, Window mainWindow)
             {
                 window.DataContext = this;
                 window.FontFamily = mainWindow.FontFamily;

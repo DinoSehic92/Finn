@@ -1,0 +1,106 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Width="680" Height="520"
+        MinWidth="500" MinHeight="320"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        xmlns:model="clr-namespace:Finn.Model"
+        x:Class="Finn.Dialogs.xSharedPullDia"
+        Title="Pull from Server"
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        CanResize="True"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        x:DataType="vm:MainViewModel">
+    <Window.Styles>
+        <Style Selector="Button.accent">
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+        <Style Selector="Button.normal">
+            <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
+            <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
+            <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+    </Window.Styles>
+    <Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
+            <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
+                <ic:SymbolIcon Symbol="ArrowDownload" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Name="HeaderText" Text="Pull from Server" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            <TextBlock Name="SubHeaderText" Text="The following changes will be applied." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="480"/>
+            <TextBlock Name="SummaryText" Text="" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center"/>
+        </StackPanel>
+        <DataGrid Name="DiffGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="False" GridLinesVisibility="None" SelectionMode="Single" CanUserReorderColumns="False" CanUserSortColumns="False" Margin="5" VerticalAlignment="Stretch" RowHeight="24">
+            <DataGrid.Styles>
+                <Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
+                    <Setter Property="IsVisible" Value="false"/>
+                </Style>
+                <Style Selector="CheckBox.compact">
+                    <Setter Property="MinWidth" Value="0"/>
+                    <Setter Property="MinHeight" Value="0"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Cursor" Value="Hand"/>
+                    <Setter Property="Template">
+                        <ControlTemplate TargetType="CheckBox">
+                            <Border Name="Root" Width="14" Height="14" CornerRadius="2"
+                                    BorderThickness="1.5"
+                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"
+                                    Background="Transparent"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Border Name="Fill" Width="8" Height="8" CornerRadius="1"
+                                        IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Background="White"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter>
+                </Style>
+                <Style Selector="CheckBox.compact:checked /template/ Border#Root">
+                    <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+                </Style>
+                <Style Selector="CheckBox.compact:checked /template/ Border#Fill">
+                    <Setter Property="IsVisible" Value="True"/>
+                </Style>
+                <Style Selector="CheckBox.compact:pointerover /template/ Border#Root">
+                    <Setter Property="Opacity" Value="0.8"/>
+                </Style>
+            </DataGrid.Styles>
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Accept" Width="90" MinWidth="90" IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="model:SharedDiffEntry">
+                            <CheckBox Classes="compact" IsChecked="{ReflectionBinding AcceptIncoming, Mode=TwoWay}"
+                                      IsVisible="{ReflectionBinding CanAcceptIncoming}"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"
+                                      ToolTip.Tip="Merge: accept server value. Replace: keep local value."/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Change"   Binding="{ReflectionBinding Change}"   Width="110"  MinWidth="60" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Category" Binding="{ReflectionBinding Category}" Width="120" MinWidth="70" IsReadOnly="True"/>
+                <DataGridTextColumn Header="Detail"   Binding="{ReflectionBinding Detail}"   Width="*"   MinWidth="120" IsReadOnly="True"/>
+            </DataGrid.Columns>
+        </DataGrid>
+        <StackPanel Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Center" Spacing="4" Margin="0,8,0,16">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                <Button Name="MergeButton" Width="90" Classes="accent" Content="Merge" Click="OnMerge" ToolTip.Tip="Add server changes without losing local work"/>
+                <Button Name="AcceptButton" Width="90" Classes="normal" Content="Replace" Click="OnAccept" ToolTip.Tip="Replace local with server. Checked rows keep local values."/>
+                <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
+            </StackPanel>
+            <TextBlock Text="Merge: additive. Replace: full overwrite. Check rows to customize." FontSize="10.5" Opacity="0.5" HorizontalAlignment="Center"/>
+        </StackPanel>
+    </Grid>
+</Window>

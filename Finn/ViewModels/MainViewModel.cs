@@ -128,6 +128,7 @@ namespace Finn.ViewModels
 
             // Folder watcher service for detecting file changes in sync folders
             private readonly FolderWatcherService _folderWatcher = new();
+            private readonly Services.SharedFileWatcherService _sharedWatcher = new();
             private readonly object _folderSnapshotLock = new();
 
             /// <summary>
@@ -166,22 +167,29 @@ namespace Finn.ViewModels
             {
                 if (UI.FolderWatchEnabled)
                 {
-                    // Subscribe before Refresh so events raised during the
-                    // refresh window aren't silently dropped.  The -= / += is
-                    // idempotent when the handler is already attached.
                     _folderWatcher.FolderChanged -= OnFolderWatcherChanged;
                     _folderWatcher.FolderChanged += OnFolderWatcherChanged;
                     _folderWatcher.Refresh(Storage.StoredProjects);
+
+                    _sharedWatcher.ServerFileChanged -= OnSharedFileChanged;
+                    _sharedWatcher.ServerFileChanged += OnSharedFileChanged;
+                    _sharedWatcher.Refresh(Storage.StoredProjects);
                 }
                 else
                 {
                     _folderWatcher.FolderChanged -= OnFolderWatcherChanged;
                     _folderWatcher.StopAll();
+                    _sharedWatcher.ServerFileChanged -= OnSharedFileChanged;
+                    _sharedWatcher.StopAll();
                 }
             }
 
-            /// <summary>Stops all folder watchers (e.g. on shutdown).</summary>
-            public void StopFolderWatchers() => _folderWatcher.Dispose();
+            /// <summary>Stops all folder and shared-file watchers (e.g. on shutdown).</summary>
+            public void StopFolderWatchers()
+            {
+                _folderWatcher.Dispose();
+                _sharedWatcher.Dispose();
+            }
 
             /// <summary>Dismisses the sync notification without syncing.</summary>
             public void DismissFolderSyncNotification()
@@ -650,6 +658,115 @@ namespace Finn.ViewModels
                         RaiseSyncStatusChanged();
                     });
                 }
+            }
+
+            /// <summary>
+            /// Called by the shared file watcher when a server JSON file is modified.
+            /// Updates sync status for affected shared projects and notifies the UI.
+            /// </summary>
+            private void OnSharedFileChanged(IReadOnlySet<string> changedFiles)
+            {
+                // Snapshot projects on this thread-pool thread
+                List<ProjectData> affected;
+                lock (_folderSnapshotLock)
+                {
+                    affected = [];
+                    foreach (var project in Storage.StoredProjects)
+                    {
+                        if (!string.IsNullOrEmpty(project.SharedPath)
+                            && changedFiles.Contains(project.SharedPath))
+                            affected.Add(project);
+                    }
+                }
+
+                if (affected.Count == 0) return;
+
+                foreach (var project in affected)
+                    UpdateSharedSyncStatus(project);
+
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    foreach (var project in affected)
+                    {
+                        if (project.SharedSyncStatus == SharedSyncState.ServerAhead)
+                            PreviewVM.StatusMessage = $"\"{project.Namn}\" has updates on the server";
+                    }
+                    BuildTreeData();
+                });
+            }
+
+            /// <summary>
+            /// Computes the sync state of a shared project by comparing
+            /// <see cref="ProjectData.LastPushedUtc"/> against the server file timestamp.
+            /// Safe to call from any thread (only reads filesystem + project fields).
+            /// </summary>
+            public static void UpdateSharedSyncStatus(ProjectData project)
+            {
+                if (string.IsNullOrEmpty(project.SharedPath))
+                {
+                    project.SharedSyncStatus = SharedSyncState.Unknown;
+                    return;
+                }
+
+                try
+                {
+                    if (!File.Exists(project.SharedPath))
+                    {
+                        project.SharedSyncStatus = SharedSyncState.ServerMissing;
+                        return;
+                    }
+
+                    if (project.LastPushedUtc == null)
+                    {
+                        // Never pushed — server file exists from someone else
+                        project.SharedSyncStatus = SharedSyncState.ServerAhead;
+                        return;
+                    }
+
+                    var serverModified = File.GetLastWriteTimeUtc(project.SharedPath);
+                    if (serverModified > project.LastPushedUtc.Value.AddSeconds(5))
+                        project.SharedSyncStatus = SharedSyncState.ServerAhead;
+                    else
+                        project.SharedSyncStatus = SharedSyncState.InSync;
+                }
+                catch
+                {
+                    project.SharedSyncStatus = SharedSyncState.Unknown;
+                }
+            }
+
+            /// <summary>
+            /// Checks shared project sync status on startup (similar to folder sync check).
+            /// Runs filesystem checks on a background thread.
+            /// </summary>
+            public async Task CheckSharedSyncOnStartupAsync()
+            {
+                var sharedProjects = Storage.StoredProjects
+                    .Where(p => p.IsShared)
+                    .ToList();
+
+                if (sharedProjects.Count == 0) return;
+
+                await Task.Run(() =>
+                {
+                    foreach (var project in sharedProjects)
+                        UpdateSharedSyncStatus(project);
+                });
+
+                // Notify on server-ahead projects
+                var serverAhead = sharedProjects
+                    .Where(p => p.SharedSyncStatus == SharedSyncState.ServerAhead)
+                    .ToList();
+
+                if (serverAhead.Count > 0)
+                {
+                    string names = string.Join(", ", serverAhead.Select(p => $"\"{p.Namn}\""));
+                    PreviewVM.StatusMessage = serverAhead.Count == 1
+                        ? $"{names} has updates on the server"
+                        : $"{serverAhead.Count} shared projects have server updates";
+                }
+
+                BuildTreeData();
             }
 
             // CalendarStorage moved into CalendarViewModel

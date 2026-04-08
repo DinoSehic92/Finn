@@ -140,6 +140,8 @@ public partial class MainView : UserControl
                 _ctx.RefreshFolderWatchers();
                 // Check if any folders changed while the app was closed (async — no UI freeze)
                 _ = _ctx.CheckFolderSyncOnStartupAsync();
+                // Check shared project sync status (async — network I/O)
+                _ = _ctx.CheckSharedSyncOnStartupAsync();
 
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;
@@ -273,7 +275,10 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.FolderWatchEnabled):
                 _ctx.RefreshFolderWatchers();
                 if (_ctx.UI.FolderWatchEnabled)
+                {
                     _ = _ctx.CheckFolderSyncOnStartupAsync();
+                    _ = _ctx.CheckSharedSyncOnStartupAsync();
+                }
                 else
                     _ctx.DismissFolderSyncNotification();
                 break;
@@ -767,8 +772,18 @@ public partial class MainView : UserControl
     {
         if (_ctx.Storage.StoredProjects.Count <= 1) return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        await _ctx.ConfirmDeleteDia(window);
+        // Warn specifically about shared projects
+        if (_ctx.CurrentProject?.IsShared == true)
+        {
+            var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+            var msgDialog = new Finn.Dialogs.xMessageDia();
+            _ctx.ConfigureWindow(msgDialog, window);
+            msgDialog.SetMessage("This project is shared. Removing it will disconnect from the server file.");
+            await msgDialog.ShowDialog(window);
+        }
+
+        var mainWindow = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.ConfirmDeleteDia(mainWindow);
 
         if (_ctx.Confirmed)
         {
@@ -777,6 +792,194 @@ public partial class MainView : UserControl
             _ctx.BuildTreeData();
         }
     }
+
+    #region Shared Projects
+
+    /// <summary>
+    /// Shows/hides shared-project menu items based on the current project state.
+    /// </summary>
+    private void OnTreeContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+        bool isShared = _ctx.CurrentProject?.IsShared == true;
+
+        foreach (var child in menu.Items)
+        {
+            if (child is MenuItem mi)
+            {
+                switch (mi.Name)
+                {
+                    case "MakeSharedMenuItem":
+                        mi.IsVisible = !isShared;
+                        break;
+                    case "ImportSharedMenuItem":
+                        mi.IsVisible = !isShared;
+                        break;
+                    case "PushMenuItem":
+                    case "PullMenuItem":
+                    case "UnshareMenuItem":
+                    case "RestoreBackupMenuItem":
+                        mi.IsVisible = isShared;
+                        break;
+                }
+            }
+        }
+    }
+
+    private async void OnMakeProjectShared(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var window = topLevel as MainWindow;
+        if (window == null) return;
+
+        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
+            new FolderPickerOpenOptions
+            {
+                Title = "Select shared server folder",
+                AllowMultiple = false
+            });
+
+        if (folders.Count == 0) return;
+
+        string serverFolder = folders[0].Path.LocalPath;
+
+        // Link the project to the shared path first
+        _ctx.MakeProjectShared(serverFolder);
+
+        // Show push options dialog for the initial push
+        var dialog = new Finn.Dialogs.xSharedPushDia();
+        dialog.DataContext = _ctx;
+        dialog.FontFamily = window.FontFamily;
+        dialog.RequestedThemeVariant = window.ActualThemeVariant;
+
+        await dialog.ShowDialog(window);
+
+        if (dialog.Confirmed)
+        {
+            _ctx.PushProjectFiltered(dialog);
+            _ctx.BuildTreeData();
+        }
+        else
+        {
+            // User cancelled — undo the shared link
+            _ctx.UnshareProject();
+        }
+    }
+
+    private async void OnImportSharedProject(object? sender, RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var jsonType = new FilePickerFileType("Shared Project") { Patterns = ["*.json"] };
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = "Import shared project",
+                AllowMultiple = false,
+                FileTypeFilter = [jsonType]
+            });
+
+        if (files.Count == 0) return;
+
+        _ctx.ImportSharedProject(files[0].Path.LocalPath);
+    }
+
+    private async void OnPushProject(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentProject?.SharedPath == null) return;
+
+        var window = TopLevel.GetTopLevel(this) as MainWindow;
+        if (window == null) return;
+
+        var dialog = new Finn.Dialogs.xSharedPushDia();
+        dialog.DataContext = _ctx;
+        dialog.FontFamily = window.FontFamily;
+        dialog.RequestedThemeVariant = window.ActualThemeVariant;
+
+        // Check for server-side changes since last push
+        string? conflict = _ctx.CheckPushConflict();
+        if (conflict != null)
+            dialog.SetWarning(conflict);
+
+        await dialog.ShowDialog(window);
+
+        if (dialog.Confirmed)
+            _ctx.PushProjectFiltered(dialog);
+    }
+
+    private async void OnPullProject(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentProject?.SharedPath == null) return;
+
+        var window = TopLevel.GetTopLevel(this) as MainWindow;
+        if (window == null) return;
+
+        // Read the server copy for diffing
+        var serverProject = MainViewModel.ReadServerProject(_ctx.CurrentProject.SharedPath);
+        if (serverProject == null)
+        {
+            string msg = File.Exists(_ctx.CurrentProject.SharedPath)
+                ? "Pull failed: could not parse server file"
+                : $"Pull failed: server file not found at {_ctx.CurrentProject.SharedPath}";
+            _ctx.PreviewVM.StatusMessage = msg;
+            return;
+        }
+
+        // Build and show diff
+        var entries = _ctx.BuildPullDiff(_ctx.CurrentProject, serverProject);
+        string summary = MainViewModel.BuildPullSummary(entries);
+
+        var dialog = new Finn.Dialogs.xSharedPullDia();
+        dialog.DataContext = _ctx;
+        dialog.FontFamily = window.FontFamily;
+        dialog.RequestedThemeVariant = window.ActualThemeVariant;
+        dialog.SetDiff(entries, summary);
+
+        await dialog.ShowDialog(window);
+
+        if (dialog.Confirmed)
+        {
+            if (dialog.IsMerge)
+                _ctx.MergeProject(serverProject, dialog.AcceptIncomingEntries);
+            else
+                _ctx.PullProject(serverProject, dialog.KeepLocalEntries);
+        }
+    }
+
+    private async void OnUnshareProject(object? sender, RoutedEventArgs e)
+    {
+        var window = TopLevel.GetTopLevel(this) as MainWindow;
+        if (window == null) return;
+
+        var dialog = new Finn.Dialogs.xMessageDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.SetMessage("This will disconnect from the server. You can re-import later.");
+        await dialog.ShowDialog(window);
+
+        _ctx.UnshareProject();
+    }
+
+    private async void OnRestoreBackup(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentProject == null) return;
+
+        var window = TopLevel.GetTopLevel(this) as MainWindow;
+        if (window == null) return;
+
+        var dialog = new Finn.Dialogs.xBackupBrowserDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.SetBackups(_ctx.GetBackupDirectory(), _ctx.CurrentProject.Namn);
+
+        await dialog.ShowDialog(window);
+
+        if (dialog.Confirmed && !string.IsNullOrEmpty(dialog.SelectedBackupPath))
+            _ctx.RestoreFromBackup(dialog.SelectedBackupPath);
+    }
+
+    #endregion
 
     private async void OnAttachFiles(object? sender, RoutedEventArgs e)
     {
