@@ -59,6 +59,7 @@ namespace Finn.ViewModels
                 catch
                 {
                     Storage = new ProjectStorage();
+                    EnsureDefaultProject();
                     SetProjectlist();
                     SetDefaultSelection();
                 }
@@ -91,6 +92,23 @@ namespace Finn.ViewModels
                 PreviewVM.ReconcileCache(validPaths);
             }
 
+            /// <summary>
+            /// Ensures at least one project exists in <see cref="Storage"/>.
+            /// Called during load so that files dragged in by the user always
+            /// have a project to attach to.
+            /// </summary>
+            private void EnsureDefaultProject()
+            {
+                if (Storage.StoredProjects.Count == 0)
+                {
+                    Storage.StoredProjects.Add(new ProjectData
+                    {
+                        Namn = "Project",
+                        Category = "Project"
+                    });
+                }
+            }
+
             public void DeserializeLoadFile(string fileContent)
             {
                 Storage = new ProjectStorage();
@@ -120,6 +138,8 @@ namespace Finn.ViewModels
 
                 // Guard against null collections from partial/corrupt JSON
                 Storage.StoredProjects ??= new ObservableCollection<ProjectData>();
+
+                EnsureDefaultProject();
 
                 // Single pass: migrate, wire references, and validate all files.
                 foreach (var project in Storage.StoredProjects)
