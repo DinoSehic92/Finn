@@ -1309,6 +1309,12 @@ namespace Finn.ViewModels
 
                 string openPath = path;
 
+                // When AutoCacheNetworkFiles is on, mark the file so the
+                // grid icon reflects cached state. ReadBytesMode is a
+                // transparent optimization and should not permanently mark files.
+                if (_autoCacheNetworkFiles && isNetworkPath && cachedLocally && !reqFileRef.IsCached)
+                    reqFileRef.IsCached = true;
+
                 // Create MuPDF objects on the background thread — document
                 // construction is pure native file I/O with no UI dependency.
                 // Only the renderer (Initialize) requires the UI thread.
