@@ -653,7 +653,7 @@
 				</DataGrid.Columns>
 
 				<DataGrid.ContextMenu>
-					<ContextMenu Name="Menu">
+						<ContextMenu Name="Menu" Opening="OnFileGridContextMenuOpening">
 						<MenuItem Header="Open" IsVisible="{Binding SelectedFileIsNotSketch}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
 							<MenuItem Header="Open PDF"      Command="{Binding OpenFile}">

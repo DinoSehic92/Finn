@@ -702,6 +702,15 @@ public partial class MainView : UserControl
         _ctx.RefreshFolderWatchers();
     }
 
+    /// <summary>
+    /// Prevents the file grid context menu from opening when no file is selected.
+    /// </summary>
+    private void OnFileGridContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_ctx.FileSelected)
+            e.Cancel = true;
+    }
+
     private async void OnRemoveFiles(object? sender, RoutedEventArgs e)
     {
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
