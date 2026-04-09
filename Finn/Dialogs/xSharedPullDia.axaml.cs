@@ -11,30 +11,17 @@ namespace Finn.Dialogs;
 public partial class xSharedPullDia : Window
 {
     public bool Confirmed { get; private set; }
-    public bool IsMerge { get; private set; }
 
     private ObservableCollection<SharedDiffEntry> _entries = [];
 
     /// <summary>
-    /// File names whose "Accept Incoming" checkbox was ticked for at least one category.
+    /// Lookup: (FileName, Category) pairs where KeepLocal was checked.
+    /// Merge will preserve local values for these entries instead of
+    /// applying the server value.
     /// </summary>
-    public HashSet<string> AcceptIncomingFiles => new(
-        _entries.Where(e => e.AcceptIncoming && e.FileName != null).Select(e => e.FileName!),
-        System.StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Lookup: (FileName, Category) pairs where AcceptIncoming was checked.
-    /// Used by Merge: these entries get full server overwrite instead of additive merge.
-    /// </summary>
-    public HashSet<(string File, string Category)> AcceptIncomingEntries => new(
-        _entries.Where(e => e.AcceptIncoming && e.FileName != null)
+    public HashSet<(string File, string Category)> KeepLocalEntries => new(
+        _entries.Where(e => e.KeepLocal && e.FileName != null)
                 .Select(e => (e.FileName!, e.Category)));
-
-    /// <summary>
-    /// Lookup: (FileName, Category) pairs where the checkbox was checked.
-    /// Used by Replace: these entries keep local values instead of being overwritten.
-    /// </summary>
-    public HashSet<(string File, string Category)> KeepLocalEntries => AcceptIncomingEntries;
 
     public xSharedPullDia()
     {
@@ -52,21 +39,12 @@ public partial class xSharedPullDia : Window
         {
             SubHeaderText.Text = "The server copy is identical to your local project.";
             this.FindControl<Button>("MergeButton")!.Content = "Merge Anyway";
-            AcceptButton.Content = "Replace Anyway";
         }
     }
 
     private void OnMerge(object? sender, RoutedEventArgs e)
     {
         Confirmed = true;
-        IsMerge = true;
-        Close();
-    }
-
-    private void OnAccept(object? sender, RoutedEventArgs e)
-    {
-        Confirmed = true;
-        IsMerge = false;
         Close();
     }
 

@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Finn.Model;
 using Finn.ViewModels;
 using Finn.Views;
 
@@ -48,13 +49,36 @@ public partial class xEditDia : Window
             var syncText = this.FindControl<TextBlock>("SharedSyncText");
             if (panel != null) panel.IsVisible = true;
             if (pathText != null) pathText.Text = $"Server: {ctx.CurrentProject.SharedPath}";
+            UpdateSyncText(syncText, ctx.CurrentProject);
+
+            // Live-update when the watcher detects server changes
             if (syncText != null)
             {
-                syncText.Text = ctx.CurrentProject.LastPushedUtc is { } pushed
-                    ? $"Last pushed: {pushed.ToLocalTime():g}  •  {ctx.CurrentProject.SharedSyncIcon}"
-                    : "Never pushed";
+                ctx.CurrentProject.PropertyChanged += (_, e) =>
+                {
+                    if (e.PropertyName == nameof(ProjectData.SharedSyncStatus))
+                        Avalonia.Threading.Dispatcher.UIThread.Post(
+                            () => UpdateSyncText(syncText, ctx.CurrentProject));
+                };
             }
         }
+    }
+
+    private static void UpdateSyncText(TextBlock? syncText, ProjectData project)
+    {
+        if (syncText == null) return;
+        string status = project.SharedSyncStatus switch
+        {
+            SharedSyncState.InSync => "In sync ✓",
+            SharedSyncState.ServerAhead => "Server has updates ↓",
+            SharedSyncState.LocalAhead => "Local changes pending ↑",
+            SharedSyncState.Conflicted => "Both sides changed ⇅",
+            SharedSyncState.ServerMissing => "Server file missing ✕",
+            _ => "Checking…"
+        };
+        syncText.Text = project.LastPushedUtc is { } pushed
+            ? $"Last pushed: {pushed.ToLocalTime():g}  •  {status}"
+            : $"Never pushed  •  {status}";
     }
 
     private void OnEditProject(object sender, RoutedEventArgs e)

@@ -1691,7 +1691,7 @@
 									<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 									</MenuItem>
-									<MenuItem Name="UnshareMenuItem" Header="Unshare Project" Click="OnUnshareProject">
+									<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
 									</MenuItem>
 									<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">

@@ -337,7 +337,7 @@ namespace Finn.ViewModels
 
         public int SecondaryPagecount => DualFileMode ? pagecount2 : pagecount;
         public bool ShowSecondaryControls => !linkedPageMode || dualFileMode;
-        public bool ShowLinkedPageButton => twopageMode;
+        public bool ShowLinkedPageButton => twopageMode || (_diffOverlayActive && _diffViewMode == DiffViewMode.Toggle);
 
         /// <summary>
         /// Fires change notifications for all computed properties that depend
@@ -1793,8 +1793,7 @@ namespace Finn.ViewModels
         {
             int lastPage = Pagecount - 1;
             int lastPage2 = Math.Max(0, Pagecount2 - 1);
-            if (!TwopageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
-            else if (DualFileMode)
+            if (DualFileMode)
             {
                 if (LinkedPageMode)
                 {
@@ -1806,6 +1805,7 @@ namespace Finn.ViewModels
                 else if (!secondPage) { if (RequestPage1 < lastPage) RequestPage1++; }
                 else { if (RequestPage2 < lastPage2) RequestPage2++; }
             }
+            else if (!TwopageMode) { if (RequestPage1 < lastPage) RequestPage1++; }
             else if (LinkedPageMode) { if (RequestPage1 + 2 <= lastPage) RequestPage1 += 2; }
             else if (!secondPage) { if (RequestPage1 < lastPage) RequestPage1++; }
             else { if (RequestPage2 < lastPage) RequestPage2++; }
@@ -1813,8 +1813,7 @@ namespace Finn.ViewModels
 
         public void PrevPage(bool secondPage = false)
         {
-            if (!TwopageMode) { if (RequestPage1 > 0) RequestPage1--; }
-            else if (DualFileMode)
+            if (DualFileMode)
             {
                 if (LinkedPageMode)
                 {
@@ -1826,6 +1825,7 @@ namespace Finn.ViewModels
                 else if (!secondPage) { if (RequestPage1 > 0) RequestPage1--; }
                 else { if (RequestPage2 > 0) RequestPage2--; }
             }
+            else if (!TwopageMode) { if (RequestPage1 > 0) RequestPage1--; }
             else if (LinkedPageMode) { if (RequestPage1 >= 2) RequestPage1 -= 2; }
             else if (!secondPage) { if (RequestPage1 > 0) RequestPage1--; }
             else { if (RequestPage2 > 0) RequestPage2--; }

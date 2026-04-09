@@ -74,6 +74,7 @@ public sealed class SharedFileWatcherService : IDisposable
                     watcher.Changed += OnFileEvent;
                     watcher.Created += OnFileEvent;
                     watcher.Renamed += OnFileEvent;
+                    watcher.Deleted += OnFileEvent;
                     watcher.Error += OnWatcherError;
 
                     _watchers[dir] = watcher;

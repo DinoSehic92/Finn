@@ -79,13 +79,13 @@
                 </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Accept" Width="90" MinWidth="90" IsReadOnly="True">
+                <DataGridTemplateColumn Header="Keep Local" Width="90" MinWidth="90" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="model:SharedDiffEntry">
-                            <CheckBox Classes="compact" IsChecked="{ReflectionBinding AcceptIncoming, Mode=TwoWay}"
-                                      IsVisible="{ReflectionBinding CanAcceptIncoming}"
+                            <CheckBox Classes="compact" IsChecked="{ReflectionBinding KeepLocal, Mode=TwoWay}"
+                                      IsVisible="{ReflectionBinding CanKeepLocal}"
                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"
-                                      ToolTip.Tip="Merge: accept server value. Replace: keep local value."/>
+                                      ToolTip.Tip="Check to keep your local value instead of the server value."/>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
@@ -96,11 +96,10 @@
         </DataGrid>
         <StackPanel Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Center" Spacing="4" Margin="0,8,0,16">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                <Button Name="MergeButton" Width="90" Classes="accent" Content="Merge" Click="OnMerge" ToolTip.Tip="Add server changes without losing local work"/>
-                <Button Name="AcceptButton" Width="90" Classes="normal" Content="Replace" Click="OnAccept" ToolTip.Tip="Replace local with server. Checked rows keep local values."/>
+                <Button Name="MergeButton" Width="90" Classes="accent" Content="Merge" Click="OnMerge" ToolTip.Tip="Apply server values, keep local-only content"/>
                 <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
             </StackPanel>
-            <TextBlock Text="Merge: additive. Replace: full overwrite. Check rows to customize." FontSize="10.5" Opacity="0.5" HorizontalAlignment="Center"/>
+            <TextBlock Text="Server values are applied. Check rows to keep your local version instead." FontSize="10.5" Opacity="0.5" HorizontalAlignment="Center"/>
         </StackPanel>
     </Grid>
 </Window>

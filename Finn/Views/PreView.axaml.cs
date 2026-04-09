@@ -4,6 +4,7 @@ using Finn.Controls;
 using Finn.Services;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -174,11 +175,11 @@ public partial class PreView : UserControl
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)
                 {
                     // Only update the secondary renderer's stroke page from
-                    // CurrentPage1 when pages are linked or in toggle mode.
-                    // In SBS with unlinked pages, the B side has its own page
+                    // CurrentPage1 when pages are linked.
+                    // In SBS or Toggle with unlinked pages, the B side has its own page
                     // controlled by CurrentPage2.
-                    bool syncSecondary = !_diffSideBySideOpen || pwr.LinkedPageMode;
-                    if (syncSecondary)
+                    bool unlinked = !pwr.LinkedPageMode && (_diffSideBySideOpen || _diffToggleOpen);
+                    if (!unlinked)
                     {
                         sec.SetStrokePage(pwr.CurrentPage1);
                         // Refresh secondary pixel diff overlay for the new page.
@@ -240,8 +241,8 @@ public partial class PreView : UserControl
                     MuPDFRenderer.ClearDiffOverlay();
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secTol)
                 {
-                    // Use CurrentPage2 when pages are unlinked in SBS mode.
-                    int secPage = (_diffSideBySideOpen && !pwr.LinkedPageMode) ? pwr.CurrentPage2 : pwr.CurrentPage1;
+                    // Use CurrentPage2 when pages are unlinked in SBS or Toggle mode.
+                    int secPage = ((_diffSideBySideOpen || _diffToggleOpen) && !pwr.LinkedPageMode) ? pwr.CurrentPage2 : pwr.CurrentPage1;
                     var diffB3 = pwr.GetDiffImagePathB(secPage);
                     if (diffB3 != null)
                         secTol.SetDiffOverlay(diffB3, secPage, PdfDiffService.ZOOM, forceReload: true);
@@ -253,6 +254,23 @@ public partial class PreView : UserControl
             case nameof(PreviewViewModel.DiffShowingOriginal) when _diffToggleOpen:
                 ShowToggleRenderer(pwr.DiffShowingOriginal);
                 DiffABLabel.Text = pwr.DiffShowingOriginal ? "A" : "B";
+                // When pages are unlinked, each side has its own page.
+                // Navigate the visible renderer to the correct page so the
+                // user sees the right content after toggling.
+                if (!pwr.LinkedPageMode)
+                {
+                    if (pwr.DiffShowingOriginal)
+                    {
+                        // Showing A (primary) — ensure it's on CurrentPage1
+                        MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
+                    }
+                    else
+                    {
+                        // Showing B (secondary) — ensure it's on CurrentPage2
+                        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secToggle2)
+                            secToggle2.SetStrokePage(pwr.CurrentPage2);
+                    }
+                }
                 break;
 
             case nameof(pwr.LightPaperColor):
@@ -321,7 +339,10 @@ public partial class PreView : UserControl
             annotated.SetLayers(layers);
         // Ensure the secondary renderer knows the current page so it draws
         // the correct page's shapes (SetLayers does not update the page).
-        annotated.SetStrokePage(pwr.CurrentPage1);
+        // Use CurrentPage2 when pages are unlinked.
+        int secPage = (!pwr.LinkedPageMode && (_diffSideBySideOpen || _diffToggleOpen))
+            ? pwr.CurrentPage2 : pwr.CurrentPage1;
+        annotated.SetStrokePage(secPage);
     }
 
     /// <summary>
@@ -1106,6 +1127,11 @@ public partial class PreView : UserControl
     /// </summary>
     private async void OnRunDiffComparison(object? sender, RoutedEventArgs e)
     {
+        // Undo the ToggleButton's internal toggle — the VM binding
+        // (HasPixelDiffResults) is the sole source of truth.
+        if (sender is ToggleButton tb)
+            tb.IsChecked = pwr?.HasPixelDiffResults ?? false;
+
         try
         {
             if (pwr == null) return;
@@ -1131,6 +1157,11 @@ public partial class PreView : UserControl
     /// </summary>
     private async void OnRunTextDiff(object? sender, RoutedEventArgs e)
     {
+        // Undo the ToggleButton's internal toggle — the VM binding
+        // (HasTextDiffResults) is the sole source of truth.
+        if (sender is ToggleButton tb)
+            tb.IsChecked = pwr?.HasTextDiffResults ?? false;
+
         try
         {
             if (pwr == null) return;

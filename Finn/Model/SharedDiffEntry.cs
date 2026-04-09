@@ -8,7 +8,7 @@ namespace Finn.Model;
 /// </summary>
 public class SharedDiffEntry : INotifyPropertyChanged
 {
-    private bool _acceptIncoming;
+    private bool _keepLocal;
 
     public string Change { get; init; } = "";
     public string Category { get; init; } = "";
@@ -16,23 +16,23 @@ public class SharedDiffEntry : INotifyPropertyChanged
 
     /// <summary>
     /// The file name this entry relates to (null for project-level entries like Folders/To-Do).
-    /// Used to group accept-incoming decisions by file.
+    /// Used to group keep-local decisions by file.
     /// </summary>
     public string? FileName { get; init; }
 
     /// <summary>
-    /// When true during a Merge, the server value fully replaces the local value
-    /// for this entry's file + category instead of the default additive merge.
+    /// When checked, the local value is preserved instead of being overwritten
+    /// by the server value. Applies to both Merge and Replace modes.
     /// Only meaningful for "Modified" rows on files that exist on both sides.
     /// </summary>
-    public bool AcceptIncoming
+    public bool KeepLocal
     {
-        get => _acceptIncoming;
-        set { _acceptIncoming = value; PropertyChanged?.Invoke(this, new(nameof(AcceptIncoming))); }
+        get => _keepLocal;
+        set { _keepLocal = value; PropertyChanged?.Invoke(this, new(nameof(KeepLocal))); }
     }
 
-    /// <summary>Whether the AcceptIncoming checkbox should be shown for this row.</summary>
-    public bool CanAcceptIncoming => !string.IsNullOrEmpty(FileName) && Change == "Modified";
+    /// <summary>Whether the KeepLocal checkbox should be shown for this row.</summary>
+    public bool CanKeepLocal => !string.IsNullOrEmpty(FileName) && Change == "Modified";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 }

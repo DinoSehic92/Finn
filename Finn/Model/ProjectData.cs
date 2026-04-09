@@ -370,7 +370,7 @@ namespace Finn.Model
         }
 
         /// <summary>
-        /// Unicode indicator for the tree view: ✓ in sync, ↓ server ahead, ↑ local ahead, ? unknown.
+        /// Unicode indicator for the tree view: ✓ in sync, ↓ server ahead, ↑ local ahead, ⇅ both changed, ? unknown.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string SharedSyncIcon => SharedSyncStatus switch
@@ -378,6 +378,7 @@ namespace Finn.Model
             SharedSyncState.InSync => "✓",
             SharedSyncState.ServerAhead => "↓",
             SharedSyncState.LocalAhead => "↑",
+            SharedSyncState.Conflicted => "⇅",
             SharedSyncState.ServerMissing => "✕",
             _ => "⇄"
         };
@@ -399,6 +400,8 @@ namespace Finn.Model
         ServerAhead,
         /// <summary>Local has been modified since last push.</summary>
         LocalAhead,
+        /// <summary>Both local and server have changed since last push.</summary>
+        Conflicted,
         /// <summary>Server file doesn't exist.</summary>
         ServerMissing,
     }

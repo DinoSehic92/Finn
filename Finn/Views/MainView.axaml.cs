@@ -98,6 +98,7 @@ public partial class MainView : UserControl
         _ctx.ColumnsChanged += () => { OnUpdateColumns(); UpdateEmptyState(); };
         _ctx.TreeViewUpdateRequested += () => _ctx.BuildTreeData();
         _ctx.FontChanged += () => UpdateFont();
+        _ctx.StartPassiveEditTracking();
 
         UpdateFont();
         UpdateMainGrid();
@@ -904,6 +905,10 @@ public partial class MainView : UserControl
         if (conflict != null)
             dialog.SetWarning(conflict);
 
+        // Hint when server is already up to date (no local changes)
+        if (_ctx.CurrentProject.SharedSyncStatus == SharedSyncState.InSync)
+            dialog.SetWarning("Server is already up to date with your local copy.");
+
         await dialog.ShowDialog(window);
 
         if (dialog.Confirmed)
@@ -941,12 +946,7 @@ public partial class MainView : UserControl
         await dialog.ShowDialog(window);
 
         if (dialog.Confirmed)
-        {
-            if (dialog.IsMerge)
-                _ctx.MergeProject(serverProject, dialog.AcceptIncomingEntries);
-            else
-                _ctx.PullProject(serverProject, dialog.KeepLocalEntries);
-        }
+            _ctx.MergeProject(serverProject, dialog.KeepLocalEntries);
     }
 
     private async void OnUnshareProject(object? sender, RoutedEventArgs e)
@@ -956,7 +956,7 @@ public partial class MainView : UserControl
 
         var dialog = new Finn.Dialogs.xMessageDia();
         _ctx.ConfigureWindow(dialog, window);
-        dialog.SetMessage("This will disconnect from the server. You can re-import later.");
+        dialog.SetMessage("This will make the project local-only. You can re-import the shared copy later.");
         await dialog.ShowDialog(window);
 
         _ctx.UnshareProject();

@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Finn.ViewModels
 {
@@ -48,6 +49,7 @@ namespace Finn.ViewModels
             SetDefaultSelection();
             SortProjects();
             Collections.SetCollectionContent();
+            RefreshFolderWatchers();
             MarkDirty();
         }
 
@@ -272,9 +274,9 @@ namespace Finn.ViewModels
                 server.StoredFiles.Select(f => f.Namn), StringComparer.OrdinalIgnoreCase);
 
             foreach (string name in serverNames.Except(localNames, StringComparer.OrdinalIgnoreCase))
-                entries.Add(new SharedDiffEntry { Change = "Added", Category = "File", Detail = name });
+                entries.Add(new SharedDiffEntry { Change = "Server only", Category = "File", Detail = name });
             foreach (string name in localNames.Except(serverNames, StringComparer.OrdinalIgnoreCase))
-                entries.Add(new SharedDiffEntry { Change = "Removed", Category = "File", Detail = name });
+                entries.Add(new SharedDiffEntry { Change = "Local only", Category = "File", Detail = name });
 
             // Files present in both — check for metadata and content changes
             foreach (string name in localNames.Intersect(serverNames, StringComparer.OrdinalIgnoreCase))
@@ -295,7 +297,9 @@ namespace Finn.ViewModels
 
                 if (lf.Note != sf.Note)
                 {
-                    string hint = string.IsNullOrEmpty(lf.Note) ? "merge: will add" : "accept incoming to overwrite";
+                    string hint = string.IsNullOrEmpty(sf.Note) ? "server note is empty"
+                        : string.IsNullOrEmpty(lf.Note) ? "server has note, local is empty"
+                        : "notes differ";
                     entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Note", Detail = $"{name} ({hint})", FileName = name });
                 }
 
@@ -361,13 +365,13 @@ namespace Finn.ViewModels
         /// </summary>
         public static string BuildPullSummary(List<SharedDiffEntry> entries)
         {
-            int added = entries.Count(e => e.Change == "Added");
-            int removed = entries.Count(e => e.Change == "Removed");
+            int serverOnly = entries.Count(e => e.Change == "Server only");
+            int localOnly = entries.Count(e => e.Change == "Local only");
             int modified = entries.Count(e => e.Change == "Modified");
 
             var parts = new List<string>();
-            if (added > 0) parts.Add($"{added} added");
-            if (removed > 0) parts.Add($"{removed} removed");
+            if (serverOnly > 0) parts.Add($"{serverOnly} server-only");
+            if (localOnly > 0) parts.Add($"{localOnly} local-only");
             if (modified > 0) parts.Add($"{modified} modified");
 
             return parts.Count > 0 ? string.Join(", ", parts) : "No differences found";
@@ -396,127 +400,18 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Replaces the local project data with the server copy.
-        /// Preserves local <see cref="ProjectData.SharedPath"/>,
-        /// <see cref="ProjectData.LastPushedUtc"/>, and project name.
-        /// When <paramref name="keepLocal"/> is provided, matching (file, category)
-        /// pairs are restored from the local copy after the replace — allowing
-        /// selective keep-local during an otherwise full replacement.
-        /// A backup of the pre-pull state is saved to the shared-backup folder.
-        /// </summary>
-        public bool PullProject(ProjectData pulled, HashSet<(string File, string Category)>? keepLocal = null)
-        {
-            if (CurrentProject?.SharedPath == null) return false;
-
-            try
-            {
-                // Backup current local state before overwriting
-                BackupProjectBeforePull(CurrentProject);
-
-                // Snapshot local files for selective keep-local
-                Dictionary<string, FileData>? localFileMap = null;
-                if (keepLocal is { Count: > 0 })
-                {
-                    localFileMap = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var f in CurrentProject.StoredFiles)
-                        localFileMap.TryAdd(f.Namn, f);
-                }
-
-                // Preserve local identity
-                string localSharedPath = CurrentProject.SharedPath;
-                DateTime? localLastPushed = CurrentProject.LastPushedUtc;
-                string localName = CurrentProject.Namn;
-                int index = Storage.StoredProjects.IndexOf(CurrentProject);
-
-                // Run full migration
-                pulled.WireParentReferences();
-                pulled.RefreshHasChildren();
-                foreach (var file in pulled.StoredFiles)
-                    file.RefreshAnnotationStatus();
-
-                // Restore shared metadata and preserve local name
-                pulled.SharedPath = localSharedPath;
-                pulled.LastPushedUtc = localLastPushed;
-                pulled.Namn = localName;
-
-                // Ensure all files reference the local project name
-                foreach (var file in pulled.StoredFiles)
-                    file.Uppdrag = localName;
-
-                // Apply selective keep-local: restore local values for checked entries
-                if (localFileMap is { Count: > 0 } && keepLocal is { Count: > 0 })
-                {
-                    foreach (var pulledFile in pulled.StoredFiles)
-                    {
-                        if (!localFileMap.TryGetValue(pulledFile.Namn, out var localFile))
-                            continue;
-
-                        string name = pulledFile.Namn;
-
-                        if (keepLocal.Contains((name, "File")))
-                            SharedProjectMerge.AcceptFileMetadata(pulledFile, localFile);
-
-                        if (keepLocal.Contains((name, "Note")))
-                            pulledFile.Note = localFile.Note;
-
-                        if (keepLocal.Contains((name, "Annotations")))
-                        {
-                            pulledFile.AnnotationLayers = new System.Collections.ObjectModel.ObservableCollection<AnnotationLayer>(localFile.AnnotationLayers);
-                            foreach (var layer in pulledFile.AnnotationLayers)
-                                layer.RecalculateCounts();
-                        }
-
-                        if (keepLocal.Contains((name, "Bookmarks")))
-                            pulledFile.FavPages = localFile.FavPages;
-
-                        if (keepLocal.Contains((name, "Other Files")))
-                            pulledFile.OtherFiles = localFile.OtherFiles;
-
-                        if (keepLocal.Contains((name, "Versions")))
-                            pulledFile.Versions = localFile.Versions;
-                    }
-                }
-
-                // Swap in the pulled project
-                if (index >= 0)
-                    Storage.StoredProjects[index] = pulled;
-                else
-                    Storage.StoredProjects.Add(pulled);
-
-                currentProject = pulled;
-                pulled.SharedSyncStatus = SharedSyncState.InSync;
-                WriteSharedActivityLog(pulled, "pulled (replace)");
-                OnPropertyChanged(nameof(CurrentProject));
-                UpdateFilter();
-                SetProjectlist();
-                BuildTreeData();
-                MarkDirty();
-
-                PreviewVM.StatusMessage = $"Pulled \"{pulled.Namn}\" from server";
-                return true;
-            }
-            catch (Exception ex)
-            {
-                PreviewVM.StatusMessage = $"Pull failed: {ex.Message}";
-                Utils.ErrorLogger.Log(ex, "PullProject");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Merges server changes into the local project without losing local work.
-        /// Entries with AcceptIncoming checked get their server value applied as
-        /// a full overwrite for that specific file + category.
+        /// Merges server changes into the local project using server-wins semantics.
+        /// Entries in <paramref name="keepLocal"/> preserve the local value instead.
         /// <list type="bullet">
         ///   <item>Files only on server → added to local project</item>
         ///   <item>Files only locally → kept (not removed)</item>
-        ///   <item>Files on both sides → per-field merge (additive by default,
-        ///     full replace for categories where AcceptIncoming was checked)</item>
-        ///   <item>Todos only on server → appended</item>
-        ///   <item>Folders only on server → added</item>
+        ///   <item>Files on both sides → server wins per field (unless KeepLocal checked)</item>
+        ///   <item>Todos → server replaces local (local-only todos kept)</item>
+        ///   <item>Folders → server replaces local (local-only folders kept)</item>
+        ///   <item>Settings (Category/Group) → server wins</item>
         /// </list>
         /// </summary>
-        public bool MergeProject(ProjectData server, HashSet<(string File, string Category)>? acceptEntries = null)
+        public bool MergeProject(ProjectData server, HashSet<(string File, string Category)>? keepLocal = null)
         {
             if (CurrentProject?.SharedPath == null) return false;
 
@@ -549,67 +444,78 @@ namespace Finn.ViewModels
                         bool changed = false;
                         string name = localFile.Namn;
 
-                        // File metadata (path, type, tag, color)
-                        if (SharedProjectMerge.ShouldAccept(acceptEntries, name, "File"))
-                        {
-                            SharedProjectMerge.AcceptFileMetadata(localFile, serverFile);
-                            changed = true;
-                        }
+                        // File metadata — server wins unless KeepLocal is checked
+                        changed |= SharedProjectMerge.MergeFileMetadata(localFile, serverFile,
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "File"));
 
                         changed |= SharedProjectMerge.MergeNote(localFile, serverFile,
-                            SharedProjectMerge.ShouldAccept(acceptEntries, name, "Note"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Note"));
 
                         changed |= SharedProjectMerge.MergeAnnotations(localFile, serverFile,
-                            SharedProjectMerge.ShouldAccept(acceptEntries, name, "Annotations"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Annotations"));
 
                         changed |= SharedProjectMerge.MergeBookmarks(localFile, serverFile,
-                            SharedProjectMerge.ShouldAccept(acceptEntries, name, "Bookmarks"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Bookmarks"));
 
                         changed |= SharedProjectMerge.MergeOtherFiles(localFile, serverFile,
-                            SharedProjectMerge.ShouldAccept(acceptEntries, name, "Other Files"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Other Files"));
 
                         changed |= SharedProjectMerge.MergeVersions(localFile, serverFile,
-                            SharedProjectMerge.ShouldAccept(acceptEntries, name, "Versions"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Versions"));
 
                         if (changed) mergedFiles++;
                     }
                 }
 
-                // Merge todos
+                // Merge todos — server wins, local-only kept
                 if (server.TodoItems is { Count: > 0 })
                 {
-                    var localTodoTexts = new HashSet<string>(
-                        CurrentProject.TodoItems?.Select(t => t.Text ?? "") ?? [],
+                    var serverTexts = new HashSet<string>(
+                        server.TodoItems.Select(t => t.Text ?? ""),
                         StringComparer.OrdinalIgnoreCase);
 
+                    // Replace matching todos with server versions
+                    CurrentProject.TodoItems ??= new();
+                    for (int i = CurrentProject.TodoItems.Count - 1; i >= 0; i--)
+                    {
+                        if (serverTexts.Contains(CurrentProject.TodoItems[i].Text ?? ""))
+                            CurrentProject.TodoItems.RemoveAt(i);
+                    }
+
+                    // Add all server todos (they replace what we just removed + add new ones)
                     foreach (var serverTodo in server.TodoItems)
                     {
-                        if (!localTodoTexts.Contains(serverTodo.Text ?? ""))
-                        {
-                            CurrentProject.TodoItems ??= new();
-                            CurrentProject.TodoItems.Add(serverTodo);
-                            addedTodos++;
-                        }
+                        CurrentProject.TodoItems.Add(serverTodo);
+                        addedTodos++;
                     }
                 }
 
-                // Merge folders
+                // Merge folders — server wins, local-only kept
                 if (server.Folders is { Count: > 0 })
                 {
-                    var localFolderPaths = new HashSet<string>(
-                        CurrentProject.Folders?.Select(f => f.Path ?? "") ?? [],
+                    var serverFolderPaths = new HashSet<string>(
+                        server.Folders.Select(f => f.Path ?? ""),
                         StringComparer.OrdinalIgnoreCase);
+
+                    CurrentProject.Folders ??= new();
+                    for (int i = CurrentProject.Folders.Count - 1; i >= 0; i--)
+                    {
+                        if (serverFolderPaths.Contains(CurrentProject.Folders[i].Path ?? ""))
+                            CurrentProject.Folders.RemoveAt(i);
+                    }
 
                     foreach (var serverFolder in server.Folders)
                     {
-                        if (!localFolderPaths.Contains(serverFolder.Path ?? ""))
-                        {
-                            CurrentProject.Folders ??= new();
-                            CurrentProject.Folders.Add(serverFolder);
-                            addedFolders++;
-                        }
+                        CurrentProject.Folders.Add(serverFolder);
+                        addedFolders++;
                     }
                 }
+
+                // Settings — server wins
+                if (server.Category != null)
+                    CurrentProject.Category = server.Category;
+                if (server.Parent != CurrentProject.Parent)
+                    CurrentProject.Parent = server.Parent;
 
                 // Refresh project state
                 CurrentProject.SetFiletypeList();
@@ -618,7 +524,6 @@ namespace Finn.ViewModels
                 foreach (var file in CurrentProject.StoredFiles)
                     file.RefreshAnnotationStatus();
                 UpdateFilter();
-                BuildTreeData();
                 MarkDirty();
 
                 var parts = new List<string>();
@@ -628,8 +533,16 @@ namespace Finn.ViewModels
                 if (addedFolders > 0) parts.Add($"{addedFolders} folders");
                 string detail = parts.Count > 0 ? string.Join(", ", parts) : "no new content";
 
-                CurrentProject.SharedSyncStatus = SharedSyncState.InSync;
+                // Record the server file's timestamp as our baseline so
+                // CheckPushConflict won't flag our own merge as a conflict.
+                try { CurrentProject.LastPushedUtc = File.GetLastWriteTimeUtc(CurrentProject.SharedPath!); } catch { }
+
+                // If any rows were kept local, local ≠ server → LocalAhead.
+                CurrentProject.SharedSyncStatus = keepLocal is { Count: > 0 }
+                    ? SharedSyncState.LocalAhead
+                    : SharedSyncState.InSync;
                 WriteSharedActivityLog(CurrentProject, $"merged ({detail})");
+                BuildTreeData();
 
                 PreviewVM.StatusMessage = $"Merged \"{CurrentProject.Namn}\": {detail}";
                 return true;
@@ -658,14 +571,26 @@ namespace Finn.ViewModels
                 string dir = Path.GetDirectoryName(CurrentProject.SharedPath)!;
                 Directory.CreateDirectory(dir);
 
-                string tmpPath = CurrentProject.SharedPath + ".tmp";
-                File.WriteAllText(tmpPath, json);
-                File.Move(tmpPath, CurrentProject.SharedPath, overwrite: true);
+                // Suppress watcher so our own write doesn't trigger a sync event
+                _suppressSharedWatcher = true;
+                try
+                {
+                    string tmpPath = CurrentProject.SharedPath + ".tmp";
+                    File.WriteAllText(tmpPath, json);
+                    File.Move(tmpPath, CurrentProject.SharedPath, overwrite: true);
+                }
+                finally
+                {
+                    // Delay clearing the flag so the debounced watcher event
+                    // fires while the flag is still set.
+                    Task.Delay(1500).ContinueWith(_ => _suppressSharedWatcher = false);
+                }
 
                 CurrentProject.LastPushedUtc = DateTime.UtcNow;
-                CurrentProject.SharedSyncStatus = SharedSyncState.InSync;
                 WriteSharedActivityLog(CurrentProject, "pushed");
                 MarkDirty();
+                // Set InSync after MarkDirty so it doesn't flip to LocalAhead
+                CurrentProject.SharedSyncStatus = SharedSyncState.InSync;
                 BuildTreeData();
                 PreviewVM.StatusMessage = $"Pushed \"{CurrentProject.Namn}\" to server";
                 return true;
@@ -790,8 +715,8 @@ namespace Finn.ViewModels
         /// <summary>
         /// Imports a shared project file from a server path into the local
         /// project list. Appends "-shared" to distinguish it from the
-        /// original owner's copy. The suffix is preserved across pulls
-        /// because <see cref="PullProject"/> keeps the local name.
+        /// original owner's copy. The suffix is preserved across merges
+        /// because <see cref="MergeProject"/> keeps the local name.
         /// </summary>
         public bool ImportSharedProject(string serverFilePath)
         {
@@ -832,6 +757,11 @@ namespace Finn.ViewModels
                 imported.SharedPath = serverFilePath;
                 imported.LastPushedUtc = null;
 
+                // Mark as in-sync since we just imported the server content.
+                // Record the server file timestamp so CheckPushConflict has a baseline.
+                try { imported.LastPushedUtc = File.GetLastWriteTimeUtc(serverFilePath); } catch { }
+                imported.SharedSyncStatus = SharedSyncState.InSync;
+
                 // Run migration
                 imported.FlattenAppendedFiles();
                 imported.WireParentReferences();
@@ -871,7 +801,7 @@ namespace Finn.ViewModels
             CurrentProject.SharedSyncStatus = SharedSyncState.Unknown;
             MarkDirty();
             BuildTreeData();
-            PreviewVM.StatusMessage = $"\"{CurrentProject.Namn}\" is no longer shared";
+            PreviewVM.StatusMessage = $"\"{CurrentProject.Namn}\" is now local-only";
         }
 
         /// <summary>
@@ -881,7 +811,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Restores a shared project from a backup file.
-        /// Works like <see cref="PullProject"/> but reads from a local backup instead of the server.
+        /// Works like <see cref="MergeProject"/> but reads from a local backup instead of the server.
         /// </summary>
         public bool RestoreFromBackup(string backupPath)
         {
@@ -977,7 +907,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Appends a line to the activity log next to the server JSON file.
-        /// Format: "2025-06-09 14:32 | DESKTOP-ABC | pushed (12 files)"
+        /// Format: "2025-06-09 14:32 | DESKTOP-ABC\User | pushed (12 files)"
         /// </summary>
         private static void WriteSharedActivityLog(ProjectData project, string action)
         {
@@ -988,7 +918,7 @@ namespace Finn.ViewModels
                 if (dir == null) return;
                 string logPath = Path.Combine(dir,
                     Path.GetFileNameWithoutExtension(project.SharedPath) + ".log");
-                string line = $"{DateTime.Now:yyyy-MM-dd HH:mm} | {Environment.MachineName} | {action}";
+                string line = $"{DateTime.Now:yyyy-MM-dd HH:mm} | {Environment.MachineName}\\{Environment.UserName} | {action}";
                 File.AppendAllText(logPath, line + Environment.NewLine);
             }
             catch { }

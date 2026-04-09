@@ -356,6 +356,7 @@ public partial class PreView
         UpdateAnnotationCountBadge();
         UpdateUndoRedoButtons();
         UpdateActiveLayerLabel();
+        ctx?.MarkDirty();
     }
 
     /// <summary>Shows a context menu listing all layers; clicking one sets it as the active layer.</summary>

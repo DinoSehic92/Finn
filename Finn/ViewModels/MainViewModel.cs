@@ -132,6 +132,12 @@ namespace Finn.ViewModels
             private readonly object _folderSnapshotLock = new();
 
             /// <summary>
+            /// Set to true while we are actively writing the server file (push).
+            /// The shared-file watcher checks this to ignore self-triggered events.
+            /// </summary>
+            private volatile bool _suppressSharedWatcher;
+
+            /// <summary>
             /// Folders that have been flagged as needing a sync, across all projects.
             /// The dropdown in the toolbar binds to this collection.
             /// </summary>
@@ -666,6 +672,9 @@ namespace Finn.ViewModels
             /// </summary>
             private void OnSharedFileChanged(IReadOnlySet<string> changedFiles)
             {
+                // Ignore events triggered by our own push
+                if (_suppressSharedWatcher) return;
+
                 // Snapshot projects on this thread-pool thread
                 List<ProjectData> affected;
                 lock (_folderSnapshotLock)
@@ -690,6 +699,8 @@ namespace Finn.ViewModels
                     {
                         if (project.SharedSyncStatus == SharedSyncState.ServerAhead)
                             PreviewVM.StatusMessage = $"\"{project.Namn}\" has updates on the server";
+                        else if (project.SharedSyncStatus == SharedSyncState.Conflicted)
+                            PreviewVM.StatusMessage = $"\"{project.Namn}\" has server updates and local changes — pull recommended";
                     }
                     BuildTreeData();
                 });
@@ -698,6 +709,8 @@ namespace Finn.ViewModels
             /// <summary>
             /// Computes the sync state of a shared project by comparing
             /// <see cref="ProjectData.LastPushedUtc"/> against the server file timestamp.
+            /// Preserves <see cref="SharedSyncState.LocalAhead"/> by upgrading to
+            /// <see cref="SharedSyncState.Conflicted"/> when the server also changed.
             /// Safe to call from any thread (only reads filesystem + project fields).
             /// </summary>
             public static void UpdateSharedSyncStatus(ProjectData project)
@@ -724,8 +737,16 @@ namespace Finn.ViewModels
                     }
 
                     var serverModified = File.GetLastWriteTimeUtc(project.SharedPath);
-                    if (serverModified > project.LastPushedUtc.Value.AddSeconds(5))
+                    bool serverChanged = serverModified > project.LastPushedUtc.Value.AddSeconds(5);
+                    bool localDirty = project.SharedSyncStatus is SharedSyncState.LocalAhead
+                                                                or SharedSyncState.Conflicted;
+
+                    if (serverChanged && localDirty)
+                        project.SharedSyncStatus = SharedSyncState.Conflicted;
+                    else if (serverChanged)
                         project.SharedSyncStatus = SharedSyncState.ServerAhead;
+                    else if (localDirty)
+                        project.SharedSyncStatus = SharedSyncState.LocalAhead;
                     else
                         project.SharedSyncStatus = SharedSyncState.InSync;
                 }
@@ -753,17 +774,27 @@ namespace Finn.ViewModels
                         UpdateSharedSyncStatus(project);
                 });
 
-                // Notify on server-ahead projects
-                var serverAhead = sharedProjects
-                    .Where(p => p.SharedSyncStatus == SharedSyncState.ServerAhead)
+                // Notify on server-ahead or conflicted projects
+                var needAttention = sharedProjects
+                    .Where(p => p.SharedSyncStatus is SharedSyncState.ServerAhead or SharedSyncState.Conflicted)
                     .ToList();
 
-                if (serverAhead.Count > 0)
+                if (needAttention.Count > 0)
                 {
-                    string names = string.Join(", ", serverAhead.Select(p => $"\"{p.Namn}\""));
-                    PreviewVM.StatusMessage = serverAhead.Count == 1
-                        ? $"{names} has updates on the server"
-                        : $"{serverAhead.Count} shared projects have server updates";
+                    int conflicts = needAttention.Count(p => p.SharedSyncStatus == SharedSyncState.Conflicted);
+                    int serverAhead = needAttention.Count - conflicts;
+
+                    if (conflicts > 0 && serverAhead > 0)
+                        PreviewVM.StatusMessage = $"{serverAhead} project(s) have server updates, {conflicts} have conflicts";
+                    else if (conflicts > 0)
+                        PreviewVM.StatusMessage = $"{conflicts} shared project(s) have both local and server changes";
+                    else
+                    {
+                        string names = string.Join(", ", needAttention.Select(p => $"\"{p.Namn}\""));
+                        PreviewVM.StatusMessage = needAttention.Count == 1
+                            ? $"{names} has updates on the server"
+                            : $"{needAttention.Count} shared projects have server updates";
+                    }
                 }
 
                 BuildTreeData();
@@ -1042,11 +1073,111 @@ namespace Finn.ViewModels
             public void MarkDirty()
             {
                 IsDirty = true;
+                // Flag the current shared project as locally ahead so
+                // the tree icon hints that a push may be needed.
+                // Only triggers a tree rebuild on the InSync→LocalAhead
+                // transition, not on every subsequent MarkDirty call.
+                if (currentProject is { IsShared: true, SharedSyncStatus: SharedSyncState.InSync })
+                {
+                    currentProject.SharedSyncStatus = SharedSyncState.LocalAhead;
+                    BuildTreeData();
+                }
             }
 
             public void ClearDirty()
             {
                 IsDirty = false;
+            }
+
+            // ── Passive edit tracking ─────────────────────────────────────
+            // Properties edited via two-way data binding (Note, Meta_*, etc.)
+            // bypass explicit MarkDirty calls. We subscribe to PropertyChanged
+            // on the active file/project and forward relevant changes.
+
+            private FileData? _trackedFile;
+            private ProjectData? _trackedProject;
+
+            /// <summary>
+            /// Properties on <see cref="FileData"/> whose changes should mark the
+            /// project as dirty and potentially out of sync with the server.
+            /// Covers the file notepad, DataGrid inline edits, and property changes
+            /// from context-menu actions that don't already call MarkDirty.
+            /// </summary>
+            private static readonly HashSet<string> TrackedFileProperties =
+            [
+                nameof(FileData.Note),
+                nameof(FileData.Tagg),
+                nameof(FileData.Färg),
+                nameof(FileData.Filtyp),
+                nameof(FileData.DefaultPage),
+                nameof(FileData.IsCached),
+                nameof(FileData.Handling),
+                nameof(FileData.Status),
+                nameof(FileData.Datum),
+                nameof(FileData.Ritningstyp),
+                nameof(FileData.Beskrivning1),
+                nameof(FileData.Beskrivning2),
+                nameof(FileData.Beskrivning3),
+                nameof(FileData.Beskrivning4),
+                nameof(FileData.Revidering),
+            ];
+
+            /// <summary>
+            /// Properties on <see cref="ProjectData"/> whose changes should mark
+            /// the project as dirty. Column visibility toggles (Meta_*) are the
+            /// primary case.
+            /// </summary>
+            private static bool IsTrackedProjectProperty(string name)
+                => name.StartsWith("Meta_", StringComparison.Ordinal)
+                || name == nameof(ProjectData.ReviewFolder);
+
+            /// <summary>
+            /// Call from the view's <c>InitStartup</c> after <c>_ctx</c> is set
+            /// to begin tracking passive edits on the current file and project.
+            /// </summary>
+            public void StartPassiveEditTracking()
+            {
+                PropertyChanged += OnSelfPropertyChanged;
+                SubscribeTrackedProject(currentProject);
+                SubscribeTrackedFile(CurrentFile);
+            }
+
+            private void OnSelfPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName == nameof(CurrentFile))
+                    SubscribeTrackedFile(CurrentFile);
+                else if (e.PropertyName == nameof(CurrentProject))
+                    SubscribeTrackedProject(currentProject);
+            }
+
+            private void SubscribeTrackedFile(FileData? file)
+            {
+                if (_trackedFile != null)
+                    _trackedFile.PropertyChanged -= OnTrackedFilePropertyChanged;
+                _trackedFile = file;
+                if (_trackedFile != null)
+                    _trackedFile.PropertyChanged += OnTrackedFilePropertyChanged;
+            }
+
+            private void SubscribeTrackedProject(ProjectData? project)
+            {
+                if (_trackedProject != null)
+                    _trackedProject.PropertyChanged -= OnTrackedProjectPropertyChanged;
+                _trackedProject = project;
+                if (_trackedProject != null)
+                    _trackedProject.PropertyChanged += OnTrackedProjectPropertyChanged;
+            }
+
+            private void OnTrackedFilePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName != null && TrackedFileProperties.Contains(e.PropertyName))
+                    MarkDirty();
+            }
+
+            private void OnTrackedProjectPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName != null && IsTrackedProjectProperty(e.PropertyName))
+                    MarkDirty();
             }
 
             #endregion

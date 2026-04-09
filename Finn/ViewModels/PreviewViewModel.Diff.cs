@@ -313,7 +313,7 @@ namespace Finn.ViewModels
             catch (OperationCanceledException) { }
         }
 
-        public async Task LoadDiffResultsAsync(List<DiffResultData> results, string tempDir, string? originalPdfPath = null, string? revisedPdfPath = null, FileData? sourceFile = null)
+        public async Task LoadDiffResultsAsync(List<DiffResultData> results, string tempDir, bool isPixel, string? originalPdfPath = null, string? revisedPdfPath = null, FileData? sourceFile = null)
         {
             CleanupDiffTempDir();
             _diffResults = results;
@@ -326,22 +326,14 @@ namespace Finn.ViewModels
             // UI thread. This method may be called from a background thread
             // after ConfigureAwait(false) in RunDiffAsync / RunTextDiffAsync.
             if (Dispatcher.UIThread.CheckAccess())
-                NotifyDiffResultsLoaded(results);
+                NotifyDiffResultsLoaded(results, isPixel);
             else
-                await Dispatcher.UIThread.InvokeAsync(() => NotifyDiffResultsLoaded(results)).GetTask().ConfigureAwait(false);
+                await Dispatcher.UIThread.InvokeAsync(() => NotifyDiffResultsLoaded(results, isPixel)).GetTask().ConfigureAwait(false);
         }
 
-        private void NotifyDiffResultsLoaded(List<DiffResultData> results)
+        private void NotifyDiffResultsLoaded(List<DiffResultData> results, bool isPixel)
         {
-            // Detect whether this is a pixel or text diff
-            _lastDiffWasPixel = true;
-            foreach (var r in results)
-            {
-                if (r.Regions == null) continue;
-                foreach (var reg in r.Regions)
-                    if (reg.Side != DiffSide.Both) { _lastDiffWasPixel = false; break; }
-                if (!_lastDiffWasPixel) break;
-            }
+            _lastDiffWasPixel = isPixel;
 
             RefreshDiffPathChoices();
             DiffOverlayActive = results.Count > 0;
@@ -965,7 +957,7 @@ namespace Finn.ViewModels
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
                 var (results, dir) = await PdfDiffService.CompareAsync(resolvedA, resolvedB, progress, ct, _diffTolerance,
                     DiffColorA.R, DiffColorA.G, DiffColorA.B);
-                await LoadDiffResultsAsync(results, dir, originalPdfPath ?? pathA, pathB, sourceFile);
+                await LoadDiffResultsAsync(results, dir, isPixel: true, originalPdfPath ?? pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — identical"
@@ -1016,7 +1008,7 @@ namespace Finn.ViewModels
                 // Text diff produces no images; create an empty temp dir for LoadDiffResultsAsync.
                 string tempDir = Path.Combine(Path.GetTempPath(), "FinnTextDiff_" + Guid.NewGuid().ToString("N")[..8]);
                 Directory.CreateDirectory(tempDir);
-                await LoadDiffResultsAsync(results, tempDir, pathA, pathB, sourceFile);
+                await LoadDiffResultsAsync(results, tempDir, isPixel: false, pathA, pathB, sourceFile);
                 int diffCount = results.Count(r => r.HasDifferences);
                 StatusMessage = diffCount == 0
                     ? $"{results.Count} pages — text identical"
