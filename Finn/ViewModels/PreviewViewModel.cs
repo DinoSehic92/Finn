@@ -193,9 +193,14 @@ namespace Finn.ViewModels
             var oldCtx = secondaryContext;
             secondaryFile = newDoc;
             secondaryContext = newCtx;
-            // Dispose in strict order: document first, then context
-            try { oldDoc?.Dispose(); } catch { }
-            try { oldCtx?.Dispose(); } catch { }
+            // Dispose in strict order: document first, then context.
+            // If Dispose throws, suppress the finalizer so the GC doesn't
+            // later attempt Finalize on a document whose context is gone
+            // (LifetimeManagementException).
+            try { oldDoc?.Dispose(); }
+            catch { if (oldDoc != null) GC.SuppressFinalize(oldDoc); }
+            try { oldCtx?.Dispose(); }
+            catch { if (oldCtx != null) GC.SuppressFinalize(oldCtx); }
         }
         #endregion
 
@@ -1160,8 +1165,10 @@ namespace Finn.ViewModels
                 WhiteboardMode = true;
                 fileAvailable = true;
 
-                try { prevDoc?.Dispose(); } catch { }
-                try { prevCtx?.Dispose(); } catch { }
+                try { prevDoc?.Dispose(); }
+                catch { if (prevDoc != null) GC.SuppressFinalize(prevDoc); }
+                try { prevCtx?.Dispose(); }
+                catch { if (prevCtx != null) GC.SuppressFinalize(prevCtx); }
 
                 StatusMessage = "Whiteboard";
 
@@ -1192,13 +1199,19 @@ namespace Finn.ViewModels
             // dualFileMode is true, so we must reset it synchronously first.
             // When preserveDualFile is set (View Left in Dual-File mode),
             // only close diff state — keep the dual-file layout intact.
+            // CloseDiffModeSync writes backing fields directly (bypassing the
+            // DualFileMode property setter) so we must dispose the secondary
+            // document explicitly — otherwise it's orphaned and the GC may
+            // finalize its context first, causing LifetimeManagementException.
             if (_diffOverlayActive)
             {
                 await Dispatcher.UIThread.InvokeAsync(CloseDiffModeSync).GetTask().ConfigureAwait(false);
+                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
             }
             else if (dualFileMode && !preserveDualFile)
             {
                 await Dispatcher.UIThread.InvokeAsync(CloseDiffModeSync).GetTask().ConfigureAwait(false);
+                await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
             }
 
             int myGeneration = Interlocked.Increment(ref fileGeneration);
@@ -1400,8 +1413,10 @@ namespace Finn.ViewModels
                         Pagecount = MainPreviewFile!.Pages.Count;
                         CurrentFile = reqFile;
                         fileAvailable = true;
-                        try { prevDoc?.Dispose(); } catch { }
-                        try { prevCtx?.Dispose(); } catch { }
+                        try { prevDoc?.Dispose(); }
+                        catch { if (prevDoc != null) GC.SuppressFinalize(prevDoc); }
+                        try { prevCtx?.Dispose(); }
+                        catch { if (prevCtx != null) GC.SuppressFinalize(prevCtx); }
 
                         // --- Page setup ---
                         if (!DualFileMode) LinkedPageMode = true;
@@ -1472,8 +1487,10 @@ namespace Finn.ViewModels
                 // unexpected throw between document creation and the swap.
                 if (previewDoc != null)
                 {
-                    try { previewDoc.Dispose(); } catch { }
-                    try { previewContext?.Dispose(); } catch { }
+                    try { previewDoc.Dispose(); }
+                    catch { GC.SuppressFinalize(previewDoc); }
+                    try { previewContext?.Dispose(); }
+                    catch { if (previewContext != null) GC.SuppressFinalize(previewContext); }
                 }
 
                 if (!IsStale(myGeneration))
@@ -1598,8 +1615,10 @@ namespace Finn.ViewModels
                         context = null;
                         fileAvailable = false;
 
-                        try { prevDoc?.Dispose(); } catch { }
-                        try { prevCtx?.Dispose(); } catch { }
+                        try { prevDoc?.Dispose(); }
+                        catch { if (prevDoc != null) GC.SuppressFinalize(prevDoc); }
+                        try { prevCtx?.Dispose(); }
+                        catch { if (prevCtx != null) GC.SuppressFinalize(prevCtx); }
                     }
                     catch (Exception ex)
                     {
@@ -1754,8 +1773,10 @@ namespace Finn.ViewModels
                 // Dispose doc before ctx if they were never swapped in.
                 if (newDoc != null)
                 {
-                    try { newDoc.Dispose(); } catch { }
-                    try { newContext?.Dispose(); } catch { }
+                    try { newDoc.Dispose(); }
+                    catch { GC.SuppressFinalize(newDoc); }
+                    try { newContext?.Dispose(); }
+                    catch { if (newContext != null) GC.SuppressFinalize(newContext); }
                 }
             }
         }
