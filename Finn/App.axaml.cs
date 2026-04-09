@@ -4,9 +4,7 @@ using Finn.Views;
 using System;
 using System.Threading.Tasks;
 using Avalonia;
-// Finn.Services removed: UIService moved into App/ViewModel logic
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 
 namespace Finn;
@@ -20,10 +18,6 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        // Line below is needed to remove Avalonia data validation.
-        // Without this line you will get duplicate validations from both Avalonia and CT
-        BindingPlugins.DataValidators.RemoveAt(0);
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = InitializeViewModel();

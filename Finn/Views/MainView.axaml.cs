@@ -8,6 +8,7 @@ using System.ComponentModel;
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using System.Collections.Generic;
 using Finn.Model;
 using System.IO;
@@ -95,11 +96,17 @@ public partial class MainView : UserControl
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
         _ctx.PreviewVM.PropertyChanged += OnPreviewPropertyChanged;
+        _ctx.Calendar.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(_ctx.Calendar.SelectableProjectNames))
+                Resources["CalendarProjectNames"] = _ctx.Calendar.SelectableProjectNames;
+        };
         _ctx.ColumnsChanged += () => { OnUpdateColumns(); UpdateEmptyState(); };
         _ctx.TreeViewUpdateRequested += () => _ctx.BuildTreeData();
         _ctx.FontChanged += () => UpdateFont();
         _ctx.StartPassiveEditTracking();
 
+        PushViewModelResources();
         UpdateFont();
         UpdateMainGrid();
 
@@ -283,7 +290,24 @@ public partial class MainView : UserControl
                 else
                     _ctx.DismissFolderSyncNotification();
                 break;
+            case nameof(_ctx.UI.FontSize):
+            case nameof(_ctx.UI.FontSizeCompact):
+                PushViewModelResources();
+                break;
         }
+    }
+
+    /// <summary>
+    /// Pushes ViewModel values into UserControl.Resources so DataTemplates
+    /// can access them via DynamicResource (avoids $parent[DataGrid] which
+    /// Avalonia 12 cannot resolve at runtime).
+    /// </summary>
+    private void PushViewModelResources()
+    {
+        Resources["ViewFontSize"] = (double)_ctx.UI.FontSize;
+        Resources["ViewFontSizeCompact"] = (double)_ctx.UI.FontSizeCompact;
+        Resources["CalendarHours"] = _ctx.Calendar.Hours;
+        Resources["CalendarProjectNames"] = _ctx.Calendar.SelectableProjectNames;
     }
 
     private void OnTogglePreviewWindow()
@@ -375,7 +399,7 @@ public partial class MainView : UserControl
     {
         var files = new List<string>();
         var folders = new List<string>();
-        var items = e.Data.GetFiles();
+        var items = e.DataTransfer.TryGetFiles();
         if (items == null) return (files, folders);
 
         foreach (var item in items)
@@ -397,7 +421,7 @@ public partial class MainView : UserControl
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        var items = e.Data.GetFiles();
+        var items = e.DataTransfer.TryGetFiles();
         if (items == null) return;
 
         bool hasPdf = false;
@@ -1921,11 +1945,6 @@ public partial class MainView : UserControl
         int index = grid.SelectedIndex;
         if (index >= 0 && index < items.Count - 1)
             MoveTodoItem(index, 1);
-    }
-
-    private void OnToggleHideCompleted(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        _ctx.UI.HideCompletedTodos = !_ctx.UI.HideCompletedTodos;
     }
 
     private void OnClearCompletedTodos(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

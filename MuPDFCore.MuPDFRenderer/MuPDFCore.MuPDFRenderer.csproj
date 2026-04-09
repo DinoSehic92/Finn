@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>MuPDFCore.MuPDFRenderer</AssemblyName>
+    <RootNamespace>MuPDFCore.MuPDFRenderer</RootNamespace>
+    <!-- Suppress warnings from upstream code we don't want to modify -->
+    <NoWarn>$(NoWarn);CS8600;CS8601;CS8602;CS8603;CS8604;CS8625;CS0618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.0" />
+    <PackageReference Include="MuPDFCore" Version="2.0.1" />
+  </ItemGroup>
+
+</Project>

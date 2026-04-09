@@ -8,11 +8,11 @@
 			 xmlns:mupdf="clr-namespace:MuPDFCore.MuPDFRenderer;assembly=MuPDFCore.MuPDFRenderer"
 			 xmlns:converter="clr-namespace:Finn.Converters"
 			 xmlns:controls="clr-namespace:Finn.Controls"
-			 xmlns:ic="using:FluentIcons.Avalonia" 
+			 xmlns:ic="using:FluentIcons.Avalonia"
 			 mc:Ignorable="d"
-             x:Class="Finn.Views.MainView"
-             x:DataType="vm:MainViewModel"
-             ClipToBounds="False">
+			 x:Class="Finn.Views.MainView"
+			 x:DataType="vm:MainViewModel"
+			 ClipToBounds="False">
 
 	<Design.DataContext>
 		<vm:MainViewModel />
@@ -49,7 +49,7 @@
 		<!-- Shared styles as reusable resources to reduce duplication -->
 		<ControlTemplate x:Key="ThumbnailTooltipTemplate">
 			<Panel Background="White">
-				<Image Source="{Binding (model:FileData).ThumbnailSource, Converter={StaticResource BitmapConverter}, Mode=OneWay}"/>
+				<Image Source="{ReflectionBinding ThumbnailSource, Converter={StaticResource BitmapConverter}, Mode=OneWay}"/>
 			</Panel>
 		</ControlTemplate>
 
@@ -117,7 +117,7 @@
 			<Setter Property="MaxHeight" Value="500"/>
 		</Style>
 		<Style Selector="DataGrid.ThumbnailGrid DataGridRow">
-			<Setter Property="ToolTip.Tip" Value="{Binding (model:FileData).Namn}"/>
+			<Setter Property="ToolTip.Tip" Value="{ReflectionBinding Namn}"/>
 		</Style>
 
 		<!-- Smooth opacity for toggled panels -->
@@ -518,7 +518,7 @@
 								<!-- Folder list -->
 								<ItemsControl ItemsSource="{Binding PendingSyncFolders}" IsVisible="{Binding HasPendingSyncFolders}">
 									<ItemsControl.ItemTemplate>
-										<DataTemplate x:DataType="model:SyncStatusEntry">
+										<DataTemplate>
 											<Border Background="{DynamicResource TextControlBackground}"
 													CornerRadius="5" Padding="10,7" Margin="0,1">
 												<Grid ColumnDefinitions="Auto,*,Auto">
@@ -605,9 +605,9 @@
 					<!-- Color dot column: shows a small colored circle when ColorTagDot mode is active -->
 						<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" CanUserSort="False" MinWidth="8" MaxWidth="30" IsVisible="{Binding UI.ColorTagDot}">
 							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate x:DataType="model:FileData">
-									<Ellipse Width="10" Height="10" Margin="6,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"
-											 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
+								<DataTemplate>
+										<Ellipse Width="10" Height="10" Margin="6,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"
+												 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
@@ -617,8 +617,8 @@
 						<!-- Name column with expand/collapse chevron for parent files and indent for appended -->
 						<DataGridTemplateColumn Header="Namn" Width="Auto" MinWidth="120">
 							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate x:DataType="model:FileData">
-									<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+								<DataTemplate>
+										<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 										<!-- Indent for appended files -->
 										<Panel Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"/>
 										<!-- Expand/collapse chevron for parent files with children -->
@@ -628,10 +628,10 @@
 														   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
 										</Panel>
 										<TextBlock Text="{Binding Namn}" VerticalAlignment="Center"
-												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-												   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-												   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
-									</StackPanel>
+																																						   FontSize="{DynamicResource ViewFontSize}"
+																																								   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+																																								   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+																													</StackPanel>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
@@ -925,11 +925,11 @@
 									<DataTemplate>
 										<StackPanel Orientation="Horizontal" Spacing="5" Margin="6,0" VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
 											<ic:SymbolIcon Symbol="{Binding Mode, Converter={StaticResource FolderModeIconConverter}}" FontSize="14"/>
-															<TextBlock Text="{Binding DisplayType}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}" VerticalAlignment="Center"/>
-														</StackPanel>
-													</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
+											<TextBlock Text="{Binding DisplayType}" FontSize="{DynamicResource ViewFontSize}" VerticalAlignment="Center"/>
+										</StackPanel>
+									</DataTemplate>
+								</DataGridTemplateColumn.CellTemplate>
+							</DataGridTemplateColumn>
 											<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="{Binding UI.FontSize}"/>
 											<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="{Binding UI.FontSize}" Foreground="Gray"/>
 											<DataGridTextColumn Binding="{Binding DisplayFileCount}"    Header="Files"             Width="60"   FontSize="{Binding UI.FontSize}"/>
@@ -1063,9 +1063,9 @@
 						<DataGridTemplateColumn Header="Hrs" Width="50">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate>
-									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.Hours}"
-											  SelectedItem="{Binding Hours}" MinHeight="0" MinWidth="0"
-											  Padding="8,0,4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="24"
+									<ComboBox ItemsSource="{DynamicResource CalendarHours}"
+																													  SelectedItem="{Binding Hours}" MinHeight="0" MinWidth="0"
+																													  Padding="8,0,4,0" FontSize="{DynamicResource ViewFontSizeCompact}" Height="24"
 											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 											  VerticalContentAlignment="Center"
 											  BorderThickness="0" Background="Transparent"/>
@@ -1075,9 +1075,9 @@
 						<DataGridTemplateColumn Header="Project" Width="100">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate>
-									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.SelectableProjectNames}"
-											  SelectedItem="{Binding Project}" MinHeight="0" MinWidth="0"
-											  Padding="4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="24"
+									<ComboBox ItemsSource="{DynamicResource CalendarProjectNames}"
+																													  SelectedItem="{Binding Project}" MinHeight="0" MinWidth="0"
+																													  Padding="4,0" FontSize="{DynamicResource ViewFontSizeCompact}" Height="24"
 											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 											  VerticalContentAlignment="Center"
 											  BorderThickness="0" Background="Transparent"/>
@@ -1180,8 +1180,8 @@
 						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="{Binding UI.FontSizeCompact}"/>
 						<DataGridTemplateColumn Width="28">
 							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate x:DataType="model:WeekDiaryEntry">
-									<Button Width="22" Height="20" Padding="0" MinWidth="0" MinHeight="0"
+								<DataTemplate>
+										<Button Width="22" Height="20" Padding="0" MinWidth="0" MinHeight="0"
 											Background="Transparent" BorderThickness="0" ToolTip.Tip="Copy diary text"
 											Click="OnCopyDiaryEntry">
 										<ic:SymbolIcon Symbol="Copy" FontSize="12" Opacity="0.4"/>
@@ -1251,7 +1251,7 @@
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{ReflectionBinding .}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
 
@@ -1264,16 +1264,16 @@
 				<DataGrid.Columns>
 					<DataGridTemplateColumn Header="Collection Content" Width="*" MinWidth="120">
 						<DataGridTemplateColumn.CellTemplate>
-							<DataTemplate x:DataType="model:FileData">
+							<DataTemplate>
 								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
-										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
-							</DataTemplate>
-						</DataGridTemplateColumn.CellTemplate>
-					</DataGridTemplateColumn>
-				</DataGrid.Columns>
-				<DataGrid.ContextMenu>
+											   FontSize="{DynamicResource ViewFontSize}"
+																							  FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+																							  Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+																										   </DataTemplate>
+																									   </DataGridTemplateColumn.CellTemplate>
+																									   </DataGridTemplateColumn>
+																							   </DataGrid.Columns>
+																							   <DataGrid.ContextMenu>
 					<ContextMenu>
 						<MenuItem Header="View" IsVisible="{Binding PreviewVM.DualFileMode}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Eye"/></MenuItem.Icon>
@@ -1322,16 +1322,16 @@
 				<DataGrid.Columns>
 					<DataGridTemplateColumn Header="Recent Files" Width="*">
 						<DataGridTemplateColumn.CellTemplate>
-							<DataTemplate x:DataType="model:FileData">
+							<DataTemplate>
 								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
-										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
-							</DataTemplate>
-						</DataGridTemplateColumn.CellTemplate>
-					</DataGridTemplateColumn>
-				</DataGrid.Columns>
-			</DataGrid>
+																   FontSize="{DynamicResource ViewFontSize}"
+																															  FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+																															  Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+																																		   </DataTemplate>
+																																	   </DataGridTemplateColumn.CellTemplate>
+																																	   </DataGridTemplateColumn>
+																																   </DataGrid.Columns>
+																															   </DataGrid>
 
 			<!-- Other attached files -->
 			<Panel Grid.Row="7" IsVisible="{Binding UI.TrayOtherFiles}">
@@ -1351,10 +1351,10 @@
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate>
 									<TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="4,0"
-											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
-								</DataTemplate>
-							</DataGridTemplateColumn.CellTemplate>
-						</DataGridTemplateColumn>
+											   FontSize="{DynamicResource ViewFontSize}"/>
+																																					</DataTemplate>
+																							  </DataGridTemplateColumn.CellTemplate>
+																						  </DataGridTemplateColumn>
 						<DataGridTextColumn Binding="{Binding Type}" Header="Type" Width="55" MinWidth="40" IsVisible="false"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
@@ -1395,15 +1395,15 @@
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
 									<DataGrid.Styles>
-											<Style Selector="DataGridRow">
-												<Setter Property="ToolTip.Tip" Value="{Binding (model:FileVersionData).DirectoryPath}"/>
-											</Style>
-										</DataGrid.Styles>
+										<Style Selector="DataGridRow">
+											<Setter Property="ToolTip.Tip" Value="{ReflectionBinding DirectoryPath}"/>
+										</Style>
+									</DataGrid.Styles>
 									<DataGrid.Columns>
 										<DataGridTemplateColumn Header="File Versions" Width="*">
 											<DataGridTemplateColumn.CellTemplate>
-												<DataTemplate x:DataType="model:FileVersionData">
-													<StackPanel Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
+												<DataTemplate>
+														<StackPanel Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
 														<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="12"
 																	   Foreground="{DynamicResource SystemAccentColor}"
 																	   IsVisible="{Binding IsActive}"/>
@@ -1411,8 +1411,8 @@
 																	   Opacity="0.3"
 																	   IsVisible="{Binding !IsActive}"/>
 														<TextBlock Text="{Binding Label}" Opacity="{Binding VersionOpacity}"
-																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																   VerticalAlignment="Center"/>
+																																																	   FontSize="{DynamicResource ViewFontSize}"
+																																																						  VerticalAlignment="Center"/>
 													</StackPanel>
 												</DataTemplate>
 											</DataGridTemplateColumn.CellTemplate>
@@ -1488,7 +1488,7 @@
 																	<SolidColorBrush Color="{Binding Color}"/>
 																</Ellipse.Fill>
 															</Ellipse>
-															<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" VerticalAlignment="Center"/>
+															<TextBlock Text="{Binding Name}" FontSize="{DynamicResource ViewFontSizeCompact}" VerticalAlignment="Center"/>
 														</StackPanel>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
@@ -1514,14 +1514,6 @@
 										<DataGrid.Styles>
 												<Style Selector="DataGridRow">
 													<Setter Property="MinHeight" Value="24"/>
-													<Setter Property="IsVisible">
-														<Setter.Value>
-															<MultiBinding Converter="{x:Static converter:TodoRowVisibilityConverter.Instance}">
-																<ReflectionBinding Path="IsDone"/>
-																<ReflectionBinding Path="$parent[DataGrid].DataContext.UI.HideCompletedTodos"/>
-															</MultiBinding>
-														</Setter.Value>
-													</Setter>
 												</Style>
 											</DataGrid.Styles>
 										<DataGrid.ContextMenu>
@@ -1571,15 +1563,12 @@
 												<MenuItem Header="Clear Completed" Click="OnClearCompletedTodos">
 													<MenuItem.Icon><ic:SymbolIcon Symbol="DismissCircle"/></MenuItem.Icon>
 												</MenuItem>
-												<MenuItem Header="Hide Completed" Click="OnToggleHideCompleted">
-													<MenuItem.Icon><ic:SymbolIcon Symbol="EyeOff"/></MenuItem.Icon>
-												</MenuItem>
 											</ContextMenu>
 										</DataGrid.ContextMenu>
 										<DataGrid.Columns>
 											<DataGridTemplateColumn Width="Auto" CanUserResize="False" IsReadOnly="True">
 												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:TodoItem">
+													<DataTemplate>
 														<CheckBox IsChecked="{Binding IsDone, Mode=TwoWay}"
 																  Theme="{StaticResource CompactCheckBox}"
 																  Margin="{Binding IndentLevel, Converter={x:Static converter:TodoIndentConverter.Instance}}"
@@ -1589,28 +1578,28 @@
 											</DataGridTemplateColumn>
 											<DataGridTemplateColumn Width="8" CanUserResize="False" IsReadOnly="True">
 												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:TodoItem">
-														<Border Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center"
+													<DataTemplate>
+														<Border Width="8" Height="8" CornerRadius="2,2,2,2" VerticalAlignment="Center"
 																Background="{Binding Color, Converter={x:Static converter:TodoColorConverter.Instance}}"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
 											</DataGridTemplateColumn>
 											<DataGridTemplateColumn Header="Tasks" Width="*">
 												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:TodoItem">
+													<DataTemplate>
 														<TextBlock Text="{Binding Text}" VerticalAlignment="Center" Margin="4,2"
 																   TextWrapping="Wrap"
-																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																   TextDecorations="{Binding IsDone, Converter={x:Static converter:TodoStrikethroughConverter.Instance}}"
+																   FontSize="{DynamicResource ViewFontSize}"
+																																	 TextDecorations="{Binding IsDone, Converter={x:Static converter:TodoStrikethroughConverter.Instance}}"
 																   Opacity="{Binding IsDone, Converter={x:Static converter:TodoOpacityConverter.Instance}}"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
 												<DataGridTemplateColumn.CellEditingTemplate>
-													<DataTemplate x:DataType="model:TodoItem">
+													<DataTemplate>
 														<TextBox Text="{Binding Text, Mode=TwoWay}"
 																 TextWrapping="Wrap" AcceptsReturn="False"
-																 FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																 VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+																 FontSize="{DynamicResource ViewFontSize}"
+																																		   VerticalAlignment="Stretch"
 																 Margin="0" Padding="4,2" BorderThickness="0"/>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellEditingTemplate>
@@ -1644,8 +1633,8 @@
 							  ItemsSource="{Binding TreeNodes}"
 							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
 						<TreeView.Styles>
-							<Style Selector="TreeViewItem" x:DataType="vm:TreeNodeData">
-								<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+							<Style Selector="TreeViewItem">
+								<Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}"/>
 								<Setter Property="HorizontalAlignment" Value="Stretch"/>
 							</Style>
 							<Style Selector="TreeView /template/ ScrollViewer">

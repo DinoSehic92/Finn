@@ -4,6 +4,7 @@ using Finn.Controls;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using iText.IO.Image;
@@ -836,9 +837,7 @@ public partial class PreView
             .TryGetFileFromPathAsync(new Uri("file:///" + tempPath.Replace('\\', '/')));
         if (storageFile == null) return;
 
-        var dataObject = new DataObject();
-        dataObject.Set(DataFormats.Files, new[] { storageFile });
-        await topLevel.Clipboard.SetDataObjectAsync(dataObject);
+        await topLevel.Clipboard.SetFilesAsync(new[] { storageFile });
         pwr.StatusMessage = "Annotation copied to clipboard";
     }
 

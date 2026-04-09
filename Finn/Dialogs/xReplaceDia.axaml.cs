@@ -58,7 +58,7 @@ public partial class xReplaceDia : Window
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        var items = e.Data.GetFiles();
+        var items = e.DataTransfer.TryGetFiles();
         if (items != null && items.Any(i => i is IStorageFile &&
             Path.GetExtension(i.Path.LocalPath).Equals(".pdf", StringComparison.OrdinalIgnoreCase)))
         {
@@ -75,7 +75,7 @@ public partial class xReplaceDia : Window
     {
         DropZone.Classes.Remove("DragOver");
 
-        var items = e.Data.GetFiles();
+        var items = e.DataTransfer.TryGetFiles();
         if (items == null) return;
 
         var pdf = items.FirstOrDefault(i => i is IStorageFile &&

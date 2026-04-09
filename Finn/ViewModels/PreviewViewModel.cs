@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using MuPDFCore.StructuredText;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using System.Diagnostics;
 
 namespace Finn.ViewModels

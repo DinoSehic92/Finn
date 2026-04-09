@@ -82,7 +82,7 @@ public partial class xAttachDia : Window
     {
         DropZone.Classes.Remove("DragOver");
 
-        var items = e.Data.GetFiles();
+        var items = e.DataTransfer.TryGetFiles();
         if (items == null) return;
 
         foreach (var item in items)
