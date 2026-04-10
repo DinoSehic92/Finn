@@ -520,7 +520,7 @@
 					<StackPanel Spacing="6">
 						<TextBlock Name="CalibrationPromptText" Text="Enter real-world distance for the last measurement:" FontSize="12" TextWrapping="Wrap" MaxWidth="220"/>
 						<StackPanel Orientation="Horizontal" Spacing="4">
-							<TextBox Name="CalibrationValueBox" Width="120" Watermark="e.g. 210" KeyDown="OnCalibrationKeyDown"/>
+							<TextBox Name="CalibrationValueBox" Width="120" PlaceholderText="e.g. 210" KeyDown="OnCalibrationKeyDown"/>
 							<TextBlock Text="mm" VerticalAlignment="Center" FontSize="12"/>
 						</StackPanel>
 						<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
@@ -542,7 +542,7 @@
 						<Border Background="{DynamicResource TextControlBackground}" Margin="-8" Padding="8">
 						<StackPanel Spacing="6">
 							<TextBlock Text="Enter hex color:" FontSize="12"/>
-							<TextBox Name="ColorInputBox" Width="120" Watermark="#FF6600" KeyDown="OnColorInputKeyDown"/>
+							<TextBox Name="ColorInputBox" Width="120" PlaceholderText="#FF6600" KeyDown="OnColorInputKeyDown"/>
 							<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
 								<Button Content="Apply" Click="OnColorInputApply" Padding="8,2" FontSize="11"/>
 								<Button Content="Cancel" Click="OnColorInputCancel" Padding="8,2" FontSize="11"/>
@@ -635,7 +635,7 @@
 								<!-- Inline text editor (visible for text annotations and new text placement) -->
 								<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="2">
 									<Border Height="1" Background="#20888888" Margin="0,2"/>
-									<TextBox Name="PropertyTextBox" MinWidth="220" MinHeight="50" AcceptsReturn="True" TextWrapping="Wrap" Watermark="Enter text..." HorizontalAlignment="Stretch"/>
+									<TextBox Name="PropertyTextBox" MinWidth="220" MinHeight="50" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text..." HorizontalAlignment="Stretch"/>
 								</StackPanel>
 								<Border Height="1" Background="#20888888" Margin="0,2"/>
 								<StackPanel Name="PropertyActionsRow" Orientation="Horizontal" Spacing="1">
@@ -676,7 +676,7 @@
 							<Border Background="{DynamicResource TextControlBackground}" Margin="-8" Padding="8">
 							<StackPanel Spacing="6">
 								<TextBlock Text="Enter review name:" FontSize="12"/>
-								<TextBox Name="ReviewNameBox" Width="180" Watermark="e.g. Draft review" KeyDown="OnReviewNameKeyDown"/>
+								<TextBox Name="ReviewNameBox" Width="180" PlaceholderText="e.g. Draft review" KeyDown="OnReviewNameKeyDown"/>
 								<TextBlock Name="ReviewExportStatus" Text="" FontSize="10" Opacity="0.6" TextWrapping="Wrap" MaxWidth="260"/>
 								<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
 									<Button Content="Export" Click="OnReviewExportConfirm" Padding="8,2" FontSize="11"/>
@@ -697,7 +697,7 @@
 							IsVisible="{Binding !PreviewVM.DiffPageListMode}">
 						<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">
 							<Border Grid.Column="0" Classes="shadow">
-								<TextBox Watermark="Search text..." Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
+								<TextBox PlaceholderText="Search text..." Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
 							</Border>
 							<Button Grid.Column="1" Margin="0" Click="OnSeachRegex" BorderThickness="0" IsEnabled="{Binding !PreviewVM.SearchBusy}">
 								<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>

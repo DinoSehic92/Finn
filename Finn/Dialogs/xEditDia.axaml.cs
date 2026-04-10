@@ -42,7 +42,7 @@ public partial class xEditDia : Window
         if (ctx.CurrentProject.IsShared)
         {
             ProjectName.IsEnabled = false;
-            ProjectName.Watermark = "Rename disabled (shared)";
+            ProjectName.PlaceholderText = "Rename disabled (shared)";
 
             var panel = this.FindControl<StackPanel>("SharedInfoPanel");
             var pathText = this.FindControl<TextBlock>("SharedPathText");

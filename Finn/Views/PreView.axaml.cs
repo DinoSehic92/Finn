@@ -926,21 +926,24 @@ public partial class PreView : UserControl
     private void RotateRight(object sender, RoutedEventArgs e)
     {
         pwr.Rotation = pwr.Rotation + 90;
-        MuPDFRenderer.UpdateLayout();
+        MuPDFRenderer.InvalidateMeasure();
+        MuPDFRenderer.InvalidateArrange();
         MuPDFRenderer.Contain();
     }
 
     private void RotateLeft(object sender, RoutedEventArgs e)
     {
         pwr.Rotation = pwr.Rotation - 90;
-        MuPDFRenderer.UpdateLayout();
+        MuPDFRenderer.InvalidateMeasure();
+        MuPDFRenderer.InvalidateArrange();
         MuPDFRenderer.Contain();
     }
 
     private void RotateNull()
     {
         pwr.Rotation = 0;
-        MuPDFRenderer.UpdateLayout();
+        MuPDFRenderer.InvalidateMeasure();
+        MuPDFRenderer.InvalidateArrange();
         MuPDFRenderer.Contain();
     }
 

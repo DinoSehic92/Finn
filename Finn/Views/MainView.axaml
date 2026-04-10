@@ -168,7 +168,8 @@
 		<!-- ═══════════════════════════════════════════════ -->
 
 		<!-- File menu -->
-		<DockPanel Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Left">
+		<DockPanel Grid.Column="0" Grid.ColumnSpan="2" VerticalAlignment="Top" HorizontalAlignment="Left"
+				   WindowDecorationProperties.ElementRole="None">
 			<Menu DockPanel.Dock="Top" FontSize="15" FontFamily="Default">
 				<MenuItem Header="File">
 					<MenuItem Header="Load"    Click="OnLoadFile">
@@ -205,7 +206,8 @@
 
 		<!-- Progress bar (shared: thumbnails, metadata, pre-caching, etc.) -->
 		<StackPanel Grid.Row="0" Grid.ColumnSpan="5" Orientation="Horizontal" Margin="60,2,0,0" Spacing="6"
-					IsVisible="{Binding PreviewVM.BackgroundTaskActive}">
+					IsVisible="{Binding PreviewVM.BackgroundTaskActive}"
+					WindowDecorationProperties.ElementRole="None">
 			<ProgressBar Width="200" VerticalAlignment="Center" Minimum="0" Maximum="100"
 						 Value="{Binding PreviewVM.BackgroundTaskProgress}"
 					 Height="4" MinHeight="4" CornerRadius="2"/>
@@ -394,7 +396,7 @@
 			<!-- Search bar -->
 			<Grid ColumnDefinitions="*,30,30">
 				<Border Classes="shadow">
-					<TextBox Grid.Column="0" Watermark="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
+					<TextBox Grid.Column="0" PlaceholderText="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
 						<TextBox.InnerRightContent>
 							<Button Click="OnClearSearch" Height="20" Width="20" Padding="0" Margin="0,0,4,0"
 									ToolTip.Tip="Clear Search" IsVisible="{Binding IsSearchResult}"
@@ -415,7 +417,8 @@
 
 		<!-- Main toolbar -->
 		<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right"
-					Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,155,0">
+					Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,155,0"
+					WindowDecorationProperties.ElementRole="None">
 
 			<!-- Layout group -->
 			<ToggleButton ToolTip.Tip="Tree View (Ctrl+Q)"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
@@ -1107,7 +1110,7 @@
 			<!-- Notepad -->
 			<Border Grid.Row="3" Classes="shadow" MinHeight="40">
 				<Panel>
-					<TextBox Text="{Binding Calendar.CurrentCalendarData.Note1}" Watermark="Notepad"
+					<TextBox Text="{Binding Calendar.CurrentCalendarData.Note1}" PlaceholderText="Notepad"
 							 AcceptsReturn="True" AcceptsTab="True" FontSize="{Binding UI.FontSize}" VerticalAlignment="Stretch"/>
 					<Ellipse Width="6" Height="6" Fill="MediumSeaGreen" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,4,6,0" IsHitTestVisible="False"/>
@@ -1117,7 +1120,7 @@
 			<!-- Reminder -->
 			<Border Grid.Row="4" Classes="shadow">
 				<Panel>
-					<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" Watermark="Reminder" FontSize="{Binding UI.FontSize}"/>
+					<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" PlaceholderText="Reminder" FontSize="{Binding UI.FontSize}"/>
 					<Ellipse Width="6" Height="6" Fill="Orange" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,4,6,0" IsHitTestVisible="False"/>
 				</Panel>
@@ -1128,11 +1131,11 @@
 				<!-- Project name + nr + add/remove on one row -->
 				<StackPanel Orientation="Horizontal" Spacing="0">
 					<Border Classes="shadow">
-						<TextBox Name="ProjectNameBox" Width="155" Watermark="Project" FontSize="{Binding UI.FontSizeCompact}"
+						<TextBox Name="ProjectNameBox" Width="155" PlaceholderText="Project" FontSize="{Binding UI.FontSizeCompact}"
 								 Text="{Binding Calendar.CurrentTimeSheetProject.Project, Mode=TwoWay}"/>
 					</Border>
 					<Border Classes="shadow">
-						<TextBox Name="ProjNrBox" Width="75" Watermark="Nr" FontSize="{Binding UI.FontSizeCompact}"
+						<TextBox Name="ProjNrBox" Width="75" PlaceholderText="Nr" FontSize="{Binding UI.FontSizeCompact}"
 								 Text="{Binding Calendar.CurrentTimeSheetProject.ProjectNr, Mode=TwoWay}"/>
 					</Border>
 					<Button Width="30" ToolTip.Tip="Add Project" Command="{Binding Calendar.AddTimeProject}"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
@@ -1231,14 +1234,14 @@
 
             <!-- File notepad (wrapped in shadow-only border) -->
                 <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding UI.TrayNote}">
-				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" Watermark="File Notepad"
+				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" PlaceholderText="File Notepad"
 					 FontSize="{Binding UI.FontSize}" AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
 			</Border>
 
 			<!-- Collections toolbar -->
 			<Grid Grid.Row="1" ColumnDefinitions="*,30,30,30" IsVisible="{Binding UI.TrayCollections}">
 				<Border Classes="shadow" Grid.Column="0">
-					<TextBox Name="CollectionInput" Watermark="Add Collection"/>
+					<TextBox Name="CollectionInput" PlaceholderText="Add Collection"/>
 				</Border>
 				<Button Grid.Column="1" Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
 				<Button Grid.Column="2" Width="30" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
@@ -1295,7 +1298,7 @@
             <Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding UI.TrayBookmarks}">
 				<Grid Grid.Row="0" ColumnDefinitions="*,30,30,30">
 					<Border Grid.Column="0" Classes="shadow">
-						<TextBox Name="BookmarkInput" Watermark="Add Bookmark"/>
+						<TextBox Name="BookmarkInput" PlaceholderText="Add Bookmark"/>
 					</Border>
 					<Button Grid.Column="1" Width="30" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
 					<Button Grid.Column="2" Width="30" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>

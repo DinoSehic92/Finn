@@ -2100,7 +2100,8 @@ public partial class MainView : UserControl
         for (int i = 0; i < count; i++)
             FileGrid.Columns[i].Width = sizeToCell;
 
-        FileGrid.UpdateLayout();
+        FileGrid.InvalidateMeasure();
+        FileGrid.InvalidateArrange();
     }
 
     private void UpdateRowColor()

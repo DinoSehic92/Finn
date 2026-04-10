@@ -11,7 +11,7 @@
 		Icon="/Assets/folder.ico"
 		WindowStartupLocation="CenterScreen"
 		ExtendClientAreaToDecorationsHint="True"
-		ExtendClientAreaTitleBarHeightHint="0"
+		ExtendClientAreaTitleBarHeightHint="35"
 		Title="Finn">
 
 	<Window.Styles>

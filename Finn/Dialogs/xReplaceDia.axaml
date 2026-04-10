@@ -57,7 +57,7 @@
                 <TextBlock Text="Replace File" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
 
-				<TextBox Name="PathInput" Watermark="File path" Width="380"/>
+				<TextBox Name="PathInput" PlaceholderText="File path" Width="380"/>
 
 				<Border Name="DropZone" Classes="DropZone" Width="380" Height="80"
 						DragDrop.AllowDrop="True">

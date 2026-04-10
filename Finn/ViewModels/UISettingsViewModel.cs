@@ -352,19 +352,28 @@ namespace Finn.ViewModels
             }
         }
 
-        // Apply theme resources based on current runtime UI values
         public void ApplyTheme()
         {
-            var theme = new FluentTheme()
+            if (App.Current is null) return;
+
+            var theme = new FluentTheme
             {
                 Palettes =
                 {
-                    [ThemeVariant.Dark] = new ColorPaletteResources() { RegionColor = this.Color1, Accent = this.Color2 },
-                    [ThemeVariant.Light] = new ColorPaletteResources() { RegionColor = this.Color3, Accent = this.Color4 }
+                    [ThemeVariant.Dark] = new ColorPaletteResources { RegionColor = this.Color1, Accent = this.Color2 },
+                    [ThemeVariant.Light] = new ColorPaletteResources { RegionColor = this.Color3, Accent = this.Color4 }
                 }
             };
 
+            // Swap the resource dictionary (fast single-reference assignment).
+            // Templates live in App.Styles, not App.Resources, so no re-templating.
             App.Current.Resources = theme.Resources;
+
+            // Re-apply custom keys that the swap cleared
+            App.Current.Resources["AppCornerRadius"] = this.CornerRadius;
+            App.Current.Resources["AppShadow"] = this.Shadow;
+            App.Current.Resources["AppBorderThickness"] = this.BorderThickness;
+
             App.Current.RequestedThemeVariant = DarkMode ? ThemeVariant.Dark : ThemeVariant.Light;
         }
     }

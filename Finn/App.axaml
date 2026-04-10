@@ -5,6 +5,12 @@
 			 x:CompileBindings="True"
 			 x:Class="Finn.App">
 
+	<Application.Resources>
+		<CornerRadius x:Key="AppCornerRadius">10</CornerRadius>
+		<BoxShadow x:Key="AppShadow">0 0 0 0 Transparent</BoxShadow>
+		<Thickness x:Key="AppBorderThickness">0</Thickness>
+	</Application.Resources>
+
 	<Application.Styles>
        <FluentTheme>
 			<FluentTheme.Palettes>
@@ -54,7 +60,7 @@
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="HorizontalContentAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
@@ -69,7 +75,7 @@
 		<Style Selector="ToggleButton">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="Transitions">
 				<Transitions>
@@ -109,7 +115,7 @@
 			<Setter Property="MinHeight" Value="30"/>
 			<Setter Property="VerticalAlignment" Value="Top"/>
 			<Setter Property="Margin" Value="0,-1,0,0"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="BorderThickness" Value="0"/>
 		</Style>
@@ -119,13 +125,13 @@
 			<Setter Property="VerticalAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="Padding" Value="10,7,5,5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="TextBox /template/ Border#PART_BorderElement">
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="Border.shadow TextBox">
@@ -156,18 +162,18 @@
 
 		<!-- Shadow border: use Classes="shadow" on a Border to get shadow, rounded corners, and optional visible border -->
 		<Style Selector="Border.shadow">
-			<Setter Property="BoxShadow" Value="{ReflectionBinding UI.Shadow}"/>
-			<Setter Property="BorderThickness" Value="{ReflectionBinding UI.BorderThickness}"/>
+			<Setter Property="BoxShadow" Value="{DynamicResource AppShadow}"/>
+			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="Margin" Value="5"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<!-- Inner border in double-border overlay pattern: match parent's corner radius -->
 		<Style Selector="Border.shadow > Border">
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 		</Style>
 
 		<Style Selector="DataGridColumnHeader">
@@ -182,17 +188,17 @@
 
 		<Style Selector="DataGrid">
 			<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
-			<Setter Property="BorderThickness" Value="{ReflectionBinding UI.BorderThickness}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
+			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
 			<Setter Property="Padding" Value="5"/>
 			<Setter Property="Margin" Value="0"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
-			<Setter Property="BoxShadow" Value="{ReflectionBinding UI.Shadow}"/>
-			<Setter Property="CornerRadius" Value="{ReflectionBinding UI.CornerRadius}"/>
-			<Setter Property="BorderThickness" Value="{ReflectionBinding UI.BorderThickness}"/>
+			<Setter Property="BoxShadow" Value="{DynamicResource AppShadow}"/>
+			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
+			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource SystemBaseMediumLowColor}"/>
 			<Setter Property="Margin" Value="5"/>
 			<Setter Property="ClipToBounds" Value="False"/>

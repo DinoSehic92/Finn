@@ -75,9 +75,12 @@ public partial class App : Application
 
         vm.UI.PropertyChanged += (s, e) =>
         {
-            if (e.PropertyName == "Color1" || e.PropertyName == "Color2" || e.PropertyName == "Color3" || e.PropertyName == "Color4" || e.PropertyName == "DarkMode")
+            switch (e.PropertyName)
             {
-                vm.UI.ApplyTheme();
+                case "Color1" or "Color2" or "Color3" or "Color4" or "DarkMode"
+                    or "CornerRadius" or "Shadow" or "BorderThickness":
+                    vm.UI.ApplyTheme();
+                    break;
             }
         };
 
