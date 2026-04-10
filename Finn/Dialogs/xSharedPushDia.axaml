@@ -7,7 +7,7 @@
         MinWidth="300" MinHeight="420"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xSharedPushDia"
-        Title="Push to Server"
+        Title=""
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"
         WindowStartupLocation="CenterScreen"

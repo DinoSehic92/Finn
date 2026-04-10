@@ -10,9 +10,6 @@
         Title="Preview">
 
 	<Window.Styles>
-		<Style Selector="Window[WindowState=Maximized]">
-			<Setter Property="Padding" Value="5 5 0 5"/>
-		</Style>
 	</Window.Styles>
 
 	<Grid Margin="0,40,0,5">

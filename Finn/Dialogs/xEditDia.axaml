@@ -10,7 +10,7 @@
 		MaxHeight="510"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xEditDia"
-		Title="Edit Project"
+		Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"

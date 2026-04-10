@@ -8,7 +8,7 @@
 		SizeToContent="Height"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xInfoDia"
-		Title="File Info"
+		Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"

@@ -603,7 +603,7 @@ namespace Finn.Services
             {
                 canvas.Clear(SKColors.White);
                 var dest = new SKRect(0, 0, 8, 8);
-                using var paint = new SKPaint { FilterQuality = SKFilterQuality.Medium };
+                using var paint = new SKPaint { IsAntialias = true };
                 canvas.DrawBitmap(bitmap, dest, paint);
             }
 

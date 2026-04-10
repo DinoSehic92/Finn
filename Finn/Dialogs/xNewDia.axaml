@@ -9,7 +9,7 @@
 		MaxHeight="305"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xNewDia"
-        Title="xNewDia"
+        Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"

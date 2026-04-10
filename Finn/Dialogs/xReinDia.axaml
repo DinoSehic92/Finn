@@ -8,7 +8,7 @@
         Width="420"
         Height="640"
         x:Class="Finn.Dialogs.xReinDia"
-        Title="Reinforcement Calculator"
+        Title=""
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"
         WindowStartupLocation="CenterScreen"

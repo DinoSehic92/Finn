@@ -1051,7 +1051,7 @@ namespace MuPDFCore.MuPDFRenderer
         /// <param name="e"></param>
         private void ControlPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)
         {
-            if (e.Property == UserControl.BoundsProperty)
+            if (e.Property == Control.BoundsProperty)
             {
                 if (IsViewerInitialized)
                 {

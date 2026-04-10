@@ -28,11 +28,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.IsDirty))
-        {
-            var ctx = (MainViewModel)DataContext!;
-            Title = ctx.IsDirty ? "Finn  ●" : "Finn";
-        }
     }
 
     protected override async void OnClosing(WindowClosingEventArgs e)

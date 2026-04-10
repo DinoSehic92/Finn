@@ -9,7 +9,7 @@
         MaxHeight="690"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xMetaDia"
-        Title="Edit Metadata"
+        Title=""
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"
         WindowStartupLocation="CenterScreen"

@@ -15,7 +15,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-namespace Avalonia.Animation
+using Avalonia;
+using Avalonia.Animation;
+
+namespace MuPDFCore.MuPDFRenderer
 {
     /// <summary>
     /// Transition class that handles <see cref="AvaloniaProperty"/> with <see cref="Rect"/> types.

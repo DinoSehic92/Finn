@@ -9,7 +9,7 @@
 		MaxHeight="160"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xDeleteDia"
-        Title="xDeleteDia"
+        Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"

@@ -1098,6 +1098,28 @@ public partial class MainView : UserControl
         await _ctx.ShowSyncFilterDialogAsync(folder, window);
     }
 
+    private async void OnChangeFolderDirectory(object? sender, RoutedEventArgs e)
+    {
+        if (FolderGrid.SelectedItem is not FolderData folder) return;
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+
+        var dialog = new Finn.Dialogs.xChangeFolderDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.SetCurrentPath(folder.Name, folder.Path);
+
+        await dialog.ShowDialog(window);
+
+        if (dialog.Confirmed && !string.Equals(folder.Path, dialog.SelectedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            string oldPath = folder.Path;
+            _ctx.RelocateFolderPaths(folder, oldPath, dialog.SelectedPath);
+            folder.Path = dialog.SelectedPath;
+            folder.Name = System.IO.Path.GetFileName(dialog.SelectedPath);
+            _ctx.MarkDirty();
+            _ctx.RefreshFolderWatchers();
+        }
+    }
+
     private void OnFolderTypesInfo(object? sender, RoutedEventArgs e)
     {
         var window = TopLevel.GetTopLevel(this) as Window;

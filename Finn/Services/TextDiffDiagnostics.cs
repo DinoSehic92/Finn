@@ -47,8 +47,8 @@ namespace Finn.Services
                         var chars = line.Characters;
                         if (chars == null || chars.Length == 0) continue;
                         int wordStart = -1;
-                        double minX = double.MaxValue, minY = double.MaxValue;
-                        double maxX = double.MinValue, maxY = double.MinValue;
+                        double minY = double.MaxValue;
+                        double maxY = double.MinValue;
                         var wc = new StringBuilder();
                         for (int ci = 0; ci < chars.Length; ci++)
                         {
@@ -60,8 +60,8 @@ namespace Finn.Services
                                     string raw = wc.ToString();
                                     allPageWords[i].Add(new ZoneWord(raw, Normalize(raw), (minY + maxY) / 2));
                                     wc.Clear(); wordStart = -1;
-                                    minX = double.MaxValue; minY = double.MaxValue;
-                                    maxX = double.MinValue; maxY = double.MinValue;
+                                    minY = double.MaxValue;
+                                    maxY = double.MinValue;
                                 }
                             }
                             else

@@ -7,7 +7,7 @@
 		Height="780" MinHeight="780" MaxHeight="780"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xColorDia"
-		Title="UI Settings"
+		Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions"
 		CanResize="False"

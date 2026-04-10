@@ -9,7 +9,7 @@
 		MaxHeight="190"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xRenameDia"
-        Title="xRenameDia"
+        Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"

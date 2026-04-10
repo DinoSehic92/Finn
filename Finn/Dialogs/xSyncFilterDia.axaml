@@ -8,7 +8,7 @@
         xmlns:ic="using:FluentIcons.Avalonia"
         xmlns:model="clr-namespace:Finn.Model"
         x:Class="Finn.Dialogs.xSyncFilterDia"
-        Title="Synced Files"
+        Title=""
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="True"
         WindowStartupLocation="CenterScreen"

@@ -11,7 +11,7 @@
 		MinHeight="500"
 		xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xContentDia"
-        Title="Content"
+        Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"

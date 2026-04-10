@@ -1091,5 +1091,56 @@ namespace Finn.ViewModels
                     }
                 }
             }
+
+        /// <summary>
+        /// Updates file paths when a synced folder is moved to a new directory,
+        /// so files keep their correct paths instead of being treated as removals + new additions on the next sync.
+        /// </summary>
+        public void RelocateFolderPaths(FolderData folder, string oldFolderPath, string newFolderPath)
+        {
+            string oldPrefix = oldFolderPath.EndsWith(Path.DirectorySeparatorChar)
+                ? oldFolderPath
+                : oldFolderPath + Path.DirectorySeparatorChar;
+            string newPrefix = newFolderPath.EndsWith(Path.DirectorySeparatorChar)
+                ? newFolderPath
+                : newFolderPath + Path.DirectorySeparatorChar;
+
+            foreach (var file in CurrentProject.StoredFiles)
+            {
+                if (string.Equals(file.SyncFolder, oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                    file.SyncFolder = newFolderPath;
+
+                if (!string.IsNullOrEmpty(file.Sökväg))
+                {
+                    if (file.Sökväg.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                        file.Sökväg = newPrefix + file.Sökväg.Substring(oldPrefix.Length);
+                    else if (string.Equals(Path.GetDirectoryName(file.Sökväg), oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                        file.Sökväg = Path.Combine(newFolderPath, Path.GetFileName(file.Sökväg));
+                }
+
+                if (!string.IsNullOrEmpty(file.OriginalPath))
+                {
+                    if (file.OriginalPath.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                        file.OriginalPath = newPrefix + file.OriginalPath.Substring(oldPrefix.Length);
+                    else if (string.Equals(Path.GetDirectoryName(file.OriginalPath), oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                        file.OriginalPath = Path.Combine(newFolderPath, Path.GetFileName(file.OriginalPath));
+                }
+
+                foreach (var v in file.Versions)
+                {
+                    if (!string.IsNullOrEmpty(v.Sökväg) && v.Sökväg.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                        v.Sökväg = newPrefix + v.Sökväg.Substring(oldPrefix.Length);
+                }
+
+                foreach (var other in file.OtherFiles)
+                {
+                    if (string.Equals(other.SyncFolder, oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                        other.SyncFolder = newFolderPath;
+
+                    if (!string.IsNullOrEmpty(other.Filepath) && other.Filepath.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                        other.Filepath = newPrefix + other.Filepath.Substring(oldPrefix.Length);
+                }
+            }
         }
     }
+}

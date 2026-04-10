@@ -4,7 +4,7 @@ xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 mc:Ignorable="d" Width="520" Height="400" MinWidth="380" MinHeight="280"
 xmlns:ic="using:FluentIcons.Avalonia"
-x:Class="Finn.Dialogs.xSyncRemoveDia" Title="Sync - Remove Files"
+x:Class="Finn.Dialogs.xSyncRemoveDia" Title=""
 xmlns:vm="clr-namespace:Finn.ViewModels"
 CanResize="True" WindowStartupLocation="CenterOwner"
 ExtendClientAreaToDecorationsHint="True" x:DataType="vm:MainViewModel">

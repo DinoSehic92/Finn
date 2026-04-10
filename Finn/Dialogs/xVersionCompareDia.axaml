@@ -8,7 +8,7 @@
         Width="340" SizeToContent="Height"
         x:Class="Finn.Dialogs.xVersionCompareDia"
         x:DataType="vm:MainViewModel"
-        Title="Compare Versions"
+        Title=""
         CanResize="False"
         WindowStartupLocation="CenterOwner"
         ExtendClientAreaToDecorationsHint="True">

@@ -12,13 +12,9 @@
 		WindowStartupLocation="CenterScreen"
 		ExtendClientAreaToDecorationsHint="True"
 		ExtendClientAreaTitleBarHeightHint="35"
-		Title="Finn">
+		Title="">
 
 	<Window.Styles>
-
-		<Style Selector="Window[WindowState=Maximized]">
-			<Setter Property="Padding" Value="5 5 0 5"/>
-		</Style>
 
 		<!-- Smooth row hover transition for all DataGridRows -->
 		<Style Selector="DataGridRow">

@@ -7,7 +7,7 @@
         MinWidth="400" MinHeight="280"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xBackupBrowserDia"
-        Title="Restore from Backup"
+        Title=""
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="True"
         WindowStartupLocation="CenterScreen"

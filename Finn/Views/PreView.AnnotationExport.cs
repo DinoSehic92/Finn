@@ -57,8 +57,7 @@ public partial class PreView
                 {
                     using var diffPaint = new SKPaint
                     {
-                        Color = SKColors.White.WithAlpha((byte)(MuPDFRenderer.DiffOverlayOpacity * 255)),
-                        FilterQuality = SKFilterQuality.Medium
+                        Color = SKColors.White.WithAlpha((byte)(MuPDFRenderer.DiffOverlayOpacity * 255))
                     };
                     var destRect = new SKRect(0, 0, pageBitmap.Width, pageBitmap.Height);
                     canvas.DrawBitmap(diffBitmap, destRect, diffPaint);

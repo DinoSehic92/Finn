@@ -9,7 +9,7 @@
 		MaxHeight="280"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xMessageDia"
-		Title="xMessageDia"
+		Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
@@ -40,7 +40,7 @@
 				<Label Name="MessageLabel" VerticalAlignment="Center"  HorizontalAlignment="Center"/>
 				
 				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
-					<Button Name="Close" HotKey="Enter" Classes="accent" Content="Accept" Width="70" Click="OnClose"/>
+					<Button Name="CloseButton" HotKey="Enter" Classes="accent" Content="Accept" Width="70" Click="OnClose"/>
 				</StackPanel>
 				
 			</StackPanel>
