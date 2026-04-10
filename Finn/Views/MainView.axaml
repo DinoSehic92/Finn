@@ -950,6 +950,9 @@
 								<MenuItem Header="Manage Synced Files…" Click="OnManageSyncFilter">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Filter"/></MenuItem.Icon>
 								</MenuItem>
+								<MenuItem Header="Change Directory…" Click="OnChangeFolderDirectory">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderArrowRight"/></MenuItem.Icon>
+								</MenuItem>
 								<Separator/>
 								<MenuItem Header="Delete" Click="OnRemoveFolder">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>

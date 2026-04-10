@@ -1091,5 +1091,72 @@ namespace Finn.ViewModels
                     }
                 }
             }
+
+            /// <summary>
+            /// Updates all file paths that reference <paramref name="oldFolderPath"/>
+            /// to use <paramref name="newFolderPath"/> instead. This covers:
+            /// <list type="bullet">
+            ///   <item><see cref="FileData.Sökväg"/> and <see cref="FileData.SyncFolder"/> for project/attached files</item>
+            ///   <item><see cref="FileData.OriginalPath"/> when it falls under the old folder</item>
+            ///   <item><see cref="FileVersionData.Sökväg"/> for versions imported from the old folder</item>
+            ///   <item><see cref="OtherData.Filepath"/> and <see cref="OtherData.SyncFolder"/> for other-file attachments</item>
+            /// </list>
+            /// Called when the user changes a sync folder's directory so that
+            /// existing files keep their metadata (notes, annotations, colors, etc.)
+            /// instead of being treated as removals + new additions on the next sync.
+            /// </summary>
+            public void RelocateFolderPaths(FolderData folder, string oldFolderPath, string newFolderPath)
+            {
+                string oldPrefix = oldFolderPath.EndsWith(Path.DirectorySeparatorChar)
+                    ? oldFolderPath
+                    : oldFolderPath + Path.DirectorySeparatorChar;
+                string newPrefix = newFolderPath.EndsWith(Path.DirectorySeparatorChar)
+                    ? newFolderPath
+                    : newFolderPath + Path.DirectorySeparatorChar;
+
+                foreach (var file in CurrentProject.StoredFiles)
+                {
+                    // Update SyncFolder reference
+                    if (string.Equals(file.SyncFolder, oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        file.SyncFolder = newFolderPath;
+                    }
+
+                    // Update Sökväg (current file path)
+                    if (!string.IsNullOrEmpty(file.Sökväg))
+                    {
+                        if (file.Sökväg.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                            file.Sökväg = newPrefix + file.Sökväg.Substring(oldPrefix.Length);
+                        else if (string.Equals(Path.GetDirectoryName(file.Sökväg), oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                            file.Sökväg = Path.Combine(newFolderPath, Path.GetFileName(file.Sökväg));
+                    }
+
+                    // Update OriginalPath
+                    if (!string.IsNullOrEmpty(file.OriginalPath))
+                    {
+                        if (file.OriginalPath.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                            file.OriginalPath = newPrefix + file.OriginalPath.Substring(oldPrefix.Length);
+                        else if (string.Equals(Path.GetDirectoryName(file.OriginalPath), oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                            file.OriginalPath = Path.Combine(newFolderPath, Path.GetFileName(file.OriginalPath));
+                    }
+
+                    // Update version paths
+                    foreach (var v in file.Versions)
+                    {
+                        if (!string.IsNullOrEmpty(v.Sökväg) && v.Sökväg.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                            v.Sökväg = newPrefix + v.Sökväg.Substring(oldPrefix.Length);
+                    }
+
+                    // Update OtherFiles paths
+                    foreach (var other in file.OtherFiles)
+                    {
+                        if (string.Equals(other.SyncFolder, oldFolderPath, StringComparison.OrdinalIgnoreCase))
+                            other.SyncFolder = newFolderPath;
+
+                        if (!string.IsNullOrEmpty(other.Filepath) && other.Filepath.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                            other.Filepath = newPrefix + other.Filepath.Substring(oldPrefix.Length);
+                    }
+                }
+            }
         }
     }

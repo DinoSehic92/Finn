@@ -1,0 +1,20 @@
+[33m6e030bf[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32madded_shared_projects[m[33m)[m Revert "Avalonia update"
+[33m0dfb466[m Avalonia update
+[33mef6adc8[m[33m ([m[1;31morigin/added_shared_projects[m[33m)[m Diffviewer crash fix
+[33mbaadd68[m Work on project share and differ bugfix
+[33m153dac4[m added shared projects, first version
+[33m95c1fd4[m[33m ([m[1;31morigin/Added_autosync[m[33m, [m[1;32mAdded_autosync[m[33m)[m Bugfix on edit dialog
+[33m12643d9[m Bugfix on default savepath
+[33mefa7cdd[m Bugfix
+[33mc6e9100[m Minor bugfix
+[33m62a5794[m Bugfix
+[33me44eec6[m cleanup and broad bugfixing
+[33m326aee2[m further improvements to autosync
+[33m44d55c2[m autosync bugfixing
+[33mff9fd7a[m work on foldersync
+[33m83ef98c[m Json update and added filewatcher
+[33md7edbaa[m[33m ([m[1;31morigin/Improving_previewer[m[33m)[m Annotation and renderer optimization
+[33m4e181bb[m improved dark renderer and bugfixing
+[33mc6361b0[m Added page tint and background selection
+[33m726b0d0[m[33m ([m[1;32mImproving_previewer[m[33m)[m Minor fixes to to-do list
+[33m2aa04cb[m Fixed potential async bugs
