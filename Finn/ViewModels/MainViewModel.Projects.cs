@@ -291,6 +291,16 @@ namespace Finn.ViewModels
                 if (lf.CurrentVersion != sf.CurrentVersion) changes.Add("active version");
                 if (lf.Tagg != sf.Tagg) changes.Add("tag");
                 if (lf.Färg != sf.Färg) changes.Add("color");
+                if (lf.Handling != sf.Handling) changes.Add("handling");
+                if (lf.Status != sf.Status) changes.Add("status");
+                if (lf.Datum != sf.Datum) changes.Add("date");
+                if (lf.Ritningstyp != sf.Ritningstyp) changes.Add("drawing type");
+                if (lf.Beskrivning1 != sf.Beskrivning1) changes.Add("description 1");
+                if (lf.Beskrivning2 != sf.Beskrivning2) changes.Add("description 2");
+                if (lf.Beskrivning3 != sf.Beskrivning3) changes.Add("description 3");
+                if (lf.Beskrivning4 != sf.Beskrivning4) changes.Add("description 4");
+                if (lf.Revidering != sf.Revidering) changes.Add("revision");
+                if (lf.DefaultPage != sf.DefaultPage) changes.Add("default page");
 
                 if (changes.Count > 0)
                     entries.Add(new SharedDiffEntry { Change = "Modified", Category = "File", Detail = $"{name} ({string.Join(", ", changes)})", FileName = name });
@@ -357,6 +367,18 @@ namespace Finn.ViewModels
             if (local.Parent != server.Parent)
                 entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Settings", Detail = $"Group: {local.Parent ?? "(none)"} → {server.Parent ?? "(none)"}" });
 
+            // --- Column settings ---
+            var colChanges = new List<string>();
+            for (int i = 0; i < 17; i++)
+            {
+                bool localVal = local.GetMetaValue(i);
+                bool serverVal = server.GetMetaValue(i);
+                if (localVal != serverVal)
+                    colChanges.Add($"Meta_{i + 1}");
+            }
+            if (colChanges.Count > 0)
+                entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Settings", Detail = $"Column visibility: {string.Join(", ", colChanges)}" });
+
             return entries;
         }
 
@@ -390,10 +412,14 @@ namespace Finn.ViewModels
                 var project = Utils.JsonHelper.Deserialize<ProjectData>(json);
                 if (project == null) return null;
 
-                // Run migration so counts are accurate
+                // Run migration so counts and relationships are accurate
                 project.FlattenAppendedFiles();
+                project.WireParentReferences();
+                project.RefreshHasChildren();
                 foreach (var layer in project.StoredFiles.SelectMany(f => f.AnnotationLayers))
                     layer.RecalculateCounts();
+                foreach (var file in project.StoredFiles)
+                    file.RefreshAnnotationStatus();
                 return project;
             }
             catch { return null; }
@@ -443,6 +469,7 @@ namespace Finn.ViewModels
                     {
                         bool changed = false;
                         string name = localFile.Namn;
+                        bool isViewer = CurrentProject.IsViewer;
 
                         // File metadata — server wins unless KeepLocal is checked
                         changed |= SharedProjectMerge.MergeFileMetadata(localFile, serverFile,
@@ -451,8 +478,12 @@ namespace Finn.ViewModels
                         changed |= SharedProjectMerge.MergeNote(localFile, serverFile,
                             SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Note"));
 
-                        changed |= SharedProjectMerge.MergeAnnotations(localFile, serverFile,
-                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Annotations"));
+                        // Viewers: preserve local annotation layers, add server layers alongside
+                        if (isViewer)
+                            changed |= SharedProjectMerge.MergeAnnotationsForViewer(localFile, serverFile);
+                        else
+                            changed |= SharedProjectMerge.MergeAnnotations(localFile, serverFile,
+                                SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Annotations"));
 
                         changed |= SharedProjectMerge.MergeBookmarks(localFile, serverFile,
                             SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Bookmarks"));
@@ -464,6 +495,24 @@ namespace Finn.ViewModels
                             SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Versions"));
 
                         if (changed) mergedFiles++;
+                    }
+                }
+
+                // Viewers mirror the server — remove local files the owner deleted.
+                // Owners keep local-only files so they can push them later.
+                int removedFiles = 0;
+                if (CurrentProject.IsViewer)
+                {
+                    var serverNameSet = new HashSet<string>(
+                        server.StoredFiles.Select(f => f.Namn), StringComparer.OrdinalIgnoreCase);
+
+                    for (int i = CurrentProject.StoredFiles.Count - 1; i >= 0; i--)
+                    {
+                        if (!serverNameSet.Contains(CurrentProject.StoredFiles[i].Namn))
+                        {
+                            CurrentProject.StoredFiles.RemoveAt(i);
+                            removedFiles++;
+                        }
                     }
                 }
 
@@ -517,6 +566,14 @@ namespace Finn.ViewModels
                 if (server.Parent != CurrentProject.Parent)
                     CurrentProject.Parent = server.Parent;
 
+                // Column visibility — server wins
+                for (int i = 0; i < 17; i++)
+                {
+                    bool serverVal = server.GetMetaValue(i);
+                    if (CurrentProject.GetMetaValue(i) != serverVal)
+                        CurrentProject.SetMetaValue(i, serverVal);
+                }
+
                 // Refresh project state
                 CurrentProject.SetFiletypeList();
                 CurrentProject.WireParentReferences();
@@ -528,6 +585,7 @@ namespace Finn.ViewModels
 
                 var parts = new List<string>();
                 if (addedFiles > 0) parts.Add($"{addedFiles} new files");
+                if (removedFiles > 0) parts.Add($"{removedFiles} files removed");
                 if (mergedFiles > 0) parts.Add($"{mergedFiles} files enriched");
                 if (addedTodos > 0) parts.Add($"{addedTodos} todos");
                 if (addedFolders > 0) parts.Add($"{addedFolders} folders");
@@ -536,13 +594,16 @@ namespace Finn.ViewModels
                 // Record the server file's timestamp as our baseline so
                 // CheckPushConflict won't flag our own merge as a conflict.
                 try { CurrentProject.LastPushedUtc = File.GetLastWriteTimeUtc(CurrentProject.SharedPath!); } catch { }
+                CurrentProject.LastPulledUtc = DateTime.UtcNow;
 
                 // If any rows were kept local, local ≠ server → LocalAhead.
-                CurrentProject.SharedSyncStatus = keepLocal is { Count: > 0 }
+                // Viewers can't push, so they stay InSync regardless.
+                CurrentProject.SharedSyncStatus = keepLocal is { Count: > 0 } && !CurrentProject.IsViewer
                     ? SharedSyncState.LocalAhead
                     : SharedSyncState.InSync;
                 WriteSharedActivityLog(CurrentProject, $"merged ({detail})");
                 BuildTreeData();
+                SignalColumnsChanged();
 
                 PreviewVM.StatusMessage = $"Merged \"{CurrentProject.Namn}\": {detail}";
                 return true;
@@ -562,22 +623,37 @@ namespace Finn.ViewModels
         public bool PushProjectFiltered(Dialogs.xSharedPushDia options)
         {
             if (CurrentProject?.SharedPath == null) return false;
+            if (CurrentProject.IsViewer)
+            {
+                PreviewVM.StatusMessage = "Viewers cannot push to a one-way shared project.";
+                return false;
+            }
+
+            // Persist the one-way sharing flag on the project
+            CurrentProject.OneWayShare = options.OneWayShare;
 
             try
             {
                 // Build a filtered copy for serialization
-                string json = SerializeForPush(CurrentProject, options);
+                string json = SerializeForPush(CurrentProject);
 
                 string dir = Path.GetDirectoryName(CurrentProject.SharedPath)!;
                 Directory.CreateDirectory(dir);
+
+                string tmpPath = CurrentProject.SharedPath + ".tmp";
 
                 // Suppress watcher so our own write doesn't trigger a sync event
                 _suppressSharedWatcher = true;
                 try
                 {
-                    string tmpPath = CurrentProject.SharedPath + ".tmp";
                     File.WriteAllText(tmpPath, json);
                     File.Move(tmpPath, CurrentProject.SharedPath, overwrite: true);
+                }
+                catch
+                {
+                    // Clean up the temp file if the move failed
+                    try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
+                    throw;
                 }
                 finally
                 {
@@ -643,26 +719,26 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Serializes the project with selective exclusions based on push options.
+        /// Serializes the project for the server, stripping local-only properties.
         /// Uses JSON round-trip: serialize full → parse → prune → re-serialize.
         /// </summary>
-        private static string SerializeForPush(ProjectData project, Dialogs.xSharedPushDia options)
+        private static string SerializeForPush(ProjectData project)
         {
             string fullJson = Utils.JsonHelper.Serialize(project);
 
-            // Always run through the filter pass so local-only
-            // properties (SharedPath, LastPushedUtc) are stripped.
             using var doc = JsonDocument.Parse(fullJson);
             using var ms = new MemoryStream();
             using (var writer = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true }))
             {
-                WriteFiltered(writer, doc.RootElement, options, depth: 0);
+                WriteFiltered(writer, doc.RootElement);
             }
             return System.Text.Encoding.UTF8.GetString(ms.ToArray());
         }
 
-        private static void WriteFiltered(Utf8JsonWriter writer, JsonElement element,
-            Dialogs.xSharedPushDia options, int depth, string? parentProp = null)
+        /// <summary>Local-only properties that must not appear in the server file.</summary>
+        private static readonly HashSet<string> LocalOnlyProperties = ["SharedPath", "LastPushedUtc", "LastPulledUtc", "SharedRole"];
+
+        private static void WriteFiltered(Utf8JsonWriter writer, JsonElement element, int depth = 0)
         {
             switch (element.ValueKind)
             {
@@ -670,31 +746,10 @@ namespace Finn.ViewModels
                     writer.WriteStartObject();
                     foreach (var prop in element.EnumerateObject())
                     {
-                        // Top-level project properties
-                        if (depth == 0)
-                        {
-                            // Always strip local-only metadata from server file
-                            if (prop.Name is "SharedPath" or "LastPushedUtc") continue;
-                            if (!options.PushFolders && prop.Name == "Folders") continue;
-                            if (!options.PushTodo && prop.Name == "TodoItems") continue;
-                            if (!options.PushSettings && prop.Name is "Meta_1" or "Meta_2" or "Meta_3"
-                                or "Meta_4" or "Meta_5" or "Meta_6" or "Meta_7" or "Meta_8" or "Meta_9"
-                                or "Meta_10" or "Meta_11" or "Meta_12" or "Meta_13" or "Meta_14"
-                                or "Meta_15" or "Meta_16" or "Meta_17" or "MetaCheckDefault") continue;
-                        }
-
-                        // File-level properties (inside StoredFiles array items)
-                        if (parentProp == "StoredFiles")
-                        {
-                            if (!options.PushVersions && prop.Name is "Versions" or "OriginalPath" or "CurrentVersion") continue;
-                            if (!options.PushAnnotations && prop.Name == "AnnotationLayers") continue;
-                            if (!options.PushOtherFiles && prop.Name == "OtherFiles") continue;
-                        }
+                        if (depth == 0 && LocalOnlyProperties.Contains(prop.Name)) continue;
 
                         writer.WritePropertyName(prop.Name);
-                        // Track "StoredFiles" so array items know to filter file-level props
-                        string? childProp = prop.Name == "StoredFiles" ? "StoredFiles" : parentProp;
-                        WriteFiltered(writer, prop.Value, options, depth + 1, childProp);
+                        WriteFiltered(writer, prop.Value, depth + 1);
                     }
                     writer.WriteEndObject();
                     break;
@@ -702,7 +757,7 @@ namespace Finn.ViewModels
                     writer.WriteStartArray();
                     foreach (var item in element.EnumerateArray())
                     {
-                        WriteFiltered(writer, item, options, depth + 1, parentProp);
+                        WriteFiltered(writer, item, depth + 1);
                     }
                     writer.WriteEndArray();
                     break;
@@ -730,9 +785,9 @@ namespace Finn.ViewModels
 
                 string json = File.ReadAllText(serverFilePath);
                 var imported = Utils.JsonHelper.Deserialize<ProjectData>(json);
-                if (imported == null)
+                if (imported == null || string.IsNullOrWhiteSpace(imported.Namn))
                 {
-                    PreviewVM.StatusMessage = "Import failed: could not deserialize file";
+                    PreviewVM.StatusMessage = "Import failed: file is not a valid Finn project";
                     return false;
                 }
 
@@ -757,6 +812,11 @@ namespace Finn.ViewModels
                 imported.SharedPath = serverFilePath;
                 imported.LastPushedUtc = null;
 
+                // Determine role: one-way shares make the importer a viewer
+                imported.SharedRole = imported.OneWayShare
+                    ? SharedRole.Viewer
+                    : SharedRole.Owner;
+
                 // Mark as in-sync since we just imported the server content.
                 // Record the server file timestamp so CheckPushConflict has a baseline.
                 try { imported.LastPushedUtc = File.GetLastWriteTimeUtc(serverFilePath); } catch { }
@@ -778,6 +838,8 @@ namespace Finn.ViewModels
                 BuildTreeData();
                 MarkDirty();
 
+                string role = imported.IsViewer ? "viewer" : "co-owner";
+                WriteSharedActivityLog(imported, $"imported as {role}");
                 PreviewVM.StatusMessage = $"Imported \"{imported.Namn}\"";
                 return true;
             }
@@ -798,7 +860,10 @@ namespace Finn.ViewModels
             if (CurrentProject == null) return;
             CurrentProject.SharedPath = null;
             CurrentProject.LastPushedUtc = null;
+            CurrentProject.LastPulledUtc = null;
             CurrentProject.SharedSyncStatus = SharedSyncState.Unknown;
+            CurrentProject.SharedRole = SharedRole.Owner;
+            CurrentProject.OneWayShare = false;
             MarkDirty();
             BuildTreeData();
             PreviewVM.StatusMessage = $"\"{CurrentProject.Namn}\" is now local-only";
@@ -840,6 +905,8 @@ namespace Finn.ViewModels
                 restored.LastPushedUtc = CurrentProject.LastPushedUtc;
                 restored.Namn = CurrentProject.Namn;
                 restored.SharedSyncStatus = CurrentProject.SharedSyncStatus;
+                restored.SharedRole = CurrentProject.SharedRole;
+                restored.OneWayShare = CurrentProject.OneWayShare;
 
                 foreach (var file in restored.StoredFiles)
                     file.Uppdrag = CurrentProject.Namn;
@@ -885,7 +952,7 @@ namespace Finn.ViewModels
 
                 // Prune old backups: keep last 10 per project
                 var oldBackups = Directory.GetFiles(backupDir, $"{prefix}-backup-*.json")
-                    .OrderByDescending(f => f)
+                    .OrderByDescending(File.GetCreationTimeUtc)
                     .Skip(10);
                 foreach (var old in oldBackups)
                 {

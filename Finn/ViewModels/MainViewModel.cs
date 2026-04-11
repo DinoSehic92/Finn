@@ -176,18 +176,18 @@ namespace Finn.ViewModels
                     _folderWatcher.FolderChanged -= OnFolderWatcherChanged;
                     _folderWatcher.FolderChanged += OnFolderWatcherChanged;
                     _folderWatcher.Refresh(Storage.StoredProjects);
-
-                    _sharedWatcher.ServerFileChanged -= OnSharedFileChanged;
-                    _sharedWatcher.ServerFileChanged += OnSharedFileChanged;
-                    _sharedWatcher.Refresh(Storage.StoredProjects);
                 }
                 else
                 {
                     _folderWatcher.FolderChanged -= OnFolderWatcherChanged;
                     _folderWatcher.StopAll();
-                    _sharedWatcher.ServerFileChanged -= OnSharedFileChanged;
-                    _sharedWatcher.StopAll();
                 }
+
+                // Shared project watcher runs independently of the folder
+                // watch setting so viewers always detect server updates.
+                _sharedWatcher.ServerFileChanged -= OnSharedFileChanged;
+                _sharedWatcher.ServerFileChanged += OnSharedFileChanged;
+                _sharedWatcher.Refresh(Storage.StoredProjects);
             }
 
             /// <summary>Stops all folder and shared-file watchers (e.g. on shutdown).</summary>
@@ -672,6 +672,10 @@ namespace Finn.ViewModels
             /// </summary>
             private void OnSharedFileChanged(IReadOnlySet<string> changedFiles)
             {
+                System.Diagnostics.Debug.WriteLine($"[SharedSync] OnSharedFileChanged: {changedFiles.Count} files, suppress={_suppressSharedWatcher}");
+                foreach (var f in changedFiles)
+                    System.Diagnostics.Debug.WriteLine($"[SharedSync]   changed: {f}");
+
                 // Ignore events triggered by our own push
                 if (_suppressSharedWatcher) return;
 
@@ -682,16 +686,22 @@ namespace Finn.ViewModels
                     affected = [];
                     foreach (var project in Storage.StoredProjects)
                     {
-                        if (!string.IsNullOrEmpty(project.SharedPath)
-                            && changedFiles.Contains(project.SharedPath))
+                        bool hasPath = !string.IsNullOrEmpty(project.SharedPath);
+                        bool match = hasPath && changedFiles.Contains(project.SharedPath);
+                        System.Diagnostics.Debug.WriteLine($"[SharedSync]   project '{project.Namn}' path='{project.SharedPath}' match={match}");
+                        if (match)
                             affected.Add(project);
                     }
                 }
 
+                System.Diagnostics.Debug.WriteLine($"[SharedSync] Affected projects: {affected.Count}");
                 if (affected.Count == 0) return;
 
                 foreach (var project in affected)
+                {
                     UpdateSharedSyncStatus(project);
+                    System.Diagnostics.Debug.WriteLine($"[SharedSync] After UpdateStatus: '{project.Namn}' → {project.SharedSyncStatus} (LastPushed={project.LastPushedUtc:O})");
+                }
 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -738,6 +748,16 @@ namespace Finn.ViewModels
 
                     var serverModified = File.GetLastWriteTimeUtc(project.SharedPath);
                     bool serverChanged = serverModified > project.LastPushedUtc.Value.AddSeconds(5);
+
+                    // Viewers can only pull, so they're either InSync or ServerAhead.
+                    if (project.IsViewer)
+                    {
+                        project.SharedSyncStatus = serverChanged
+                            ? SharedSyncState.ServerAhead
+                            : SharedSyncState.InSync;
+                        return;
+                    }
+
                     bool localDirty = project.SharedSyncStatus is SharedSyncState.LocalAhead
                                                                 or SharedSyncState.Conflicted;
 
@@ -1077,7 +1097,8 @@ namespace Finn.ViewModels
                 // the tree icon hints that a push may be needed.
                 // Only triggers a tree rebuild on the InSync→LocalAhead
                 // transition, not on every subsequent MarkDirty call.
-                if (currentProject is { IsShared: true, SharedSyncStatus: SharedSyncState.InSync })
+                // Viewers never push, so don't flag them as locally ahead.
+                if (currentProject is { IsShared: true, IsViewer: false, SharedSyncStatus: SharedSyncState.InSync })
                 {
                     currentProject.SharedSyncStatus = SharedSyncState.LocalAhead;
                     BuildTreeData();

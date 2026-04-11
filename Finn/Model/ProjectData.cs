@@ -160,6 +160,17 @@ namespace Finn.Model
         private bool[] metaValues = (bool[])DefaultMetaValues.Clone();
 
         private bool GetMeta(int index) => metaValues[index];
+        /// <summary>Returns column visibility for the given index (0-based). Safe for diff comparisons.</summary>
+        public bool GetMetaValue(int index) => index >= 0 && index < metaValues.Length && metaValues[index];
+        /// <summary>Sets column visibility for the given index (0-based). Used during merge.</summary>
+        public void SetMetaValue(int index, bool value)
+        {
+            if (index >= 0 && index < metaValues.Length)
+            {
+                metaValues[index] = value;
+                RaisePropertyChanged($"Meta_{index + 1}");
+            }
+        }
         private void SetMeta(int index, bool value, [System.Runtime.CompilerServices.CallerMemberName] string? propName = null)
         {
             metaValues[index] = value;
@@ -353,6 +364,17 @@ namespace Finn.Model
             set { lastPushedUtc = value; RaisePropertyChanged(nameof(LastPushedUtc)); }
         }
 
+        private DateTime? lastPulledUtc;
+        /// <summary>
+        /// UTC timestamp of the last successful pull/merge from the server.
+        /// Persisted to local Projects.json. Stripped from server files.
+        /// </summary>
+        public DateTime? LastPulledUtc
+        {
+            get => lastPulledUtc;
+            set { lastPulledUtc = value; RaisePropertyChanged(nameof(LastPulledUtc)); }
+        }
+
         /// <summary>True when this project is linked to a shared server copy.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public bool IsShared => !string.IsNullOrEmpty(SharedPath);
@@ -383,10 +405,47 @@ namespace Finn.Model
             _ => "⇄"
         };
 
+        private bool _oneWayShare = true;
+        /// <summary>
+        /// When true, this project is shared in one-way (read-only) mode.
+        /// Viewers can pull but cannot push. Serialized to the server JSON
+        /// so importers know the sharing mode.
+        /// </summary>
+        public bool OneWayShare
+        {
+            get => _oneWayShare;
+            set { _oneWayShare = value; RaisePropertyChanged(nameof(OneWayShare)); }
+        }
+
+        private SharedRole _sharedRole = SharedRole.Owner;
+        /// <summary>
+        /// Local-only role for this shared project. Owners can push and pull;
+        /// viewers can only pull. Stripped from server files.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public SharedRole SharedRole
+        {
+            get => _sharedRole;
+            set { _sharedRole = value; RaisePropertyChanged(nameof(SharedRole)); RaisePropertyChanged(nameof(IsViewer)); }
+        }
+
+        /// <summary>True when the local user is a viewer (read-only) on this shared project.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsViewer => SharedRole == SharedRole.Viewer;
+
         private void RaisePropertyChanged(string propName)
         {
             OnPropertyChanged(propName);
         }
+    }
+
+    /// <summary>Role of the local user relative to a shared project.</summary>
+    public enum SharedRole
+    {
+        /// <summary>Full access — can push and pull.</summary>
+        Owner,
+        /// <summary>Read-only — can pull but not push. Annotations are stored in viewer-local layers.</summary>
+        Viewer,
     }
 
     /// <summary>Sync state of a shared project relative to its server file.</summary>

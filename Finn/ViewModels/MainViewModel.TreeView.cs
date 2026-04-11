@@ -168,8 +168,9 @@ namespace Finn.ViewModels
 
             projectNode.IsExpanded = true;
 
-            // Try to match a specific filetype child
-            string? targetType = Type is not null and not "All Types" ? Type : CurrentFile?.Filtyp;
+            // Only drill into a filetype child when a specific type is active.
+            // When viewing "All Types", stay on the project node.
+            string? targetType = Type is not null and not "All Types" ? Type : null;
 
             if (targetType != null)
             {
@@ -206,9 +207,12 @@ namespace Finn.ViewModels
                     Foreground = foreground
                 };
 
-                // Match the filetype node when a file is selected in the current project
-                if (isCurrent && Type != null && filetype == Type)
+                // Match the filetype node when a file is selected in the current project.
+                // Skip when Type is "All Types" so the project-level node stays selected.
+                if (isCurrent && Type != null && Type != ALL_TYPES && filetype == Type)
                     matched = child;
+                else if (isCurrent && Type is null or "All Types" && matched == null)
+                { /* viewing all files — don't drill into a filetype child */ }
                 else if (isCurrent && matched == null && CurrentFile?.Filtyp == filetype)
                     matched = child;
 
@@ -217,7 +221,9 @@ namespace Finn.ViewModels
 
             var node = new TreeNodeData
             {
-                Header = project.IsShared ? $"{project.Namn}  {project.SharedSyncIcon}" : project.Namn,
+                Header = project.IsShared
+                    ? $"{project.Namn}  {project.SharedSyncIcon}{(project.IsViewer ? " 👁" : "")}"
+                    : project.Namn,
                 Tag = "All Types",
                 IconSymbol = project.IsShared ? "People" : "Folder",
                 FontSize = 15,

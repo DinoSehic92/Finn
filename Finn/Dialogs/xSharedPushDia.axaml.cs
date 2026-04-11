@@ -8,18 +8,21 @@ public partial class xSharedPushDia : Window
 {
     public bool Confirmed { get; private set; }
 
-    public bool PushFiles { get; private set; } = true;
-    public bool PushVersions { get; private set; } = true;
-    public bool PushFolders { get; private set; } = true;
-    public bool PushTodo { get; private set; } = true;
-    public bool PushAnnotations { get; private set; } = true;
-    public bool PushOtherFiles { get; private set; } = true;
-    public bool PushSettings { get; private set; } = true;
+    public bool OneWayShare { get; private set; }
 
     public xSharedPushDia()
     {
         InitializeComponent();
         KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
+    }
+
+    /// <summary>
+    /// Initializes the one-way sharing checkbox from the current project state.
+    /// Call after construction so the checkbox reflects the persisted value.
+    /// </summary>
+    public void SetOneWayShare(bool currentValue)
+    {
+        OneWayShareCheckBox.IsChecked = currentValue;
     }
 
     public void SetWarning(string warning)
@@ -29,13 +32,7 @@ public partial class xSharedPushDia : Window
 
     private void OnAccept(object? sender, RoutedEventArgs e)
     {
-        PushFiles = IncludeFiles.IsChecked == true;
-        PushVersions = IncludeVersions.IsChecked == true;
-        PushFolders = IncludeFolders.IsChecked == true;
-        PushTodo = IncludeTodo.IsChecked == true;
-        PushAnnotations = IncludeAnnotations.IsChecked == true;
-        PushOtherFiles = IncludeOtherFiles.IsChecked == true;
-        PushSettings = IncludeSettings.IsChecked == true;
+        OneWayShare = OneWayShareCheckBox.IsChecked == true;
         Confirmed = true;
         Close();
     }

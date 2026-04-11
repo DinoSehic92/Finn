@@ -827,6 +827,7 @@ public partial class MainView : UserControl
     {
         if (sender is not ContextMenu menu) return;
         bool isShared = _ctx.CurrentProject?.IsShared == true;
+        bool isViewer = _ctx.CurrentProject?.IsViewer == true;
 
         foreach (var child in menu.Items)
         {
@@ -841,6 +842,8 @@ public partial class MainView : UserControl
                         mi.IsVisible = !isShared;
                         break;
                     case "PushMenuItem":
+                        mi.IsVisible = isShared && !isViewer;
+                        break;
                     case "PullMenuItem":
                     case "UnshareMenuItem":
                     case "RestoreBackupMenuItem":
@@ -878,6 +881,7 @@ public partial class MainView : UserControl
         dialog.DataContext = _ctx;
         dialog.FontFamily = window.FontFamily;
         dialog.RequestedThemeVariant = window.ActualThemeVariant;
+        dialog.SetOneWayShare(_ctx.CurrentProject.OneWayShare);
 
         await dialog.ShowDialog(window);
 
@@ -909,12 +913,14 @@ public partial class MainView : UserControl
 
         if (files.Count == 0) return;
 
-        _ctx.ImportSharedProject(files[0].Path.LocalPath);
+        if (_ctx.ImportSharedProject(files[0].Path.LocalPath))
+            _ctx.RefreshFolderWatchers();
     }
 
     private async void OnPushProject(object? sender, RoutedEventArgs e)
     {
         if (_ctx.CurrentProject?.SharedPath == null) return;
+        if (_ctx.CurrentProject.IsViewer) return;
 
         var window = TopLevel.GetTopLevel(this) as MainWindow;
         if (window == null) return;
@@ -923,6 +929,7 @@ public partial class MainView : UserControl
         dialog.DataContext = _ctx;
         dialog.FontFamily = window.FontFamily;
         dialog.RequestedThemeVariant = window.ActualThemeVariant;
+        dialog.SetOneWayShare(_ctx.CurrentProject.OneWayShare);
 
         // Check for server-side changes since last push
         string? conflict = _ctx.CheckPushConflict();
@@ -966,6 +973,9 @@ public partial class MainView : UserControl
         dialog.FontFamily = window.FontFamily;
         dialog.RequestedThemeVariant = window.ActualThemeVariant;
         dialog.SetDiff(entries, summary);
+
+        if (_ctx.CurrentProject.IsViewer)
+            dialog.SetViewerMode();
 
         await dialog.ShowDialog(window);
 
@@ -1671,7 +1681,8 @@ public partial class MainView : UserControl
         renderer.EnsureDefaultLayer();
         int index = renderer.Layers.Count;
         var color = LayerColors[index % LayerColors.Length];
-        var layer = renderer.AddLayer($"Layer {index + 1}", color);
+        string prefix = _ctx.CurrentProject?.IsViewer == true ? "Viewer: " : "";
+        var layer = renderer.AddLayer($"{prefix}Layer {index + 1}", color);
         renderer.StrokeColor = color;
         LayerList.SelectedItem = layer;
     }

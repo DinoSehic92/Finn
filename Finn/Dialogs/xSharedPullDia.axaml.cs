@@ -42,6 +42,15 @@ public partial class xSharedPullDia : Window
         }
     }
 
+    /// <summary>
+    /// Hides the "Keep Local" column for viewers since their local
+    /// changes are overwritten by server values on every pull.
+    /// </summary>
+    public void SetViewerMode()
+    {
+        DiffGrid.Columns[0].IsVisible = false;
+    }
+
     private void OnMerge(object? sender, RoutedEventArgs e)
     {
         Confirmed = true;
