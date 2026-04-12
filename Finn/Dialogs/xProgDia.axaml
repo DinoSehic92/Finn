@@ -11,7 +11,7 @@
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
-		ExtendClientAreaToDecorationsHint="True"
+		ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		SizeToContent="Height"
 		x:DataType="vm:MainViewModel">
 

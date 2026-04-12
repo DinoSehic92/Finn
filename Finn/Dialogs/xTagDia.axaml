@@ -2,10 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="210" d:DesignHeight="200"
-        MinWidth="210"
+        mc:Ignorable="d" d:DesignWidth="240" d:DesignHeight="200"
+        MinWidth="240"
         MinHeight="200"
-        MaxWidth="210"
+        MaxWidth="240"
         MaxHeight="200"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xTagDia"
@@ -13,7 +13,7 @@
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
         x:DataType="vm:MainViewModel">
 
     <Window.Styles>
@@ -38,7 +38,7 @@
                 </Border>
                 <TextBlock Text="Edit Tag" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
-            <TextBox Name="TagMenuInput" HorizontalContentAlignment="Center" Width="140" />
+            <TextBox Name="TagMenuInput" HorizontalContentAlignment="Center" Width="200" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
                 <Button Name="TagAccept" HotKey="Enter" Content="Accept" Width="70" Classes="accent" Click="OnSetTag"/>
             </StackPanel>

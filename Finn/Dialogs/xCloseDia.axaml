@@ -2,10 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="260" d:DesignHeight="155"
-        MinWidth="260"
+        mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="155"
+        MinWidth="300"
         MinHeight="155"
-        MaxWidth="260"
+        MaxWidth="300"
         MaxHeight="155"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xCloseDia"
@@ -13,7 +13,7 @@
         xmlns:vm="clr-namespace:Finn.ViewModels"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
         x:DataType="vm:MainViewModel">
 
     <Window.Styles>

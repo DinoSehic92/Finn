@@ -4,7 +4,7 @@
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="690"
 		Width="540" MinWidth="540" MaxWidth="540"
-		Height="780" MinHeight="780" MaxHeight="780"
+		SizeToContent="Height"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xColorDia"
 		Title=""
@@ -12,7 +12,7 @@
 		xmlns:icxt="using:FluentIcons.Avalonia.MarkupExtensions"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
-		ExtendClientAreaToDecorationsHint="True"
+		ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		x:DataType="vm:MainViewModel">
 
 	<Window.Styles>

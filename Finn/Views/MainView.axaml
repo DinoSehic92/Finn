@@ -163,7 +163,11 @@
 
 		<!-- Alternating row shading for DataGrids (toggled via UI setting) -->
 		<Style Selector="DataGrid.AltRows DataGridRow:nth-child(2n)">
-			<Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
+			<Setter Property="Background">
+				<Setter.Value>
+					<SolidColorBrush Color="{DynamicResource SystemBaseLowColor}" Opacity="0.20"/>
+				</Setter.Value>
+			</Setter>
 		</Style>
 	</UserControl.Styles>
 

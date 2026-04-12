@@ -15,7 +15,7 @@
 		xmlns:vm="clr-namespace:Finn.ViewModels"
 		CanResize="True"
 		WindowStartupLocation="CenterScreen"
-        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		x:DataType="vm:MainViewModel">
 
 	<Grid RowDefinitions="130,*" ColumnDefinitions="*,*" VerticalAlignment="Stretch" Margin="5">

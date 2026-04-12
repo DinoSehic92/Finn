@@ -11,7 +11,7 @@
         Title=""
         CanResize="False"
         WindowStartupLocation="CenterOwner"
-        ExtendClientAreaToDecorationsHint="True">
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30">
 
     <Window.Styles>
         <Style Selector="Button.accent">

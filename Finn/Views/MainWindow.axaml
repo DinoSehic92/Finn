@@ -16,14 +16,6 @@
 
 	<Window.Styles>
 
-		<!-- Smooth row hover transition for all DataGridRows -->
-		<Style Selector="DataGridRow">
-			<Setter Property="Transitions">
-				<Transitions>
-					<BrushTransition Property="Background" Duration="0:0:0.2"/>
-				</Transitions>
-			</Setter>
-		</Style>
 
 		<!-- Color tag rows with consistent lower opacity for readability -->
 		<Style Selector="DataGridRow.Yellow">

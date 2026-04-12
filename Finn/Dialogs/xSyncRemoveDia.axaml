@@ -7,7 +7,7 @@ xmlns:ic="using:FluentIcons.Avalonia"
 x:Class="Finn.Dialogs.xSyncRemoveDia" Title=""
 xmlns:vm="clr-namespace:Finn.ViewModels"
 CanResize="True" WindowStartupLocation="CenterOwner"
-ExtendClientAreaToDecorationsHint="True" x:DataType="vm:MainViewModel">
+ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30" x:DataType="vm:MainViewModel">
 <Window.Styles>
 <Style Selector="Button.accent">
 <Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
