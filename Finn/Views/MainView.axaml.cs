@@ -96,6 +96,14 @@ public partial class MainView : UserControl
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
         _ctx.PreviewVM.PropertyChanged += OnPreviewPropertyChanged;
+        _ctx.Collections.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(_ctx.Collections.CollectionContent)
+                or nameof(_ctx.Collections.CurrentCollection))
+                UpdateCollectionsEmptyHint();
+        };
+        _ctx.Collections.CollectionContent.CollectionChanged += (_, _) => UpdateCollectionsEmptyHint();
+        _ctx.PreviewVM.RecentFiles.CollectionChanged += (_, _) => UpdateRecentEmptyHint();
         _ctx.Calendar.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(_ctx.Calendar.SelectableProjectNames))
@@ -143,6 +151,7 @@ public partial class MainView : UserControl
 
                 UpdateEmptyState();
                 SubscribeTodoItems();
+                ApplyAlternatingRowShading();
 
                 // Start watching sync folders for file changes (if enabled)
                 _ctx.RefreshFolderWatchers();
@@ -174,9 +183,14 @@ public partial class MainView : UserControl
                 break;
             case nameof(MainViewModel.CurrentFile):
                 UpdateOtherFilesEmptyState();
+                UpdateVersionsEmptyHint();
+                UpdateLayersEmptyHint();
+                UpdateBookmarksEmptyHint();
                 break;
             case nameof(MainViewModel.CurrentProject):
                 SubscribeTodoItems();
+                UpdateCollectionsEmptyHint();
+                UpdateRecentEmptyHint();
                 break;
         }
     }
@@ -293,6 +307,9 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.FontSize):
             case nameof(_ctx.UI.FontSizeCompact):
                 PushViewModelResources();
+                break;
+            case nameof(_ctx.UI.AlternatingRowShading):
+                ApplyAlternatingRowShading();
                 break;
         }
     }
@@ -483,21 +500,84 @@ public partial class MainView : UserControl
         bool empty = _ctx.FilteredFiles == null || _ctx.FilteredFiles.Count == 0;
         EmptyStateHint.IsVisible = empty;
 
+        UpdateNotepadEmptyHint();
         UpdateOtherFilesEmptyState();
         UpdateFolderEmptyState();
+        UpdateVersionsEmptyHint();
+        UpdateLayersEmptyHint();
+        UpdateCollectionsEmptyHint();
+        UpdateBookmarksEmptyHint();
+        UpdateRecentEmptyHint();
+        UpdateTodoEmptyHint();
+    }
+
+    private void UpdateNotepadEmptyHint()
+    {
+        NotepadEmptyHint.IsVisible = _ctx.CurrentFile == null;
     }
 
     private void UpdateOtherFilesEmptyState()
     {
         var file = _ctx.OtherFilesOwner;
-        bool otherEmpty = file?.OtherFiles == null || file.OtherFiles.Count == 0;
-        OtherFilesEmptyHint.IsVisible = otherEmpty;
+        OtherFilesEmptyHint.IsVisible = file?.OtherFiles == null || file.OtherFiles.Count == 0;
     }
 
     private void UpdateFolderEmptyState()
     {
-        bool empty = _ctx.CurrentProject?.Folders == null || _ctx.CurrentProject.Folders.Count == 0;
-        FolderEmptyHint.IsVisible = empty;
+        FolderEmptyHint.IsVisible = _ctx.CurrentProject?.Folders == null || _ctx.CurrentProject.Folders.Count == 0;
+    }
+
+    private void UpdateVersionsEmptyHint()
+    {
+        var versions = _ctx.CurrentFile?.Versions;
+        VersionsEmptyHint.IsVisible = versions == null || versions.Count == 0;
+    }
+
+    private void UpdateLayersEmptyHint()
+    {
+        var layers = _ctx.CurrentFile?.AnnotationLayers;
+        LayersEmptyHint.IsVisible = layers == null || layers.Count == 0;
+    }
+
+    private void UpdateCollectionsEmptyHint()
+    {
+        CollectionsEmptyHint.IsVisible = _ctx.Storage.Collections == null || _ctx.Storage.Collections.Count == 0;
+        var content = _ctx.Collections.CollectionContent;
+        CollectionContentEmptyHint.IsVisible = content == null || content.Count == 0;
+    }
+
+    private void UpdateBookmarksEmptyHint()
+    {
+        var favPages = _ctx.PreviewVM?.CurrentFile?.FavPages;
+        BookmarksEmptyHint.IsVisible = favPages == null || favPages.Count == 0;
+    }
+
+    private void UpdateRecentEmptyHint()
+    {
+        var recent = _ctx.PreviewVM?.RecentFiles;
+        RecentEmptyHint.IsVisible = recent == null || recent.Count == 0;
+    }
+
+    #endregion
+
+    #region Alternating Row Shading
+
+    private void ApplyAlternatingRowShading()
+    {
+        bool enabled = _ctx.UI.AlternatingRowShading;
+        foreach (var grid in new[] { FileGrid, RecentGrid, BookmarkGrid, VersionsGrid, OtherFilesGrid,
+                                     Collections, CollectionContent })
+        {
+            if (enabled)
+            {
+                if (!grid.Classes.Contains("AltRows"))
+                    grid.Classes.Add("AltRows");
+            }
+            else
+            {
+                grid.Classes.Remove("AltRows");
+            }
+        }
     }
 
     #endregion
@@ -1283,6 +1363,29 @@ public partial class MainView : UserControl
         }
     }
 
+    private void OnRecentOpen(object? sender, RoutedEventArgs e)
+    {
+        var file = RecentGrid.SelectedItem as FileData;
+        if (file == null) return;
+        _ctx.OpenFileDirect(file.Sökväg);
+    }
+
+    private void OnRecentOpenFolder(object? sender, RoutedEventArgs e)
+    {
+        var file = RecentGrid.SelectedItem as FileData;
+        if (file == null) return;
+        _ctx.OpenPathDirect(file.Sökväg);
+    }
+
+    private async void OnRecentCopyPath(object? sender, RoutedEventArgs e)
+    {
+        var file = RecentGrid.SelectedItem as FileData;
+        if (file == null) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.Clipboard is { } clipboard)
+            await clipboard.SetTextAsync(file.Sökväg);
+    }
+
     /// <summary>
     /// Selects <paramref name="target"/> in the main FileGrid, requests a
     /// preview, and optionally adds it to the recent-files list.
@@ -1507,6 +1610,7 @@ public partial class MainView : UserControl
         {
             _ctx.Collections.AddBookmark(BookmarkInput.Text);
             BookmarkInput.Clear();
+            UpdateBookmarksEmptyHint();
         }
     }
 
@@ -1520,6 +1624,7 @@ public partial class MainView : UserControl
     {
         if (BookmarkGrid.SelectedItem is PageData page)
             _ctx.Collections.RemoveBookmark(page);
+        UpdateBookmarksEmptyHint();
     }
 
     #endregion
@@ -1544,7 +1649,10 @@ public partial class MainView : UserControl
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
+        {
             _ctx.RemoveSelectedVersion();
+            UpdateVersionsEmptyHint();
+        }
     }
 
     private void OnVersionDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
@@ -1685,6 +1793,7 @@ public partial class MainView : UserControl
         var layer = renderer.AddLayer($"{prefix}Layer {index + 1}", color);
         renderer.StrokeColor = color;
         LayerList.SelectedItem = layer;
+        UpdateLayersEmptyHint();
     }
 
     private void OnLayerSelected(object? sender, SelectionChangedEventArgs e)
@@ -1720,6 +1829,7 @@ public partial class MainView : UserControl
         if (renderer == null || renderer.Layers.Count <= 1) return;
         if (LayerList.SelectedItem is Model.AnnotationLayer layer)
             renderer.RemoveLayer(layer);
+        UpdateLayersEmptyHint();
     }
 
     #endregion
@@ -2041,10 +2151,8 @@ public partial class MainView : UserControl
 
     private void UpdateTodoEmptyHint()
     {
-        var hint = this.FindControl<StackPanel>("TodoEmptyHint");
-        if (hint == null) return;
         var items = _ctx.CurrentProject?.TodoItems;
-        hint.IsVisible = items == null || items.Count == 0;
+        TodoEmptyHint.IsVisible = items == null || items.Count == 0;
     }
 
     #endregion
@@ -2057,6 +2165,7 @@ public partial class MainView : UserControl
         {
             _ctx.Collections.NewCollection(CollectionInput.Text);
             CollectionInput.Clear();
+            UpdateCollectionsEmptyHint();
         }
     }
 
@@ -2082,6 +2191,8 @@ public partial class MainView : UserControl
 
         if (sender is Button)
             CollectionButton.Flyout?.Hide();
+
+        UpdateCollectionsEmptyHint();
     }
 
     #endregion

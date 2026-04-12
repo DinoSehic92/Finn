@@ -221,11 +221,11 @@ namespace Finn.ViewModels
 
             var node = new TreeNodeData
             {
-                Header = project.IsShared
-                    ? $"{project.Namn}  {project.SharedSyncIcon}{(project.IsViewer ? " 👁" : "")}"
-                    : project.Namn,
+                Header = project.Namn,
                 Tag = "All Types",
                 IconSymbol = project.IsShared ? "People" : "Folder",
+                SyncIconSymbol = project.IsShared ? project.SharedSyncIconSymbol : null,
+                IsViewer = project.IsViewer,
                 FontSize = 15,
                 IsExpanded = isCurrent,
                 Foreground = foreground,

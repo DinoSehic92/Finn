@@ -155,6 +155,16 @@
 
 		<!-- Disabled buttons: transparent background, faded foreground -->
 		<!-- (Styles moved to App.axaml for global scope — applies to windowed previewer too) -->
+
+		<!-- Accent tint on checked tray panel checkboxes -->
+		<Style Selector="CheckBox.TrayToggle:checked">
+			<Setter Property="Foreground" Value="{DynamicResource SystemAccentColor}"/>
+		</Style>
+
+		<!-- Alternating row shading for DataGrids (toggled via UI setting) -->
+		<Style Selector="DataGrid.AltRows DataGridRow:nth-child(2n)">
+			<Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
+		</Style>
 	</UserControl.Styles>
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
@@ -172,14 +182,14 @@
 				   WindowDecorationProperties.ElementRole="User">
 			<Menu DockPanel.Dock="Top" FontSize="15" FontFamily="Default">
 				<MenuItem Header="File">
-					<MenuItem Header="Load"    Click="OnLoadFile">
+					<MenuItem Header="Load"    InputGesture="Ctrl+O" Click="OnLoadFile">
 						<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
 					</MenuItem>
 					<Separator/>
 					<MenuItem Header="Save"    HotKey="Ctrl+S" Click="OnSaveFileAuto">
 						<MenuItem.Icon><ic:SymbolIcon Symbol="Save"/></MenuItem.Icon>
 					</MenuItem>
-					<MenuItem Header="Save As" Click="OnSaveFile">
+					<MenuItem Header="Save As" InputGesture="Ctrl+Shift+S" Click="OnSaveFile">
 						<MenuItem.Icon><ic:SymbolIcon Symbol="SaveEdit"/></MenuItem.Icon>
 					</MenuItem>
 					<Separator/>
@@ -294,14 +304,14 @@
 							<Button.Flyout>
 								<Flyout HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
 									<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="120" Margin="0" Spacing="2">
-										<CheckBox Content="Notepad"      Height="28" IsChecked="{Binding UI.TrayNote, Mode=TwoWay}"/>
-										<CheckBox Content="Collections"  Height="28" IsChecked="{Binding UI.TrayCollections, Mode=TwoWay}"/>
-										<CheckBox Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}"/>
-										<CheckBox Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}"/>
-										<CheckBox Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}"/>
-										<CheckBox Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}"/>
-											<CheckBox Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}"/>
-														<CheckBox Content="To-Do"        Height="28" IsChecked="{Binding UI.TrayTodo, Mode=TwoWay}"/>
+										<CheckBox Classes="TrayToggle" Content="Notepad"      Height="28" IsChecked="{Binding UI.TrayNote, Mode=TwoWay}" ToolTip.Tip="Quick notes for the current project"/>
+										<CheckBox Classes="TrayToggle" Content="Collections"  Height="28" IsChecked="{Binding UI.TrayCollections, Mode=TwoWay}" ToolTip.Tip="Saved file collections and favorites"/>
+										<CheckBox Classes="TrayToggle" Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}" ToolTip.Tip="Page bookmarks in the current PDF"/>
+										<CheckBox Classes="TrayToggle" Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}" ToolTip.Tip="Recently viewed files"/>
+										<CheckBox Classes="TrayToggle" Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}" ToolTip.Tip="Other files attached to this project"/>
+										<CheckBox Classes="TrayToggle" Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}" ToolTip.Tip="File version history"/>
+											<CheckBox Classes="TrayToggle" Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}" ToolTip.Tip="Annotation layers for the current file"/>
+														<CheckBox Classes="TrayToggle" Content="To-Do"        Height="28" IsChecked="{Binding UI.TrayTodo, Mode=TwoWay}" ToolTip.Tip="Task list for the current project"/>
 									</StackPanel>
 								</Flyout>
 							</Button.Flyout>
@@ -896,13 +906,8 @@
 			</DataGrid>
 
 				<!-- Empty state message (shown when no files in grid) -->
-				<StackPanel Name="EmptyStateHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-					<ic:SymbolIcon Symbol="DocumentAdd" FontSize="36" HorizontalAlignment="Center"/>
-					<TextBlock Text="No files loaded" FontSize="16" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,8,0,2"/>
-					<TextBlock Text="Drop PDF files or folders here, or use File → Load" FontSize="13" HorizontalAlignment="Center"/>
-					<TextBlock Text="Folders will be watched for new PDFs automatically" FontSize="11" HorizontalAlignment="Center" Opacity="0.7" Margin="0,2,0,0"/>
-				</StackPanel>
+				<controls:EmptyHint Name="EmptyStateHint" Icon="DocumentAdd" IconSize="36"
+							Title="No files loaded" Subtitle="Drop PDF files or folders here, or use File → Load"/>
 
 				<!-- Drag-and-drop hint overlay -->
 				<Border Name="DropOverlay" Classes="DropHint"
@@ -967,13 +972,8 @@
 							</ContextMenu>
 						</DataGrid.ContextMenu>
 					</DataGrid>
-						<StackPanel Name="FolderEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-									IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-							<ic:SymbolIcon Symbol="Folder" FontSize="30" HorizontalAlignment="Center"/>
-							<TextBlock Text="No synced folders" FontSize="14" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,6,0,2"/>
-							<TextBlock Text="Drag a folder onto any grid to start syncing" FontSize="12" HorizontalAlignment="Center"/>
-							<TextBlock Text="Drop here for version delivery" FontSize="11" HorizontalAlignment="Center" Opacity="0.7" Margin="0,2,0,0"/>
-						</StackPanel>
+						<controls:EmptyHint Name="FolderEmptyHint" Icon="Folder" IconSize="30"
+									Title="No synced folders" Subtitle="Drag a folder onto any grid to start syncing"/>
 						<!-- Drop hint for version delivery folders -->
 						<Border Name="FolderDropOverlay" Classes="DropHint"
 								Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
@@ -1235,11 +1235,15 @@
 							<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
 						</Grid.RowDefinitions>
 
-            <!-- File notepad (wrapped in shadow-only border) -->
-                <Border Grid.Row="0" Classes="shadow" IsVisible="{Binding UI.TrayNote}">
-				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" PlaceholderText="File Notepad"
+			<!-- File notepad (wrapped in shadow-only border) -->
+			<Panel Grid.Row="0" IsVisible="{Binding UI.TrayNote}">
+				<Border Classes="shadow">
+				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" PlaceholderText="Notes for the selected file"
 					 FontSize="{Binding UI.FontSize}" AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
 			</Border>
+			<controls:EmptyHint Name="NotepadEmptyHint" Icon="Notebook" IconSize="26"
+						Title="No file selected" Subtitle="Select a file to view or edit its notes"/>
+			</Panel>
 
 			<!-- Collections toolbar -->
 			<Grid Grid.Row="1" ColumnDefinitions="*,30,30,30" IsVisible="{Binding UI.TrayCollections}">
@@ -1252,7 +1256,8 @@
 			</Grid>
 
 			<!-- Collections list -->
-            <DataGrid Grid.Row="2" IsVisible="{Binding UI.TrayCollections}" Name="Collections"
+			<Panel Grid.Row="2" IsVisible="{Binding UI.TrayCollections}">
+			<DataGrid Name="Collections"
 					  ItemsSource="{Binding Storage.Collections}" SelectedItem="{Binding Collections.CurrentCollection}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
@@ -1260,9 +1265,13 @@
 					<DataGridTextColumn Binding="{ReflectionBinding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
+			<controls:EmptyHint Name="CollectionsEmptyHint" Icon="Album"
+						Title="No collections" Subtitle="Type a name above and click + to create one"/>
+			</Panel>
 
 			<!-- Collection content -->
-			<DataGrid Grid.Row="3" IsVisible="{Binding UI.TrayCollections}" Name="CollectionContent" Classes="ThumbnailGrid"
+			<Panel Grid.Row="3" IsVisible="{Binding UI.TrayCollections}">
+			<DataGrid Name="CollectionContent" Classes="ThumbnailGrid"
 					  ItemsSource="{Binding Collections.CollectionContent, Mode=OneWay}" SelectionMode="Single"
 					  SelectedItem="{Binding Collections.SelectedCollectionFile}"
 					  AutoGenerateColumns="False" IsReadOnly="True" LoadingRow="DataGrid_OnLoadingRow"
@@ -1296,6 +1305,9 @@
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
+			<controls:EmptyHint Name="CollectionContentEmptyHint" Icon="DocumentCopy"
+						Title="No files in collection" Subtitle="Right-click files in the grid to add them to the selected collection"/>
+			</Panel>
 
 			<!-- Bookmarks toolbar -->
             <Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding UI.TrayBookmarks}">
@@ -1310,7 +1322,8 @@
 			</Grid>
 
 			<!-- Bookmarks list -->
-            <DataGrid IsVisible="{Binding UI.TrayBookmarks}" Grid.Row="5" Name="BookmarkGrid"
+			<Panel Grid.Row="5" IsVisible="{Binding UI.TrayBookmarks}">
+			<DataGrid Name="BookmarkGrid"
 					  ItemsSource="{Binding PreviewVM.CurrentFile.FavPages, Mode=OneWay}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow">
@@ -1319,12 +1332,29 @@
 					<DataGridTextColumn Binding="{Binding PageName}"                                            Header="Bookmark" Width="*"  FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
+			<controls:EmptyHint Name="BookmarksEmptyHint" Icon="Bookmark"
+						Title="No bookmarks" Subtitle="Navigate to a page and click + to bookmark"/>
+			</Panel>
 
 			<!-- Recent files -->
-			<DataGrid Grid.Row="6" Name="RecentGrid"
+			<Panel Grid.Row="6" IsVisible="{Binding UI.TrayRecent}">
+			<DataGrid Name="RecentGrid"
 					  ItemsSource="{Binding PreviewVM.RecentFiles}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow">
+				<DataGrid.ContextMenu>
+					<ContextMenu>
+						<MenuItem Header="Open" Click="OnRecentOpen">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Open"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Open Folder" Click="OnRecentOpenFolder">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Copy Path" Click="OnRecentCopyPath">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Copy"/></MenuItem.Icon>
+						</MenuItem>
+					</ContextMenu>
+				</DataGrid.ContextMenu>
 				<DataGrid.Columns>
 					<DataGridTemplateColumn Header="Recent Files" Width="*">
 						<DataGridTemplateColumn.CellTemplate>
@@ -1338,6 +1368,9 @@
 					</DataGridTemplateColumn>
 				</DataGrid.Columns>
 			</DataGrid>
+			<controls:EmptyHint Name="RecentEmptyHint" Icon="History"
+						Title="No recent files" Subtitle="Recently viewed files will appear here"/>
+			</Panel>
 
 			<!-- Other attached files -->
 			<Panel Grid.Row="7" IsVisible="{Binding UI.TrayOtherFiles}">
@@ -1378,12 +1411,8 @@
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
-				<StackPanel Name="OtherFilesEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-							IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-					<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
-					<TextBlock Text="No other files" FontSize="12" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-					<TextBlock Text="Drop files or folders here to attach" FontSize="11" HorizontalAlignment="Center" Opacity="0.7" Margin="0,2,0,0"/>
-				</StackPanel>
+				<controls:EmptyHint Name="OtherFilesEmptyHint" Icon="Attach"
+							Title="No other files" Subtitle="Drop files or folders here to attach"/>
 				<!-- Drop hint for other files -->
 				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
 						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
@@ -1462,6 +1491,8 @@
 									</ContextMenu>
 								</DataGrid.ContextMenu>
 							</DataGrid>
+							<controls:EmptyHint Name="VersionsEmptyHint" Icon="History"
+										Title="No versions" Subtitle="Drop version folders onto the grid to track revisions"/>
 								</Grid>
 
 								<!-- Annotation Layers panel -->
@@ -1508,8 +1539,10 @@
 												</DataGridTemplateColumn.CellTemplate>
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
-									</DataGrid>
-														</Grid>
+										</DataGrid>
+										<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
+													Title="No annotation layers" Subtitle="Click + to add a layer, then draw on the preview"/>
+													</Grid>
 
 									<!-- To-Do List -->
 									<Panel Grid.Row="11" IsVisible="{Binding UI.TrayTodo}">
@@ -1612,12 +1645,8 @@
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
 									</DataGrid>
-									<StackPanel Name="TodoEmptyHint" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
-												IsHitTestVisible="False" Opacity="0.4" IsVisible="False">
-										<ic:SymbolIcon Symbol="Checkmark" FontSize="26" HorizontalAlignment="Center"/>
-										<TextBlock Text="No tasks" FontSize="13" FontStyle="Italic" HorizontalAlignment="Center" Margin="0,4,0,2"/>
-										<TextBlock Text="Right-click to add a task" FontSize="11" HorizontalAlignment="Center" Opacity="0.7"/>
-									</StackPanel>
+									<controls:EmptyHint Name="TodoEmptyHint" Icon="Checkmark" IconSize="26"
+												Title="No tasks" Subtitle="Right-click to add a task"/>
 									</Panel>
 
 								</Grid>
@@ -1659,6 +1688,12 @@
 													   FontWeight="{Binding FontWeight}"
 													   FontStyle="{Binding FontStyle}"
 													   Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
+											<ic:SymbolIcon Symbol="{Binding SyncIconSymbol}" FontSize="12"
+														   IsVisible="{Binding SyncIconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+														   Opacity="0.6" Margin="2,0,0,0"/>
+											<ic:SymbolIcon Symbol="Eye" FontSize="12"
+														   IsVisible="{Binding IsViewer}"
+														   Opacity="0.5" Margin="0,0,0,0"/>
 										</StackPanel>
 									</TreeDataTemplate>
 							</TreeView.ItemTemplate>

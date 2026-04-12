@@ -405,6 +405,20 @@ namespace Finn.Model
             _ => "⇄"
         };
 
+        /// <summary>
+        /// Fluent icon symbol name for the sync status, used by the tree view.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? SharedSyncIconSymbol => SharedSyncStatus switch
+        {
+            SharedSyncState.InSync => "Checkmark",
+            SharedSyncState.ServerAhead => "ArrowDown",
+            SharedSyncState.LocalAhead => "ArrowUp",
+            SharedSyncState.Conflicted => "ArrowSync",
+            SharedSyncState.ServerMissing => "DismissCircle",
+            _ => "ArrowSync"
+        };
+
         private bool _oneWayShare = true;
         /// <summary>
         /// When true, this project is shared in one-way (read-only) mode.

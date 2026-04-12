@@ -49,6 +49,7 @@ namespace Finn.Storage
         public int TrayWidth { get; set; }
         public bool ReadBytesMode { get; set; }
         public bool FolderWatchEnabled { get; set; }
+        public bool AlternatingRowShading { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

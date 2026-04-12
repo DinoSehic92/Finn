@@ -36,6 +36,17 @@ namespace Finn.ViewModels
             set { if (_isSelected != value) { _isSelected = value; OnPropertyChanged(); } }
         }
 
+        /// <summary>
+        /// Fluent icon symbol name for the shared sync status badge (e.g. "Checkmark", "ArrowDown").
+        /// Null or empty when the node is not a shared project.
+        /// </summary>
+        public string? SyncIconSymbol { get; init; }
+
+        /// <summary>
+        /// When true, the node represents a shared project the user is viewing (not owning).
+        /// </summary>
+        public bool IsViewer { get; init; }
+
         public double FontSize { get; init; } = 14;
         public FontWeight FontWeight { get; init; } = FontWeight.Normal;
         public FontStyle FontStyle { get; init; } = FontStyle.Normal;

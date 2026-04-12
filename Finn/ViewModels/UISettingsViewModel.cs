@@ -75,6 +75,7 @@ namespace Finn.ViewModels
             ShowThumbnails = false;
             TrayViewOpen = false;
             FolderWatchEnabled = false;
+            AlternatingRowShading = false;
 
         }
 
@@ -220,6 +221,12 @@ namespace Finn.ViewModels
         /// </summary>
         public bool FolderWatchEnabled { get => folderWatchEnabled; set { folderWatchEnabled = value; OnPropertyChanged(nameof(FolderWatchEnabled)); } }
 
+        private bool alternatingRowShading;
+        /// <summary>
+        /// When true, DataGrid rows use alternating background shading for readability.
+        /// </summary>
+        public bool AlternatingRowShading { get => alternatingRowShading; set { alternatingRowShading = value; OnPropertyChanged(nameof(AlternatingRowShading)); } }
+
         private bool previewEmbeddedOpen;
         public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); } }
 
@@ -291,6 +298,7 @@ namespace Finn.ViewModels
                 TrayWidth = this.TrayWidth,
                 ReadBytesMode = this.ReadBytesMode,
                 FolderWatchEnabled = this.FolderWatchEnabled,
+                AlternatingRowShading = this.AlternatingRowShading,
             };
         }
 
@@ -345,6 +353,7 @@ namespace Finn.ViewModels
                     this.TrayWidth = ui.TrayWidth;
                 this.ReadBytesMode = ui.ReadBytesMode;
                 this.FolderWatchEnabled = ui.FolderWatchEnabled;
+                this.AlternatingRowShading = ui.AlternatingRowShading;
             }
             catch
             {

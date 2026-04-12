@@ -2,11 +2,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="250" d:DesignHeight="150"
-        MinWidth="250"
-        MinHeight="150"
-        MaxWidth="250"
-        MaxHeight="150"
+        mc:Ignorable="d" d:DesignWidth="260" d:DesignHeight="155"
+        MinWidth="260"
+        MinHeight="155"
+        MaxWidth="260"
+        MaxHeight="155"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xCloseDia"
         Title=""
@@ -50,9 +50,9 @@
                 <TextBlock Text="Save before close?" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="-14,15,0,0">
-                <Button Name="SaveYes" HotKey="Enter" Width="70" Content="Yes" Click="SaveBeforeClose" Classes="accent"/>
-                <Button Name="SaveNo" Width="70" Content="No" Click="OnLeave" Classes="default"/>
-                <Button Name="SaveCancel" HotKey="Escape" Width="70" Content="Cancel" Click="OnCancel" Classes="default"/>
+                <Button Name="SaveYes" HotKey="Enter" Width="74" Content="Yes" Click="SaveBeforeClose" Classes="accent"/>
+                <Button Name="SaveNo" Width="74" Content="No" Click="OnLeave" Classes="default"/>
+                <Button Name="SaveCancel" HotKey="Escape" Width="74" Content="Cancel" Click="OnCancel" Classes="default"/>
             </StackPanel>
         </StackPanel>
     </Grid>
