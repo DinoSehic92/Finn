@@ -845,12 +845,26 @@ public partial class MainView : UserControl
                 _suppressTreeSelection = false;
             }
 
-            // Re-select the parent in the grid
+            // Re-select the parent in the grid (when removing an appended file)
+            // or select the first remaining file (to avoid stale CurrentFile references)
             if (parentToSelect != null && _ctx.FilteredFiles.Contains(parentToSelect))
             {
                 FileGrid.SelectedItem = parentToSelect;
                 FileGrid.ScrollIntoView(parentToSelect, null);
                 _ctx.SelectFiles([parentToSelect]);
+            }
+            else if (_ctx.FilteredFiles.Count > 0)
+            {
+                // Select the first remaining file to establish a valid CurrentFile
+                var firstFile = _ctx.FilteredFiles[0];
+                FileGrid.SelectedItem = firstFile;
+                FileGrid.ScrollIntoView(firstFile, null);
+                _ctx.SelectFiles([firstFile]);
+            }
+            else
+            {
+                // No files left — clear the stale selection
+                _ctx.SelectFiles([]);
             }
         }
     }
@@ -1114,11 +1128,22 @@ public partial class MainView : UserControl
 
         if (!dialog.Confirmed) return;
 
-        foreach (string path in dialog.AcceptedFiles)
-            _ctx.AddAppendedFile(path);
+        // Suppress the grid's SelectionChanged handler so that
+        // UpdateFilter calls inside AddAppendedFile don't clear
+        // CurrentFile via a collection-Reset selection loss.
+        _isUpdatingSelection = true;
+        try
+        {
+            foreach (string path in dialog.AcceptedFiles)
+                _ctx.AddAppendedFile(path);
 
-        foreach (string folderPath in dialog.AcceptedFolders)
-            await _ctx.AddAttachedFolderAsync(folderPath);
+            foreach (string folderPath in dialog.AcceptedFolders)
+                await _ctx.AddAttachedFolderAsync(folderPath);
+        }
+        finally
+        {
+            _isUpdatingSelection = false;
+        }
 
         _ctx.RefreshFolderWatchers();
 

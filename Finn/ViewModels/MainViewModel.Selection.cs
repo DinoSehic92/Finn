@@ -40,6 +40,7 @@ namespace Finn.ViewModels
             };
 
             CurrentProject.StoredFiles.Add(newfile);
+            CurrentProject.SetFiletypeList();
             UpdateFilter();
             SignalTreeViewUpdate();
             MarkDirty();
@@ -89,6 +90,15 @@ namespace Finn.ViewModels
             Collections.SetCollectionContent();
             CurrentProject.RefreshHasChildren();
             CurrentProject.SetFiletypeList();
+
+            // Reset the type filter when the removed files were the last
+            // of their kind, so the grid doesn't stay stuck on an empty type.
+            if (type != ALL_TYPES && !CurrentProject.Filetypes.Contains(type))
+            {
+                type = ALL_TYPES;
+                OnPropertyChanged(nameof(Type));
+            }
+
             MarkDirty();
 
             // Flag affected sync folders as needing re-sync
