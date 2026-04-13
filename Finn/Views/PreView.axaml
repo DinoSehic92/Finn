@@ -796,7 +796,7 @@
 							<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}" IsEnabled="{Binding CanToggleLayout}">
+						<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}" IsEnabled="{Binding CanToggleLayout}" IsVisible="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).UI.SuperuserMode}">
 							<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
@@ -814,7 +814,13 @@
 							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<Button Name="CompareVersionsBtn" ToolTip.Tip="Compare Versions" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OnOpenVersionCompareDialog" IsVisible="{Binding CanCompareVersions}">
+						<Button Name="CompareVersionsBtn" ToolTip.Tip="Compare Versions" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OnOpenVersionCompareDialog">
+							<Button.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="CanCompareVersions"/>
+									<Binding Path="$parent[UserControl].((vm:MainViewModel)DataContext).UI.SuperuserMode"/>
+								</MultiBinding>
+							</Button.IsVisible>
 							<ic:SymbolIcon Symbol="ArrowSwap" IconVariant="Regular" FontSize="16"/>
 						</Button>
 

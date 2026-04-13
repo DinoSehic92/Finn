@@ -310,12 +310,12 @@
 									<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="120" Margin="0" Spacing="2">
 										<CheckBox Classes="TrayToggle" Content="Notepad"      Height="28" IsChecked="{Binding UI.TrayNote, Mode=TwoWay}" ToolTip.Tip="Quick notes for the current project"/>
 										<CheckBox Classes="TrayToggle" Content="Collections"  Height="28" IsChecked="{Binding UI.TrayCollections, Mode=TwoWay}" ToolTip.Tip="Saved file collections and favorites"/>
-										<CheckBox Classes="TrayToggle" Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}" ToolTip.Tip="Page bookmarks in the current PDF"/>
-										<CheckBox Classes="TrayToggle" Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}" ToolTip.Tip="Recently viewed files"/>
-										<CheckBox Classes="TrayToggle" Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}" ToolTip.Tip="Other files attached to this project"/>
-										<CheckBox Classes="TrayToggle" Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}" ToolTip.Tip="File version history"/>
-											<CheckBox Classes="TrayToggle" Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}" ToolTip.Tip="Annotation layers for the current file"/>
-														<CheckBox Classes="TrayToggle" Content="To-Do"        Height="28" IsChecked="{Binding UI.TrayTodo, Mode=TwoWay}" ToolTip.Tip="Task list for the current project"/>
+										<CheckBox Classes="TrayToggle" Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}" ToolTip.Tip="Page bookmarks in the current PDF" IsVisible="{Binding UI.SuperuserMode}"/>
+											<CheckBox Classes="TrayToggle" Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}" ToolTip.Tip="Recently viewed files"/>
+											<CheckBox Classes="TrayToggle" Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}" ToolTip.Tip="Other files attached to this project" IsVisible="{Binding UI.SuperuserMode}"/>
+											<CheckBox Classes="TrayToggle" Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}" ToolTip.Tip="File version history"/>
+												<CheckBox Classes="TrayToggle" Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}" ToolTip.Tip="Annotation layers for the current file" IsVisible="{Binding UI.SuperuserMode}"/>
+															<CheckBox Classes="TrayToggle" Content="To-Do"        Height="28" IsChecked="{Binding UI.TrayTodo, Mode=TwoWay}" ToolTip.Tip="Task list for the current project"/>
 									</StackPanel>
 								</Flyout>
 							</Button.Flyout>
@@ -423,7 +423,7 @@
 				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
-				<ToggleButton Grid.Column="2" ToolTip.Tip="Stored Content Search" Height="30" Width="30" IsChecked="{Binding IndexedSearch}">
+				<ToggleButton Grid.Column="2" ToolTip.Tip="Stored Content Search" Height="30" Width="30" IsChecked="{Binding IndexedSearch}" IsVisible="{Binding UI.SuperuserMode}">
 					<ic:SymbolIcon Symbol="Text" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</ToggleButton>
 			</Grid>
@@ -451,13 +451,13 @@
 			<Button       ToolTip.Tip="UI Settings"                              Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Settings" FontSize="18"/></Button>
 
 			<!-- Hidden hotkey-only toggles (moved to UI Settings dialog) -->
-			<ToggleButton HotKey="Ctrl+B" IsChecked="{Binding UI.ShowActionBar}" IsVisible="False" Width="0" Height="0"/>
-			<ToggleButton HotKey="Ctrl+I" IsChecked="{Binding UI.ShowIcons}"     IsVisible="False" Width="0" Height="0"/>
+			<ToggleButton HotKey="Ctrl+B" IsChecked="{Binding UI.ShowActionBar}" IsVisible="False" Width="0" Height="0" IsEnabled="{Binding UI.SuperuserMode}"/>
+			<ToggleButton HotKey="Ctrl+I" IsChecked="{Binding UI.ShowIcons}"     IsVisible="False" Width="0" Height="0" IsEnabled="{Binding UI.SuperuserMode}"/>
 			<ToggleButton HotKey="Ctrl+M" IsChecked="{Binding !UI.DarkMode}"     IsVisible="False" Width="0" Height="0"/>
-			<ToggleButton HotKey="Ctrl+T" IsChecked="{Binding UI.ShowThumbnails}" IsVisible="False" Width="0" Height="0"/>
+			<ToggleButton HotKey="Ctrl+T" IsChecked="{Binding UI.ShowThumbnails}" IsVisible="False" Width="0" Height="0" IsEnabled="{Binding UI.SuperuserMode}"/>
 
 			<!-- Toolbox: grouped tools (compact icon-only flyout) -->
-			<Button Name="ToolboxButton" ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0">
+			<Button Name="ToolboxButton" ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0" IsVisible="{Binding UI.SuperuserMode}">
 				<ic:SymbolIcon Symbol="Toolbox" FontSize="18"/>
 				<Button.Flyout>
 					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
@@ -482,12 +482,12 @@
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+E" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Tray" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+L" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Folders" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+T" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Thumbnails" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+W" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Preview Window" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+P" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Embedded Preview" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+I" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Icons" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+B" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Action Bar" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+M" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Dark / Light Mode" FontSize="13"/></Grid>
-											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+K" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Calendar" FontSize="13"/></Grid>
+												<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+W" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Preview Window" FontSize="13"/></Grid>
+												<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+P" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Embedded Preview" FontSize="13"/></Grid>
+												<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+I" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Icons" FontSize="13"/></Grid>
+												<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+B" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Action Bar" FontSize="13"/></Grid>
+												<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Ctrl+M" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Dark / Light Mode" FontSize="13"/></Grid>
+												<Grid ColumnDefinitions="80,*" IsVisible="{Binding UI.SuperuserMode}"><TextBlock Grid.Column="0" Text="Ctrl+K" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Calendar" FontSize="13"/></Grid>
 											<Grid ColumnDefinitions="80,*"><TextBlock Grid.Column="0" Text="Enter" FontWeight="SemiBold" FontSize="13"/><TextBlock Grid.Column="1" Text="Search (in search box)" FontSize="13"/></Grid>
 										</StackPanel>
 									</Flyout>
@@ -503,10 +503,10 @@
 
 			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsVisible="{Binding UI.SuperuserMode}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 
-			<!-- Sync status indicator (visible only when folder watching is enabled) -->
-			<Button Name="SyncStatusButton" Height="30" Width="35" Padding="0" IsVisible="{Binding UI.FolderWatchEnabled}"
+			<!-- Sync status indicator (visible only when folder watching is enabled and superuser mode) -->
+			<Button Name="SyncStatusButton" Height="30" Width="35" Padding="0" IsVisible="{Binding UI.SuperuserMode}"
 					ToolTip.Tip="{Binding SyncStatusText}">
 				<Panel>
 					<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="18"
@@ -690,7 +690,13 @@
 							</MenuItem>
 						</MenuItem>
 
-						<MenuItem Header="View" IsVisible="{Binding PreviewVM.DualFileMode}">
+						<MenuItem Header="View">
+							<MenuItem.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="PreviewVM.DualFileMode"/>
+									<Binding Path="UI.SuperuserMode"/>
+								</MultiBinding>
+							</MenuItem.IsVisible>
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Eye"/></MenuItem.Icon>
 							<MenuItem Header="Left" Click="OnViewLeft">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="PanelLeft"/></MenuItem.Icon>
@@ -807,7 +813,13 @@
 
 						<Separator/>
 
-						<MenuItem Header="Data" IsVisible="{Binding SelectedFileIsNotSketch}">
+						<MenuItem Header="Data">
+							<MenuItem.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="SelectedFileIsNotSketch"/>
+									<Binding Path="UI.SuperuserMode"/>
+								</MultiBinding>
+							</MenuItem.IsVisible>
 							<MenuItem.Icon><ic:SymbolIcon Symbol="ContentSettings"/></MenuItem.Icon>
 							<MenuItem Header="Metadata">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Database"/></MenuItem.Icon>
@@ -853,7 +865,7 @@
 							</MenuItem>
 						</MenuItem>
 
-				<MenuItem Header="Tools">
+				<MenuItem Header="Tools" IsVisible="{Binding UI.SuperuserMode}">
 					<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
 							<MenuItem Header="Status">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
@@ -890,13 +902,25 @@
 									</MenuItem>
 								</MenuItem>
 
-						<MenuItem Header="Attach…" Click="OnAttachFiles" IsVisible="{Binding SelectedFileIsTopLevel}">
+						<MenuItem Header="Attach…" Click="OnAttachFiles">
+							<MenuItem.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="SelectedFileIsTopLevel"/>
+									<Binding Path="UI.SuperuserMode"/>
+								</MultiBinding>
+							</MenuItem.IsVisible>
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Attach"/></MenuItem.Icon>
 						</MenuItem>
 
 						<Separator/>
 
-						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}" IsVisible="{Binding CanMoveSelectedFiles}">
+						<MenuItem Header="Move" Click="OnMoveFile" ItemsSource="{Binding Storage.StoredProjects}">
+							<MenuItem.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="CanMoveSelectedFiles"/>
+									<Binding Path="UI.SuperuserMode"/>
+								</MultiBinding>
+							</MenuItem.IsVisible>
 							<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
 							<MenuItem.ItemTemplate>
 								<DataTemplate><TextBlock Text="{Binding Namn, StringFormat=' - {0}'}"/></DataTemplate>
@@ -959,10 +983,10 @@
 								<MenuItem Header="Sync All" Click="OnSyncAllFolders">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Manage Synced Files…" Click="OnManageSyncFilter">
+								<MenuItem Header="Manage Synced Files…" Click="OnManageSyncFilter" IsVisible="{Binding UI.SuperuserMode}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Filter"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Change Directory…" Click="OnChangeFolderDirectory">
+								<MenuItem Header="Change Directory…" Click="OnChangeFolderDirectory" IsVisible="{Binding UI.SuperuserMode}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="FolderArrowRight"/></MenuItem.Icon>
 								</MenuItem>
 								<Separator/>
@@ -1007,7 +1031,13 @@
 				<ColumnDefinition Width="Auto"/>
 			</Grid.ColumnDefinitions>
 		<!-- Calendar panel -->
-		<Grid Grid.Column="0" RowDefinitions="Auto,Auto,2*,2*,40,Auto,Auto" IsVisible="{Binding UI.CalendarOpen}" Width="320">
+		<Grid Grid.Column="0" RowDefinitions="Auto,Auto,2*,2*,40,Auto,Auto" Width="320">
+			<Grid.IsVisible>
+				<MultiBinding Converter="{x:Static BoolConverters.And}">
+					<Binding Path="UI.CalendarOpen"/>
+					<Binding Path="UI.SuperuserMode"/>
+				</MultiBinding>
+			</Grid.IsVisible>
 			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource TextControlBackground}" Width="310" Height="345">
 				<StackPanel Orientation="Vertical">
 					<Calendar Name="MainCalendar" Height="305" Background="Transparent" HorizontalAlignment="Center"
@@ -1225,19 +1255,51 @@
 		<!-- Tray panel (notes, collections, bookmarks, recent, other files, versions) -->
 		<Grid Grid.Column="1" IsVisible="{Binding UI.TrayViewOpen}" Width="{Binding UI.TrayWidth}" Classes="AnimatedPanel">
 			<Grid.RowDefinitions>
-				<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}, ConverterParameter=0.3}"/>
-				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
-				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
-				<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
-				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource RowDefConverter}, ConverterParameter=0.5}"/>
-				<RowDefinition Height="{Binding UI.TrayBookmarks,   Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
-				<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}, ConverterParameter=0.7}"/>
-				<RowDefinition Height="{Binding UI.TrayOtherFiles,  Converter={StaticResource GridDefConverter}}"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.6}"/>
-							<RowDefinition Height="{Binding UI.TrayAnnotations, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
-							<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
-						</Grid.RowDefinitions>
+					<RowDefinition Height="{Binding UI.TrayNote,        Converter={StaticResource GridDefConverter}, ConverterParameter=0.3}"/>
+					<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource RowDefConverter}}"/>
+					<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}, ConverterParameter=0.5}"/>
+					<RowDefinition Height="{Binding UI.TrayCollections, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
+					<!-- Bookmarks toolbar (superuser) -->
+					<RowDefinition>
+						<RowDefinition.Height>
+							<MultiBinding Converter="{StaticResource RowDefConverter}" ConverterParameter="0.5">
+								<Binding Path="UI.TrayBookmarks"/>
+								<Binding Path="UI.SuperuserMode"/>
+							</MultiBinding>
+						</RowDefinition.Height>
+					</RowDefinition>
+					<!-- Bookmarks list (superuser) -->
+					<RowDefinition>
+						<RowDefinition.Height>
+							<MultiBinding Converter="{StaticResource GridDefConverter}" ConverterParameter="0.8">
+								<Binding Path="UI.TrayBookmarks"/>
+								<Binding Path="UI.SuperuserMode"/>
+							</MultiBinding>
+						</RowDefinition.Height>
+					</RowDefinition>
+					<RowDefinition Height="{Binding UI.TrayRecent,      Converter={StaticResource GridDefConverter}, ConverterParameter=0.7}"/>
+					<!-- Other files (superuser) -->
+					<RowDefinition>
+						<RowDefinition.Height>
+							<MultiBinding Converter="{StaticResource GridDefConverter}">
+								<Binding Path="UI.TrayOtherFiles"/>
+								<Binding Path="UI.SuperuserMode"/>
+							</MultiBinding>
+						</RowDefinition.Height>
+					</RowDefinition>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.6}"/>
+					<!-- Annotations (superuser) -->
+					<RowDefinition>
+						<RowDefinition.Height>
+							<MultiBinding Converter="{StaticResource GridDefConverter}" ConverterParameter="0.5">
+								<Binding Path="UI.TrayAnnotations"/>
+								<Binding Path="UI.SuperuserMode"/>
+							</MultiBinding>
+						</RowDefinition.Height>
+					</RowDefinition>
+					<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
+				</Grid.RowDefinitions>
 
 			<!-- File notepad (wrapped in shadow-only border) -->
 			<Panel Grid.Row="0" IsVisible="{Binding UI.TrayNote}">
@@ -1245,8 +1307,6 @@
 				<TextBox VerticalContentAlignment="Top" Text="{Binding CurrentFile.Note}" PlaceholderText="Notes for the selected file"
 					 FontSize="{Binding UI.FontSize}" AcceptsReturn="True" AcceptsTab="True" VerticalAlignment="Stretch"/>
 			</Border>
-			<controls:EmptyHint Name="NotepadEmptyHint" Icon="Notebook" IconSize="26"
-						Title="No file selected" Subtitle="Select a file to view or edit its notes"/>
 			</Panel>
 
 			<!-- Collections toolbar -->
@@ -1294,7 +1354,13 @@
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
-						<MenuItem Header="View" IsVisible="{Binding PreviewVM.DualFileMode}">
+						<MenuItem Header="View">
+							<MenuItem.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="PreviewVM.DualFileMode"/>
+									<Binding Path="UI.SuperuserMode"/>
+								</MultiBinding>
+							</MenuItem.IsVisible>
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Eye"/></MenuItem.Icon>
 							<MenuItem Header="Left" Click="OnViewLeft">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="PanelLeft"/></MenuItem.Icon>
@@ -1314,7 +1380,13 @@
 			</Panel>
 
 			<!-- Bookmarks toolbar -->
-            <Grid Grid.Row="4" RowDefinitions="40,*" IsVisible="{Binding UI.TrayBookmarks}">
+			<Grid Grid.Row="4" RowDefinitions="40,*">
+				<Grid.IsVisible>
+					<MultiBinding Converter="{x:Static BoolConverters.And}">
+						<Binding Path="UI.TrayBookmarks"/>
+						<Binding Path="UI.SuperuserMode"/>
+					</MultiBinding>
+				</Grid.IsVisible>
 				<Grid Grid.Row="0" ColumnDefinitions="*,30,30,30">
 					<Border Grid.Column="0" Classes="shadow">
 						<TextBox Name="BookmarkInput" PlaceholderText="Add Bookmark"/>
@@ -1326,7 +1398,13 @@
 			</Grid>
 
 			<!-- Bookmarks list -->
-			<Panel Grid.Row="5" IsVisible="{Binding UI.TrayBookmarks}">
+			<Panel Grid.Row="5">
+				<Panel.IsVisible>
+					<MultiBinding Converter="{x:Static BoolConverters.And}">
+						<Binding Path="UI.TrayBookmarks"/>
+						<Binding Path="UI.SuperuserMode"/>
+					</MultiBinding>
+				</Panel.IsVisible>
 			<DataGrid Name="BookmarkGrid"
 					  ItemsSource="{Binding PreviewVM.CurrentFile.FavPages, Mode=OneWay}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
@@ -1377,7 +1455,13 @@
 			</Panel>
 
 			<!-- Other attached files -->
-			<Panel Grid.Row="7" IsVisible="{Binding UI.TrayOtherFiles}">
+			<Panel Grid.Row="7">
+				<Panel.IsVisible>
+					<MultiBinding Converter="{x:Static BoolConverters.And}">
+						<Binding Path="UI.TrayOtherFiles"/>
+						<Binding Path="UI.SuperuserMode"/>
+					</MultiBinding>
+				</Panel.IsVisible>
 				<DataGrid Name="OtherFilesGrid"
 						  ItemsSource="{Binding OtherFilesOwner.OtherFiles, Mode=OneWay}" SelectionMode="Single"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
@@ -1500,7 +1584,13 @@
 								</Grid>
 
 								<!-- Annotation Layers panel -->
-								<Grid Grid.Row="10" IsVisible="{Binding UI.TrayAnnotations}" RowDefinitions="Auto,*">
+								<Grid Grid.Row="10" RowDefinitions="Auto,*">
+									<Grid.IsVisible>
+										<MultiBinding Converter="{x:Static BoolConverters.And}">
+											<Binding Path="UI.TrayAnnotations"/>
+											<Binding Path="UI.SuperuserMode"/>
+										</MultiBinding>
+									</Grid.IsVisible>
 									<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
 										<Button Width="30" ToolTip.Tip="Add Layer" Click="OnAnnotateNewLayer"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
 										<Button Width="30" ToolTip.Tip="Clear Layer" Click="OnClearSelectedLayer"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
@@ -1713,24 +1803,24 @@
 										<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
 									</MenuItem>
 									<Separator/>
-									<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowDown"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
-									</MenuItem>
+										<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared" IsVisible="{Binding UI.SuperuserMode}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject" IsVisible="{Binding UI.SuperuserMode}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowDown"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject" IsVisible="{Binding UI.SuperuserMode}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject" IsVisible="{Binding UI.SuperuserMode}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject" IsVisible="{Binding UI.SuperuserMode}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup" IsVisible="{Binding UI.SuperuserMode}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
+										</MenuItem>
 									<Separator/>
 									<MenuItem Header="Remove" Click="OnRemoveProject">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>

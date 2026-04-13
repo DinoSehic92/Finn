@@ -49,21 +49,22 @@ namespace Finn.ViewModels
             Font = Defaults.DefaultFontName;
             FontSize = Defaults.DefaultFontSize;
 
-            ShowIcons = true;
+            ShowIcons = false;
             TrayNote = true;
             TrayCollections = true;
-            TrayBookmarks = true;
+            TrayBookmarks = false;
             TrayRecent = true;
             TrayVersions = false;
-            TrayOtherFiles = true;
-            ColorTagDot = false;
+            TrayOtherFiles = false;
+            TrayAnnotations = false;
+            ColorTagDot = true;
             TrayTodo = true;
 
             TreeViewWidth = Defaults.DefaultTreeViewWidth;
             TrayWidth = Defaults.DefaultTrayWidth;
 
             // View visibility flags persisted in UI settings
-            ShowActionBar = false;
+            ShowActionBar = true;
             PreviewDarkMode = false;
             PreviewDarkModeTint = "None";
             PreviewTintIntensity = 15;
@@ -76,6 +77,7 @@ namespace Finn.ViewModels
             TrayViewOpen = false;
             FolderWatchEnabled = false;
             AlternatingRowShading = false;
+            SuperuserMode = false;
 
         }
 
@@ -227,6 +229,14 @@ namespace Finn.ViewModels
         /// </summary>
         public bool AlternatingRowShading { get => alternatingRowShading; set { alternatingRowShading = value; OnPropertyChanged(nameof(AlternatingRowShading)); } }
 
+        private bool superuserMode;
+        /// <summary>
+        /// When true, advanced features (shared projects, versions, folders,
+        /// calendar, todo, metadata workers, etc.) are visible in the UI.
+        /// When false, only core file-management and preview features are shown.
+        /// </summary>
+        public bool SuperuserMode { get => superuserMode; set { superuserMode = value; OnPropertyChanged(nameof(SuperuserMode)); } }
+
         private bool previewEmbeddedOpen;
         public bool PreviewEmbeddedOpen { get => previewEmbeddedOpen; set { previewEmbeddedOpen = value; OnPropertyChanged(nameof(PreviewEmbeddedOpen)); } }
 
@@ -299,6 +309,7 @@ namespace Finn.ViewModels
                 ReadBytesMode = this.ReadBytesMode,
                 FolderWatchEnabled = this.FolderWatchEnabled,
                 AlternatingRowShading = this.AlternatingRowShading,
+                SuperuserMode = this.SuperuserMode,
             };
         }
 
@@ -354,6 +365,7 @@ namespace Finn.ViewModels
                 this.ReadBytesMode = ui.ReadBytesMode;
                 this.FolderWatchEnabled = ui.FolderWatchEnabled;
                 this.AlternatingRowShading = ui.AlternatingRowShading;
+                this.SuperuserMode = ui.SuperuserMode;
             }
             catch
             {

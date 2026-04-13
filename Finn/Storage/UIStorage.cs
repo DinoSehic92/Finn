@@ -50,6 +50,7 @@ namespace Finn.Storage
         public bool ReadBytesMode { get; set; }
         public bool FolderWatchEnabled { get; set; }
         public bool AlternatingRowShading { get; set; }
+        public bool SuperuserMode { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)
     }
 }

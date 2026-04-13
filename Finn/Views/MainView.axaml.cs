@@ -500,7 +500,6 @@ public partial class MainView : UserControl
         bool empty = _ctx.FilteredFiles == null || _ctx.FilteredFiles.Count == 0;
         EmptyStateHint.IsVisible = empty;
 
-        UpdateNotepadEmptyHint();
         UpdateOtherFilesEmptyState();
         UpdateFolderEmptyState();
         UpdateVersionsEmptyHint();
@@ -509,11 +508,6 @@ public partial class MainView : UserControl
         UpdateBookmarksEmptyHint();
         UpdateRecentEmptyHint();
         UpdateTodoEmptyHint();
-    }
-
-    private void UpdateNotepadEmptyHint()
-    {
-        NotepadEmptyHint.IsVisible = _ctx.CurrentFile == null;
     }
 
     private void UpdateOtherFilesEmptyState()
@@ -901,13 +895,15 @@ public partial class MainView : UserControl
     #region Shared Projects
 
     /// <summary>
-    /// Shows/hides shared-project menu items based on the current project state.
+    /// Shows/hides shared-project menu items based on the current project state
+    /// and whether superuser mode is enabled.
     /// </summary>
     private void OnTreeContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
         bool isShared = _ctx.CurrentProject?.IsShared == true;
         bool isViewer = _ctx.CurrentProject?.IsViewer == true;
+        bool isSuperuser = _ctx.UI.SuperuserMode;
 
         foreach (var child in menu.Items)
         {
@@ -916,18 +912,18 @@ public partial class MainView : UserControl
                 switch (mi.Name)
                 {
                     case "MakeSharedMenuItem":
-                        mi.IsVisible = !isShared;
+                        mi.IsVisible = isSuperuser && !isShared;
                         break;
                     case "ImportSharedMenuItem":
-                        mi.IsVisible = !isShared;
+                        mi.IsVisible = isSuperuser && !isShared;
                         break;
                     case "PushMenuItem":
-                        mi.IsVisible = isShared && !isViewer;
+                        mi.IsVisible = isSuperuser && isShared && !isViewer;
                         break;
                     case "PullMenuItem":
                     case "UnshareMenuItem":
                     case "RestoreBackupMenuItem":
-                        mi.IsVisible = isShared;
+                        mi.IsVisible = isSuperuser && isShared;
                         break;
                 }
             }
