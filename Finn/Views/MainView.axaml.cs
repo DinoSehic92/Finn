@@ -1233,8 +1233,8 @@ public partial class MainView : UserControl
     {
         if (sender is Button btn && btn.DataContext is FileData file && file.HasChildren)
         {
-            file.IsExpanded = !file.IsExpanded;
-            _ctx.UpdateFilter();
+            _ctx.ToggleExpansionInPlace(file);
+            UpdateRowColor();
         }
     }
 

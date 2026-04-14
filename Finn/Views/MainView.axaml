@@ -170,6 +170,15 @@
 			</Setter>
 		</Style>
 
+		<!-- Subtle fade for rows appearing/disappearing during expand/collapse -->
+		<Style Selector="DataGrid.ThumbnailGrid DataGridRow">
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+
 		<!-- Thin separator below group headers -->
 		<Style Selector="DataGridRow.GroupHeader">
 			<Setter Property="BorderBrush">

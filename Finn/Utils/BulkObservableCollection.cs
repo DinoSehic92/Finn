@@ -42,6 +42,32 @@ namespace Finn.Utils
         }
 
         /// <summary>
+        /// Inserts multiple items starting at <paramref name="index"/> without
+        /// per-item notifications, raising a single Reset event.
+        /// </summary>
+        public void InsertRange(int index, IEnumerable<T> items)
+        {
+            int i = index;
+            foreach (var item in items)
+                Items.Insert(i++, item);
+
+            RaiseReset();
+        }
+
+        /// <summary>
+        /// Removes <paramref name="count"/> items starting at <paramref name="index"/>
+        /// without per-item notifications, raising a single Reset event.
+        /// </summary>
+        public void RemoveRange(int index, int count)
+        {
+            if (count <= 0) return;
+            for (int i = 0; i < count; i++)
+                Items.RemoveAt(index);
+
+            RaiseReset();
+        }
+
+        /// <summary>
         /// Removes all items that match <paramref name="predicate"/> without
         /// per-item notifications, raising a single Reset event.
         /// </summary>

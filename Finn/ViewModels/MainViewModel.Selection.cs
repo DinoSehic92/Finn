@@ -376,6 +376,45 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
+        /// Toggles expansion by inserting or removing only the affected child
+        /// rows in <see cref="FilteredFiles"/>, avoiding a full list rebuild.
+        /// This keeps scroll position stable and reduces visual flicker.
+        /// </summary>
+        public void ToggleExpansionInPlace(FileData file)
+        {
+            if (file.IsAppendedFile || !file.HasChildren) return;
+
+            file.IsExpanded = !file.IsExpanded;
+
+            int parentIdx = FilteredFiles.IndexOf(file);
+            if (parentIdx < 0) { UpdateFilter(); return; }
+
+            if (file.IsExpanded)
+            {
+                var children = CurrentProject.StoredFiles
+                    .Where(x => x.ParentNamn == file.Namn)
+                    .OrderBy(x => x.Namn)
+                    .ToList();
+
+                FilteredFiles.InsertRange(parentIdx + 1, children);
+            }
+            else
+            {
+                int removeCount = 0;
+                for (int i = parentIdx + 1; i < FilteredFiles.Count; i++)
+                {
+                    if (FilteredFiles[i].ParentNamn == file.Namn)
+                        removeCount++;
+                    else
+                        break;
+                }
+                FilteredFiles.RemoveRange(parentIdx + 1, removeCount);
+            }
+
+            OnPropertyChanged(nameof(NrFilteredFiles));
+        }
+
+        /// <summary>
         /// Collapses any currently expanded non-group file and expands the
         /// selected parent. Groups keep their user-toggled expansion state.
         /// </summary>
