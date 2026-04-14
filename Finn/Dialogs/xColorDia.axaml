@@ -15,47 +15,6 @@
 		ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		x:DataType="vm:MainViewModel">
 
-	<Window.Styles>
-		<Style Selector="Button.accent">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-			<Setter Property="Foreground" Value="White"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="FontSize" Value="15"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
-			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-		</Style>
-		<Style Selector="TextBlock.SectionHeader">
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="FontSize" Value="13"/>
-			<Setter Property="Opacity" Value="0.7"/>
-			<Setter Property="Margin" Value="0,10,0,6"/>
-		</Style>
-		<Style Selector="Grid.SettingRow">
-			<Setter Property="Margin" Value="0,2"/>
-			<Setter Property="Height" Value="36"/>
-		</Style>
-		<Style Selector="Grid.SettingRow > Label">
-			<Setter Property="VerticalAlignment" Value="Center"/>
-			<Setter Property="Padding" Value="0"/>
-		</Style>
-		<Style Selector="Grid.SettingRow > ToggleSwitch">
-			<Setter Property="VerticalAlignment" Value="Center"/>
-			<Setter Property="Margin" Value="0,-4,0,0"/>
-			<Setter Property="MinHeight" Value="0"/>
-		</Style>
-		<Style Selector="Grid.SettingRow > ColorPicker">
-			<Setter Property="VerticalAlignment" Value="Center"/>
-		</Style>
-		<Style Selector="Grid.SettingRow > Slider">
-			<Setter Property="VerticalAlignment" Value="Center"/>
-		</Style>
-		<Style Selector="Grid.SettingRow > Border">
-			<Setter Property="VerticalAlignment" Value="Center"/>
-		</Style>
-	</Window.Styles>
-
 	<Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 

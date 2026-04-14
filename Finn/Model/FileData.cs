@@ -123,6 +123,7 @@ namespace Finn.Model
         private string _originalPath = string.Empty;
         private string _parentNamn = string.Empty;
         private bool _isCached;
+        private bool _isGroup;
 
         /// <summary>
         /// Name of the parent file this is attached to (serialized).
@@ -146,6 +147,30 @@ namespace Finn.Model
         /// </summary>
         [JsonIgnore]
         public bool IsAppendedFile => !string.IsNullOrEmpty(_parentNamn);
+
+        /// <summary>
+        /// True when this entry is a group header (a container for other files).
+        /// Groups behave like placeholders with children — they have no file
+        /// path but carry all standard attributes (color, tag, category, etc.).
+        /// </summary>
+        public bool IsGroup
+        {
+            get => _isGroup;
+            set => SetProperty(ref _isGroup, value);
+        }
+
+        /// <summary>
+        /// True when this file is a child inside a group (not a direct file attachment).
+        /// </summary>
+        [JsonIgnore]
+        public bool IsGroupChild => IsAppendedFile && ParentFile?.IsGroup == true;
+
+        /// <summary>
+        /// True for attached child files that should render italic/faded.
+        /// Group children look normal; only non-group attachments are styled.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsStyledAsAttached => IsAppendedFile && ParentFile?.IsGroup != true;
 
         #endregion
 
@@ -351,6 +376,7 @@ namespace Finn.Model
         public bool HasAppendedFiles => _hasChildren || _otherFiles.Count > 0;
 
         private bool _hasChildren;
+        private int _childFileCount;
         /// <summary>
         /// True when this file has appended children in the flat StoredFiles list.
         /// Set by the ViewModel after load/add/remove operations.
@@ -368,9 +394,33 @@ namespace Finn.Model
             }
         }
 
-        private bool _isExpanded;
+        /// <summary>
+        /// Number of child files nested under this parent/group.
+        /// Set by <see cref="ProjectData.RefreshHasChildren"/>.
+        /// </summary>
+        [JsonIgnore]
+        public int ChildFileCount
+        {
+            get => _childFileCount;
+            set
+            {
+                if (_childFileCount == value) return;
+                _childFileCount = value;
+                OnPropertyChanged(nameof(ChildFileCount));
+                OnPropertyChanged(nameof(ChildFileCountDisplay));
+            }
+        }
+
+        /// <summary>
+        /// Display string for the child count badge, e.g. "(3)". Empty when no children.
+        /// </summary>
+        [JsonIgnore]
+        public string ChildFileCountDisplay => _childFileCount > 0 ? $"({_childFileCount})" : string.Empty;
+
+        private bool _isExpanded = true;
         /// <summary>
         /// True when this file's appended children are shown inline in the main grid.
+        /// Defaults to true so groups start expanded; user can collapse via chevron.
         /// </summary>
         [JsonIgnore]
         public bool IsExpanded

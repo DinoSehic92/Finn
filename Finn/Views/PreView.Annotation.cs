@@ -475,7 +475,7 @@ public partial class PreView
         AnnotateToolbar.IsVisible = true;
         MuPDFRenderer.Cursor = CursorArrow;
         MuPDFRenderer.PointerEventHandlersType = PDFRenderer.PointerEventHandlers.Pan;
-        MuPDFRenderer.ActiveTool = InlineAnnotationTool.Select;
+        MuPDFRenderer.ActiveTool = InlineAnnotationTool.Draw;
 
         MuPDFRenderer.EnsureDefaultLayer();
         MuPDFRenderer.AddHandler(PointerPressedEvent, OnInkPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);

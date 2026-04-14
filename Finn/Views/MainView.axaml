@@ -169,6 +169,26 @@
 				</Setter.Value>
 			</Setter>
 		</Style>
+
+		<!-- Thin separator below group headers -->
+		<Style Selector="DataGridRow.GroupHeader">
+			<Setter Property="BorderBrush">
+				<Setter.Value>
+					<SolidColorBrush Color="Gray" Opacity="0.50"/>
+				</Setter.Value>
+			</Setter>
+			<Setter Property="BorderThickness" Value="0,0,0,1"/>
+		</Style>
+
+		<!-- Thin separator below last attached child in a group -->
+		<Style Selector="DataGridRow.LastChild">
+			<Setter Property="BorderBrush">
+				<Setter.Value>
+					<SolidColorBrush Color="Gray" Opacity="0.50"/>
+				</Setter.Value>
+			</Setter>
+			<Setter Property="BorderThickness" Value="0,0,0,1"/>
+		</Style>
 	</UserControl.Styles>
 
 	<Grid Name="MainGrid" DragDrop.AllowDrop="True"
@@ -370,23 +390,6 @@
 					</Button.Flyout>
 				</Button>
 
-				<Button Name="CategoryButton" ToolTip.Tip="Category" Height="28" Width="28" Padding="0">
-					<ic:SymbolIcon Symbol="Folder" IconVariant="Regular" FontSize="15"/>
-					<Button.Flyout>
-						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
-							<ItemsControl ItemsSource="{Binding CurrentProject.AllowedTypes}" Margin="4">
-								<ItemsControl.ItemTemplate>
-									<DataTemplate>
-										<Button Content="{ReflectionBinding}" Click="EditType" HorizontalAlignment="Stretch"
-												Height="26" MinHeight="0" FontSize="13" Padding="8,2"
-												HorizontalContentAlignment="Left"/>
-									</DataTemplate>
-								</ItemsControl.ItemTemplate>
-							</ItemsControl>
-						</Flyout>
-					</Button.Flyout>
-				</Button>
-
 				<Button Name="CollectionButton" ToolTip.Tip="Collection" Height="28" Width="28" Padding="0">
 					<ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/>
 					<Button.Flyout>
@@ -402,6 +405,10 @@
 							</ItemsControl>
 						</Flyout>
 					</Button.Flyout>
+				</Button>
+
+				<Button Name="GroupButton" ToolTip.Tip="New Group" Height="28" Width="28" Padding="0" Click="OnNewGroup">
+					<ic:SymbolIcon Symbol="GroupList" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
 				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
@@ -604,6 +611,7 @@
                                 <!-- No outer margin so measured width matches content; small spacing between icons -->
 								<StackPanel Orientation="Horizontal" Margin="5" Spacing="3" HorizontalAlignment="Center">
 									<ic:SymbolIcon Symbol="Star"		IsVisible="{Binding Favorite}"				IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="GroupList"	IsVisible="{Binding IsGroup}"				IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"		IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"				IconVariant="Regular" FontSize="14"/>
@@ -620,10 +628,10 @@
 					</DataGridTemplateColumn>
 
 					<!-- Color dot column: shows a small colored circle when ColorTagDot mode is active -->
-						<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" CanUserSort="False" MinWidth="8" MaxWidth="30" IsVisible="{Binding UI.ColorTagDot}">
-							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate x:DataType="model:FileData">
-									<Ellipse Width="10" Height="10" Margin="6,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center"
+						<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" CanUserSort="False" MinWidth="28" MaxWidth="38" IsVisible="{Binding UI.ColorTagDot}">
+									<DataGridTemplateColumn.CellTemplate>
+										<DataTemplate x:DataType="model:FileData">
+											<Ellipse Width="10" Height="10" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center"
 											 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
@@ -639,15 +647,21 @@
 										<!-- Indent for appended files -->
 										<Panel Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"/>
 										<!-- Expand/collapse chevron for parent files with children -->
-										<Panel Width="18" Margin="0,0,2,0">
+										<Button Width="18" Height="18" Margin="0,0,2,0" Padding="0" MinWidth="0" MinHeight="0"
+												Background="Transparent" BorderThickness="0" Cursor="Hand"
+												IsVisible="{Binding HasChildren}" Click="OnToggleGroupExpanded">
 											<ic:SymbolIcon Symbol="ChevronRight" FontSize="11" Opacity="0.5"
-														   IsVisible="{Binding HasChildren}"
 														   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
-										</Panel>
+										</Button>
 										<TextBlock Text="{Binding Namn}" VerticalAlignment="Center"
-												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-												   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-												   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+																   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
+																   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+																   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+														<TextBlock Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
+																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+																   Opacity="0.45"
+																   IsVisible="{Binding HasChildren}"/>
 									</StackPanel>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
@@ -713,22 +727,16 @@
 							</MenuItem.ItemTemplate>
 						</MenuItem>
 
-						<MenuItem Header="Clipboard" IsVisible="{Binding SelectedFileIsNotSketch}">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="Clipboard"/></MenuItem.Icon>
-							<MenuItem Header="Name"  Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="TextBulletListAdd"/></MenuItem.Icon>
-							</MenuItem>
-							<MenuItem Header="Path"  Command="{Binding CopyFilepathToClipboard}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="AppsList"/></MenuItem.Icon>
-							</MenuItem>
-							<MenuItem Header="Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="TableLightning"/></MenuItem.Icon>
-							</MenuItem>
+						<MenuItem Header="Copy Name" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="ClipboardText"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Copy Path" Command="{Binding CopyFilepathToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Copy"/></MenuItem.Icon>
 						</MenuItem>
 
 						<Separator/>
 
-						<MenuItem Header="Favorite" Command="{Binding Collections.MarkFavorite}">
+						<MenuItem Header="Favorite" Command="{Binding Collections.MarkFavorite}" IsVisible="{Binding FileSelected}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Star"/></MenuItem.Icon>
 						</MenuItem>
 
@@ -739,41 +747,39 @@
 							</MenuItem.ItemTemplate>
 						</MenuItem>
 
-						<MenuItem Header="Tag">
+						<MenuItem Header="Color" IsVisible="{Binding FileSelected}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
+							<MenuItem Header="None"    Tag=""        Click="EditColor">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss" FontSize="14"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Yellow"  Tag="Yellow"  Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E5A820"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Orange"  Tag="Orange"  Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E06830"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Brown"   Tag="Brown"   Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9C6B3C"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Green"   Tag="Green"   Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3DA35F"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Blue"    Tag="Blue"    Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3B82D9"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Red"     Tag="Red"     Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#D64045"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Magenta" Tag="Magenta" Click="EditColor">
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9B5FC0"/></MenuItem.Icon>
+							</MenuItem>
+						</MenuItem>
+
+						<MenuItem Header="Text Tag" Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding FileSelected}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
-							<MenuItem Header="Color">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Color"/></MenuItem.Icon>
-								<MenuItem Header="None"    Tag=""        Click="EditColor">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss" FontSize="14"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Yellow"  Tag="Yellow"  Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E5A820"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Orange"  Tag="Orange"  Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E06830"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Brown"   Tag="Brown"   Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9C6B3C"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Green"   Tag="Green"   Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3DA35F"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Blue"    Tag="Blue"    Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3B82D9"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Red"     Tag="Red"     Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#D64045"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Magenta" Tag="Magenta" Click="EditColor">
-									<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9B5FC0"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
-							<MenuItem Header="Text"  Command="{Binding OpenTagDia}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="TextAdd"/></MenuItem.Icon>
-							</MenuItem>
-							<MenuItem Header="Clear" Click="OnClearFiles">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="TagDismiss"/></MenuItem.Icon>
-							</MenuItem>
+						</MenuItem>
+						<MenuItem Header="Clear Tags" Click="OnClearFiles" IsVisible="{Binding FileSelected}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="TagDismiss"/></MenuItem.Icon>
 						</MenuItem>
 
 						<MenuItem Header="Version" IsVisible="{Binding AllSelectedFilesHaveVersions}">
@@ -813,103 +819,102 @@
 
 						<Separator/>
 
-						<MenuItem Header="Data">
-							<MenuItem.IsVisible>
-								<MultiBinding Converter="{x:Static BoolConverters.And}">
-									<Binding Path="SelectedFileIsNotSketch"/>
-									<Binding Path="UI.SuperuserMode"/>
-								</MultiBinding>
-							</MenuItem.IsVisible>
-							<MenuItem.Icon><ic:SymbolIcon Symbol="ContentSettings"/></MenuItem.Icon>
-							<MenuItem Header="Metadata">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Database"/></MenuItem.Icon>
-								<MenuItem Header="Fetch"     Click="OnFetchSingleMeta">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Fetch All" Click="OnFetchFullMeta">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Edit"      Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Clear"     Command="{Binding Data.ClearMeta}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
-							<MenuItem Header="Thumbnail">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Image"/></MenuItem.Icon>
-									<MenuItem Header="Fetch" Click="OnFetchThumbnails">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+						<MenuItem Header="Tools" IsVisible="{Binding UI.SuperuserMode}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
+									<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
+										</MenuItem>
+									<MenuItem Header="Copy Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="TableLightning"/></MenuItem.Icon>
 									</MenuItem>
-									<MenuItem Header="Sync" Command="{Binding Data.SyncThumbnails}">
+									<Separator/>
+									<MenuItem Header="Metadata" IsVisible="{Binding SelectedFileIsNotSketch}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Database"/></MenuItem.Icon>
+										<MenuItem Header="Fetch"     Click="OnFetchSingleMeta">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Fetch All" Click="OnFetchFullMeta">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Edit"      Command="{Binding OpenMetaEditDia}" CommandParameter="{Binding $parent[Window]}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Clear"     Command="{Binding Data.ClearMeta}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+										</MenuItem>
+									</MenuItem>
+									<MenuItem Header="Thumbnail" IsVisible="{Binding SelectedFileIsNotSketch}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Image"/></MenuItem.Icon>
+											<MenuItem Header="Fetch" Click="OnFetchThumbnails">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Header="Sync" Command="{Binding Data.SyncThumbnails}">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Header="Clear" Command="{Binding Data.ClearThumbnails}">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+											</MenuItem>
+										</MenuItem>
+									<MenuItem Header="Content" IsVisible="{Binding SelectedFileIsNotSketch}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Text"/></MenuItem.Icon>
+										<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="BookOpen"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Fetch"   Click="OnFetchIndex">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Sync"    Command="{Binding Data.SyncPlainText}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Clear"   Command="{Binding Data.ClearIndexedContent}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+										</MenuItem>
+									</MenuItem>
+									<Separator/>
+									<MenuItem Header="Watermark" IsVisible="{Binding SelectedFileIsNotSketch}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
+										<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Header="Arbetskopia"   Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
+										</MenuItem>
+									</MenuItem>
+									<MenuItem Header="Rename" IsVisible="{Binding SelectedFileIsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Replace" IsVisible="{Binding CanReplaceSelectedFiles}" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Cache Locally" IsVisible="{Binding CanCacheSelectedFiles}" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 									</MenuItem>
-									<MenuItem Header="Clear" Command="{Binding Data.ClearThumbnails}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-									</MenuItem>
-								</MenuItem>
-							<MenuItem Header="Content">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Text"/></MenuItem.Icon>
-								<MenuItem Header="Inspect" Command="{Binding OnIndexDia}" CommandParameter="{Binding $parent[Window]}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="BookOpen"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Fetch"   Click="OnFetchIndex">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Sync"    Command="{Binding Data.SyncPlainText}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Clear"   Command="{Binding Data.ClearIndexedContent}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
-						</MenuItem>
+										</MenuItem>
 
-				<MenuItem Header="Tools" IsVisible="{Binding UI.SuperuserMode}">
-					<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
-							<MenuItem Header="Status">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Checkmark"/></MenuItem.Icon>
-									<MenuItem Header="Check File" Command="{Binding CheckSingleFileCommand}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+						<MenuItem Header="Group">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="GroupList"/></MenuItem.Icon>
+							<MenuItem Header="New Group" Click="OnNewGroup">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Add"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Attach to…" Name="MoveToGroupMenuItem" ItemsSource="{Binding AvailableGroups}" Click="OnMoveToGroup"
+									  IsVisible="{Binding SelectedFileIsTopLevel}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowRight"/></MenuItem.Icon>
+									<MenuItem.ItemTemplate>
+										<DataTemplate x:DataType="model:FileData"><TextBlock Text="{Binding Namn, StringFormat=' - {0}'}"/></DataTemplate>
+									</MenuItem.ItemTemplate>
+								</MenuItem>
+							<MenuItem Header="Attach Files…" Click="OnAttachFiles" IsVisible="{Binding SelectedFileIsTopLevel}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Attach"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Detach" Click="OnDetachFiles" IsVisible="{Binding SelectedFileIsChild}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowEject"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Rename Group" Click="OnRenameGroup" IsVisible="{Binding SelectedFileIsGroup}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
 									</MenuItem>
-									<MenuItem Header="Check All"  Command="{Binding CheckProjectFilesCommand}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="CheckboxChecked"/></MenuItem.Icon>
+								<MenuItem Header="Dissolve Group" Click="OnDissolveGroup" IsVisible="{Binding SelectedFileIsGroup}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="DismissCircle"/></MenuItem.Icon>
 								</MenuItem>
-							</MenuItem>
-							<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="Question"/></MenuItem.Icon>
-								</MenuItem>
-							<MenuItem Header="Watermark" IsVisible="{Binding SelectedFileIsNotSketch}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Tag"/></MenuItem.Icon>
-								<MenuItem Header="Förhandskopia" Command="{Binding WatermarkFiles}" CommandParameter="Förhandskopia">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
-								</MenuItem>
-								<MenuItem Header="Arbetskopia"   Command="{Binding WatermarkFiles}" CommandParameter="Arbetskopia">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="CircleSmall"/></MenuItem.Icon>
-								</MenuItem>
-							</MenuItem>
-							<MenuItem Header="Rename" IsVisible="{Binding SelectedFileIsLocal}" Command="{Binding TryOpenRenameDia}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
-							</MenuItem>
-							<MenuItem Header="Replace" IsVisible="{Binding CanReplaceSelectedFiles}" Command="{Binding OpenReplaceDia}" CommandParameter="{Binding $parent[Window]}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
-							</MenuItem>
-							<MenuItem Header="Cache Locally" IsVisible="{Binding CanCacheSelectedFiles}" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
-							</MenuItem>
-									<MenuItem Header="Placeholder" Command="{Binding OpenNewPlaceholderFile}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsTopLevel}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
-									</MenuItem>
-								</MenuItem>
-
-						<MenuItem Header="Attach…" Click="OnAttachFiles">
-							<MenuItem.IsVisible>
-								<MultiBinding Converter="{x:Static BoolConverters.And}">
-									<Binding Path="SelectedFileIsTopLevel"/>
-									<Binding Path="UI.SuperuserMode"/>
-								</MultiBinding>
-							</MenuItem.IsVisible>
-							<MenuItem.Icon><ic:SymbolIcon Symbol="Attach"/></MenuItem.Icon>
 						</MenuItem>
 
 						<Separator/>
@@ -1346,8 +1351,8 @@
 							<DataTemplate x:DataType="model:FileData">
 								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
 										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+										   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+										   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>
@@ -1443,8 +1448,8 @@
 							<DataTemplate x:DataType="model:FileData">
 								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
 										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-										   FontStyle="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-										   Opacity="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+										   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+										   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>

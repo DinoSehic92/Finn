@@ -29,25 +29,202 @@ namespace Finn.ViewModels
             SignalColumnsChanged();
         }
 
-        public void AddPlaceholderFile(string name)
+        public FileData AddGroup(string name, string? categoryOverride = null)
         {
-            FileData newfile = new()
+            name = EnsureUniqueName(name);
+
+            FileData group = new()
             {
                 Namn = name,
-                Filtyp = NEW_TYPE,
+                IsGroup = true,
+                IsExpanded = true,
+                Filtyp = categoryOverride ?? (Type != ALL_TYPES ? Type : NEW_TYPE),
                 Uppdrag = CurrentProject.Namn,
                 Sökväg = string.Empty
             };
 
-            CurrentProject.StoredFiles.Add(newfile);
+            CurrentProject.StoredFiles.Add(group);
+            CurrentProject.SetFiletypeList();
+            UpdateFilter();
+            OnPropertyChanged(nameof(AvailableGroups));
+            SignalTreeViewUpdate();
+            MarkDirty();
+            return group;
+        }
+
+        /// <summary>
+        /// Moves the selected files into a group. Children inherit the
+        /// group's category. Works for both groups and regular parent files.
+        /// </summary>
+        public void MoveFilesToParent(FileData target, IList<FileData> files)
+        {
+            if (target == null || files == null || files.Count == 0) return;
+
+            foreach (var file in files.ToList())
+            {
+                // Don't allow nesting a group inside another group,
+                // moving a file into itself, or re-parenting to the same parent.
+                if (file == target) continue;
+                if (file.IsGroup) continue;
+                if (file.ParentNamn == target.Namn) continue;
+
+                // Detach from any previous parent first
+                if (file.IsAppendedFile)
+                    file.ParentFile = null;
+
+                file.ParentNamn = target.Namn;
+                file.ParentFile = target;
+
+                // Inherit the group's category
+                if (target.IsGroup)
+                    file.Filtyp = target.Filtyp;
+            }
+
+            target.HasChildren = true;
+            target.IsExpanded = true;
+            CurrentProject.RefreshHasChildren();
             CurrentProject.SetFiletypeList();
             UpdateFilter();
             SignalTreeViewUpdate();
             MarkDirty();
         }
 
+        /// <summary>
+        /// Detaches files from their parent (group or attached file parent),
+        /// making them top-level project files again. The detached files keep
+        /// their current type so re-categorization isn't forced.
+        /// </summary>
+        public void DetachFiles(IList<FileData> files)
+        {
+            if (files == null || files.Count == 0) return;
+
+            // Assign the active filter type so detached files stay visible in
+            // the current view instead of disappearing into a different category.
+            string detachedType = Type != ALL_TYPES ? Type : NEW_TYPE;
+
+            foreach (var file in files.ToList())
+            {
+                if (!file.IsAppendedFile) continue;
+                file.ParentNamn = string.Empty;
+                file.ParentFile = null;
+                file.Filtyp = detachedType;
+            }
+
+            CurrentProject.RefreshHasChildren();
+            CurrentProject.SetFiletypeList();
+            UpdateFilter();
+            SignalTreeViewUpdate();
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// Renames a group header and updates all children that reference it.
+        /// </summary>
+        public void RenameGroup(FileData group, string newName)
+        {
+            if (group == null || !group.IsGroup || string.IsNullOrWhiteSpace(newName)) return;
+
+            newName = EnsureUniqueName(newName, group);
+
+            string oldName = group.Namn;
+            group.Namn = newName;
+
+            // Update ParentNamn on all children that reference the old name
+            foreach (var file in CurrentProject.StoredFiles.Where(f => f.ParentNamn == oldName))
+                file.ParentNamn = newName;
+
+            OnPropertyChanged(nameof(AvailableGroups));
+            UpdateFilter();
+            SignalTreeViewUpdate();
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// Converts a regular file into a group header by clearing its file
+        /// path and setting <see cref="FileData.IsGroup"/>. Existing children
+        /// (if any) are preserved.
+        /// </summary>
+        public void ConvertToGroup(FileData file)
+        {
+            if (file == null || file.IsGroup || file.IsAppendedFile) return;
+
+            file.IsGroup = true;
+            file.Sökväg = string.Empty;
+            file.OriginalPath = string.Empty;
+
+            CurrentProject.RefreshHasChildren();
+            CurrentProject.SetFiletypeList();
+            OnPropertyChanged(nameof(AvailableGroups));
+            UpdateFilter();
+            SignalTreeViewUpdate();
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// Ensures the given name is unique among all files in the current project.
+        /// Appends " (2)", " (3)", etc. when a collision is found.
+        /// </summary>
+        private string EnsureUniqueName(string name, FileData? exclude = null)
+        {
+            var existing = new HashSet<string>(
+                CurrentProject.StoredFiles
+                    .Where(f => f != exclude)
+                    .Select(f => f.Namn),
+                StringComparer.OrdinalIgnoreCase);
+
+            if (!existing.Contains(name))
+                return name;
+
+            int suffix = 2;
+            while (existing.Contains($"{name} ({suffix})"))
+                suffix++;
+
+            return $"{name} ({suffix})";
+        }
+
+        /// <summary>
+        /// Dissolves a group: detaches all children (making them top-level) and
+        /// removes the group header itself. Children keep their current type.
+        /// </summary>
+        public void DissolveGroup(FileData group)
+        {
+            if (group == null || !group.IsGroup) return;
+
+            var children = CurrentProject.StoredFiles
+                .Where(f => f.ParentNamn == group.Namn).ToList();
+
+            foreach (var child in children)
+            {
+                child.ParentNamn = string.Empty;
+                child.ParentFile = null;
+            }
+
+            CurrentProject.StoredFiles.Remove(group);
+            PreviewVM.RecentFiles.Remove(group);
+
+            CurrentProject.RefreshHasChildren();
+            CurrentProject.SetFiletypeList();
+            Collections.SetCollectionContent();
+            OnPropertyChanged(nameof(AvailableGroups));
+            UpdateFilter();
+            SignalTreeViewUpdate();
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// Returns all group headers in the current project for the
+        /// "Move to Group" context menu submenu.
+        /// </summary>
+        public IReadOnlyList<FileData> AvailableGroups =>
+            CurrentProject.StoredFiles
+                .Where(f => f.IsGroup && !f.IsAppendedFile)
+                .OrderBy(f => f.Namn)
+                .ToList();
+
         public void RemoveSelectedFiles()
         {
+            if (CurrentFiles == null) return;
+
             // Track sync folders affected by removal so we can
             // flag them as pending sync immediately.
             var affectedSyncFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -100,6 +277,7 @@ namespace Finn.ViewModels
             }
 
             MarkDirty();
+            OnPropertyChanged(nameof(AvailableGroups));
 
             // Flag affected sync folders as needing re-sync
             if (affectedSyncFolders.Count > 0)
@@ -113,23 +291,38 @@ namespace Finn.ViewModels
 
         public void SetTypeSelected(string type)
         {
+            if (CurrentFiles == null) return;
             foreach (FileData file in CurrentFiles.Where(f => !f.IsAppendedFile))
             {
                 file.Filtyp = type;
+
+                // When a group changes category, propagate to its children
+                if (file.IsGroup && file.HasChildren)
+                {
+                    foreach (var child in CurrentProject.StoredFiles.Where(c => c.ParentNamn == file.Namn))
+                        child.Filtyp = type;
+                }
             }
             currentProject.SetFiletypeList();
             UpdateFilter();
+            SignalTreeViewUpdate();
             MarkDirty();
         }
 
         public void UpdateFilter()
         {
             var topLevel = CurrentProject.StoredFiles.Where(x => !x.IsAppendedFile);
-            var sorted = Type != ALL_TYPES
-                ? topLevel.Where(x => x.Filtyp == Type).OrderBy(x => x.Namn)
-                : topLevel.OrderBy(x => x.Namn).OrderByDescending(x => x.Filtyp);
+            var filtered = Type != ALL_TYPES
+                ? topLevel.Where(x => x.Filtyp == Type)
+                : topLevel;
 
-            // Build the list with expanded children inserted inline
+            // Groups first, then regular files, both sorted alphabetically
+            var sorted = filtered
+                .OrderByDescending(x => x.IsGroup)
+                .ThenBy(x => x.Namn);
+
+            // Build the list with expanded children inserted inline.
+            // Groups default to expanded but can be collapsed via chevron.
             var result = new List<FileData>();
             foreach (var file in sorted)
             {
@@ -173,7 +366,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Toggles inline expansion of a parent file's appended children.
+        /// Toggles inline expansion of a parent file or group's children.
         /// </summary>
         public void ToggleExpansion(FileData file)
         {
@@ -183,9 +376,8 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Collapses any currently expanded file and expands the given file
-        /// if it has children. Called on selection change so only the selected
-        /// parent ever shows its children inline.
+        /// Collapses any currently expanded non-group file and expands the
+        /// selected parent. Groups keep their user-toggled expansion state.
         /// </summary>
         private void SyncExpansionToSelection()
         {
@@ -198,16 +390,29 @@ namespace Finn.ViewModels
             bool changed = false;
             foreach (var file in CurrentProject.StoredFiles)
             {
-                if (!file.IsExpanded) continue;
-                if (file == activeParent) continue;
-                file.IsExpanded = false;
-                changed = true;
-            }
+                if (file.IsAppendedFile) continue;
+                if (!file.HasChildren) continue;
 
-            if (activeParent is { HasChildren: true, IsExpanded: false })
-            {
-                activeParent.IsExpanded = true;
-                changed = true;
+                // Keep the active parent expanded
+                if (file == activeParent)
+                {
+                    if (!file.IsExpanded)
+                    {
+                        file.IsExpanded = true;
+                        changed = true;
+                    }
+                    continue;
+                }
+
+                // Groups keep their current expansion state;
+                // non-group parents collapse when not active.
+                if (file.IsGroup) continue;
+
+                if (file.IsExpanded)
+                {
+                    file.IsExpanded = false;
+                    changed = true;
+                }
             }
 
             if (changed)

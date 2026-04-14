@@ -116,14 +116,6 @@ namespace Finn.ViewModels
                 window.TagMenuInput.Focus();
             }
 
-            public void OpenNewPlaceholderFile(Window mainWindow)
-            {
-                var window = new xPlaceholderDia();
-                ConfigureWindow(window, mainWindow);
-                window.ShowDialog(mainWindow);
-                window.NewFileName.Focus();
-            }
-
             public void TryOpenRenameDia(Window mainWindow)
             {
                 if (!CurrentFile.IsLocal())

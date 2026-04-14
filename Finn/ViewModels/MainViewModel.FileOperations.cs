@@ -251,18 +251,21 @@ namespace Finn.ViewModels
 
             public void CopyFilenameToClipboard(Avalonia.Visual window)
             {
+                if (CurrentFiles == null) return;
                 var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Namn));
                 TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text);
             }
 
             public void CopyFilepathToClipboard(Avalonia.Visual window)
             {
+                if (CurrentFiles == null) return;
                 var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Sökväg));
                 TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text);
             }
 
             public void CopyListviewToClipboard(Avalonia.Visual window)
             {
+                if (CurrentFiles == null) return;
                 var sb = new StringBuilder();
 
                 foreach (FileData file in CurrentFiles)
@@ -290,7 +293,7 @@ namespace Finn.ViewModels
 
             public void CheckSingleFile()
             {
-                if (CurrentFile != null)
+                if (CurrentFile != null && !CurrentFile.IsGroup)
                     CurrentFile.IsFileMissing = !CurrentFile.IsValidPdf();
             }
 
@@ -309,7 +312,8 @@ namespace Finn.ViewModels
                 foreach (FileData file in CurrentProject.StoredFiles)
                 {
                     i++;
-                    file.IsFileMissing = !file.IsValidPdf();
+                    if (!file.IsGroup)
+                        file.IsFileMissing = !file.IsValidPdf();
                     PreviewVM.Progress = (int)(100 * ((float)i / (float)n));
                 }
             }
@@ -322,10 +326,12 @@ namespace Finn.ViewModels
 
             public void OpenFile()
             {
+                if (CurrentFiles == null) return;
                 try
                 {
                     foreach (FileData file in CurrentFiles)
                     {
+                        if (string.IsNullOrEmpty(file.Sökväg)) continue;
                         ProcessStartInfo psi = new()
                         {
                             FileName = file.Sökväg,
@@ -353,6 +359,7 @@ namespace Finn.ViewModels
 
             public void OpenMeta()
             {
+                if (CurrentFiles == null) return;
                 try
                 {
                     foreach (FileData file in CurrentFiles)
@@ -422,6 +429,7 @@ namespace Finn.ViewModels
             {
                 try
                 {
+                    if (string.IsNullOrEmpty(CurrentFile?.Sökväg)) return;
                     string folderpath = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
                     Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
                 }
@@ -440,6 +448,7 @@ namespace Finn.ViewModels
 
             public void AddColor(string color)
             {
+                if (CurrentFiles == null) return;
                 foreach (FileData file in CurrentFiles)
                 {
                     file.Färg = color;
@@ -449,6 +458,7 @@ namespace Finn.ViewModels
 
             public void ClearAll()
             {
+                if (CurrentFiles == null) return;
                 foreach (FileData file in CurrentFiles)
                 {
                     file.Färg = "";
@@ -459,6 +469,7 @@ namespace Finn.ViewModels
 
             public void AddTag(string tag)
             {
+                if (CurrentFiles == null) return;
                 foreach (FileData file in CurrentFiles)
                 {
                     file.Tagg = tag;
@@ -468,6 +479,7 @@ namespace Finn.ViewModels
 
             public void ClearTag()
             {
+                if (CurrentFiles == null) return;
                 foreach (FileData file in CurrentFiles)
                 {
                     file.Tagg = "";
@@ -657,6 +669,15 @@ namespace Finn.ViewModels
                 CurrentFile.Sökväg = newPath;
                 CurrentFile.Namn = newName;
                 CurrentFile.IsFileMissing = !fileExists;
+
+                // Clear group status — the file now has a real path
+                if (CurrentFile.IsGroup)
+                {
+                    CurrentFile.IsGroup = false;
+                    CurrentProject.RefreshHasChildren();
+                    OnPropertyChanged(nameof(AvailableGroups));
+                }
+
                 UpdateFileLinks(oldName, newName, newPath);
                 MarkDirty();
             }
@@ -679,20 +700,24 @@ namespace Finn.ViewModels
                             foreach (var child in children)
                             {
                                 CurrentProject.StoredFiles.Remove(child);
+                                child.Filtyp = NEW_TYPE;
                                 child.Uppdrag = project.Namn;
                                 project.StoredFiles.Add(child);
                             }
 
                             CurrentProject.StoredFiles.Remove(file);
-                            file.Filtyp = "New";
+                            file.Filtyp = NEW_TYPE;
                             file.Uppdrag = project.Namn;
                             project.StoredFiles.Add(file);
                         }
                     }
 
                     CurrentProject.RefreshHasChildren();
+                    CurrentProject.SetFiletypeList();
                     project.RefreshHasChildren();
+                    project.SetFiletypeList();
                     UpdateFilter();
+                    SignalTreeViewUpdate();
                     MarkDirty();
                 }
             }
@@ -700,8 +725,7 @@ namespace Finn.ViewModels
 
             public void WatermarkFiles(string text = "Arbetskopia")
             {
-
-                if (CurrentFile.IsValidPdf() == false)
+                if (CurrentFile == null || !CurrentFile.IsValidPdf())
                 {
                     return;
                 }

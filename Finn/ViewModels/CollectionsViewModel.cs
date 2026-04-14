@@ -138,6 +138,7 @@ namespace Finn.ViewModels
 
         public void MarkFavorite()
         {
+            if (CurrentFiles == null) return;
             foreach (FileData file in CurrentFiles)
             {
                 file.Favorite = !file.Favorite;

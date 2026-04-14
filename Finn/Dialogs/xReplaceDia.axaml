@@ -16,35 +16,6 @@
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		x:DataType="vm:MainViewModel">
 
-	    <Window.Styles>
-			<Style Selector="Button.normal">
-				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			    <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
-			    <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-				<Setter Property="FontWeight" Value="SemiBold"/>
-				<Setter Property="FontSize" Value="15"/>
-			</Style>
-			<Style Selector="Button.accent">
-				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-				<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-			    <Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
-			    <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-				<Setter Property="FontWeight" Value="SemiBold"/>
-				<Setter Property="FontSize" Value="15"/>
-			</Style>
-			<Style Selector="Border.DropZone">
-				<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-				<Setter Property="BorderThickness" Value="1"/>
-				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-				<Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-			</Style>
-			<Style Selector="Border.DropZone.DragOver">
-				<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
-				<Setter Property="BorderThickness" Value="2"/>
-				<Setter Property="Background" Value="#20007ACC"/>
-			</Style>
-		</Window.Styles>
-
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Width="400" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
@@ -59,8 +30,8 @@
 
 				<TextBox Name="PathInput" PlaceholderText="File path" Width="380"/>
 
-				<Border Name="DropZone" Classes="DropZone" Width="380" Height="80"
-						DragDrop.AllowDrop="True">
+				<Border Name="DropZone" Classes="DropBox" Width="380" Height="80"
+							DragDrop.AllowDrop="True">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center"
 								IsHitTestVisible="False" Opacity="0.5">
 						<ic:SymbolIcon Symbol="ArrowDownload" FontSize="24" HorizontalAlignment="Center"/>

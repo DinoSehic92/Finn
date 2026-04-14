@@ -315,15 +315,19 @@ namespace Finn.Model
         /// </summary>
         public void RefreshHasChildren()
         {
-            var parentNames = new HashSet<string>(
-                StoredFiles.Where(f => f.IsAppendedFile).Select(f => f.ParentNamn),
-                System.StringComparer.OrdinalIgnoreCase);
+            // Count children per parent name for both HasChildren and ChildFileCount
+            var childCounts = StoredFiles
+                .Where(f => f.IsAppendedFile)
+                .GroupBy(f => f.ParentNamn, System.StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Count(), System.StringComparer.OrdinalIgnoreCase);
 
             foreach (var file in StoredFiles)
             {
                 if (!file.IsAppendedFile)
                 {
-                    file.HasChildren = parentNames.Contains(file.Namn);
+                    int count = childCounts.GetValueOrDefault(file.Namn, 0);
+                    file.HasChildren = count > 0;
+                    file.ChildFileCount = count;
                     if (!file.HasChildren)
                         file.IsExpanded = false;
                 }

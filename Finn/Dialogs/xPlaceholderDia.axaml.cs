@@ -1,30 +1,29 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Finn.Model;
-using Finn.ViewModels;
-using Finn.Views;
 
 namespace Finn.Dialogs;
 
 public partial class xPlaceholderDia : Window
 {
+    /// <summary>
+    /// After the dialog closes, contains the entered name (if confirmed).
+    /// Used by callers that need the name without calling AddPlaceholderFile directly.
+    /// </summary>
+    public string? ResultName { get; private set; }
+
     public xPlaceholderDia()
     {
         InitializeComponent();
 
         KeyDown += CloseKey;
-
+        Opened += (_, _) => NewFileName.Focus();
     }
 
     private void OnAddPlaceholder(object sender, RoutedEventArgs e)
     {
         if (NewFileName.Text != null)
-        {
-            MainViewModel ctx = (MainViewModel)this.DataContext;
-            ctx.AddPlaceholderFile(NewFileName.Text);
-            
-        }
+            ResultName = NewFileName.Text;
 
         this.Close();
     }

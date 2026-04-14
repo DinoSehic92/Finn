@@ -343,7 +343,7 @@ namespace Finn.ViewModels
 
         public int SecondaryPagecount => DualFileMode ? pagecount2 : pagecount;
         public bool ShowSecondaryControls => !linkedPageMode || dualFileMode;
-        public bool ShowLinkedPageButton => twopageMode || (_diffOverlayActive && _diffViewMode == DiffViewMode.Toggle);
+        public bool ShowLinkedPageButton => twopageMode || (_diffOverlayActive && _diffViewMode != DiffViewMode.Overlay);
 
         /// <summary>
         /// Fires change notifications for all computed properties that depend

@@ -15,49 +15,6 @@
 		DragDrop.AllowDrop="True"
 		x:DataType="vm:MainViewModel">
 
-	<Window.Styles>
-		<Style Selector="Button.accent">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
-			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="FontSize" Value="15"/>
-		</Style>
-		<Style Selector="Button.normal">
-			<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-			<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
-			<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-			<Setter Property="FontWeight" Value="SemiBold"/>
-			<Setter Property="FontSize" Value="15"/>
-		</Style>
-
-		<!-- Existing rows shown with lower opacity -->
-		<Style Selector="DataGridRow.Existing">
-			<Setter Property="Opacity" Value="0.45"/>
-		</Style>
-
-		<!-- Drop zone styling: invisible by default, visible only during drag -->
-		<Style Selector="Border.DropZone">
-			<Setter Property="Opacity" Value="0"/>
-			<Setter Property="IsHitTestVisible" Value="False"/>
-			<Setter Property="BorderThickness" Value="0"/>
-			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="Transitions">
-				<Transitions>
-					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
-				</Transitions>
-			</Setter>
-		</Style>
-		<Style Selector="Border.DropZone.DragOver">
-			<Setter Property="Opacity" Value="1"/>
-			<Setter Property="IsHitTestVisible" Value="True"/>
-			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
-			<Setter Property="BorderThickness" Value="2"/>
-			<Setter Property="Background" Value="#20007ACC"/>
-		</Style>
-	</Window.Styles>
-
 	<Grid RowDefinitions="30,Auto,*,Auto,Auto" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 

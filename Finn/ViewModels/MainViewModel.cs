@@ -879,7 +879,7 @@ namespace Finn.ViewModels
                 set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }
             }
 
-            public int NrFilteredFiles => FilteredFiles?.Count(f => !f.IsAppendedFile) ?? 0;
+            public int NrFilteredFiles => FilteredFiles?.Count(f => !f.IsAppendedFile && !f.IsGroup) ?? 0;
             public int NrSelectedFiles => CurrentFiles?.Count ?? 0;
 
             private IList<FileData> currentFiles = null;
@@ -897,6 +897,9 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(FileSelected));
                     OnPropertyChanged(nameof(AllSelectedFilesHaveVersions));
                     OnPropertyChanged(nameof(SelectedFileIsTopLevel));
+                    OnPropertyChanged(nameof(SelectedFileIsChild));
+                    OnPropertyChanged(nameof(SelectedFileIsGroup));
+                    OnPropertyChanged(nameof(HasAvailableGroups));
                     OnPropertyChanged(nameof(CanMoveSelectedFiles));
                     OnPropertyChanged(nameof(SelectedFileIsLocal));
                     OnPropertyChanged(nameof(CanReplaceSelectedFiles));
@@ -926,6 +929,26 @@ namespace Finn.ViewModels
             /// </summary>
             public bool SelectedFileIsTopLevel =>
                 CurrentFile != null && !CurrentFile.IsAppendedFile;
+
+            /// <summary>
+            /// True when the current selection is a child file (inside a group or attached).
+            /// Shows the "Detach" context menu item.
+            /// </summary>
+            public bool SelectedFileIsChild =>
+                CurrentFile != null && CurrentFile.IsAppendedFile;
+
+            /// <summary>
+            /// True when the current selection is a group header.
+            /// Shows the "Rename Group" context menu item.
+            /// </summary>
+            public bool SelectedFileIsGroup =>
+                CurrentFile != null && CurrentFile.IsGroup;
+
+            /// <summary>
+            /// True when there are groups in the project to move files into.
+            /// </summary>
+            public bool HasAvailableGroups =>
+                CurrentProject?.StoredFiles.Any(f => f.IsGroup && !f.IsAppendedFile) == true;
 
             /// <summary>
             /// True when the Category menu should be shown.

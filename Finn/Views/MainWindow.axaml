@@ -79,16 +79,6 @@
 			<Setter Property="FontStyle" Value="Italic"/>
 		</Style>
 
-		<Style Selector="DataGridRow.Placeholder">
-			<Setter Property="FontStyle" Value="Italic"/>
-			<Setter Property="Opacity" Value="0.55"/>
-		</Style>
-
-		<Style Selector="DataGridRow.AppendedRow">
-			<Setter Property="FontStyle" Value="Italic"/>
-			<Setter Property="Opacity" Value="0.85"/>
-		</Style>
-
 		<!-- Hide vertical separator lines in DataGrid column headers -->
 		<Style Selector="DataGridColumnHeader">
 			<Setter Property="SeparatorBrush" Value="Transparent"/>

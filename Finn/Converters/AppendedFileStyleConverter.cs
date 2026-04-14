@@ -1,5 +1,6 @@
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using Finn.Model;
 using System;
 using System.Globalization;
 
@@ -14,11 +15,12 @@ namespace Finn.Converters
     public class AppendedFileStyleConverter : IValueConverter
     {
         public static readonly AppendedFileStyleConverter FontStyle = new(Mode.FontStyle);
+        public static readonly AppendedFileStyleConverter FontWeight = new(Mode.FontWeight);
         public static readonly AppendedFileStyleConverter Opacity = new(Mode.Opacity);
         public static readonly AppendedFileStyleConverter Indent = new(Mode.Indent);
         public static readonly AppendedFileStyleConverter Chevron = new(Mode.Chevron);
 
-        private enum Mode { FontStyle, Opacity, Indent, Chevron }
+        private enum Mode { FontStyle, FontWeight, Opacity, Indent, Chevron }
         private readonly Mode _mode;
 
         private AppendedFileStyleConverter(Mode mode) => _mode = mode;
@@ -32,6 +34,7 @@ namespace Finn.Converters
             return _mode switch
             {
                 Mode.FontStyle => flag ? Avalonia.Media.FontStyle.Italic : Avalonia.Media.FontStyle.Normal,
+                Mode.FontWeight => flag ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal,
                 Mode.Opacity => flag ? 0.8 : 1.0,
                 Mode.Indent => flag ? 20.0 : 0.0,
                 Mode.Chevron => flag ? ChevronExpanded : ChevronCollapsed,

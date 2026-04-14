@@ -15,16 +15,6 @@
 		WindowStartupLocation="CenterScreen"
 		ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		x:DataType="vm:MainViewModel">
-		<Window.Styles>
-			<Style Selector="Button.accent">
-				<Setter Property="CornerRadius" Value="{Binding UI.CornerRadius}"/>
-				<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-				<Setter Property="BorderThickness" Value="{Binding UI.BorderThickness}"/>
-				<Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
-				<Setter Property="FontWeight" Value="SemiBold"/>
-				<Setter Property="FontSize" Value="15"/>
-			</Style>
-		</Window.Styles>
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0">

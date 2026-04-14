@@ -40,6 +40,11 @@ public partial class MainView : UserControl
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectFiles);
         FileGrid.AddHandler(DragDrop.DropEvent, OnDrop);
 
+        // Internal row drag-drop for nesting files into groups
+        FileGrid.AddHandler(PointerPressedEvent, OnFileGridPointerPressed, RoutingStrategies.Tunnel);
+        FileGrid.AddHandler(PointerMovedEvent, OnFileGridPointerMoved, RoutingStrategies.Tunnel);
+        FileGrid.AddHandler(PointerReleasedEvent, OnFileGridPointerReleased, RoutingStrategies.Tunnel);
+
         // Global arrow-key navigation: Up/Down = file selection, Left/Right = page.
         // Uses Bubble so annotation Tunnel handlers (nudging) get first priority.
         // handledEventsToo: TextBox marks Up/Down as handled — we still need them
@@ -493,6 +498,71 @@ public partial class MainView : UserControl
 
     #endregion
 
+    #region Internal Row Drag-Drop (nest files into groups)
+
+    private Point _dragStartPoint;
+    private bool _isDraggingToGroup;
+    private const double DragThreshold = 10;
+
+    private void OnFileGridPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        _isDraggingToGroup = false;
+        if (!e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
+        _dragStartPoint = e.GetPosition(FileGrid);
+    }
+
+    private void OnFileGridPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
+        if (_isDraggingToGroup) return;
+        if (_ctx?.CurrentFiles == null || _ctx.CurrentFiles.Count == 0) return;
+
+        var pos = e.GetPosition(FileGrid);
+        var delta = pos - _dragStartPoint;
+        if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
+            return;
+
+        // Only start a drag for top-level, non-group files
+        if (_ctx.CurrentFiles.Any(f => f.IsGroup || f.IsAppendedFile)) return;
+
+        _isDraggingToGroup = true;
+        FileGrid.Cursor = new Cursor(StandardCursorType.DragMove);
+    }
+
+    private void OnFileGridPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (!_isDraggingToGroup) return;
+        _isDraggingToGroup = false;
+        FileGrid.Cursor = Cursor.Default;
+
+        var target = FindGroupRowUnderPointer(e);
+        if (target != null && _ctx?.CurrentFiles != null)
+            _ctx.MoveFilesToParent(target, _ctx.CurrentFiles.ToList());
+    }
+
+    /// <summary>
+    /// Hit-tests the pointer position against the DataGrid to find a group
+    /// or parent row that files can be dropped into.
+    /// </summary>
+    private FileData? FindGroupRowUnderPointer(PointerEventArgs e)
+    {
+        var pos = e.GetPosition(FileGrid);
+        var hit = FileGrid.InputHitTest(pos);
+        if (hit is not Visual visual) return null;
+
+        var row = visual.FindAncestorOfType<DataGridRow>();
+        if (row?.DataContext is FileData data && (data.IsGroup || data.HasChildren) && !data.IsAppendedFile)
+        {
+            // Don't allow dropping onto a file that's part of the selection
+            if (_ctx.CurrentFiles?.Contains(data) == true) return null;
+            return data;
+        }
+
+        return null;
+    }
+
+    #endregion
+
     #region Empty State
 
     private void UpdateEmptyState()
@@ -808,11 +878,15 @@ public partial class MainView : UserControl
 
     /// <summary>
     /// Prevents the file grid context menu from opening when no file is selected.
+    /// Refreshes dynamic submenu sources like AvailableGroups.
     /// </summary>
     private void OnFileGridContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (!_ctx.FileSelected)
-            e.Cancel = true;
+        // Always show the context menu so the user can create groups
+        // even before any files exist. Items that require a selection
+        // are hidden via IsVisible bindings that check FileSelected,
+        // SelectedFileIsTopLevel, etc.
+        MoveToGroupMenuItem.ItemsSource = _ctx.AvailableGroups;
     }
 
     private async void OnRemoveFiles(object? sender, RoutedEventArgs e)
@@ -1155,6 +1229,106 @@ public partial class MainView : UserControl
         UpdateFolderEmptyState();
     }
 
+    private void OnToggleGroupExpanded(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is FileData file && file.HasChildren)
+        {
+            file.IsExpanded = !file.IsExpanded;
+            _ctx.UpdateFilter();
+        }
+    }
+
+    private async void OnNewGroup(object? sender, RoutedEventArgs e)
+    {
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var dialog = new Finn.Dialogs.xPlaceholderDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "New Group";
+        dialog.NewFileName.Watermark = "Group name";
+        await dialog.ShowDialog(window);
+
+        string? name = dialog.ResultName;
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            // Only auto-move when multiple files are explicitly selected.
+            // A single selection is usually just the user browsing, not
+            // an intentional "group these files" action.
+            var selectedFiles = _ctx.CurrentFiles?.Where(f => !f.IsAppendedFile && !f.IsGroup).ToList() ?? [];
+            bool autoMove = selectedFiles.Count > 1;
+
+            // If all selected files share the same category, inherit it
+            string? sharedCategory = null;
+            if (selectedFiles.Count > 0)
+            {
+                var distinct = selectedFiles.Select(f => f.Filtyp).Distinct().ToList();
+                if (distinct.Count == 1)
+                    sharedCategory = distinct[0];
+            }
+
+            // Suppress selection events so SyncExpansionToSelection doesn't
+            // collapse the group between AddGroup and MoveFilesToParent.
+            _isUpdatingSelection = true;
+            try
+            {
+                var group = _ctx.AddGroup(name, sharedCategory);
+
+                if (autoMove)
+                    _ctx.MoveFilesToParent(group, selectedFiles);
+            }
+            finally
+            {
+                _isUpdatingSelection = false;
+            }
+        }
+    }
+
+    private async void OnRenameGroup(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile is not { IsGroup: true } group) return;
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var dialog = new Finn.Dialogs.xPlaceholderDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Rename Group";
+        dialog.NewFileName.Watermark = "New group name";
+        dialog.NewFileName.Text = group.Namn;
+        await dialog.ShowDialog(window);
+
+        string? newName = dialog.ResultName;
+        if (!string.IsNullOrWhiteSpace(newName))
+            _ctx.RenameGroup(group, newName);
+    }
+
+    private async void OnConvertToGroup(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsGroup || _ctx.CurrentFile.IsAppendedFile) return;
+
+        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        await _ctx.ConfirmDeleteDia(window);
+
+        if (_ctx.Confirmed)
+            _ctx.ConvertToGroup(_ctx.CurrentFile);
+    }
+
+    private void OnMoveToGroup(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { SelectedItem: FileData group })
+        {
+            _ctx.MoveFilesToParent(group, _ctx.CurrentFiles.ToList());
+        }
+    }
+
+    private void OnDetachFiles(object? sender, RoutedEventArgs e)
+    {
+        _ctx.DetachFiles(_ctx.CurrentFiles.ToList());
+    }
+
+    private void OnDissolveGroup(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile is { IsGroup: true } group)
+            _ctx.DissolveGroup(group);
+    }
+
     private void OnOpenFolderPath(object? sender, RoutedEventArgs e)
     {
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
@@ -1459,9 +1633,6 @@ public partial class MainView : UserControl
             _ctx.EditType(type);
             _ctx.BuildTreeData();
         }
-
-        if (sender is Button)
-            CategoryButton.Flyout?.Hide();
     }
 
     private void OnClearFiles(object? sender, RoutedEventArgs e)
@@ -2251,7 +2422,8 @@ public partial class MainView : UserControl
 
         PropertyChangedEventHandler handler = (_, args) =>
         {
-            if (args.PropertyName is nameof(FileData.IsFileMissing) or nameof(FileData.Färg) or nameof(FileData.Sökväg))
+            if (args.PropertyName is nameof(FileData.IsFileMissing) or nameof(FileData.Färg) or nameof(FileData.Sökväg)
+                or nameof(FileData.HasChildren) or nameof(FileData.IsExpanded))
                 Dispatcher.UIThread.Post(() => ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true));
         };
         newData.PropertyChanged += handler;
@@ -2278,13 +2450,13 @@ public partial class MainView : UserControl
     private static readonly string[] AllColorClasses =
         ["Yellow", "Orange", "Brown", "Green", "Blue", "Red", "Magenta"];
 
-    private static void ApplyRowClasses(DataGridRow row, bool dotMode = false)
+    private void ApplyRowClasses(DataGridRow row, bool dotMode = false)
     {
         if (row.DataContext is not FileData data)
         {
             row.Classes.Remove("RedForeground");
-            row.Classes.Remove("Placeholder");
-            row.Classes.Remove("AppendedRow");
+            row.Classes.Remove("GroupHeader");
+            row.Classes.Remove("LastChild");
             foreach (var c in AllColorClasses)
                 row.Classes.Remove(c);
             return;
@@ -2293,12 +2465,27 @@ public partial class MainView : UserControl
         bool isPlaceholder = data.Sökväg == string.Empty;
 
         SetClass(row, "RedForeground", data.IsFileMissing && !isPlaceholder);
-        SetClass(row, "Placeholder", isPlaceholder);
-        SetClass(row, "AppendedRow", data.IsAppendedFile);
 
         string? wantColor = (!dotMode && !string.IsNullOrEmpty(data.Färg)) ? data.Färg : null;
         foreach (var c in AllColorClasses)
             SetClass(row, c, c == wantColor);
+
+        // Group separator lines
+        bool isGroupHeader = data.HasChildren;
+        SetClass(row, "GroupHeader", isGroupHeader);
+
+        bool isLastChild = false;
+        if (data.IsAppendedFile && _ctx?.FilteredFiles is { } files)
+        {
+            int idx = files.IndexOf(data);
+            if (idx >= 0)
+            {
+                // Last child if next item is not an appended file, or we're at the end
+                isLastChild = idx == files.Count - 1
+                    || !files[idx + 1].IsAppendedFile;
+            }
+        }
+        SetClass(row, "LastChild", isLastChild);
     }
 
     private static void SetClass(DataGridRow row, string cls, bool active)
