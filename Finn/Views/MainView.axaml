@@ -522,8 +522,13 @@
 			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsVisible="{Binding UI.SuperuserMode}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<!-- Sync status indicator (visible only when folder watching is enabled and superuser mode) -->
-			<Button Name="SyncStatusButton" Height="30" Width="35" Padding="0" IsVisible="{Binding UI.SuperuserMode}"
-					ToolTip.Tip="{Binding SyncStatusText}">
+           <Button Name="SyncStatusButton" Height="30" Width="35" Padding="0" ToolTip.Tip="{Binding SyncStatusText}">
+				<Button.IsVisible>
+					<MultiBinding Converter="{x:Static BoolConverters.And}">
+						<Binding Path="UI.SuperuserMode"/>
+						<Binding Path="UI.FolderWatchEnabled"/>
+					</MultiBinding>
+				</Button.IsVisible>
 				<Panel>
 					<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="18"
 								  Foreground="MediumSeaGreen"

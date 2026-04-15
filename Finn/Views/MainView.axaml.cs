@@ -161,7 +161,8 @@ public partial class MainView : UserControl
                 // Start watching sync folders for file changes (if enabled)
                 _ctx.RefreshFolderWatchers();
                 // Check if any folders changed while the app was closed (async — no UI freeze)
-                _ = _ctx.CheckFolderSyncOnStartupAsync();
+                if (_ctx.UI.FolderWatchEnabled)
+                    _ = _ctx.CheckFolderSyncOnStartupAsync();
                 // Check shared project sync status (async — network I/O)
                 _ = _ctx.CheckSharedSyncOnStartupAsync();
 

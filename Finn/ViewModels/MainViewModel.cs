@@ -181,6 +181,8 @@ namespace Finn.ViewModels
                 {
                     _folderWatcher.FolderChanged -= OnFolderWatcherChanged;
                     _folderWatcher.StopAll();
+                    PendingSyncFolders.Clear();
+                    RaiseSyncStatusChanged();
                 }
 
                 // Shared project watcher runs independently of the folder
