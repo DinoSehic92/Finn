@@ -310,6 +310,22 @@ namespace Finn.Model
 
 
         /// <summary>
+        /// Returns all direct children of <paramref name="parent"/> in
+        /// <see cref="StoredFiles"/> order.
+        /// </summary>
+        public IReadOnlyList<FileData> GetChildren(FileData parent) =>
+            GetChildren(parent.Namn);
+
+        /// <summary>
+        /// Returns all direct children of the file name <paramref name="parentName"/>
+        /// in <see cref="StoredFiles"/> order.
+        /// </summary>
+        public IReadOnlyList<FileData> GetChildren(string parentName) =>
+            StoredFiles
+                .Where(f => string.Equals(f.ParentNamn, parentName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+        /// <summary>
         /// Refreshes <see cref="FileData.HasChildren"/> on every top-level file
         /// by checking whether any child file references it via <see cref="FileData.ParentNamn"/>.
         /// </summary>

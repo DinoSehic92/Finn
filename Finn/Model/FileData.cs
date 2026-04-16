@@ -160,17 +160,63 @@ namespace Finn.Model
         }
 
         /// <summary>
+        /// Describes how this file relates to its parent, if any.
+        /// </summary>
+        [JsonIgnore]
+        public ChildKind ChildKind =>
+            !IsAppendedFile         ? ChildKind.None :
+            ParentFile?.IsGroup == true ? ChildKind.GroupChild :
+                                          ChildKind.AttachedChild;
+
+        /// <summary>
         /// True when this file is a child inside a group (not a direct file attachment).
         /// </summary>
         [JsonIgnore]
-        public bool IsGroupChild => IsAppendedFile && ParentFile?.IsGroup == true;
+        public bool IsGroupChild => ChildKind == ChildKind.GroupChild;
 
         /// <summary>
         /// True for attached child files that should render italic/faded.
         /// Group children look normal; only non-group attachments are styled.
         /// </summary>
         [JsonIgnore]
-        public bool IsStyledAsAttached => IsAppendedFile && ParentFile?.IsGroup != true;
+        public bool IsStyledAsAttached => ChildKind == ChildKind.AttachedChild;
+
+        /// <summary>
+        /// Attaches this file as a child of <paramref name="parent"/>,
+        /// inheriting its category when the parent is a group.
+        /// </summary>
+        public void SetParent(FileData parent)
+        {
+            ParentNamn = parent.Namn;
+            ParentFile = parent;
+            if (parent.IsGroup)
+                Filtyp = parent.Filtyp;
+
+            OnPropertyChanged(nameof(IsAppendedFile));
+            OnPropertyChanged(nameof(ChildKind));
+            OnPropertyChanged(nameof(IsGroupChild));
+            OnPropertyChanged(nameof(IsStyledAsAttached));
+        }
+
+        /// <summary>
+        /// Detaches this file from its parent, making it a top-level entry.
+        /// </summary>
+        /// <param name="detachedType">
+        /// The category to assign after detaching. Pass the active filter type
+        /// so the file stays visible in the current view.
+        /// </param>
+        public void ClearParent(string? detachedType = null)
+        {
+            ParentNamn = string.Empty;
+            ParentFile = null;
+            if (detachedType != null)
+                Filtyp = detachedType;
+
+            OnPropertyChanged(nameof(IsAppendedFile));
+            OnPropertyChanged(nameof(ChildKind));
+            OnPropertyChanged(nameof(IsGroupChild));
+            OnPropertyChanged(nameof(IsStyledAsAttached));
+        }
 
         #endregion
 

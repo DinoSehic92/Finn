@@ -37,6 +37,22 @@ namespace Finn.ViewModels
                 return false;
             }
 
+            private FileData? FindAttachedFolderOwner(FolderData folder) =>
+                CurrentProject.StoredFiles.FirstOrDefault(
+                    x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase));
+
+            private List<FileData> GetSyncedAttachedChildren(FileData parent, string folderPath) =>
+                CurrentProject.GetChildren(parent)
+                    .Where(x => string.Equals(x.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            private static void AttachChildToParent(FileData child, FileData parent, string type)
+            {
+                child.SetParent(parent);
+                child.Uppdrag = parent.Uppdrag;
+                child.Filtyp = type;
+            }
+
             public void NewFileFolder()
             {
                 if (CurrentFile != null)
@@ -64,23 +80,17 @@ namespace Finn.ViewModels
                     }
                     else
                     {
-                        FileData file = CurrentProject.StoredFiles.FirstOrDefault(
-                            x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase));
+                        FileData file = FindAttachedFolderOwner(folder);
 
                         if (file != null)
                         {
                             if (folder.Mode is SyncFolderMode.AttachedFiles)
                             {
-                                string folderPath = folder.Path;
-                                var removed = CurrentProject.StoredFiles
-                                    .Where(x => x.ParentNamn == file.Namn
-                                        && string.Equals(x.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
-                                    .ToList();
+                                var removed = GetSyncedAttachedChildren(file, folder.Path);
                                 foreach (var r in removed)
                                 {
                                     r.PartOfCollections.Clear();
-                                    r.ParentNamn = string.Empty;
-                                    r.ParentFile = null;
+                                    r.ClearParent();
                                     CurrentProject.StoredFiles.Remove(r);
                                 }
                                 CurrentProject.RefreshHasChildren();
@@ -228,8 +238,7 @@ namespace Finn.ViewModels
 
                 if (!folder.IsProjectLevel)
                 {
-                    FileData file = CurrentProject.StoredFiles.FirstOrDefault(
-                        x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase));
+                    FileData file = FindAttachedFolderOwner(folder);
 
                     if (file == null)
                     {
@@ -241,10 +250,7 @@ namespace Finn.ViewModels
                     {
                         // Diff-based sync: keep existing files that still exist
                         // on disk so user-set attributes are preserved.
-                        var oldSynced = CurrentProject.StoredFiles
-                            .Where(x => x.ParentNamn == file.Namn
-                                && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
-                            .ToList();
+                        var oldSynced = GetSyncedAttachedChildren(file, folder.Path);
                         var oldByPath = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
                         foreach (var o in oldSynced)
                             oldByPath.TryAdd(o.Sökväg, o);
@@ -315,10 +321,7 @@ namespace Finn.ViewModels
                                 foreach (var f in additions)
                                 {
                                     if (!acceptedSet.Contains(f.Sökväg)) continue;
-                                    f.ParentNamn = file.Namn;
-                                    f.ParentFile = file;
-                                    f.Uppdrag = file.Uppdrag;
-                                    f.Filtyp = assignedType;
+                                    AttachChildToParent(f, file, assignedType);
                                     CurrentProject.StoredFiles.Add(f);
                                 }
                             }
@@ -332,10 +335,7 @@ namespace Finn.ViewModels
                             // No window — silently add all
                             foreach (var f in additions)
                             {
-                                f.ParentNamn = file.Namn;
-                                f.ParentFile = file;
-                                f.Uppdrag = file.Uppdrag;
-                                f.Filtyp = file.Filtyp;
+                                AttachChildToParent(f, file, file.Filtyp);
                                 CurrentProject.StoredFiles.Add(f);
                             }
                         }

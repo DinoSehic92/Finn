@@ -890,6 +890,29 @@ public partial class MainView : UserControl
         MoveToGroupMenuItem.ItemsSource = _ctx.AvailableGroups;
     }
 
+    private void ReselectFile(FileData? file)
+    {
+        if (file != null && _ctx.FilteredFiles.Contains(file))
+        {
+            FileGrid.SelectedItem = file;
+            FileGrid.ScrollIntoView(file, null);
+            _ctx.SelectFiles([file]);
+            return;
+        }
+
+        if (_ctx.FilteredFiles.Count > 0)
+        {
+            var firstFile = _ctx.FilteredFiles[0];
+            FileGrid.SelectedItem = firstFile;
+            FileGrid.ScrollIntoView(firstFile, null);
+            _ctx.SelectFiles([firstFile]);
+        }
+        else
+        {
+            _ctx.SelectFiles([]);
+        }
+    }
+
     private async void OnRemoveFiles(object? sender, RoutedEventArgs e)
     {
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
@@ -922,25 +945,7 @@ public partial class MainView : UserControl
 
             // Re-select the parent in the grid (when removing an appended file)
             // or select the first remaining file (to avoid stale CurrentFile references)
-            if (parentToSelect != null && _ctx.FilteredFiles.Contains(parentToSelect))
-            {
-                FileGrid.SelectedItem = parentToSelect;
-                FileGrid.ScrollIntoView(parentToSelect, null);
-                _ctx.SelectFiles([parentToSelect]);
-            }
-            else if (_ctx.FilteredFiles.Count > 0)
-            {
-                // Select the first remaining file to establish a valid CurrentFile
-                var firstFile = _ctx.FilteredFiles[0];
-                FileGrid.SelectedItem = firstFile;
-                FileGrid.ScrollIntoView(firstFile, null);
-                _ctx.SelectFiles([firstFile]);
-            }
-            else
-            {
-                // No files left — clear the stale selection
-                _ctx.SelectFiles([]);
-            }
+            ReselectFile(parentToSelect);
         }
     }
 
@@ -1185,8 +1190,7 @@ public partial class MainView : UserControl
         if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsAppendedFile) return;
 
         var parentName = _ctx.CurrentFile.Namn;
-        var existing = _ctx.CurrentProject.StoredFiles
-            .Where(f => f.ParentNamn == parentName)
+        var existing = _ctx.CurrentProject.GetChildren(_ctx.CurrentFile)
             .OrderBy(f => f.Namn);
 
         var window = (MainWindow)TopLevel.GetTopLevel(this)!;
@@ -1490,30 +1494,7 @@ public partial class MainView : UserControl
             var target = files.FirstOrDefault();
             if (target == null) return;
 
-            if (target.IsAppendedFile && target.ParentFile is { } parent)
-            {
-                _ctx.SelectAndNavigateFiles([parent]);
-                SelectInFileGrid(parent, addRecent: false);
-
-                // Expand the parent so the appended file is visible, then select it
-                if (!parent.IsExpanded)
-                {
-                    parent.IsExpanded = true;
-                    _ctx.UpdateFilter();
-                }
-                RequestPreview(target);
-                _pwr.AddRecentFile(target);
-                FileGrid.SelectedItem = target;
-                // Update CurrentFiles so CurrentFile reflects the appended file,
-                // not the parent. Without this, the version tray and context menu
-                // operations act on the parent instead of the selected file.
-                _ctx.SelectFiles([target]);
-            }
-            else
-            {
-                _ctx.SelectAndNavigateFiles(files);
-                SelectInFileGrid(target, addRecent: true);
-            }
+            SelectAuxiliaryFile(target, files, addRecentForTopLevel: true, addRecentForChild: true);
         }
         finally
         {
@@ -1532,31 +1513,38 @@ public partial class MainView : UserControl
             var target = files.FirstOrDefault();
             if (target == null) return;
 
-            if (target.IsAppendedFile && target.ParentFile is { } parent)
-            {
-                _ctx.SelectAndNavigateFiles([parent]);
-                SelectInFileGrid(parent, addRecent: false);
-
-                if (!parent.IsExpanded)
-                {
-                    parent.IsExpanded = true;
-                    _ctx.UpdateFilter();
-                }
-                RequestPreview(target);
-                FileGrid.SelectedItem = target;
-                // Update CurrentFiles so CurrentFile reflects the appended file.
-                _ctx.SelectFiles([target]);
-            }
-            else
-            {
-                _ctx.SelectAndNavigateFiles(files);
-                SelectInFileGrid(target, addRecent: false);
-            }
+            SelectAuxiliaryFile(target, files, addRecentForTopLevel: false, addRecentForChild: false);
         }
         finally
         {
             _isUpdatingSelection = false;
         }
+    }
+
+    private void SelectAuxiliaryFile(FileData target, IReadOnlyList<FileData> selection, bool addRecentForTopLevel, bool addRecentForChild)
+    {
+        if (target.IsAppendedFile && target.ParentFile is { } parent)
+        {
+            _ctx.SelectAndNavigateFiles([parent]);
+            SelectInFileGrid(parent, addRecent: false);
+
+            if (!parent.IsExpanded)
+            {
+                parent.IsExpanded = true;
+                _ctx.UpdateFilter();
+            }
+
+            RequestPreview(target);
+            if (addRecentForChild)
+                _pwr.AddRecentFile(target);
+
+            FileGrid.SelectedItem = target;
+            _ctx.SelectFiles([target]);
+            return;
+        }
+
+        _ctx.SelectAndNavigateFiles(selection.ToList());
+        SelectInFileGrid(target, addRecent: addRecentForTopLevel);
     }
 
     private void OnRecentOpen(object? sender, RoutedEventArgs e)
@@ -2481,13 +2469,16 @@ public partial class MainView : UserControl
             int idx = files.IndexOf(data);
             if (idx >= 0)
             {
-                // Last child if next item is not an appended file, or we're at the end
                 isLastChild = idx == files.Count - 1
-                    || !files[idx + 1].IsAppendedFile;
+                    || !IsSiblingChild(files[idx + 1], data.ParentNamn);
             }
         }
         SetClass(row, "LastChild", isLastChild);
     }
+
+    private static bool IsSiblingChild(FileData file, string parentName) =>
+        file.IsAppendedFile
+        && string.Equals(file.ParentNamn, parentName, StringComparison.OrdinalIgnoreCase);
 
     private static void SetClass(DataGridRow row, string cls, bool active)
     {

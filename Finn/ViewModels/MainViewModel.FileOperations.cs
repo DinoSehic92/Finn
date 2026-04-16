@@ -503,10 +503,10 @@ namespace Finn.ViewModels
                         Sökväg = filepath,
                         IsFromFolder = fromFolder,
                         Uppdrag = CurrentFile.Uppdrag,
-                        Filtyp = CurrentFile.Filtyp,
-                        ParentNamn = CurrentFile.Namn,
-                        ParentFile = CurrentFile
+                        Filtyp = CurrentFile.Filtyp
                     };
+
+                    appended.SetParent(CurrentFile);
 
                     CurrentProject.StoredFiles.Add(appended);
                     CurrentFile.HasChildren = true;
@@ -531,31 +531,6 @@ namespace Finn.ViewModels
                     SortOtherFiles();
                     MarkDirty();
                 }
-            }
-
-
-            public void RemoveAttachedFile(IList<FileData> files)
-            {
-                var affectedSyncFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                foreach (FileData file in files)
-                {
-                    if (file.IsFromFolder && !string.IsNullOrEmpty(file.SyncFolder))
-                        affectedSyncFolders.Add(file.SyncFolder);
-
-                    file.PartOfCollections.Clear();
-                    file.ParentNamn = string.Empty;
-                    file.ParentFile = null;
-                    CurrentProject.StoredFiles.Remove(file);
-                }
-
-                CurrentProject.RefreshHasChildren();
-                UpdateFilter();
-                Collections.SetCollectionContent();
-                MarkDirty();
-
-                if (affectedSyncFolders.Count > 0)
-                    FlagSyncFoldersAsPending(affectedSyncFolders);
             }
 
             public void RemoveOtherFile(OtherData file)
@@ -695,8 +670,7 @@ namespace Finn.ViewModels
                         if (!project.StoredFiles.Contains(file))
                         {
                             // Move children along with the parent
-                            var children = CurrentProject.StoredFiles
-                                .Where(x => x.ParentNamn == file.Namn).ToList();
+                            var children = CurrentProject.GetChildren(file);
                             foreach (var child in children)
                             {
                                 CurrentProject.StoredFiles.Remove(child);
