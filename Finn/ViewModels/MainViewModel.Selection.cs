@@ -29,13 +29,14 @@ namespace Finn.ViewModels
             SignalColumnsChanged();
         }
 
-        private string GetDetachedChildType() => Type != ALL_TYPES ? Type : NEW_TYPE;
+        private string? GetDetachedChildType() => Type != ALL_TYPES ? Type : null;
 
         private bool CanMoveToParent(FileData target, FileData file)
         {
             if (target.IsAppendedFile) return false;
             if (file == target) return false;
             if (file.IsGroup) return false;
+            if (file.HasChildren) return false;
 
             return !string.Equals(file.ParentNamn, target.Namn, StringComparison.OrdinalIgnoreCase);
         }
@@ -44,6 +45,41 @@ namespace Finn.ViewModels
         {
             if (!file.IsAppendedFile) return;
             file.ClearParent(detachedType);
+        }
+
+        /// <summary>
+        /// Detaches all children of <paramref name="parent"/>, making them top-level.
+        /// Does not refresh hierarchy state — the caller is responsible for that.
+        /// </summary>
+        private void DetachChildren(FileData parent, string? detachedType = null)
+        {
+            var children = CurrentProject.GetChildren(parent);
+            foreach (var child in children)
+                DetachChild(child, detachedType);
+        }
+
+        /// <summary>
+        /// Refreshes child state derived from the parent entry, optionally syncing category.
+        /// </summary>
+        private void RefreshChildrenFromParent(FileData parent, bool syncCategory = false)
+        {
+            foreach (var child in CurrentProject.GetChildren(parent))
+            {
+                if (syncCategory)
+                    child.Filtyp = parent.Filtyp;
+
+                child.RefreshParentRelationshipState();
+            }
+        }
+
+        private void NotifyCurrentSelectionStructureChanged()
+        {
+            OnPropertyChanged(nameof(SelectedFileIsTopLevel));
+            OnPropertyChanged(nameof(SelectedFileIsChild));
+            OnPropertyChanged(nameof(SelectedFileIsGroup));
+            OnPropertyChanged(nameof(HasAvailableGroups));
+            OnPropertyChanged(nameof(CanMoveSelectedFiles));
+            OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
         }
 
         private void RefreshHierarchyState(bool refreshCollections = false, bool updateFilter = true)
@@ -120,7 +156,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Renames a group header and updates all children that reference it.
+        /// Renames a group header and updates all children and folder links that reference it.
         /// </summary>
         public void RenameGroup(FileData group, string newName)
         {
@@ -129,12 +165,8 @@ namespace Finn.ViewModels
             newName = EnsureUniqueName(newName, group);
 
             string oldName = group.Namn;
-            var children = CurrentProject.GetChildren(oldName);
             group.Namn = newName;
-
-            // Update ParentNamn on all children that reference the old name
-            foreach (var file in children)
-                file.ParentNamn = newName;
+            UpdateFileLinks(oldName, newName, newPath: null);
 
             RefreshHierarchyState();
             MarkDirty();
@@ -152,8 +184,10 @@ namespace Finn.ViewModels
             file.IsGroup = true;
             file.Sökväg = string.Empty;
             file.OriginalPath = string.Empty;
+            RefreshChildrenFromParent(file, syncCategory: true);
 
             RefreshHierarchyState();
+            NotifyCurrentSelectionStructureChanged();
             MarkDirty();
         }
 
@@ -187,10 +221,7 @@ namespace Finn.ViewModels
         {
             if (group == null || !group.IsGroup) return;
 
-            var children = CurrentProject.GetChildren(group);
-
-            foreach (var child in children)
-                DetachChild(child);
+            DetachChildren(group, GetDetachedChildType());
 
             CurrentProject.StoredFiles.Remove(group);
             PreviewVM.RecentFiles.Remove(group);
@@ -231,6 +262,8 @@ namespace Finn.ViewModels
                     CurrentProject.StoredFiles.Remove(file);
                     continue;
                 }
+
+                file.PartOfCollections.Clear();
 
                 var children = CurrentProject.GetChildren(file);
                 foreach (var child in children)
@@ -278,8 +311,8 @@ namespace Finn.ViewModels
             {
                 file.Filtyp = type;
 
-                // When a group changes category, propagate to its children
-                if (file.IsGroup && file.HasChildren)
+                // Propagate to children so they stay consistent with their parent
+                if (file.HasChildren)
                 {
                     foreach (var child in CurrentProject.GetChildren(file))
                         child.Filtyp = type;

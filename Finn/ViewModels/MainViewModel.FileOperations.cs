@@ -568,7 +568,7 @@ namespace Finn.ViewModels
             /// Fixes child file <see cref="FileData.ParentNamn"/> and folder
             /// <see cref="FolderData.AttachToFile"/> so the links don't break.
             /// </summary>
-            private void UpdateFileLinks(string oldName, string newName, string? newPath)
+            internal void UpdateFileLinks(string oldName, string newName, string? newPath)
             {
                 if (string.Equals(oldName, newName, StringComparison.Ordinal))
                     return;
@@ -639,21 +639,23 @@ namespace Finn.ViewModels
                 if (CurrentFile == null || string.IsNullOrWhiteSpace(newPath))
                     return;
 
+                bool wasGroup = CurrentFile.IsGroup;
                 string oldName = CurrentFile.Namn;
                 string newName = System.IO.Path.GetFileNameWithoutExtension(newPath);
                 CurrentFile.Sökväg = newPath;
                 CurrentFile.Namn = newName;
                 CurrentFile.IsFileMissing = !fileExists;
 
+                UpdateFileLinks(oldName, newName, newPath);
+
                 // Clear group status — the file now has a real path
-                if (CurrentFile.IsGroup)
+                if (wasGroup)
                 {
                     CurrentFile.IsGroup = false;
-                    CurrentProject.RefreshHasChildren();
-                    OnPropertyChanged(nameof(AvailableGroups));
+                    RefreshChildrenFromParent(CurrentFile, syncCategory: true);
+                    RefreshHierarchyState();
+                    NotifyCurrentSelectionStructureChanged();
                 }
-
-                UpdateFileLinks(oldName, newName, newPath);
                 MarkDirty();
             }
 
@@ -686,6 +688,8 @@ namespace Finn.ViewModels
                         }
                     }
 
+                    CurrentProject.WireParentReferences();
+                    project.WireParentReferences();
                     CurrentProject.RefreshHasChildren();
                     CurrentProject.SetFiletypeList();
                     project.RefreshHasChildren();

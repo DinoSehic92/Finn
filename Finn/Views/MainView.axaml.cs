@@ -524,7 +524,7 @@ public partial class MainView : UserControl
             return;
 
         // Only start a drag for top-level, non-group files
-        if (_ctx.CurrentFiles.Any(f => f.IsGroup || f.IsAppendedFile)) return;
+        if (_ctx.CurrentFiles.Any(f => !f.IsRegularFile)) return;
 
         _isDraggingToGroup = true;
         FileGrid.Cursor = new Cursor(StandardCursorType.DragMove);
@@ -1258,7 +1258,7 @@ public partial class MainView : UserControl
             // Only auto-move when multiple files are explicitly selected.
             // A single selection is usually just the user browsing, not
             // an intentional "group these files" action.
-            var selectedFiles = _ctx.CurrentFiles?.Where(f => !f.IsAppendedFile && !f.IsGroup).ToList() ?? [];
+            var selectedFiles = _ctx.CurrentFiles?.Where(f => f.IsRegularFile).ToList() ?? [];
             bool autoMove = selectedFiles.Count > 1;
 
             // If all selected files share the same category, inherit it

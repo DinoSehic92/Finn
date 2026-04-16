@@ -62,16 +62,21 @@ namespace Finn.Model
         public void WireParentReferences()
         {
             var byName = new Dictionary<string, FileData>(System.StringComparer.OrdinalIgnoreCase);
-            foreach (var file in StoredFiles)
+            foreach (var file in StoredFiles.Where(f => !f.IsAppendedFile))
                 byName.TryAdd(file.Namn, file);
 
             foreach (var file in StoredFiles)
             {
-                if (!string.IsNullOrEmpty(file.ParentNamn)
-                    && byName.TryGetValue(file.ParentNamn, out var parent))
+                if (!file.IsAppendedFile)
                 {
-                    file.ParentFile = parent;
+                    file.ParentFile = null;
+                    continue;
                 }
+
+                file.ParentFile = byName.TryGetValue(file.ParentNamn, out var parent)
+                    ? parent
+                    : null;
+                file.RefreshParentRelationshipState();
             }
         }
 

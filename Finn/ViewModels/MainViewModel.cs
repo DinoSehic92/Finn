@@ -881,7 +881,7 @@ namespace Finn.ViewModels
                 set { filteredFiles = value; OnPropertyChanged(nameof(FilteredFiles)); OnPropertyChanged(nameof(NrFilteredFiles)); }
             }
 
-            public int NrFilteredFiles => FilteredFiles?.Count(f => !f.IsAppendedFile && !f.IsGroup) ?? 0;
+            public int NrFilteredFiles => FilteredFiles?.Count(f => f.IsRegularFile) ?? 0;
             public int NrSelectedFiles => CurrentFiles?.Count ?? 0;
 
             private IList<FileData> currentFiles = null;
@@ -949,8 +949,7 @@ namespace Finn.ViewModels
             /// <summary>
             /// True when there are groups in the project to move files into.
             /// </summary>
-            public bool HasAvailableGroups =>
-                CurrentProject?.StoredFiles.Any(f => f.IsGroup && !f.IsAppendedFile) == true;
+            public bool HasAvailableGroups => AvailableGroups.Count > 0;
 
             /// <summary>
             /// True when the Category menu should be shown.

@@ -156,7 +156,11 @@ namespace Finn.Model
         public bool IsGroup
         {
             get => _isGroup;
-            set => SetProperty(ref _isGroup, value);
+            set
+            {
+                if (SetProperty(ref _isGroup, value))
+                    OnPropertyChanged(nameof(IsRegularFile));
+            }
         }
 
         /// <summary>
@@ -182,6 +186,24 @@ namespace Finn.Model
         public bool IsStyledAsAttached => ChildKind == ChildKind.AttachedChild;
 
         /// <summary>
+        /// True when this is a regular top-level file — not a child and not a group header.
+        /// Useful for guards that should exclude both attached children and group placeholders.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsRegularFile => !IsAppendedFile && !IsGroup;
+
+        /// <summary>
+        /// Raises change notifications for properties derived from the parent relationship.
+        /// Call this when the parent entry changes between group and regular-file behavior.
+        /// </summary>
+        public void RefreshParentRelationshipState()
+        {
+            OnPropertyChanged(nameof(ChildKind));
+            OnPropertyChanged(nameof(IsGroupChild));
+            OnPropertyChanged(nameof(IsStyledAsAttached));
+        }
+
+        /// <summary>
         /// Attaches this file as a child of <paramref name="parent"/>,
         /// inheriting its category when the parent is a group.
         /// </summary>
@@ -193,9 +215,8 @@ namespace Finn.Model
                 Filtyp = parent.Filtyp;
 
             OnPropertyChanged(nameof(IsAppendedFile));
-            OnPropertyChanged(nameof(ChildKind));
-            OnPropertyChanged(nameof(IsGroupChild));
-            OnPropertyChanged(nameof(IsStyledAsAttached));
+            OnPropertyChanged(nameof(IsRegularFile));
+            RefreshParentRelationshipState();
         }
 
         /// <summary>
@@ -213,9 +234,8 @@ namespace Finn.Model
                 Filtyp = detachedType;
 
             OnPropertyChanged(nameof(IsAppendedFile));
-            OnPropertyChanged(nameof(ChildKind));
-            OnPropertyChanged(nameof(IsGroupChild));
-            OnPropertyChanged(nameof(IsStyledAsAttached));
+            OnPropertyChanged(nameof(IsRegularFile));
+            RefreshParentRelationshipState();
         }
 
         #endregion
