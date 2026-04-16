@@ -174,29 +174,19 @@
 		<Style Selector="DataGrid.ThumbnailGrid DataGridRow">
 			<Setter Property="Transitions">
 				<Transitions>
-					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+                  <DoubleTransition Property="Opacity" Duration="0:0:0.28" Easing="CubicEaseOut"/>
 				</Transitions>
 			</Setter>
 		</Style>
 
-		<!-- Thin separator below group headers -->
-		<Style Selector="DataGridRow.GroupHeader">
-			<Setter Property="BorderBrush">
-				<Setter.Value>
-					<SolidColorBrush Color="Gray" Opacity="0.50"/>
-				</Setter.Value>
-			</Setter>
-			<Setter Property="BorderThickness" Value="0,0,0,1"/>
+        <!-- Group placeholders stay visually normal; hierarchy is shown by the spine/chevron only -->
+		<Style Selector="DataGridRow.GroupRow">
+            <Setter Property="FontWeight" Value="SemiBold"/>
 		</Style>
 
-		<!-- Thin separator below last attached child in a group -->
-		<Style Selector="DataGridRow.LastChild">
-			<Setter Property="BorderBrush">
-				<Setter.Value>
-					<SolidColorBrush Color="Gray" Opacity="0.50"/>
-				</Setter.Value>
-			</Setter>
-			<Setter Property="BorderThickness" Value="0,0,0,1"/>
+		<!-- Direct file attachments are slightly subdued; group children stay normal -->
+		<Style Selector="DataGridRow.AttachedChildRow">
+			<Setter Property="Opacity" Value="0.86"/>
 		</Style>
 	</UserControl.Styles>
 
@@ -629,9 +619,7 @@
 									<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"		IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"				IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Text"		IsVisible="{Binding HasPlainText}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Image"		IsVisible="{Binding HasThumbnail}"			IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Folder"		IsVisible="{Binding IsFromFolder}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Collections"	IsVisible="{Binding IsPartOfCollection}"	IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="History"		IsVisible="{Binding HasVersions}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Pen"			IsVisible="{Binding HasAnnotations}"		IconVariant="Regular" FontSize="14"/>
@@ -657,26 +645,34 @@
 						<DataGridTemplateColumn Header="Namn" Width="Auto" MinWidth="120">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate x:DataType="model:FileData">
-									<StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-										<!-- Indent for appended files -->
-										<Panel Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"/>
-										<!-- Expand/collapse chevron for parent files with children -->
-										<Button Width="18" Height="18" Margin="0,0,2,0" Padding="0" MinWidth="0" MinHeight="0"
+                               <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Stretch">
+                                  <Panel Grid.Column="0" Width="18" Margin="0,0,2,0" VerticalAlignment="Stretch"
+										   IsVisible="{Binding HasHierarchyMarker}">
+                                      <Border Width="2" Margin="0,-3,0,-3" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+												IsVisible="{Binding IsAppendedFile}">
+											<Border.Background>
+												<SolidColorBrush Color="Gray" Opacity="0.24"/>
+											</Border.Background>
+										</Border>
+										<Button Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
 												Background="Transparent" BorderThickness="0" Cursor="Hand"
-												IsVisible="{Binding HasChildren}" Click="OnToggleGroupExpanded">
+                                                IsVisible="{Binding HasChildren}" Click="OnToggleGroupExpanded" DoubleTapped="OnToggleGroupExpandedDoubleTapped">
 											<ic:SymbolIcon Symbol="ChevronRight" FontSize="11" Opacity="0.5"
-														   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
+													   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
 										</Button>
-										<TextBlock Text="{Binding Namn}" VerticalAlignment="Center"
-																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
-																   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-																   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
-														<TextBlock Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
-																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																   Opacity="0.45"
-																   IsVisible="{Binding HasChildren}"/>
-									</StackPanel>
+									</Panel>
+                                    <Panel Grid.Column="1" Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"
+										   IsVisible="{Binding IsAppendedFile}"/>
+									<TextBlock Grid.Column="2" Text="{Binding Namn}" VerticalAlignment="Center"
+											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+											   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
+											   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+                                             Opacity="{Binding IsChild, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+                                   <TextBlock Grid.Column="3" Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
+											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+											   Opacity="0.45"
+											   IsVisible="{Binding HasChildren}"/>
+								</Grid>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
@@ -752,13 +748,6 @@
 
 						<MenuItem Header="Favorite" Command="{Binding Collections.MarkFavorite}" IsVisible="{Binding FileSelected}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Star"/></MenuItem.Icon>
-						</MenuItem>
-
-						<MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" IsVisible="{Binding CanCategorizeSelectedFiles}">
-							<MenuItem.Icon><ic:SymbolIcon Symbol="Folder"/></MenuItem.Icon>
-							<MenuItem.ItemTemplate>
-								<DataTemplate><TextBlock Text="{ReflectionBinding StringFormat=' - {0}'}"/></DataTemplate>
-							</MenuItem.ItemTemplate>
 						</MenuItem>
 
 						<MenuItem Header="Color" IsVisible="{Binding FileSelected}">
@@ -905,7 +894,7 @@
 									</MenuItem>
 										</MenuItem>
 
-						<MenuItem Header="Group">
+                       <MenuItem Header="Organize">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="GroupList"/></MenuItem.Icon>
 							<MenuItem Header="New Group" Click="OnNewGroup">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Add"/></MenuItem.Icon>
@@ -921,14 +910,21 @@
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Attach"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Detach" Click="OnDetachFiles" IsVisible="{Binding SelectedFileIsChild}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowEject"/></MenuItem.Icon>
+								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowEject"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Rename Group" Click="OnRenameGroup" IsVisible="{Binding SelectedFileIsGroup}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
 								</MenuItem>
-								<MenuItem Header="Rename Group" Click="OnRenameGroup" IsVisible="{Binding SelectedFileIsGroup}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
-									</MenuItem>
-								<MenuItem Header="Dissolve Group" Click="OnDissolveGroup" IsVisible="{Binding SelectedFileIsGroup}">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="DismissCircle"/></MenuItem.Icon>
-								</MenuItem>
+							<MenuItem Header="Dissolve Group" Click="OnDissolveGroup" IsVisible="{Binding SelectedFileIsGroup}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DismissCircle"/></MenuItem.Icon>
+							</MenuItem>
+						    <MenuItem Header="Category" ItemsSource="{Binding CurrentProject.AllowedTypes}" Click="EditType" IsVisible="{Binding CanCategorizeSelectedFiles}">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Folder"/></MenuItem.Icon>
+								<MenuItem.ItemTemplate>
+									<DataTemplate><TextBlock Text="{ReflectionBinding StringFormat=' - {0}'}"/></DataTemplate>
+								</MenuItem.ItemTemplate>
+							</MenuItem>
+
 						</MenuItem>
 
 						<Separator/>

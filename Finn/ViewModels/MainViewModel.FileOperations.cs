@@ -667,7 +667,7 @@ namespace Finn.ViewModels
                     foreach (FileData file in CurrentFiles.ToList())
                     {
                         // Skip appended files — they move with their parent
-                        if (file.IsAppendedFile) continue;
+                        if (file.IsChild) continue;
 
                         if (!project.StoredFiles.Contains(file))
                         {

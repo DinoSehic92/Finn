@@ -907,6 +907,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(CanReplaceSelectedFiles));
                     OnPropertyChanged(nameof(CanCacheSelectedFiles));
                     OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
+                    OnPropertyChanged(nameof(HasAvailableParents));
                     OnPropertyChanged(nameof(SelectedFileIsNotSketch));
                 }
             }
@@ -920,7 +921,7 @@ namespace Finn.ViewModels
             /// the parent's other-file attachments remain visible.
             /// </summary>
             public FileData? OtherFilesOwner =>
-                CurrentFile is { IsAppendedFile: true, ParentFile: { } parent } ? parent : CurrentFile;
+                CurrentFile is { IsChild: true, ParentFile: { } parent } ? parent : CurrentFile;
 
             public bool AllSelectedFilesHaveVersions =>
                 CurrentFiles != null && CurrentFiles.Count > 0 && CurrentFiles.All(f => f.HasVersions);
@@ -930,14 +931,14 @@ namespace Finn.ViewModels
             /// Used to hide context menu items that don't apply to appended files.
             /// </summary>
             public bool SelectedFileIsTopLevel =>
-                CurrentFile != null && !CurrentFile.IsAppendedFile;
+                CurrentFile?.IsTopLevel == true;
 
             /// <summary>
             /// True when the current selection is a child file (inside a group or attached).
             /// Shows the "Detach" context menu item.
             /// </summary>
             public bool SelectedFileIsChild =>
-                CurrentFile != null && CurrentFile.IsAppendedFile;
+                CurrentFile?.IsChild == true;
 
             /// <summary>
             /// True when the current selection is a group header.
@@ -947,9 +948,9 @@ namespace Finn.ViewModels
                 CurrentFile != null && CurrentFile.IsGroup;
 
             /// <summary>
-            /// True when there are groups in the project to move files into.
+            /// True when there are parent targets in the project to move files into.
             /// </summary>
-            public bool HasAvailableGroups => AvailableGroups.Count > 0;
+            public bool HasAvailableGroups => HasAvailableParents;
 
             /// <summary>
             /// True when the Category menu should be shown.
@@ -957,7 +958,7 @@ namespace Finn.ViewModels
             /// fixed category that should not be changed).
             /// </summary>
             public bool CanCategorizeSelectedFiles =>
-                CurrentFile != null && !CurrentFile.IsAppendedFile && !CurrentFile.IsSketch;
+                CurrentFile != null && CurrentFile.IsTopLevel && !CurrentFile.IsSketch;
 
             /// <summary>
             /// True when the selected file is a real file (not a sketch).
@@ -974,7 +975,7 @@ namespace Finn.ViewModels
             /// </summary>
             public bool CanMoveSelectedFiles =>
                 CurrentFiles != null && CurrentFiles.Count > 0
-                && CurrentFiles.All(f => !f.IsAppendedFile && !f.IsFromFolder);
+                && CurrentFiles.All(f => f.IsTopLevel && !f.IsFromFolder);
 
             /// <summary>
             /// True when the selected file is local (path starts with C:).

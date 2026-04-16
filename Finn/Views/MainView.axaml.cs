@@ -552,7 +552,7 @@ public partial class MainView : UserControl
         if (hit is not Visual visual) return null;
 
         var row = visual.FindAncestorOfType<DataGridRow>();
-        if (row?.DataContext is FileData data && (data.IsGroup || data.HasChildren) && !data.IsAppendedFile)
+        if (row?.DataContext is FileData data && data.IsParent)
         {
             // Don't allow dropping onto a file that's part of the selection
             if (_ctx.CurrentFiles?.Contains(data) == true) return null;
@@ -879,7 +879,7 @@ public partial class MainView : UserControl
 
     /// <summary>
     /// Prevents the file grid context menu from opening when no file is selected.
-    /// Refreshes dynamic submenu sources like AvailableGroups.
+    /// Refreshes dynamic submenu sources like AvailableParents.
     /// </summary>
     private void OnFileGridContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
@@ -887,7 +887,7 @@ public partial class MainView : UserControl
         // even before any files exist. Items that require a selection
         // are hidden via IsVisible bindings that check FileSelected,
         // SelectedFileIsTopLevel, etc.
-        MoveToGroupMenuItem.ItemsSource = _ctx.AvailableGroups;
+        MoveToGroupMenuItem.ItemsSource = _ctx.AvailableParents;
     }
 
     private void ReselectFile(FileData? file)
@@ -1187,7 +1187,7 @@ public partial class MainView : UserControl
 
     private async void OnAttachFiles(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsAppendedFile) return;
+        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsChild) return;
 
         var parentName = _ctx.CurrentFile.Namn;
         var existing = _ctx.CurrentProject.GetChildren(_ctx.CurrentFile)
@@ -1241,6 +1241,11 @@ public partial class MainView : UserControl
             _ctx.ToggleExpansionInPlace(file);
             UpdateRowColor();
         }
+    }
+
+    private void OnToggleGroupExpandedDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+    {
+        e.Handled = true;
     }
 
     private async void OnNewGroup(object? sender, RoutedEventArgs e)
@@ -2387,7 +2392,7 @@ public partial class MainView : UserControl
         if (_trackedRows.Add(row))
             row.DataContextChanged += OnRowDataContextChanged;
         BindRowToFileData(row, row.DataContext as FileData);
-        ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
+        ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true);
     }
 
     private void OnRowDataContextChanged(object? sender, EventArgs e)
@@ -2395,7 +2400,7 @@ public partial class MainView : UserControl
         if (sender is DataGridRow row)
         {
             BindRowToFileData(row, row.DataContext as FileData);
-            ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
+            ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true);
         }
     }
 
@@ -2412,8 +2417,10 @@ public partial class MainView : UserControl
         PropertyChangedEventHandler handler = (_, args) =>
         {
             if (args.PropertyName is nameof(FileData.IsFileMissing) or nameof(FileData.Färg) or nameof(FileData.Sökväg)
-                or nameof(FileData.HasChildren) or nameof(FileData.IsExpanded))
-                Dispatcher.UIThread.Post(() => ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true));
+                or nameof(FileData.HasChildren) or nameof(FileData.IsExpanded)
+                or nameof(FileData.IsGroup) or nameof(FileData.IsAppendedFile)
+                or nameof(FileData.IsStyledAsAttached))
+                Dispatcher.UIThread.Post(() => ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true));
         };
         newData.PropertyChanged += handler;
         _rowBindings[row] = (newData, handler);
@@ -2433,19 +2440,23 @@ public partial class MainView : UserControl
     private void UpdateRowColor()
     {
         foreach (var row in _trackedRows)
-            ApplyRowClasses(row, _ctx?.UI?.ColorTagDot == true);
+            ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true);
     }
 
     private static readonly string[] AllColorClasses =
         ["Yellow", "Orange", "Brown", "Green", "Blue", "Red", "Magenta"];
 
-    private void ApplyRowClasses(DataGridRow row, bool dotMode = false)
+    private bool IsMainFileGridRow(DataGridRow row) => row.FindAncestorOfType<DataGrid>() == FileGrid;
+
+    private void ApplyRowClasses(DataGridRow row, bool isMainFileGrid = false, bool dotMode = false)
     {
         if (row.DataContext is not FileData data)
         {
             row.Classes.Remove("RedForeground");
-            row.Classes.Remove("GroupHeader");
-            row.Classes.Remove("LastChild");
+            row.Classes.Remove("ParentRow");
+            row.Classes.Remove("GroupRow");
+            row.Classes.Remove("ChildRow");
+            row.Classes.Remove("AttachedChildRow");
             foreach (var c in AllColorClasses)
                 row.Classes.Remove(c);
             return;
@@ -2459,26 +2470,22 @@ public partial class MainView : UserControl
         foreach (var c in AllColorClasses)
             SetClass(row, c, c == wantColor);
 
-        // Group separator lines
-        bool isGroupHeader = data.HasChildren;
-        SetClass(row, "GroupHeader", isGroupHeader);
-
-        bool isLastChild = false;
-        if (data.IsAppendedFile && _ctx?.FilteredFiles is { } files)
+        if (isMainFileGrid)
         {
-            int idx = files.IndexOf(data);
-            if (idx >= 0)
-            {
-                isLastChild = idx == files.Count - 1
-                    || !IsSiblingChild(files[idx + 1], data.ParentNamn);
-            }
+            bool isParentRow = data.HasChildren || data.IsGroup;
+            SetClass(row, "ParentRow", isParentRow);
+            SetClass(row, "GroupRow", data.IsGroup);
+            SetClass(row, "ChildRow", data.IsAppendedFile);
+            SetClass(row, "AttachedChildRow", data.IsStyledAsAttached);
         }
-        SetClass(row, "LastChild", isLastChild);
+        else
+        {
+            row.Classes.Remove("ParentRow");
+            row.Classes.Remove("GroupRow");
+            row.Classes.Remove("ChildRow");
+            row.Classes.Remove("AttachedChildRow");
+        }
     }
-
-    private static bool IsSiblingChild(FileData file, string parentName) =>
-        file.IsAppendedFile
-        && string.Equals(file.ParentNamn, parentName, StringComparison.OrdinalIgnoreCase);
 
     private static void SetClass(DataGridRow row, string cls, bool active)
     {

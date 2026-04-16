@@ -149,6 +149,24 @@ namespace Finn.Model
         public bool IsAppendedFile => !string.IsNullOrEmpty(_parentNamn);
 
         /// <summary>
+        /// True when this file is a child in the hierarchy.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsChild => IsAppendedFile;
+
+        /// <summary>
+        /// True when this file is a top-level hierarchy node that can own children.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsParent => !IsChild && (IsGroup || HasChildren);
+
+        /// <summary>
+        /// True when this file is a top-level item, regardless of whether it is a group.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsTopLevel => !IsChild;
+
+        /// <summary>
         /// True when this entry is a group header (a container for other files).
         /// Groups behave like placeholders with children — they have no file
         /// path but carry all standard attributes (color, tag, category, etc.).
@@ -159,7 +177,11 @@ namespace Finn.Model
             set
             {
                 if (SetProperty(ref _isGroup, value))
+                {
                     OnPropertyChanged(nameof(IsRegularFile));
+                    OnPropertyChanged(nameof(IsParent));
+                    OnPropertyChanged(nameof(HasHierarchyMarker));
+                }
             }
         }
 
@@ -168,7 +190,7 @@ namespace Finn.Model
         /// </summary>
         [JsonIgnore]
         public ChildKind ChildKind =>
-            !IsAppendedFile         ? ChildKind.None :
+            !IsChild                ? ChildKind.None :
             ParentFile?.IsGroup == true ? ChildKind.GroupChild :
                                           ChildKind.AttachedChild;
 
@@ -190,7 +212,14 @@ namespace Finn.Model
         /// Useful for guards that should exclude both attached children and group placeholders.
         /// </summary>
         [JsonIgnore]
-        public bool IsRegularFile => !IsAppendedFile && !IsGroup;
+        public bool IsRegularFile => IsTopLevel && !IsGroup;
+
+        /// <summary>
+        /// True when this row should reserve leading space for a hierarchy marker.
+        /// Parents use it for the chevron, children for the spine.
+        /// </summary>
+        [JsonIgnore]
+        public bool HasHierarchyMarker => IsParent || IsChild;
 
         /// <summary>
         /// Raises change notifications for properties derived from the parent relationship.
@@ -198,6 +227,10 @@ namespace Finn.Model
         /// </summary>
         public void RefreshParentRelationshipState()
         {
+            OnPropertyChanged(nameof(IsChild));
+            OnPropertyChanged(nameof(IsTopLevel));
+            OnPropertyChanged(nameof(IsParent));
+            OnPropertyChanged(nameof(HasHierarchyMarker));
             OnPropertyChanged(nameof(ChildKind));
             OnPropertyChanged(nameof(IsGroupChild));
             OnPropertyChanged(nameof(IsStyledAsAttached));
@@ -215,7 +248,10 @@ namespace Finn.Model
                 Filtyp = parent.Filtyp;
 
             OnPropertyChanged(nameof(IsAppendedFile));
+            OnPropertyChanged(nameof(IsChild));
+            OnPropertyChanged(nameof(IsTopLevel));
             OnPropertyChanged(nameof(IsRegularFile));
+            OnPropertyChanged(nameof(HasHierarchyMarker));
             RefreshParentRelationshipState();
         }
 
@@ -234,8 +270,26 @@ namespace Finn.Model
                 Filtyp = detachedType;
 
             OnPropertyChanged(nameof(IsAppendedFile));
+            OnPropertyChanged(nameof(IsChild));
+            OnPropertyChanged(nameof(IsTopLevel));
             OnPropertyChanged(nameof(IsRegularFile));
+            OnPropertyChanged(nameof(HasHierarchyMarker));
             RefreshParentRelationshipState();
+        }
+
+        /// <summary>
+        /// Transfers all "Other files" attachments from this file to <paramref name="target"/>.
+        /// </summary>
+        public void TransferOtherFilesTo(FileData target)
+        {
+            if (target == null || ReferenceEquals(this, target) || _otherFiles.Count == 0)
+                return;
+
+            foreach (var item in _otherFiles.ToList())
+            {
+                _otherFiles.Remove(item);
+                target.OtherFiles.Add(item);
+            }
         }
 
         #endregion
@@ -439,7 +493,10 @@ namespace Finn.Model
             }
         }
 
-        public bool HasAppendedFiles => _hasChildren || _otherFiles.Count > 0;
+        /// <summary>
+        /// True when this file has "Other files" attached to it.
+        /// </summary>
+        public bool HasAppendedFiles => _otherFiles.Count > 0;
 
         private bool _hasChildren;
         private int _childFileCount;
@@ -456,7 +513,8 @@ namespace Finn.Model
                 if (_hasChildren == value) return;
                 _hasChildren = value;
                 OnPropertyChanged(nameof(HasChildren));
-                OnPropertyChanged(nameof(HasAppendedFiles));
+                OnPropertyChanged(nameof(IsParent));
+                OnPropertyChanged(nameof(HasHierarchyMarker));
             }
         }
 

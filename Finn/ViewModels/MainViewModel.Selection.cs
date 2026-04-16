@@ -33,9 +33,9 @@ namespace Finn.ViewModels
 
         private bool CanMoveToParent(FileData target, FileData file)
         {
-            if (target.IsAppendedFile) return false;
+            if (target.IsChild) return false;
             if (file == target) return false;
-            if (file.IsGroup) return false;
+            if (!file.IsRegularFile) return false;
             if (file.HasChildren) return false;
 
             return !string.Equals(file.ParentNamn, target.Namn, StringComparison.OrdinalIgnoreCase);
@@ -78,8 +78,11 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(SelectedFileIsChild));
             OnPropertyChanged(nameof(SelectedFileIsGroup));
             OnPropertyChanged(nameof(HasAvailableGroups));
+            OnPropertyChanged(nameof(HasAvailableParents));
             OnPropertyChanged(nameof(CanMoveSelectedFiles));
             OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
+            OnPropertyChanged(nameof(AvailableGroups));
+            OnPropertyChanged(nameof(HasAvailableParents));
         }
 
         private void RefreshHierarchyState(bool refreshCollections = false, bool updateFilter = true)
@@ -90,6 +93,7 @@ namespace Finn.ViewModels
             if (refreshCollections)
                 Collections.SetCollectionContent();
 
+            OnPropertyChanged(nameof(AvailableParents));
             OnPropertyChanged(nameof(AvailableGroups));
 
             if (updateFilter)
@@ -130,6 +134,7 @@ namespace Finn.ViewModels
             {
                 if (!CanMoveToParent(target, file)) continue;
                 file.SetParent(target);
+                file.TransferOtherFilesTo(target);
             }
 
             target.IsExpanded = true;
@@ -231,15 +236,22 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Returns all top-level targets that can accept nested children.
-        /// Includes true groups plus regular parent files that already have children.
+        /// Returns all top-level parent targets that can accept nested children.
+        /// Includes placeholder parents plus regular files that already have children.
         /// </summary>
-        public IReadOnlyList<FileData> AvailableGroups =>
+        public IReadOnlyList<FileData> AvailableParents =>
             CurrentProject.StoredFiles
-                .Where(f => !f.IsAppendedFile && (f.IsGroup || f.HasChildren))
+                .Where(f => f.IsParent)
                 .OrderByDescending(f => f.IsGroup)
                 .ThenBy(f => f.Namn)
                 .ToList();
+
+        public IReadOnlyList<FileData> AvailableGroups => AvailableParents;
+
+        /// <summary>
+        /// True when there are parent targets in the project to move files into.
+        /// </summary>
+        public bool HasAvailableParents => AvailableParents.Count > 0;
 
         public void RemoveSelectedFiles()
         {
@@ -307,7 +319,7 @@ namespace Finn.ViewModels
         public void SetTypeSelected(string type)
         {
             if (CurrentFiles == null) return;
-            foreach (FileData file in CurrentFiles.Where(f => !f.IsAppendedFile))
+            foreach (FileData file in CurrentFiles.Where(f => f.IsTopLevel))
             {
                 file.Filtyp = type;
 
@@ -326,7 +338,7 @@ namespace Finn.ViewModels
 
         public void UpdateFilter()
         {
-            var topLevel = CurrentProject.StoredFiles.Where(x => !x.IsAppendedFile);
+            var topLevel = CurrentProject.StoredFiles.Where(x => x.IsTopLevel);
             var filtered = Type != ALL_TYPES
                 ? topLevel.Where(x => x.Filtyp == Type)
                 : topLevel;
@@ -435,8 +447,8 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// Collapses any currently expanded non-group file and expands the
-        /// selected parent. Groups keep their user-toggled expansion state.
+        /// Expands the selected parent and leaves other parents in their
+        /// current user-toggled expansion state.
         /// </summary>
         private void SyncExpansionToSelection()
         {
@@ -460,17 +472,6 @@ namespace Finn.ViewModels
                         file.IsExpanded = true;
                         changed = true;
                     }
-                    continue;
-                }
-
-                // Groups keep their current expansion state;
-                // non-group parents collapse when not active.
-                if (file.IsGroup) continue;
-
-                if (file.IsExpanded)
-                {
-                    file.IsExpanded = false;
-                    changed = true;
                 }
             }
 
