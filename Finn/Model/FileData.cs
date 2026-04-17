@@ -542,6 +542,8 @@ namespace Finn.Model
         public string ChildFileCountDisplay => _childFileCount > 0 ? $"({_childFileCount})" : string.Empty;
 
         private bool _isExpanded = true;
+        private bool _isLastChild;
+
         /// <summary>
         /// True when this file's appended children are shown inline in the main grid.
         /// Defaults to true so groups start expanded; user can collapse via chevron.
@@ -555,6 +557,23 @@ namespace Finn.Model
                 if (_isExpanded == value) return;
                 _isExpanded = value;
                 OnPropertyChanged(nameof(IsExpanded));
+            }
+        }
+
+        /// <summary>
+        /// True when this child is the last sibling under its parent (alphabetically).
+        /// Used to truncate the vertical spine so it doesn't bleed into the next
+        /// top-level row. Set by <see cref="ProjectData.RefreshHasChildren"/>.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsLastChild
+        {
+            get => _isLastChild;
+            set
+            {
+                if (_isLastChild == value) return;
+                _isLastChild = value;
+                OnPropertyChanged(nameof(IsLastChild));
             }
         }
 

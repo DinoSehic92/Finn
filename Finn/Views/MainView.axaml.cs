@@ -887,6 +887,8 @@ public partial class MainView : UserControl
         // even before any files exist. Items that require a selection
         // are hidden via IsVisible bindings that check FileSelected,
         // SelectedFileIsTopLevel, etc.
+        // Force-refresh the submenu because context menus are detached
+        // from the visual tree and may not pick up binding updates.
         MoveToGroupMenuItem.ItemsSource = _ctx.AvailableParents;
     }
 
@@ -1324,7 +1326,11 @@ public partial class MainView : UserControl
     {
         if (sender is MenuItem { SelectedItem: FileData group })
         {
-            _ctx.MoveFilesToParent(group, _ctx.CurrentFiles.ToList());
+            var files = _ctx.CurrentFiles.ToList();
+            int moved = _ctx.MoveFilesToParent(group, files);
+            int skipped = files.Count - moved;
+            if (skipped > 0 && moved > 0)
+                _ctx.PreviewVM.StatusMessage = $"Attached {moved} file(s) to \"{group.Namn}\" \u2014 {skipped} skipped";
         }
     }
 

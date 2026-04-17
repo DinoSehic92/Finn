@@ -333,25 +333,35 @@ namespace Finn.Model
         /// <summary>
         /// Refreshes <see cref="FileData.HasChildren"/> on every top-level file
         /// by checking whether any child file references it via <see cref="FileData.ParentNamn"/>.
+        /// Also computes <see cref="FileData.IsLastChild"/> for each child so the
+        /// vertical spine can be truncated on the last sibling.
         /// </summary>
         public void RefreshHasChildren()
         {
-            // Count children per parent name for both HasChildren and ChildFileCount
-            var childCounts = StoredFiles
+            // Group children by parent name
+            var childGroups = StoredFiles
                 .Where(f => f.IsAppendedFile)
                 .GroupBy(f => f.ParentNamn, System.StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.Count(), System.StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(g => g.Key, g => g.OrderBy(f => f.Namn).ToList(), System.StringComparer.OrdinalIgnoreCase);
 
             foreach (var file in StoredFiles)
             {
                 if (!file.IsAppendedFile)
                 {
-                    int count = childCounts.GetValueOrDefault(file.Namn, 0);
+                    var children = childGroups.GetValueOrDefault(file.Namn);
+                    int count = children?.Count ?? 0;
                     file.HasChildren = count > 0;
                     file.ChildFileCount = count;
                     if (!file.HasChildren)
                         file.IsExpanded = false;
                 }
+            }
+
+            // Mark the last child in each sibling group
+            foreach (var group in childGroups.Values)
+            {
+                for (int i = 0; i < group.Count; i++)
+                    group[i].IsLastChild = i == group.Count - 1;
             }
         }
 

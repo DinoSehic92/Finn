@@ -406,7 +406,7 @@
 					</Button.Flyout>
 				</Button>
 
-				<Button Name="GroupButton" ToolTip.Tip="New Group" Height="28" Width="28" Padding="0" Click="OnNewGroup">
+				<Button Name="GroupButton" ToolTip.Tip="New Group — select multiple files first to group them together" Height="28" Width="28" Padding="0" Click="OnNewGroup">
 					<ic:SymbolIcon Symbol="GroupList" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
@@ -648,7 +648,8 @@
                                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Stretch">
                                   <Panel Grid.Column="0" Width="18" Margin="0,0,2,0" VerticalAlignment="Stretch"
 										   IsVisible="{Binding HasHierarchyMarker}">
-                                      <Border Width="2" Margin="0,-3,0,-3" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+									  <Border Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+												Margin="{Binding IsLastChild, Converter={x:Static converter:AppendedFileStyleConverter.SpineMargin}}"
 												IsVisible="{Binding IsAppendedFile}">
 											<Border.Background>
 												<SolidColorBrush Color="Gray" Opacity="0.24"/>
@@ -668,10 +669,9 @@
 											   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
 											   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
                                              Opacity="{Binding IsChild, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
-                                   <TextBlock Grid.Column="3" Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
-											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-											   Opacity="0.45"
-											   IsVisible="{Binding HasChildren}"/>
+								   <TextBlock Grid.Column="3" Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
+									   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+									   Opacity="0.45"/>
 								</Grid>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>

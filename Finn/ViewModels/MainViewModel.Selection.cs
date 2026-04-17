@@ -37,8 +37,26 @@ namespace Finn.ViewModels
             if (file == target) return false;
             if (!file.IsRegularFile) return false;
             if (file.HasChildren) return false;
+            // Prevent circular parentage: target must not be a descendant of file
+            if (IsDescendantOf(target, file)) return false;
 
             return !string.Equals(file.ParentNamn, target.Namn, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Returns true when <paramref name="item"/> is a descendant of <paramref name="ancestor"/>
+        /// at any depth by walking the parent chain.
+        /// </summary>
+        private static bool IsDescendantOf(FileData item, FileData ancestor)
+        {
+            var current = item;
+            while (current.IsAppendedFile && current.ParentFile != null)
+            {
+                if (ReferenceEquals(current.ParentFile, ancestor))
+                    return true;
+                current = current.ParentFile;
+            }
+            return false;
         }
 
         private void DetachChild(FileData file, string? detachedType = null)
@@ -74,6 +92,7 @@ namespace Finn.ViewModels
 
         private void NotifyCurrentSelectionStructureChanged()
         {
+            InvalidateAvailableParentsCache();
             OnPropertyChanged(nameof(SelectedFileIsTopLevel));
             OnPropertyChanged(nameof(SelectedFileIsChild));
             OnPropertyChanged(nameof(SelectedFileIsGroup));
@@ -82,7 +101,6 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(CanMoveSelectedFiles));
             OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
             OnPropertyChanged(nameof(AvailableGroups));
-            OnPropertyChanged(nameof(HasAvailableParents));
         }
 
         private void RefreshHierarchyState(bool refreshCollections = false, bool updateFilter = true)
@@ -93,6 +111,7 @@ namespace Finn.ViewModels
             if (refreshCollections)
                 Collections.SetCollectionContent();
 
+            InvalidateAvailableParentsCache();
             OnPropertyChanged(nameof(AvailableParents));
             OnPropertyChanged(nameof(AvailableGroups));
 
@@ -125,36 +144,52 @@ namespace Finn.ViewModels
         /// <summary>
         /// Moves the selected files into a group. Children inherit the
         /// group's category. Works for both groups and regular parent files.
+        /// Returns the number of files actually moved (skipped files are not counted).
         /// </summary>
-        public void MoveFilesToParent(FileData target, IList<FileData> files)
+        public int MoveFilesToParent(FileData target, IList<FileData> files)
         {
-            if (target == null || files == null || files.Count == 0) return;
+            if (target == null || files == null || files.Count == 0) return 0;
 
+            int moved = 0;
             foreach (var file in files.ToList())
             {
                 if (!CanMoveToParent(target, file)) continue;
                 file.SetParent(target);
                 file.TransferOtherFilesTo(target);
+                moved++;
             }
 
-            target.IsExpanded = true;
-            RefreshHierarchyState();
-            MarkDirty();
+            if (moved > 0)
+            {
+                target.IsExpanded = true;
+                RefreshHierarchyState();
+                MarkDirty();
+            }
+
+            return moved;
         }
 
         /// <summary>
         /// Detaches files from their parent (group or attached file parent),
-        /// making them top-level project files again. The detached files keep
-        /// their current type so re-categorization isn't forced.
+        /// making them top-level project files again. Each file keeps its own
+        /// existing category; the type filter is only applied when no category
+        /// is set, so detaching never silently overwrites metadata.
         /// </summary>
         public void DetachFiles(IList<FileData> files)
         {
             if (files == null || files.Count == 0) return;
 
-            string detachedType = GetDetachedChildType();
+            string? activeFilter = GetDetachedChildType();
 
             foreach (var file in files.ToList())
+            {
+                // Preserve the file's own category; only fall back to the
+                // active filter when the file has no category of its own.
+                string? detachedType = string.IsNullOrEmpty(file.Filtyp)
+                    ? activeFilter
+                    : null;
                 DetachChild(file, detachedType);
+            }
 
             RefreshHierarchyState();
             MarkDirty();
@@ -220,13 +255,15 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Dissolves a group: detaches all children (making them top-level) and
-        /// removes the group header itself. Children keep their current type.
+        /// removes the group header itself. Each child keeps its own category
+        /// (typically inherited from the group when it was added).
         /// </summary>
         public void DissolveGroup(FileData group)
         {
             if (group == null || !group.IsGroup) return;
 
-            DetachChildren(group, GetDetachedChildType());
+            // Pass null so children keep their existing Filtyp
+            DetachChildren(group, detachedType: null);
 
             CurrentProject.StoredFiles.Remove(group);
             PreviewVM.RecentFiles.Remove(group);
@@ -235,12 +272,21 @@ namespace Finn.ViewModels
             MarkDirty();
         }
 
+        private IReadOnlyList<FileData>? _cachedAvailableParents;
+
+        /// <summary>
+        /// Invalidates the <see cref="AvailableParents"/> cache. Call whenever
+        /// the parent/group structure of the project changes.
+        /// </summary>
+        private void InvalidateAvailableParentsCache() => _cachedAvailableParents = null;
+
         /// <summary>
         /// Returns all top-level parent targets that can accept nested children.
         /// Includes placeholder parents plus regular files that already have children.
+        /// Result is cached and invalidated whenever the hierarchy changes.
         /// </summary>
         public IReadOnlyList<FileData> AvailableParents =>
-            CurrentProject.StoredFiles
+            _cachedAvailableParents ??= CurrentProject.StoredFiles
                 .Where(f => f.IsParent)
                 .OrderByDescending(f => f.IsGroup)
                 .ThenBy(f => f.Namn)
@@ -399,6 +445,26 @@ namespace Finn.ViewModels
             string.Equals(child.ParentNamn, parentName, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Collects children of <paramref name="parent"/> in sorted order,
+        /// recursively including expanded grandchildren so the result matches
+        /// what <see cref="UpdateFilter"/> would produce for this subtree.
+        /// </summary>
+        private List<FileData> CollectExpandedDescendants(FileData parent)
+        {
+            var result = new List<FileData>();
+            var children = CurrentProject.GetChildren(parent)
+                .OrderBy(x => x.Namn);
+
+            foreach (var child in children)
+            {
+                result.Add(child);
+                if (child.IsExpanded && child.HasChildren)
+                    result.AddRange(CollectExpandedDescendants(child));
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Toggles inline expansion of a parent file or group's children.
         /// </summary>
         public void ToggleExpansion(FileData file)
@@ -412,6 +478,8 @@ namespace Finn.ViewModels
         /// Toggles expansion by inserting or removing only the affected child
         /// rows in <see cref="FilteredFiles"/>, avoiding a full list rebuild.
         /// This keeps scroll position stable and reduces visual flicker.
+        /// Uses <see cref="IsDescendantOf"/> to correctly handle multi-level
+        /// nesting so no orphan rows are left behind on collapse.
         /// </summary>
         public void ToggleExpansionInPlace(FileData file)
         {
@@ -424,23 +492,26 @@ namespace Finn.ViewModels
 
             if (file.IsExpanded)
             {
-                var children = CurrentProject.GetChildren(file)
-                    .OrderBy(x => x.Namn)
-                    .ToList();
-
-                FilteredFiles.InsertRange(parentIdx + 1, children);
+                // Insert children and, recursively, any expanded grandchildren
+                var toInsert = CollectExpandedDescendants(file);
+                FilteredFiles.InsertRange(parentIdx + 1, toInsert);
             }
             else
             {
+                // Descendants are contiguous in the list (inserted inline by
+                // UpdateFilter). Scan until we leave the descendant block,
+                // using IsDescendantOf to also catch multi-level children.
                 int removeCount = 0;
                 for (int i = parentIdx + 1; i < FilteredFiles.Count; i++)
                 {
-                    if (IsChildOf(FilteredFiles[i], file.Namn))
+                    if (IsChildOf(FilteredFiles[i], file.Namn) ||
+                        IsDescendantOf(FilteredFiles[i], file))
                         removeCount++;
                     else
                         break;
                 }
-                FilteredFiles.RemoveRange(parentIdx + 1, removeCount);
+                if (removeCount > 0)
+                    FilteredFiles.RemoveRange(parentIdx + 1, removeCount);
             }
 
             OnPropertyChanged(nameof(NrFilteredFiles));
