@@ -28,6 +28,33 @@ public partial class MainView : UserControl
     private readonly Dictionary<DataGridRow, (FileData Data, PropertyChangedEventHandler Handler)> _rowBindings = [];
 
     private MainViewModel _ctx = null!;
+
+    /// <summary>Shorthand for the parent window — avoids repeated <c>(MainWindow)TopLevel.GetTopLevel(this)!</c> casts.</summary>
+    private MainWindow ParentWindow => (MainWindow)TopLevel.GetTopLevel(this)!;
+
+    /// <summary>
+    /// Returns a disposable guard that sets <c>_isUpdatingSelection</c>
+    /// (and optionally <c>_suppressTreeSelection</c>) for the duration of a <c>using</c> block.
+    /// </summary>
+    private SelectionGuard SuppressSelection(bool suppressTree = false) => new(this, suppressTree);
+
+    private struct SelectionGuard : IDisposable
+    {
+        private readonly MainView _view;
+        private readonly bool _suppressTree;
+        public SelectionGuard(MainView view, bool suppressTree)
+        {
+            _view = view;
+            _suppressTree = suppressTree;
+            _view._isUpdatingSelection = true;
+            if (suppressTree) _view._suppressTreeSelection = true;
+        }
+        public void Dispose()
+        {
+            _view._isUpdatingSelection = false;
+            if (_suppressTree) _view._suppressTreeSelection = false;
+        }
+    }
     private PreviewViewModel _pwr = null!;
 
     public MainView()
@@ -83,7 +110,7 @@ public partial class MainView : UserControl
         // Close the toolbox flyout so the first click after this goes to the canvas
         ToolboxButton.Flyout?.Hide();
 
-        _ctx.OpenWhiteboard(TopLevel.GetTopLevel(this) as Window ?? new Window());
+        _ctx.OpenWhiteboard(ParentWindow);
     }
 
     #region Initialization
@@ -203,7 +230,7 @@ public partial class MainView : UserControl
 
     private void UpdateFont()
     {
-        var window = TopLevel.GetTopLevel(this);
+        var window = (TopLevel)ParentWindow;
         if (window == null) return;
 
         // Read font settings from the UI viewmodel
@@ -237,7 +264,7 @@ public partial class MainView : UserControl
         SyncStatusButton.Flyout?.Hide();
         try
         {
-            var window = TopLevel.GetTopLevel(this) as MainWindow;
+            var window = ParentWindow;
             if (window == null) return;
             await _ctx.SyncSingleEntryAsync(entry, window);
         }
@@ -337,7 +364,7 @@ public partial class MainView : UserControl
     {
         if (_ctx.PreviewWindowOpen)
         {
-            var window = TopLevel.GetTopLevel(this);
+            var window = (TopLevel)ParentWindow;
             if (window is not null)
                 _ctx.OpenPreviewWindow(window.RequestedThemeVariant);
         }
@@ -375,7 +402,7 @@ public partial class MainView : UserControl
         try
         {
             var (files, folders) = ExtractDroppedFilesAndFolders(e, extension: ".pdf");
-            var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+            var window = ParentWindow;
             if (files.Count > 0)
                 await _ctx.AddDroppedFilesAsync(files, window);
             if (folders.Count > 0)
@@ -405,7 +432,7 @@ public partial class MainView : UserControl
             var (_, folders) = ExtractDroppedFilesAndFolders(e);
             if (folders.Count == 0) return;
 
-            var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+            var window = ParentWindow;
             await _ctx.AddDroppedVersionFoldersAsync(folders, window);
             UpdateFolderEmptyState();
         }
@@ -708,7 +735,7 @@ public partial class MainView : UserControl
         if (e.Handled) return;
 
         // Don't intercept when typing in a TextBox or adjusting a Slider.
-        if (TopLevel.GetTopLevel(this) is { } top)
+        var top = (TopLevel)ParentWindow;
         {
             var focused = top.FocusManager?.GetFocusedElement();
             if (focused is TextBox or Slider) return;
@@ -774,16 +801,11 @@ public partial class MainView : UserControl
     private void ClearOtherGridSelections(DataGrid active)
     {
         if (_isUpdatingSelection) return;
-        _isUpdatingSelection = true;
-        try
+        using (SuppressSelection())
         {
             if (active != FileGrid)        FileGrid.SelectedItem = null;
             if (active != CollectionContent) CollectionContent.SelectedItem = null;
             if (active != RecentGrid)      RecentGrid.SelectedItem = null;
-        }
-        finally
-        {
-            _isUpdatingSelection = false;
         }
     }
 
@@ -917,7 +939,7 @@ public partial class MainView : UserControl
 
     private async void OnRemoveFiles(object? sender, RoutedEventArgs e)
     {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
@@ -931,18 +953,11 @@ public partial class MainView : UserControl
             // collection reset doesn't wipe CurrentFiles before we re-select.
             // Also suppress tree selection so BuildTreeData doesn't navigate
             // to the parent's category and change the current type filter.
-            _isUpdatingSelection = true;
-            _suppressTreeSelection = true;
-            try
+            using (SuppressSelection(suppressTree: true))
             {
                 _ctx.RemoveSelectedFiles();
                 _ctx.UpdateFilter();
                 _ctx.BuildTreeData();
-            }
-            finally
-            {
-                _isUpdatingSelection = false;
-                _suppressTreeSelection = false;
             }
 
             // Re-select the parent in the grid (when removing an appended file)
@@ -953,7 +968,7 @@ public partial class MainView : UserControl
 
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)
     {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed && OtherFilesGrid.SelectedItem is OtherData file)
@@ -970,14 +985,14 @@ public partial class MainView : UserControl
         // Warn specifically about shared projects
         if (_ctx.CurrentProject?.IsShared == true)
         {
-            var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+            var window = ParentWindow;
             var msgDialog = new Finn.Dialogs.xMessageDia();
             _ctx.ConfigureWindow(msgDialog, window);
             msgDialog.SetMessage("This project is shared. Removing it will disconnect from the server file.");
             await msgDialog.ShowDialog(window);
         }
 
-        var mainWindow = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var mainWindow = ParentWindow;
         await _ctx.ConfirmDeleteDia(mainWindow);
 
         if (_ctx.Confirmed)
@@ -988,204 +1003,7 @@ public partial class MainView : UserControl
         }
     }
 
-    #region Shared Projects
-
-    /// <summary>
-    /// Shows/hides shared-project menu items based on the current project state
-    /// and whether superuser mode is enabled.
-    /// </summary>
-    private void OnTreeContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
-    {
-        if (sender is not ContextMenu menu) return;
-        bool isShared = _ctx.CurrentProject?.IsShared == true;
-        bool isViewer = _ctx.CurrentProject?.IsViewer == true;
-        bool isSuperuser = _ctx.UI.SuperuserMode;
-
-        foreach (var child in menu.Items)
-        {
-            if (child is MenuItem mi)
-            {
-                switch (mi.Name)
-                {
-                    case "MakeSharedMenuItem":
-                        mi.IsVisible = isSuperuser && !isShared;
-                        break;
-                    case "ImportSharedMenuItem":
-                        mi.IsVisible = isSuperuser && !isShared;
-                        break;
-                    case "PushMenuItem":
-                        mi.IsVisible = isSuperuser && isShared && !isViewer;
-                        break;
-                    case "PullMenuItem":
-                    case "UnshareMenuItem":
-                    case "RestoreBackupMenuItem":
-                        mi.IsVisible = isSuperuser && isShared;
-                        break;
-                }
-            }
-        }
-    }
-
-    private async void OnMakeProjectShared(object? sender, RoutedEventArgs e)
-    {
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel == null) return;
-
-        var window = topLevel as MainWindow;
-        if (window == null) return;
-
-        var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
-            new FolderPickerOpenOptions
-            {
-                Title = "Select shared server folder",
-                AllowMultiple = false
-            });
-
-        if (folders.Count == 0) return;
-
-        string serverFolder = folders[0].Path.LocalPath;
-
-        // Link the project to the shared path first
-        _ctx.MakeProjectShared(serverFolder);
-
-        // Show push options dialog for the initial push
-        var dialog = new Finn.Dialogs.xSharedPushDia();
-        dialog.DataContext = _ctx;
-        dialog.FontFamily = window.FontFamily;
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        dialog.SetOneWayShare(_ctx.CurrentProject.OneWayShare);
-
-        await dialog.ShowDialog(window);
-
-        if (dialog.Confirmed)
-        {
-            _ctx.PushProjectFiltered(dialog);
-            _ctx.BuildTreeData();
-        }
-        else
-        {
-            // User cancelled — undo the shared link
-            _ctx.UnshareProject();
-        }
-    }
-
-    private async void OnImportSharedProject(object? sender, RoutedEventArgs e)
-    {
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel == null) return;
-
-        var jsonType = new FilePickerFileType("Shared Project") { Patterns = ["*.json"] };
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(
-            new FilePickerOpenOptions
-            {
-                Title = "Import shared project",
-                AllowMultiple = false,
-                FileTypeFilter = [jsonType]
-            });
-
-        if (files.Count == 0) return;
-
-        if (_ctx.ImportSharedProject(files[0].Path.LocalPath))
-            _ctx.RefreshFolderWatchers();
-    }
-
-    private async void OnPushProject(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentProject?.SharedPath == null) return;
-        if (_ctx.CurrentProject.IsViewer) return;
-
-        var window = TopLevel.GetTopLevel(this) as MainWindow;
-        if (window == null) return;
-
-        var dialog = new Finn.Dialogs.xSharedPushDia();
-        dialog.DataContext = _ctx;
-        dialog.FontFamily = window.FontFamily;
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        dialog.SetOneWayShare(_ctx.CurrentProject.OneWayShare);
-
-        // Check for server-side changes since last push
-        string? conflict = _ctx.CheckPushConflict();
-        if (conflict != null)
-            dialog.SetWarning(conflict);
-
-        // Hint when server is already up to date (no local changes)
-        if (_ctx.CurrentProject.SharedSyncStatus == SharedSyncState.InSync)
-            dialog.SetWarning("Server is already up to date with your local copy.");
-
-        await dialog.ShowDialog(window);
-
-        if (dialog.Confirmed)
-            _ctx.PushProjectFiltered(dialog);
-    }
-
-    private async void OnPullProject(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentProject?.SharedPath == null) return;
-
-        var window = TopLevel.GetTopLevel(this) as MainWindow;
-        if (window == null) return;
-
-        // Read the server copy for diffing
-        var serverProject = MainViewModel.ReadServerProject(_ctx.CurrentProject.SharedPath);
-        if (serverProject == null)
-        {
-            string msg = File.Exists(_ctx.CurrentProject.SharedPath)
-                ? "Pull failed: could not parse server file"
-                : $"Pull failed: server file not found at {_ctx.CurrentProject.SharedPath}";
-            _ctx.PreviewVM.StatusMessage = msg;
-            return;
-        }
-
-        // Build and show diff
-        var entries = _ctx.BuildPullDiff(_ctx.CurrentProject, serverProject);
-        string summary = MainViewModel.BuildPullSummary(entries);
-
-        var dialog = new Finn.Dialogs.xSharedPullDia();
-        dialog.DataContext = _ctx;
-        dialog.FontFamily = window.FontFamily;
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        dialog.SetDiff(entries, summary);
-
-        if (_ctx.CurrentProject.IsViewer)
-            dialog.SetViewerMode();
-
-        await dialog.ShowDialog(window);
-
-        if (dialog.Confirmed)
-            _ctx.MergeProject(serverProject, dialog.KeepLocalEntries);
-    }
-
-    private async void OnUnshareProject(object? sender, RoutedEventArgs e)
-    {
-        var window = TopLevel.GetTopLevel(this) as MainWindow;
-        if (window == null) return;
-
-        var dialog = new Finn.Dialogs.xMessageDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.SetMessage("This will make the project local-only. You can re-import the shared copy later.");
-        await dialog.ShowDialog(window);
-
-        _ctx.UnshareProject();
-    }
-
-    private async void OnRestoreBackup(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentProject == null) return;
-
-        var window = TopLevel.GetTopLevel(this) as MainWindow;
-        if (window == null) return;
-
-        var dialog = new Finn.Dialogs.xBackupBrowserDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.SetBackups(_ctx.GetBackupDirectory(), _ctx.CurrentProject.Namn);
-
-        await dialog.ShowDialog(window);
-
-        if (dialog.Confirmed && !string.IsNullOrEmpty(dialog.SelectedBackupPath))
-            _ctx.RestoreFromBackup(dialog.SelectedBackupPath);
-    }
-
-    #endregion
+    
 
     private async void OnAttachFiles(object? sender, RoutedEventArgs e)
     {
@@ -1195,7 +1013,7 @@ public partial class MainView : UserControl
         var existing = _ctx.CurrentProject.GetChildren(_ctx.CurrentFile)
             .OrderBy(f => f.Namn);
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         var dialog = new Finn.Dialogs.xAttachDia
         {
             DataContext = _ctx,
@@ -1212,18 +1030,13 @@ public partial class MainView : UserControl
         // Suppress the grid's SelectionChanged handler so that
         // UpdateFilter calls inside AddAppendedFile don't clear
         // CurrentFile via a collection-Reset selection loss.
-        _isUpdatingSelection = true;
-        try
+        using (SuppressSelection())
         {
             foreach (string path in dialog.AcceptedFiles)
                 _ctx.AddAppendedFile(path);
 
             foreach (string folderPath in dialog.AcceptedFolders)
                 await _ctx.AddAttachedFolderAsync(folderPath);
-        }
-        finally
-        {
-            _isUpdatingSelection = false;
         }
 
         _ctx.RefreshFolderWatchers();
@@ -1252,7 +1065,7 @@ public partial class MainView : UserControl
 
     private async void OnNewGroup(object? sender, RoutedEventArgs e)
     {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         var dialog = new Finn.Dialogs.xPlaceholderDia();
         _ctx.ConfigureWindow(dialog, window);
         dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "New Group";
@@ -1279,17 +1092,12 @@ public partial class MainView : UserControl
 
             // Suppress selection events so SyncExpansionToSelection doesn't
             // collapse the group between AddGroup and MoveFilesToParent.
-            _isUpdatingSelection = true;
-            try
+            using (SuppressSelection())
             {
                 var group = _ctx.AddGroup(name, sharedCategory);
 
                 if (autoMove)
                     _ctx.MoveFilesToParent(group, selectedFiles);
-            }
-            finally
-            {
-                _isUpdatingSelection = false;
             }
         }
     }
@@ -1298,7 +1106,7 @@ public partial class MainView : UserControl
     {
         if (_ctx.CurrentFile is not { IsGroup: true } group) return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         var dialog = new Finn.Dialogs.xPlaceholderDia();
         _ctx.ConfigureWindow(dialog, window);
         dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Rename Group";
@@ -1315,7 +1123,7 @@ public partial class MainView : UserControl
     {
         if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsGroup || _ctx.CurrentFile.IsAppendedFile) return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
@@ -1366,13 +1174,13 @@ public partial class MainView : UserControl
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
         if (folders.Count == 0) return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.SyncFoldersAsync(folders, window);
     }
 
     private async void OnSyncAllFolders(object? sender, RoutedEventArgs e)
     {
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
     }
 
@@ -1381,7 +1189,7 @@ public partial class MainView : UserControl
         var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
         if (folders.Count == 0) return;
 
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.ConfirmDeleteDia(window);
 
         if (_ctx.Confirmed)
@@ -1395,14 +1203,14 @@ public partial class MainView : UserControl
     private async void OnManageSyncFilter(object? sender, RoutedEventArgs e)
     {
         if (FolderGrid.SelectedItem is not FolderData folder) return;
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
         await _ctx.ShowSyncFilterDialogAsync(folder, window);
     }
 
     private async void OnChangeFolderDirectory(object? sender, RoutedEventArgs e)
     {
         if (FolderGrid.SelectedItem is not FolderData folder) return;
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
+        var window = ParentWindow;
 
         var dialog = new Finn.Dialogs.xChangeFolderDia();
         _ctx.ConfigureWindow(dialog, window);
@@ -1423,7 +1231,7 @@ public partial class MainView : UserControl
 
     private void OnFolderTypesInfo(object? sender, RoutedEventArgs e)
     {
-        var window = TopLevel.GetTopLevel(this) as Window;
+        var window = (Window)ParentWindow;
         if (window == null) return;
 
         var dialog = new Window
@@ -1498,8 +1306,7 @@ public partial class MainView : UserControl
     {
         if (_isUpdatingSelection) return;
         ClearOtherGridSelections(CollectionContent);
-        _isUpdatingSelection = true;
-        try
+        using (SuppressSelection())
         {
             var files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
             var target = files.FirstOrDefault();
@@ -1507,28 +1314,19 @@ public partial class MainView : UserControl
 
             SelectAuxiliaryFile(target, files, addRecentForTopLevel: true, addRecentForChild: true);
         }
-        finally
-        {
-            _isUpdatingSelection = false;
-        }
     }
 
     private void SelectRecent(object? sender, RoutedEventArgs e)
     {
         if (_isUpdatingSelection) return;
         ClearOtherGridSelections(RecentGrid);
-        _isUpdatingSelection = true;
-        try
+        using (SuppressSelection())
         {
             var files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
             var target = files.FirstOrDefault();
             if (target == null) return;
 
             SelectAuxiliaryFile(target, files, addRecentForTopLevel: false, addRecentForChild: false);
-        }
-        finally
-        {
-            _isUpdatingSelection = false;
         }
     }
 
@@ -1576,7 +1374,7 @@ public partial class MainView : UserControl
     {
         var file = RecentGrid.SelectedItem as FileData;
         if (file == null) return;
-        var topLevel = TopLevel.GetTopLevel(this);
+        var topLevel = (TopLevel)ParentWindow;
         if (topLevel?.Clipboard is { } clipboard)
             await clipboard.SetTextAsync(file.Sökväg);
     }
@@ -1669,725 +1467,11 @@ public partial class MainView : UserControl
 
     #endregion
 
-    #region Metadata Worker
-
-    private async void OnFetchThumbnails(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.PreviewVM.BackgroundTaskActive) return;
-
-        var cts = new CancellationTokenSource();
-        _ctx.PreviewVM.SetBackgroundTaskCts(cts);
-        _ctx.PreviewVM.BackgroundTaskMessage = "Generating Thumbnails";
-        _ctx.PreviewVM.BackgroundTaskActive = true;
-        _ctx.PreviewVM.BackgroundTaskProgress = 0;
-
-        try
-        {
-            var progress = new Progress<int>(p =>
-                _ctx.PreviewVM.BackgroundTaskProgress = p);
-            await _ctx.Data.GenerateThumbnailsAsync(progress, cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            _ctx.PreviewVM.BackgroundTaskMessage = "Thumbnails cancelled";
-        }
-        catch (Exception ex)
-        {
-            Utils.ErrorLogger.Log(ex, "OnFetchThumbnails");
-        }
-        finally
-        {
-            _ctx.PreviewVM.SetBackgroundTaskCts(null);
-            _ctx.PreviewVM.BackgroundTaskMessage = "";
-            _ctx.PreviewVM.BackgroundTaskProgress = 0;
-            _ctx.PreviewVM.BackgroundTaskActive = false;
-            cts.Dispose();
-        }
-    }
-
-    private async void OnFetchIndex(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.PreviewVM.BackgroundTaskActive) return;
-
-        var cts = new CancellationTokenSource();
-        _ctx.PreviewVM.SetBackgroundTaskCts(cts);
-        _ctx.PreviewVM.BackgroundTaskMessage = "Indexing Files";
-        _ctx.PreviewVM.BackgroundTaskActive = true;
-        _ctx.PreviewVM.BackgroundTaskProgress = 0;
-
-        try
-        {
-            var progress = new Progress<int>(p =>
-                _ctx.PreviewVM.BackgroundTaskProgress = p);
-            var statusProgress = new Progress<string>(name =>
-                _ctx.PreviewVM.BackgroundTaskMessage = $"Indexing: {name}");
-
-            await _ctx.Data.GetContentAsync(progress, statusProgress, cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            _ctx.PreviewVM.BackgroundTaskMessage = "Indexing cancelled";
-        }
-        catch (Exception ex)
-        {
-            Utils.ErrorLogger.Log(ex, "OnFetchIndex");
-        }
-        finally
-        {
-            _ctx.PreviewVM.SetBackgroundTaskCts(null);
-            _ctx.PreviewVM.BackgroundTaskMessage = "";
-            _ctx.PreviewVM.BackgroundTaskProgress = 0;
-            _ctx.PreviewVM.BackgroundTaskActive = false;
-            cts.Dispose();
-        }
-    }
-
-    private async void OnFetchSingleMeta(object? sender, RoutedEventArgs e) => await RunMetaWorkerAsync(singleFile: true);
-    private async void OnFetchFullMeta(object? sender, RoutedEventArgs e) => await RunMetaWorkerAsync(singleFile: false);
-
-    private async Task RunMetaWorkerAsync(bool singleFile)
-    {
-        if (_ctx.PreviewVM.BackgroundTaskActive) return;
-
-        _ctx.PreviewVM.BackgroundTaskMessage = "Fetching Metadata";
-        _ctx.PreviewVM.BackgroundTaskActive = true;
-        _ctx.PreviewVM.BackgroundTaskProgress = 0;
-        _ctx.Data.SelectFilesForMetaworker(singleFile);
-
-        try
-        {
-            int total = _ctx.Data.GetNrSelectedFiles();
-            var progress = new Progress<int>(p =>
-                _ctx.PreviewVM.BackgroundTaskProgress = p);
-
-            await Task.Run(() =>
-            {
-                for (int k = 0; k < total; k++)
-                {
-                    _ctx.Data.GetMetadata(k);
-                    ((IProgress<int>)progress).Report((k + 1) * 100 / Math.Max(1, total));
-                }
-            });
-
-            _ctx.Data.SetMeta();
-            _ctx.MarkDirty();
-        }
-        catch (Exception ex)
-        {
-            Utils.ErrorLogger.Log(ex, "RunMetaWorkerAsync");
-        }
-        finally
-        {
-            _ctx.PreviewVM.BackgroundTaskMessage = "";
-            _ctx.PreviewVM.BackgroundTaskProgress = 0;
-            _ctx.PreviewVM.BackgroundTaskActive = false;
-        }
-    }
+    
 
     
 
-    #endregion
-
-    #region Bookmarks
-
-    private void BookmarkSelected(object? sender, RoutedEventArgs e)
-    {
-        if ((_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen) && BookmarkGrid.SelectedItem is PageData page)
-            _ctx.Collections.SetBookmark(page);
-    }
-
-    private void OnAddBookmark(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen)
-        {
-            _ctx.Collections.AddBookmark(BookmarkInput.Text);
-            BookmarkInput.Clear();
-            UpdateBookmarksEmptyHint();
-        }
-    }
-
-    private void OnRenameBookmark(object? sender, RoutedEventArgs e)
-    {
-        _ctx.Collections.RenameBookmark(BookmarkInput.Text);
-        BookmarkInput.Clear();
-    }
-
-    private void OnRemoveBookmark(object? sender, RoutedEventArgs e)
-    {
-        if (BookmarkGrid.SelectedItem is PageData page)
-            _ctx.Collections.RemoveBookmark(page);
-        UpdateBookmarksEmptyHint();
-    }
-
-    #endregion
-
-    #region Versions
-
-    private async void SelectVersion(object? sender, RoutedEventArgs e)
-    {
-        if (VersionsGrid.SelectedItem is not FileVersionData version) return;
-        // Block version preview while in Diff or Dual-File mode
-        if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
-        _ctx.SelectedVersion = version;
-        string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
-        await _ctx.PreviewVersionAsync(version, searchText);
-    }
-
-    private async void OnRemoveVersion(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
-
-        var window = (MainWindow)TopLevel.GetTopLevel(this)!;
-        await _ctx.ConfirmDeleteDia(window);
-
-        if (_ctx.Confirmed)
-        {
-            _ctx.RemoveSelectedVersion();
-            UpdateVersionsEmptyHint();
-        }
-    }
-
-    private void OnVersionDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
-    {
-        _ctx.SetActiveVersion();
-    }
-
-    private void OnSetCurrentVersion(object? sender, RoutedEventArgs e)
-    {
-        if (e.Source is not MenuItem { DataContext: FileVersionData version }) return;
-        _ctx.SetCurrentVersionOnSelected(version.Label);
-    }
-
-    private void OnLabelFirstVersion(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuItem { SelectedItem: string label }) return;
-        _ctx.LabelFirstVersionOnSelected(label);
-    }
-
-    private void OnLabelLatestVersion(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuItem { SelectedItem: string label }) return;
-        _ctx.LabelLastVersionOnSelected(label);
-    }
-
-    private void OnCompareVersionWithOriginal(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFile is not { HasVersions: true } file) return;
-        if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
-        if (string.IsNullOrEmpty(file.OriginalPath)) return;
-
-        string pathA = file.OriginalPath;
-        string pathB = selected.Sökväg;
-
-        if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)
-            || !pathA.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-            || !pathB.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-            || !File.Exists(pathA) || !File.Exists(pathB))
-            return;
-
-        _ctx.RunDiffInPreviewer(pathA, pathB);
-    }
-
-    private void OnCompareVersionWithPrevious(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFile is not { HasVersions: true } file) return;
-        if (VersionsGrid.SelectedItem is not FileVersionData selected) return;
-
-        int idx = file.Versions.IndexOf(selected);
-        if (idx < 0) return;
-
-        // First version: compare against original file.
-        // Other versions: compare against the preceding version.
-        string pathA;
-        if (idx == 0)
-        {
-            if (string.IsNullOrEmpty(file.OriginalPath)) return;
-            pathA = file.OriginalPath;
-        }
-        else
-        {
-            var prev = file.Versions[idx - 1];
-            pathA = prev.Sökväg;
-        }
-
-        string pathB = selected.Sökväg;
-
-        if (string.IsNullOrEmpty(pathA) || string.IsNullOrEmpty(pathB)
-            || !pathA.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-            || !pathB.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
-            || !File.Exists(pathA) || !File.Exists(pathB))
-            return;
-
-        _ctx.RunDiffInPreviewer(pathA, pathB);
-    }
-
-    private void OnLabelSelectedVersion(object? sender, RoutedEventArgs e)
-    {
-        if (sender is not MenuItem { SelectedItem: string label }) return;
-        if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
-        _ctx.CurrentFile.SetVersionLabel(_ctx.SelectedVersion, label);
-        _ctx.MarkDirty();
-    }
-
-    private void OnLabelFromFolderDate(object? sender, RoutedEventArgs e)
-    {
-        if (_ctx.CurrentFile == null || _ctx.SelectedVersion == null) return;
-        _ctx.LabelVersionFromFolderDate();
-    }
-
-    #endregion
-
-    #region Annotation Layers
-
-    private void OnPreviewPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        // Re-sync the layer list whenever the active layers change.
-        // PropertyChanged may fire from a background thread (e.g. CurrentFile
-        // is set after ConfigureAwait(false) in SetFileAsync), so dispatch
-        // to the UI thread to avoid cross-thread access on LayerList.
-        if (e.PropertyName is "CurrentFile" or "WhiteboardMode" or "LayersChanged")
-            Dispatcher.UIThread.Post(() => SyncLayerList(), DispatcherPriority.Background);
-    }
-
-    private static readonly Avalonia.Media.Color[] LayerColors =
-    [
-        Avalonia.Media.Color.FromRgb(214, 64, 69),
-        Avalonia.Media.Color.FromRgb(59, 130, 217),
-        Avalonia.Media.Color.FromRgb(61, 163, 95),
-        Avalonia.Media.Color.FromRgb(229, 168, 32),
-        Avalonia.Media.Color.FromRgb(155, 95, 192),
-    ];
-
-    private Controls.AnnotatedPDFRenderer? AnnotationRenderer
-        => (EmbeddedPreview as Views.PreView)?.MuPDFRenderer;
-
-    private void SyncLayerList()
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        // Ensure at least the default layer exists so the tray is never empty
-        renderer.EnsureDefaultLayer();
-        if (LayerList.ItemsSource != renderer.Layers)
-            LayerList.ItemsSource = renderer.Layers;
-        if (renderer.ActiveLayer != null)
-            LayerList.SelectedItem = renderer.ActiveLayer;
-    }
-
-    private void OnAnnotateNewLayer(object? sender, RoutedEventArgs e)
-    {
-        SyncLayerList();
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        renderer.EnsureDefaultLayer();
-        int index = renderer.Layers.Count;
-        var color = LayerColors[index % LayerColors.Length];
-        string prefix = _ctx.CurrentProject?.IsViewer == true ? "Viewer: " : "";
-        var layer = renderer.AddLayer($"{prefix}Layer {index + 1}", color);
-        renderer.StrokeColor = color;
-        LayerList.SelectedItem = layer;
-        UpdateLayersEmptyHint();
-    }
-
-    private void OnLayerSelected(object? sender, SelectionChangedEventArgs e)
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
-        {
-            renderer.ActiveLayer = layer;
-            // Only update stroke color if not in highlighter mode
-            if (!renderer.IsHighlighterMode)
-                renderer.StrokeColor = layer.Color;
-        }
-        renderer.InvalidateVisual();
-    }
-
-    private void OnLayerVisibilityToggled(object? sender, RoutedEventArgs e)
-    {
-        AnnotationRenderer?.InvalidateVisual();
-    }
-
-    private void OnClearSelectedLayer(object? sender, RoutedEventArgs e)
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
-            renderer.ClearLayer(layer);
-    }
-
-    private void OnRemoveSelectedLayer(object? sender, RoutedEventArgs e)
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null || renderer.Layers.Count <= 1) return;
-        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
-            renderer.RemoveLayer(layer);
-        UpdateLayersEmptyHint();
-    }
-
-    #endregion
-
-    #region Todo
-
-    private void OnTodoContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
-    {
-        if (sender is not ContextMenu menu) return;
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-
-        // Find the "Add Subtask" menu item by name
-        MenuItem? subtaskItem = null;
-        foreach (var child in menu.Items)
-        {
-            if (child is MenuItem mi && mi.Name == "AddSubtaskMenuItem")
-            {
-                subtaskItem = mi;
-                break;
-            }
-        }
-        if (subtaskItem == null) return;
-
-        // Hide "Add Subtask" when no item is selected or the selected item is already a subtask
-        subtaskItem.IsVisible = grid?.SelectedItem is Model.TodoItem item && item.IndentLevel == 0;
-    }
-
-    private void OnAddTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var items = _ctx.CurrentProject?.TodoItems;
-        if (items == null) return;
-        var task = new Model.TodoItem { Text = "New task" };
-        items.Add(task);
-        _ctx.MarkDirty();
-
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        if (grid != null)
-        {
-            grid.SelectedItem = task;
-            Dispatcher.UIThread.Post(() => grid.BeginEdit(), DispatcherPriority.Input);
-        }
-    }
-
-    private void OnAddSubtask(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        var items = _ctx.CurrentProject?.TodoItems;
-        if (grid == null || items == null) return;
-
-        if (grid.SelectedItem is not Model.TodoItem parent) return;
-        // Only allow subtasks on top-level items
-        if (parent.IndentLevel > 0) return;
-
-        int parentIndex = items.IndexOf(parent);
-        if (parentIndex < 0) return;
-
-        // Find the insertion point: after the parent and all its existing children
-        int insertAt = parentIndex + 1;
-        while (insertAt < items.Count && items[insertAt].IndentLevel > parent.IndentLevel)
-            insertAt++;
-
-        var subtask = new Model.TodoItem
-        {
-            Text = "New subtask",
-            IndentLevel = 1
-        };
-        items.Insert(insertAt, subtask);
-        _ctx.MarkDirty();
-
-        grid.SelectedItem = subtask;
-        Dispatcher.UIThread.Post(() => grid.BeginEdit(), DispatcherPriority.Input);
-    }
-
-    private void OnRemoveTodo(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        var items = _ctx.CurrentProject?.TodoItems;
-        if (grid == null || items == null) return;
-        if (grid.SelectedItem is not Model.TodoItem item) return;
-
-        int index = items.IndexOf(item);
-        if (index < 0) return;
-
-        // Remove the item and any children nested beneath it
-        int removeCount = 1;
-        while (index + removeCount < items.Count && items[index + removeCount].IndentLevel > item.IndentLevel)
-            removeCount++;
-
-        for (int i = 0; i < removeCount; i++)
-            items.RemoveAt(index);
-        _ctx.MarkDirty();
-    }
-
-    private void OnTodoColor(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        if (grid?.SelectedItem is not Model.TodoItem item) return;
-        string? color = sender switch
-        {
-            MenuItem { Tag: string c } => c,
-            Button { Tag: string c } => c,
-            _ => null
-        };
-        if (color != null)
-        {
-            item.Color = color;
-            _ctx.MarkDirty();
-        }
-    }
-
-    // ── Todo list helpers ──────────────────────────────────────────────
-
-    /// <summary>
-    /// Returns the number of contiguous children that follow <paramref name="index"/>
-    /// (items whose IndentLevel is greater than items[index].IndentLevel).
-    /// </summary>
-    private static int CountChildren(System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int index)
-    {
-        int level = items[index].IndentLevel;
-        int count = 0;
-        while (index + 1 + count < items.Count && items[index + 1 + count].IndentLevel > level)
-            count++;
-        return count;
-    }
-
-    /// <summary>
-    /// For a subtask, returns the flat-list index range [childrenStart, childrenEnd)
-    /// of the parent's children block. The subtask can only move within this range.
-    /// For a top-level item the range is the whole list, restricted to top-level peers.
-    /// </summary>
-    private static (int Start, int End) GetParentChildrenRange(
-        System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int itemIndex)
-    {
-        var item = items[itemIndex];
-        if (item.IndentLevel == 0)
-            return (0, items.Count);
-
-        // Walk backwards to the parent (first item with lower indent level)
-        int parentIndex = itemIndex - 1;
-        while (parentIndex >= 0 && items[parentIndex].IndentLevel >= item.IndentLevel)
-            parentIndex--;
-        if (parentIndex < 0) return (0, items.Count); // shouldn't happen, defensive
-
-        // The children block starts right after the parent and ends where indent drops
-        int start = parentIndex + 1;
-        int end = start;
-        while (end < items.Count && items[end].IndentLevel > items[parentIndex].IndentLevel)
-            end++;
-        return (start, end);
-    }
-
-    /// <summary>
-    /// Finds the previous sibling of the item at <paramref name="index"/> within the
-    /// given range, at the same indent level. Returns -1 if none exists.
-    /// A "sibling" is the nearest item at the same indent level scanning backwards,
-    /// skipping over any children blocks that belong to other siblings.
-    /// </summary>
-    private static int FindPrevSibling(
-        System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int index, int rangeStart)
-    {
-        int myLevel = items[index].IndentLevel;
-        int i = index - 1;
-        while (i >= rangeStart)
-        {
-            if (items[i].IndentLevel == myLevel) return i;
-            if (items[i].IndentLevel < myLevel) return -1; // crossed parent boundary
-            i--;
-        }
-        return -1;
-    }
-
-    /// <summary>
-    /// Finds the next sibling of the block starting at <paramref name="index"/>
-    /// (with <paramref name="blockSize"/> items) within the given range.
-    /// Returns -1 if none exists.
-    /// </summary>
-    private static int FindNextSibling(
-        System.Collections.ObjectModel.ObservableCollection<Model.TodoItem> items, int index, int blockSize, int rangeEnd)
-    {
-        int nextIndex = index + blockSize;
-        if (nextIndex >= rangeEnd) return -1;
-        // Verify it's at the same level
-        if (items[nextIndex].IndentLevel != items[index].IndentLevel) return -1;
-        return nextIndex;
-    }
-
-    // ── Move ──────────────────────────────────────────────────────────
-
-    private void MoveTodoItem(int fromIndex, int direction)
-    {
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        var items = _ctx.CurrentProject?.TodoItems;
-        if (grid == null || items == null) return;
-        grid.CancelEdit();
-        if (fromIndex < 0 || fromIndex >= items.Count) return;
-
-        int myChildren = CountChildren(items, fromIndex);
-        int myBlock = 1 + myChildren;
-        var (rangeStart, rangeEnd) = GetParentChildrenRange(items, fromIndex);
-
-        if (direction < 0) // ── Move up ──
-        {
-            int prevSib = FindPrevSibling(items, fromIndex, rangeStart);
-            if (prevSib < 0) return; // already first among siblings
-
-            int prevChildren = CountChildren(items, prevSib);
-            int prevBlock = 1 + prevChildren;
-
-            // Extract our block, remove it, re-insert it before the previous sibling.
-            var myItems = new Model.TodoItem[myBlock];
-            for (int i = 0; i < myBlock; i++)
-                myItems[i] = items[fromIndex + i];
-            for (int i = myBlock - 1; i >= 0; i--)
-                items.RemoveAt(fromIndex + i);
-            for (int i = 0; i < myBlock; i++)
-                items.Insert(prevSib + i, myItems[i]);
-
-            grid.SelectedIndex = prevSib;
-        }
-        else // ── Move down ──
-        {
-            int nextSib = FindNextSibling(items, fromIndex, myBlock, rangeEnd);
-            if (nextSib < 0) return; // already last among siblings
-
-            int nextChildren = CountChildren(items, nextSib);
-            int nextBlock = 1 + nextChildren;
-
-            // Extract the next sibling's block, remove it, re-insert it before our block.
-            var nextItems = new Model.TodoItem[nextBlock];
-            for (int i = 0; i < nextBlock; i++)
-                nextItems[i] = items[nextSib + i];
-            for (int i = nextBlock - 1; i >= 0; i--)
-                items.RemoveAt(nextSib + i);
-            for (int i = 0; i < nextBlock; i++)
-                items.Insert(fromIndex + i, nextItems[i]);
-
-            grid.SelectedIndex = fromIndex + nextBlock;
-        }
-        _ctx.MarkDirty();
-    }
-
-    private void OnMoveTodoUp(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        if (grid == null) return;
-        int index = grid.SelectedIndex;
-        if (index > 0)
-            MoveTodoItem(index, -1);
-    }
-
-    private void OnMoveTodoDown(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var grid = this.FindControl<DataGrid>("TodoGrid");
-        var items = _ctx.CurrentProject?.TodoItems;
-        if (grid == null || items == null) return;
-        int index = grid.SelectedIndex;
-        if (index >= 0 && index < items.Count - 1)
-            MoveTodoItem(index, 1);
-    }
-
-    private void OnClearCompletedTodos(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var items = _ctx.CurrentProject?.TodoItems;
-        if (items == null) return;
-        bool any = false;
-        for (int i = items.Count - 1; i >= 0; i--)
-        {
-            if (items[i].IsDone)
-            {
-                int indent = items[i].IndentLevel;
-                int end = i + 1;
-                while (end < items.Count && items[end].IndentLevel > indent)
-                    end++;
-                for (int j = end - 1; j >= i; j--)
-                    items.RemoveAt(j);
-                any = true;
-            }
-        }
-        if (any) _ctx.MarkDirty();
-    }
-
-    private System.Collections.ObjectModel.ObservableCollection<Model.TodoItem>? _subscribedTodoItems;
-
-    internal void SubscribeTodoItems()
-    {
-        // Unsubscribe from previous collection
-        if (_subscribedTodoItems != null)
-        {
-            _subscribedTodoItems.CollectionChanged -= TodoItems_CollectionChanged;
-            foreach (var item in _subscribedTodoItems)
-                item.PropertyChanged -= TodoItem_PropertyChanged;
-        }
-
-        _subscribedTodoItems = _ctx.CurrentProject?.TodoItems;
-        if (_subscribedTodoItems == null) return;
-
-        _subscribedTodoItems.CollectionChanged += TodoItems_CollectionChanged;
-        foreach (var item in _subscribedTodoItems)
-            item.PropertyChanged += TodoItem_PropertyChanged;
-
-        UpdateTodoEmptyHint();
-    }
-
-    private void TodoItems_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems != null)
-            foreach (Model.TodoItem item in e.OldItems)
-                item.PropertyChanged -= TodoItem_PropertyChanged;
-        if (e.NewItems != null)
-            foreach (Model.TodoItem item in e.NewItems)
-                item.PropertyChanged += TodoItem_PropertyChanged;
-        UpdateTodoEmptyHint();
-    }
-
-    private void TodoItem_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
-    {
-        _ctx.MarkDirty();
-    }
-
-    private void UpdateTodoEmptyHint()
-    {
-        var items = _ctx.CurrentProject?.TodoItems;
-        TodoEmptyHint.IsVisible = items == null || items.Count == 0;
-    }
-
-    #endregion
-
-    #region Collections
-
-    private void OnNewCollection(object? sender, RoutedEventArgs e)
-    {
-        if (!string.IsNullOrEmpty(CollectionInput.Text))
-        {
-            _ctx.Collections.NewCollection(CollectionInput.Text);
-            CollectionInput.Clear();
-            UpdateCollectionsEmptyHint();
-        }
-    }
-
-    private void OnRenameCollection(object? sender, RoutedEventArgs e)
-    {
-        if (!string.IsNullOrEmpty(CollectionInput.Text))
-        {
-            _ctx.Collections.RenameCollection(CollectionInput.Text);
-            CollectionInput.Clear();
-        }
-    }
-
-    private void OnAddToCollection(object? sender, RoutedEventArgs e)
-    {
-        string? name = sender switch
-        {
-            MenuItem { SelectedItem: string s } => s,
-            Button { Content: string c } => c,
-            _ => null
-        };
-        if (name != null)
-            _ctx.Collections.AddFileToCollection(name);
-
-        if (sender is Button)
-            CollectionButton.Flyout?.Hide();
-
-        UpdateCollectionsEmptyHint();
-    }
-
-    #endregion
+    
 
 
     #region Row Styling
@@ -2523,89 +1607,5 @@ public partial class MainView : UserControl
 
     #endregion
 
-    #region Calendar
-
-    private async void OnCopyDiaryEntry(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.DataContext is Model.WeekDiaryEntry entry
-            && !string.IsNullOrWhiteSpace(entry.Diary))
-        {
-            var top = TopLevel.GetTopLevel(this);
-            if (top?.Clipboard != null)
-                await top.Clipboard.SetTextAsync(entry.Diary);
-        }
-    }
-
-    /// <summary>
-    /// Called when the Calendar control navigates to a different month.
-    /// </summary>
-    private void OnCalendarMonthChanged(object? sender, CalendarDateChangedEventArgs e)
-    {
-        // Delay so the CalendarDayButtons have been laid out for the new month
-        Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Loaded);
-    }
-
-    /// <summary>
-    /// Walks the visual tree of the calendar control and adds small coloured
-    /// dot indicators to each <see cref="CalendarDayButton"/> that has timesheet
-    /// entries, notes, or reminders.
-    /// </summary>
-    private void RefreshCalendarDayIndicators()
-    {
-        var calendar = this.FindControl<Calendar>("MainCalendar");
-        if (calendar is null || _ctx?.Calendar is null) return;
-
-        var displayDate = calendar.DisplayDate;
-        var dayButtons = calendar.GetVisualDescendants().OfType<CalendarDayButton>();
-
-        foreach (var btn in dayButtons)
-        {
-            // Resolve the template root Panel so we can add/remove our indicator
-            var rootPanel = btn.GetVisualChildren().FirstOrDefault() as Panel;
-            if (rootPanel is null) continue;
-
-            // Remove any previously-added indicator panel
-            for (int i = rootPanel.Children.Count - 1; i >= 0; i--)
-            {
-                if (rootPanel.Children[i] is Avalonia.Controls.StackPanel sp && sp.Name == "_DayInd")
-                    rootPanel.Children.RemoveAt(i);
-            }
-
-            // Skip inactive (previous/next month) day buttons
-            if (btn.Classes.Contains(":inactive")) continue;
-
-            // Parse the day number from the button's Content
-            if (btn.Content is not string dayStr || !int.TryParse(dayStr, out int day)) continue;
-            if (day < 1 || day > DateTime.DaysInMonth(displayDate.Year, displayDate.Month)) continue;
-
-            var date = new DateOnly(displayDate.Year, displayDate.Month, day);
-            var (hasNote, hasTime, hasReminder) = _ctx.Calendar.GetDayInfo(date);
-            if (!hasNote && !hasTime && !hasReminder) continue;
-
-            var indicator = new Avalonia.Controls.StackPanel
-            {
-                Name = "_DayInd",
-                Orientation = Avalonia.Layout.Orientation.Horizontal,
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
-                Spacing = 2,
-                Margin = new Thickness(0, 0, 0, 4),
-                IsHitTestVisible = false,
-            };
-
-            if (hasTime)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                    { Width = 5, Height = 5, Fill = Brushes.DodgerBlue });
-            if (hasNote)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                    { Width = 5, Height = 5, Fill = Brushes.MediumSeaGreen });
-            if (hasReminder)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                    { Width = 5, Height = 5, Fill = Brushes.Orange });
-
-            rootPanel.Children.Add(indicator);
-        }
-    }
-
-    #endregion
+    
 }

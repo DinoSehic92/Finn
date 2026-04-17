@@ -2,31 +2,24 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Finn.ViewModels
 {
     /// <summary>
-    /// Base class for all view models, provides property change and async support.
+    /// Base class for all view models, provides property change notification
+    /// and async disposal support.
     /// </summary>
     public abstract class ViewModelBase : ObservableObject, IAsyncDisposable
     {
-        #region Fields
-        private readonly SemaphoreSlim operationSemaphore = new(1, 1);
-        private bool disposed = false;
         protected readonly ILogger? logger;
-        #endregion
 
-        #region Constructor
         protected ViewModelBase(ILogger? logger = null)
         {
             this.logger = logger;
         }
-        #endregion
 
-        #region Property Changed Enhancements
         protected new bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string? propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, newValue))
@@ -47,82 +40,15 @@ namespace Finn.ViewModels
             }
             return false;
         }
-        #endregion
 
-        #region Async Operations
-        protected async Task ExecuteAsync(Func<Task> operation, CancellationToken cancellationToken = default)
-        {
-            if (disposed) throw new ObjectDisposedException(GetType().Name);
-
-            await operationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                await operation().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error executing async operation in {ViewModelType}", GetType().Name);
-                throw;
-            }
-            finally
-            {
-                operationSemaphore.Release();
-            }
-        }
-
-        protected async Task<T> ExecuteAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken = default)
-        {
-            if (disposed) throw new ObjectDisposedException(GetType().Name);
-
-            await operationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                return await operation().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error executing async operation in {ViewModelType}", GetType().Name);
-                throw;
-            }
-            finally
-            {
-                operationSemaphore.Release();
-            }
-        }
-        #endregion
-
-        #region Disposal
-        protected virtual async ValueTask DisposeAsyncCore()
-        {
-            if (!disposed)
-            {
-                operationSemaphore.Dispose();
-                disposed = true;
-            }
-        }
-
-        // Ensure exceptions from async dispose are logged to the file fallback
-        public override string ToString()
-        {
-            return GetType().FullName ?? base.ToString();
-        }
+        protected virtual ValueTask DisposeAsyncCore() => ValueTask.CompletedTask;
 
         public async ValueTask DisposeAsync()
         {
             await DisposeAsyncCore().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region Validation
-        protected bool ValidateProperty<T>(T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (string.IsNullOrEmpty(propertyName))
-                return true;
-
-            // Add validation logic here if needed
-            return true;
-        }
-        #endregion
+        public override string ToString() => GetType().FullName ?? base.ToString();
     }
 }
