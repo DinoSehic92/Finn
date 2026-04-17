@@ -104,10 +104,11 @@ namespace Finn.ViewModels
                     Header = category,
                     Tag = "Header",
                     IconSymbol = categoryIcon,
-                    FontSize = 16,
+                    FontSize = 15,
                     FontWeight = FontWeight.Bold,
-                    FontStyle = FontStyle.Italic,
                     IsExpanded = true,
+                    NodeMargin = nodes.Count > 0 ? new Avalonia.Thickness(0, 6, 0, 0) : new Avalonia.Thickness(0),
+                    NodeMinHeight = 26,
                     Children = categoryChildren
                 });
             }
@@ -204,7 +205,8 @@ namespace Finn.ViewModels
                     IconSymbol = GetFiletypeIcon(filetype),
                     FontSize = 13,
                     FontWeight = FontWeight.Light,
-                    Foreground = foreground
+                    Foreground = foreground,
+                    NodeOpacity = 0.75
                 };
 
                 // Match the filetype node when a file is selected in the current project.

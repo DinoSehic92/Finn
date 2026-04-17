@@ -18,7 +18,7 @@ public class EmptyHint : StackPanel
         AvaloniaProperty.Register<EmptyHint, Symbol>(nameof(Icon), Symbol.Info);
 
     public static readonly StyledProperty<double> IconSizeProperty =
-        AvaloniaProperty.Register<EmptyHint, double>(nameof(IconSize), 22);
+        AvaloniaProperty.Register<EmptyHint, double>(nameof(IconSize), 24);
 
     public static readonly StyledProperty<string> TitleProperty =
         AvaloniaProperty.Register<EmptyHint, string>(nameof(Title), string.Empty);

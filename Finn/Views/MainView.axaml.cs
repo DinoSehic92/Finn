@@ -824,14 +824,8 @@ public partial class MainView : UserControl
             _suppressTreeSelection = true;
             MainTree.SelectedItem = null;
             _suppressTreeSelection = false;
-
-            if (MainTree.ContextMenu != null)
-                MainTree.ContextMenu.IsEnabled = false;
             return;
         }
-
-        if (MainTree.ContextMenu != null)
-            MainTree.ContextMenu.IsEnabled = true;
 
         if (tag == "All Types")
         {

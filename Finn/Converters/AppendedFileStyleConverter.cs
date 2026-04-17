@@ -40,7 +40,7 @@ namespace Finn.Converters
             return _mode switch
             {
                 Mode.FontStyle => flag ? Avalonia.Media.FontStyle.Italic : Avalonia.Media.FontStyle.Normal,
-                Mode.FontWeight => flag ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal,
+                Mode.FontWeight => Avalonia.Media.FontWeight.Normal,
                 Mode.Opacity => flag ? 0.8 : 1.0,
                 Mode.Indent => flag ? 20.0 : 0.0,
                 Mode.Chevron => flag ? ChevronExpanded : ChevronCollapsed,

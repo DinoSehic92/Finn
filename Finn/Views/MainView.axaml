@@ -26,6 +26,15 @@
 		<converter:RowDefConverter x:Key="RowDefConverter" />
 		<converter:FolderModeIconConverter x:Key="FolderModeIconConverter" />
 
+		<!-- Tag color palette — defined here so StaticResource resolves inside detached ContextMenus and flyouts -->
+		<SolidColorBrush x:Key="TagColorYellow"  Color="#E5A820"/>
+		<SolidColorBrush x:Key="TagColorOrange"  Color="#E06830"/>
+		<SolidColorBrush x:Key="TagColorBrown"   Color="#9C6B3C"/>
+		<SolidColorBrush x:Key="TagColorGreen"   Color="#3DA35F"/>
+		<SolidColorBrush x:Key="TagColorBlue"    Color="#3B82D9"/>
+		<SolidColorBrush x:Key="TagColorRed"     Color="#D64045"/>
+		<SolidColorBrush x:Key="TagColorMagenta" Color="#9B5FC0"/>
+
 		<FontFamily x:Key="Barlow">avares://Finn/Assets/Fonts#Barlow</FontFamily>
 		<FontFamily x:Key="Fira Sans">avares://Finn/Assets/Fonts#Fira Sans</FontFamily>
 		<FontFamily x:Key="IBM Plex Sans">avares://Finn/Assets/Fonts#IBM Plex Sans</FontFamily>
@@ -179,9 +188,20 @@
 			</Setter>
 		</Style>
 
-        <!-- Group placeholders stay visually normal; hierarchy is shown by the spine/chevron only -->
+		<!-- Group placeholders stay visually normal; hierarchy is shown by the spine/chevron only -->
 		<Style Selector="DataGridRow.GroupRow">
-            <Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontWeight" Value="Normal"/>
+		</Style>
+		<Style Selector="DataGridRow.GroupRow DataGridCell">
+			<Setter Property="FontWeight" Value="Normal"/>
+		</Style>
+		<Style Selector="DataGridRow.GroupRow DataGridCell TextBlock">
+			<Setter Property="FontWeight" Value="Normal"/>
+		</Style>
+
+		<!-- Splitter grip dots: fade in on pointer-over -->
+		<Style Selector="GridSplitter:pointerover /template/ StackPanel#GripDots">
+			<Setter Property="Opacity" Value="0.5"/>
 		</Style>
 
 		<!-- Direct file attachments are slightly subdued; group children stay normal -->
@@ -372,13 +392,13 @@
 									<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
 								</Border.Background>
 								<StackPanel Orientation="Vertical" Spacing="2">
-									<Button Width="22" Height="22" Background="#E5A820" Opacity="0.85" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="#E06830" Opacity="0.85" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="#9C6B3C" Opacity="0.85" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="#3DA35F" Opacity="0.85" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="#3B82D9" Opacity="0.85" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="#D64045" Opacity="0.85" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="#9B5FC0" Opacity="0.85" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorYellow}" Opacity="0.85" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorOrange}" Opacity="0.85" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorBrown}"  Opacity="0.85" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorGreen}"  Opacity="0.85" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorBlue}"   Opacity="0.85" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorRed}"    Opacity="0.85" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+									<Button Width="22" Height="22" Background="{StaticResource TagColorMagenta}" Opacity="0.85" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
 									<Button Width="22" Height="22" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"
 											BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
 										<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
@@ -756,25 +776,25 @@
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss" FontSize="14"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Yellow"  Tag="Yellow"  Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E5A820"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorYellow}"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Orange"  Tag="Orange"  Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E06830"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorOrange}"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Brown"   Tag="Brown"   Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9C6B3C"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorBrown}"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Green"   Tag="Green"   Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3DA35F"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorGreen}"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Blue"    Tag="Blue"    Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3B82D9"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorBlue}"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Red"     Tag="Red"     Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#D64045"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorRed}"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Magenta" Tag="Magenta" Click="EditColor">
-								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9B5FC0"/></MenuItem.Icon>
+								<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorMagenta}"/></MenuItem.Icon>
 							</MenuItem>
 						</MenuItem>
 
@@ -1033,7 +1053,20 @@
 		<!-- Preview splitter -->
 		<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2"
 					  Background="Transparent" ResizeDirection="Columns" Width="10"
-					  IsEnabled="{Binding UI.PreviewEmbeddedOpen}"/>
+					  IsEnabled="{Binding UI.PreviewEmbeddedOpen}">
+			<GridSplitter.Template>
+				<ControlTemplate>
+					<Border Background="Transparent" Width="10">
+						<StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3"
+									Opacity="0" Name="GripDots">
+							<Ellipse Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+							<Ellipse Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+							<Ellipse Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+						</StackPanel>
+					</Border>
+				</ControlTemplate>
+			</GridSplitter.Template>
+		</GridSplitter>
 
 		<!-- ═══════════════════════════════════════════════ -->
 		<!-- Side panels                                    -->
@@ -1302,7 +1335,6 @@
 							</MultiBinding>
 						</RowDefinition.Height>
 					</RowDefinition>
-					<RowDefinition Height="Auto"/>
 					<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.6}"/>
 					<!-- Annotations (superuser) -->
 					<RowDefinition>
@@ -1528,7 +1560,7 @@
 			</Panel>
 
 			<!-- File versions panel -->
-								<Grid Grid.Row="9" IsVisible="{Binding UI.TrayVersions}">
+								<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}">
 										<DataGrid Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
@@ -1599,7 +1631,7 @@
 								</Grid>
 
 								<!-- Annotation Layers panel -->
-								<Grid Grid.Row="10" RowDefinitions="Auto,*">
+								<Grid Grid.Row="9" RowDefinitions="Auto,*">
 									<Grid.IsVisible>
 										<MultiBinding Converter="{x:Static BoolConverters.And}">
 											<Binding Path="UI.TrayAnnotations"/>
@@ -1654,7 +1686,7 @@
 													</Grid>
 
 									<!-- To-Do List -->
-									<Panel Grid.Row="11" IsVisible="{Binding UI.TrayTodo}">
+									<Panel Grid.Row="10" IsVisible="{Binding UI.TrayTodo}">
 										<DataGrid Name="TodoGrid"
 												  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
 												  AutoGenerateColumns="False" IsReadOnly="False"
@@ -1689,22 +1721,22 @@
 														<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss" FontSize="14"/></MenuItem.Icon>
 													</MenuItem>
 													<MenuItem Header="Red"     Tag="#D64045" Click="OnTodoColor">
-														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#D64045"/></MenuItem.Icon>
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorRed}"/></MenuItem.Icon>
 													</MenuItem>
 													<MenuItem Header="Orange"  Tag="#E06830" Click="OnTodoColor">
-														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E06830"/></MenuItem.Icon>
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorOrange}"/></MenuItem.Icon>
 													</MenuItem>
 													<MenuItem Header="Yellow"  Tag="#E5A820" Click="OnTodoColor">
-														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#E5A820"/></MenuItem.Icon>
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorYellow}"/></MenuItem.Icon>
 													</MenuItem>
 													<MenuItem Header="Green"   Tag="#3DA35F" Click="OnTodoColor">
-														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3DA35F"/></MenuItem.Icon>
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorGreen}"/></MenuItem.Icon>
 													</MenuItem>
 													<MenuItem Header="Blue"    Tag="#3B82D9" Click="OnTodoColor">
-														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#3B82D9"/></MenuItem.Icon>
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorBlue}"/></MenuItem.Icon>
 													</MenuItem>
 													<MenuItem Header="Magenta" Tag="#9B5FC0" Click="OnTodoColor">
-														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="#9B5FC0"/></MenuItem.Icon>
+														<MenuItem.Icon><Ellipse Width="10" Height="10" Fill="{StaticResource TagColorMagenta}"/></MenuItem.Icon>
 													</MenuItem>
 												</MenuItem>
 												<Separator/>
@@ -1770,16 +1802,30 @@
 		<!-- Tree view -->
 		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="{Binding UI.TreeViewWidth}" Classes="AnimatedPanel">
 			<Border Classes="shadow" Background="{DynamicResource TextControlBackground}">
-				<Grid RowDefinitions="31,*">
-					<TextBlock Text="Project Tree" Height="23" FontSize="14" FontWeight="Normal"
-							   FontStyle="Italic" Margin="16,8,0,0"/>
-					<TreeView Grid.Row="1" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
-							  ItemsSource="{Binding TreeNodes}"
+				<Grid RowDefinitions="31,Auto,*">
+					<Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+						<TextBlock Text="Projects" Height="23" FontSize="13" FontWeight="SemiBold"
+								   FontStyle="Italic" Margin="12,8,0,0" Opacity="0.7"/>
+						<Button Grid.Column="1" Click="OnTreeNewProjectButton"
+								ToolTip.Tip="New Project"
+								Padding="6,2" Margin="0,2,4,2"
+								VerticalAlignment="Center"
+								Classes="subtle">
+							<ic:SymbolIcon Symbol="FolderAdd" FontSize="16"/>
+						</Button>
+					</Grid>
+					<Border Grid.Row="1" Height="1"
+							Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+							Opacity="0.4" HorizontalAlignment="Stretch"/>
+					<TreeView Grid.Row="2" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
+											  ItemsSource="{Binding TreeNodes}"
 							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
 						<TreeView.Styles>
 							<Style Selector="TreeViewItem" x:DataType="vm:TreeNodeData">
 								<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
 								<Setter Property="HorizontalAlignment" Value="Stretch"/>
+								<Setter Property="Margin" Value="{Binding NodeMargin}"/>
+								<Setter Property="MinHeight" Value="{Binding NodeMinHeight, FallbackValue=26}"/>
 							</Style>
 							<Style Selector="TreeView /template/ ScrollViewer">
 								<Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
@@ -1788,7 +1834,9 @@
 							<TreeView.ItemTemplate>
 								<TreeDataTemplate ItemsSource="{Binding Children}">
 										<StackPanel Orientation="Horizontal" Spacing="6"
-															Background="Transparent">
+															Background="Transparent"
+															Opacity="{Binding NodeOpacity}"
+															ContextRequested="OnTreeNodeContextRequested">
 											<ic:SymbolIcon Symbol="{Binding IconSymbol}" FontSize="14"
 														   IsVisible="{Binding IconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
 														   Opacity="0.7"/>
@@ -1807,41 +1855,43 @@
 									</TreeDataTemplate>
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>
-								<ContextMenu Name="TreeMenu" Opening="OnTreeContextMenuOpening">
-									<MenuItem Header="Add Files" Click="OnAddFiles">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Header="New Project" Command="{Binding OpenProjectNewDia}" CommandParameter="{Binding $parent[Window]}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
-									</MenuItem>
-									<MenuItem Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
-									</MenuItem>
-									<Separator/>
-										<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared" IsVisible="{Binding UI.SuperuserMode}">
+									<ContextMenu Name="TreeMenu" Opening="OnTreeContextMenuOpening">
+										<!-- Always visible -->
+										<MenuItem Name="NewProjectMenuItem" Header="New Project" Click="OnTreeNewProjectButton">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
+										</MenuItem>
+										<!-- Project nodes only -->
+										<MenuItem Name="AddFilesMenuItem" Header="Add Files" Click="OnAddFiles">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="EditProjectMenuItem" Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
+										</MenuItem>
+										<Separator Name="SharedSeparator"/>
+										<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject" IsVisible="{Binding UI.SuperuserMode}">
+										<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowDown"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject" IsVisible="{Binding UI.SuperuserMode}">
+										<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject" IsVisible="{Binding UI.SuperuserMode}">
+										<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject" IsVisible="{Binding UI.SuperuserMode}">
+										<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
 										</MenuItem>
-										<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup" IsVisible="{Binding UI.SuperuserMode}">
+										<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
 										</MenuItem>
-									<Separator/>
-									<MenuItem Header="Remove" Click="OnRemoveProject">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-									</MenuItem>
-								</ContextMenu>
-							</TreeView.ContextMenu>
+										<Separator Name="RemoveSeparator"/>
+										<MenuItem Name="RemoveProjectMenuItem" Header="Remove" Click="OnRemoveProject">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+										</MenuItem>
+									</ContextMenu>
+								</TreeView.ContextMenu>
 									</TreeView>
 								</Grid>
 							</Border>

@@ -12,15 +12,13 @@
         CanResize="True"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
+        xmlns:controls="clr-namespace:Finn.Controls"
         x:DataType="vm:MainViewModel">
     <Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
         <Panel Grid.Row="0" IsHitTestVisible="False"/>
-        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
-            <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
-                <ic:SymbolIcon Symbol="History" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            <TextBlock Text="Restore from Backup" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-            <TextBlock Name="SubHeaderText" Text="Select a backup to restore." FontSize="12" Opacity="0.7" HorizontalAlignment="Center"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
+            <controls:DialogHeader Icon="History" Title="Restore from Backup"/>
+            <TextBlock Name="SubHeaderText" Text="Select a backup to restore." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" Margin="0,-10,0,8"/>
         </StackPanel>
         <ListBox Name="BackupList" Grid.Row="2" Margin="10,0,10,0" SelectionMode="Single"/>
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">

@@ -7,6 +7,15 @@
 		<CornerRadius x:Key="AppCornerRadius">10</CornerRadius>
 		<BoxShadow x:Key="AppShadow">0 0 0 0 Transparent</BoxShadow>
 		<Thickness x:Key="AppBorderThickness">0</Thickness>
+
+		<!-- Named tag/color-dot palette used by color picker flyout, context menus and To-Do -->
+		<SolidColorBrush x:Key="TagColorYellow"  Color="#E5A820"/>
+		<SolidColorBrush x:Key="TagColorOrange"  Color="#E06830"/>
+		<SolidColorBrush x:Key="TagColorBrown"   Color="#9C6B3C"/>
+		<SolidColorBrush x:Key="TagColorGreen"   Color="#3DA35F"/>
+		<SolidColorBrush x:Key="TagColorBlue"    Color="#3B82D9"/>
+		<SolidColorBrush x:Key="TagColorRed"     Color="#D64045"/>
+		<SolidColorBrush x:Key="TagColorMagenta" Color="#9B5FC0"/>
 	</Application.Resources>
 
 	<Application.Styles>
@@ -41,9 +50,20 @@
 			</Setter>
 		</Style>
 
-		<!-- Collapsed expand chevron is dimmer -->
-		<Style Selector="TreeViewItem:not(:expanded) /template/ ToggleButton#PART_ExpandCollapseChevron">
-			<Setter Property="Opacity" Value="0.5"/>
+		<!-- Chevron: dim when collapsed, full opacity when expanded or hovered -->
+		<Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+			<Setter Property="Opacity" Value="0.65"/>
+			<Setter Property="Transitions">
+				<Transitions>
+					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+				</Transitions>
+			</Setter>
+		</Style>
+		<Style Selector="TreeViewItem:expanded /template/ ToggleButton#PART_ExpandCollapseChevron">
+			<Setter Property="Opacity" Value="1.0"/>
+		</Style>
+		<Style Selector="TreeViewItem:pointerover /template/ ToggleButton#PART_ExpandCollapseChevron">
+			<Setter Property="Opacity" Value="1.0"/>
 		</Style>
 
 		<Style Selector="ListBox">

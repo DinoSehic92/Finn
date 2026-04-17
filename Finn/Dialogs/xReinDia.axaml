@@ -13,6 +13,7 @@
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
+        xmlns:controls="clr-namespace:Finn.Controls"
         x:DataType="vm:MainViewModel">
 
     <Window.Resources>
@@ -78,15 +79,7 @@
     </Window.Styles>
 
     <Grid RowDefinitions="100,*" Margin="0">
-        <!-- Dialog header with icon and title -->
-        <StackPanel Grid.Row="0" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,48,0,0">
-            <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
-                <ContentControl>
-                    <ic:SymbolIcon Symbol="Calculator" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </ContentControl>
-            </Border>
-            <TextBlock Text="Reinforcement calculator" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-        </StackPanel>
+        <controls:DialogHeader Grid.Row="0" Icon="Calculator" Title="Reinforcement calculator" Margin="0,40,0,0"/>
 
         <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="24">
 

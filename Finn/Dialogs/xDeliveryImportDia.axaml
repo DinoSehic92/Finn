@@ -13,22 +13,14 @@
         CanResize="True"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
+        xmlns:controls="clr-namespace:Finn.Controls"
         x:DataType="vm:MainViewModel">
 
 	<Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 
 		<!-- Header -->
-		<StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,10,0,12">
-			<Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
-				<ContentControl>
-					<ic:SymbolIcon Symbol="FolderArrowRight" FontSize="32" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-				</ContentControl>
-			</Border>
-			<TextBlock Text="Version Sync" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-			<TextBlock Text="Each delivery folder will be imported as one version across all matched files."
-					   FontSize="12" Opacity="0.7" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="440"/>
-		</StackPanel>
+		<controls:DialogHeader Grid.Row="1" Icon="FolderArrowRight" Title="Version Sync" Subtitle="Each delivery folder will be imported as one version across all matched files."/>
 
 		<!-- DataGrid -->
 		<DataGrid Name="DeliveryGrid" Grid.Row="2"

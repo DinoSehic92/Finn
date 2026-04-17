@@ -13,6 +13,7 @@ using System.IO;
 using Avalonia.Platform.Storage;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace Finn.Views;
 
@@ -20,38 +21,70 @@ public partial class MainView
 {
 #region Shared Projects
 
+    private TreeNodeData? _lastRightClickedNode;
+
     /// <summary>
-    /// Shows/hides shared-project menu items based on the current project state
-    /// and whether superuser mode is enabled.
+    /// Fires when the user right-clicks a tree node's StackPanel, before the context menu opens.
+    /// Captures the node so OnTreeContextMenuOpening can use it.
+    /// </summary>
+    private void OnTreeNodeContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if (sender is StackPanel sp && sp.DataContext is TreeNodeData node)
+            _lastRightClickedNode = node;
+        else
+            _lastRightClickedNode = null;
+    }
+
+    private void OnTreeNewProjectButton(object? sender, RoutedEventArgs e)
+    {
+        _ctx.OpenProjectNewDia(ParentWindow);
+    }
+
+    /// <summary>
+    /// Shows/hides context menu items based on the node type that was right-clicked
+    /// and the current project's shared state.
     /// </summary>
     private void OnTreeContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
+
+        string tag = _lastRightClickedNode?.Tag ?? string.Empty;
+        bool isProjectNode = tag is not ("Header" or "Group" or "");
         bool isShared = _ctx.CurrentProject?.IsShared == true;
         bool isViewer = _ctx.CurrentProject?.IsViewer == true;
         bool isSuperuser = _ctx.UI.SuperuserMode;
 
+        // Any shared superuser items visible at all?
+        bool anyShared = isSuperuser && isProjectNode;
+
         foreach (var child in menu.Items)
         {
-            if (child is MenuItem mi)
+            switch (child)
             {
-                switch (mi.Name)
-                {
-                    case "MakeSharedMenuItem":
-                        mi.IsVisible = isSuperuser && !isShared;
-                        break;
-                    case "ImportSharedMenuItem":
-                        mi.IsVisible = isSuperuser && !isShared;
-                        break;
-                    case "PushMenuItem":
-                        mi.IsVisible = isSuperuser && isShared && !isViewer;
-                        break;
-                    case "PullMenuItem":
-                    case "UnshareMenuItem":
-                    case "RestoreBackupMenuItem":
-                        mi.IsVisible = isSuperuser && isShared;
-                        break;
-                }
+                case Separator sep:
+                    sep.IsVisible = sep.Name switch
+                    {
+                        "SharedSeparator" => anyShared,
+                        "RemoveSeparator" => isProjectNode,
+                        _ => true
+                    };
+                    break;
+                case MenuItem mi:
+                    mi.IsVisible = mi.Name switch
+                    {
+                        "NewProjectMenuItem"    => true,
+                        "AddFilesMenuItem"      => isProjectNode,
+                        "EditProjectMenuItem"   => isProjectNode,
+                        "MakeSharedMenuItem"    => isSuperuser && isProjectNode && !isShared,
+                        "ImportSharedMenuItem"  => isSuperuser && isProjectNode && !isShared,
+                        "PushMenuItem"          => isSuperuser && isProjectNode && isShared && !isViewer,
+                        "PullMenuItem"          => isSuperuser && isProjectNode && isShared,
+                        "UnshareMenuItem"       => isSuperuser && isProjectNode && isShared,
+                        "RestoreBackupMenuItem" => isSuperuser && isProjectNode && isShared,
+                        "RemoveProjectMenuItem" => isProjectNode,
+                        _                       => true
+                    };
+                    break;
             }
         }
     }

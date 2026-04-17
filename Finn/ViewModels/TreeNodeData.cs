@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Media;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -51,6 +52,15 @@ namespace Finn.ViewModels
         public FontWeight FontWeight { get; init; } = FontWeight.Normal;
         public FontStyle FontStyle { get; init; } = FontStyle.Normal;
         public Color? Foreground { get; init; }
+
+        /// <summary>Extra top margin; used to visually separate category-level nodes.</summary>
+        public Thickness NodeMargin { get; init; } = new Thickness(0);
+
+        /// <summary>Override for TreeViewItem MinHeight. 0 means use the global default.</summary>
+        public double NodeMinHeight { get; init; } = 0;
+
+        /// <summary>Opacity override for the node's content row (used to de-emphasise filetype children).</summary>
+        public double NodeOpacity { get; init; } = 1.0;
 
         // Avalonia TextBlock.Foreground expects a Brush. Expose a brush property
         // so the view can bind directly to it (avoids needing a converter in XAML).
