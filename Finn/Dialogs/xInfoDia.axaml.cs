@@ -28,7 +28,7 @@ public partial class xInfoDia : Window
 
         if(ctx.CurrentFile != null)
         {
-            string path = ctx.CurrentFile.Sökväg;
+            string path = ctx.CurrentFile.SÃ¶kvÃ¤g;
 
             if (File.Exists(path))
             {

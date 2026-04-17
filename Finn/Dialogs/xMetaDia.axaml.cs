@@ -47,8 +47,8 @@ public partial class xMetaDia : Window
         { 
             TagInp.Text = val4; }
 
-        string val5 = ctx.CurrentFile.Färg;
-        if (ctx.CurrentFiles.Where(x => x.Färg == val5).Count() == ctx.CurrentFiles.Count())
+        string val5 = ctx.CurrentFile.FÃ¤rg;
+        if (ctx.CurrentFiles.Where(x => x.FÃ¤rg == val5).Count() == ctx.CurrentFiles.Count())
         { 
             ColorInp.Text = val5; }
 
@@ -152,8 +152,8 @@ public partial class xMetaDia : Window
             }
         }
 
-        string val15 = ctx.CurrentFile.Sökväg;
-        if (ctx.CurrentFiles.Where(x => x.Sökväg == val15).Count() == ctx.CurrentFiles.Count())
+        string val15 = ctx.CurrentFile.SÃ¶kvÃ¤g;
+        if (ctx.CurrentFiles.Where(x => x.SÃ¶kvÃ¤g == val15).Count() == ctx.CurrentFiles.Count())
         { 
             PathInp.Text = val15;
         }
@@ -222,7 +222,7 @@ public partial class xMetaDia : Window
 
                 if (text == null || text == string.Empty)
                 {
-                    file.Sökväg = text;
+                    file.SÃ¶kvÃ¤g = text;
                 }
                 else
                 {
@@ -230,7 +230,7 @@ public partial class xMetaDia : Window
                     {
                         if (Path.GetExtension(text) == ".pdf")
                         {
-                            file.Sökväg = text;
+                            file.SÃ¶kvÃ¤g = text;
                         }
                     }
                 }

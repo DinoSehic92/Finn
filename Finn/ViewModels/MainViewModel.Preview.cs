@@ -43,7 +43,7 @@ namespace Finn.ViewModels
 
             CheckSingleFile();
             PreviewVM.RequestFile = file;
-            // Preserve the dual-file layout — only replace the left document.
+            // Preserve the dual-file layout â€” only replace the left document.
             await PreviewVM.SetFileAsync(preserveDualFile: true);
         }
 
@@ -67,7 +67,7 @@ namespace Finn.ViewModels
             SelectedVersion = version;
             // Remember the real file so CanCompareVersions works during version preview
             PreviewVM.VersionSourceFile = CurrentFile;
-            var stub = new FileData { Sökväg = version.Sökväg, Namn = version.ShortName };
+            var stub = new FileData { SÃ¶kvÃ¤g = version.SÃ¶kvÃ¤g, Namn = version.ShortName };
             // Point the stub at the version's own annotation layers so strokes
             // survive version switches instead of being lost with the stub.
             stub.AnnotationLayers = version.AnnotationLayers;
@@ -222,7 +222,7 @@ namespace Finn.ViewModels
         {
             Name = new System.IO.DirectoryInfo(path).Name,
             AttachToFile = CurrentFile!.Namn,
-            AttachToFilePath = CurrentFile.Sökväg,
+            AttachToFilePath = CurrentFile.SÃ¶kvÃ¤g,
             Types = types,
             Path = path
         };
@@ -237,7 +237,7 @@ namespace Finn.ViewModels
             var file = files.FirstOrDefault();
             var nav = file;
 
-            // Appended files may have empty Uppdrag in legacy data — use parent
+            // Appended files may have empty Uppdrag in legacy data â€” use parent
             if (nav != null && string.IsNullOrEmpty(nav.Uppdrag) && nav.ParentFile != null)
                 nav = nav.ParentFile;
 

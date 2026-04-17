@@ -87,7 +87,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// When true, network files are automatically routed through the local
-        /// cache before preview — even if not explicitly marked <c>IsCached</c>.
+        /// cache before preview â€” even if not explicitly marked <c>IsCached</c>.
         /// Set by MainViewModel from <see cref="UISettingsViewModel.AutoCacheNetworkFiles"/>.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
@@ -156,15 +156,15 @@ namespace Finn.ViewModels
         public async Task ForceServerRead()
         {
             var file = CurrentFile ?? RequestFile;
-            if (file?.Sökväg == null)
+            if (file?.SÃ¶kvÃ¤g == null)
             {
                 StatusMessage = "No file to reload";
                 return;
             }
 
-            string target = file.Sökväg;
+            string target = file.SÃ¶kvÃ¤g;
             _fileCache.Invalidate(target);
-            StatusMessage = $"Reloading {Path.GetFileName(target)} from server…";
+            StatusMessage = $"Reloading {Path.GetFileName(target)} from serverâ€¦";
 
             RequestFile = file;
             await SetFileAsync().ConfigureAwait(false);
@@ -377,7 +377,7 @@ namespace Finn.ViewModels
                 if (value && (AnnotationActive || _diffOverlayActive)) return;
                 // When deactivating, hide the secondary renderer BEFORE the
                 // property change collapses the grid column to 0px.  The
-                // PDFRenderer throws if arranged at less than 1×1.
+                // PDFRenderer throws if arranged at less than 1Ã—1.
                 if (!value && twopageMode && secondaryRenderer != null)
                 {
                     secondaryRenderer.ReleaseResources();
@@ -614,7 +614,7 @@ namespace Finn.ViewModels
         /// <summary>
         /// Available light-mode page background presets.
         /// These are subtle near-white colors that tint the PDF paper
-        /// without a Skia overlay — set directly as the renderer's PageBackground.
+        /// without a Skia overlay â€” set directly as the renderer's PageBackground.
         /// </summary>
         public static IReadOnlyList<string> LightPaperOptions { get; } =
         [
@@ -647,25 +647,25 @@ namespace Finn.ViewModels
 
         private static Color LightPaperColorForKey(string key) => key switch
         {
-            // Light — barely tinted
+            // Light â€” barely tinted
             "Eggshell"   => Color.FromRgb(252, 249, 242),
             "Vanilla"    => Color.FromRgb(252, 248, 235),
             "Ivory"      => Color.FromRgb(255, 250, 230),
             "Cream"      => Color.FromRgb(255, 248, 225),
             "Buttermilk" => Color.FromRgb(255, 246, 218),
-            // Medium-light — noticeable warmth
+            // Medium-light â€” noticeable warmth
             "Champagne"  => Color.FromRgb(250, 240, 210),
             "Linen"      => Color.FromRgb(248, 235, 205),
             "Bisque"     => Color.FromRgb(250, 235, 200),
             "Parchment"  => Color.FromRgb(245, 232, 195),
             "Bone"       => Color.FromRgb(242, 230, 200),
-            // Medium — clearly warm paper
+            // Medium â€” clearly warm paper
             "Sand"       => Color.FromRgb(240, 225, 190),
             "Wheat"      => Color.FromRgb(238, 222, 182),
             "Honey"      => Color.FromRgb(242, 222, 175),
             "Peach"      => Color.FromRgb(245, 218, 185),
             "Apricot"    => Color.FromRgb(245, 215, 175),
-            // Medium-dark — strong warm tint
+            // Medium-dark â€” strong warm tint
             "Tan"        => Color.FromRgb(232, 210, 170),
             "Khaki"      => Color.FromRgb(228, 212, 172),
             "Amber"      => Color.FromRgb(235, 208, 158),
@@ -929,7 +929,7 @@ namespace Finn.ViewModels
         {
             "Database" => "Loaded from local cache",
             "Cloud" => "Read from server",
-            "ArrowSync" => "Cache updated — file changed on server",
+            "ArrowSync" => "Cache updated â€” file changed on server",
             _ => null,
         };
 
@@ -949,7 +949,7 @@ namespace Finn.ViewModels
         /// progress is available (e.g. file-path open). The view binds this to
         /// <c>ProgressBar.IsIndeterminate</c> for a marquee effect.
         /// Gated on <see cref="FileWorkerBusy"/> so the indeterminate animation
-        /// stops when the overlay is hidden — Avalonia's DispatcherTimer keeps
+        /// stops when the overlay is hidden â€” Avalonia's DispatcherTimer keeps
         /// ticking on invisible controls and steals UI-thread time from the
         /// PDF renderer, causing pan/zoom stutter.
         /// </summary>
@@ -971,7 +971,7 @@ namespace Finn.ViewModels
         }
 
         private string _backgroundTaskMessage = "";
-        /// <summary>Status text for the background task (e.g. "Pre-caching 3/10…").</summary>
+        /// <summary>Status text for the background task (e.g. "Pre-caching 3/10â€¦").</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string BackgroundTaskMessage
         {
@@ -980,7 +980,7 @@ namespace Finn.ViewModels
         }
 
         private int _backgroundTaskProgress;
-        /// <summary>Progress percentage (0–100) for the background task.</summary>
+        /// <summary>Progress percentage (0â€“100) for the background task.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public int BackgroundTaskProgress
         {
@@ -1070,7 +1070,7 @@ namespace Finn.ViewModels
 
                 if (CurrentFile != null)
                     FireAndForget(SetMainPageAsync(), nameof(SetMainPageAsync));
-                // Skip secondary init when diff mode is active — the View's
+                // Skip secondary init when diff mode is active â€” the View's
                 // SyncDiffOverlay will set up the secondary renderer with the
                 // correct layout (Toggle/SBS) after this method returns.
                 if (!_diffOverlayActive && DualFileMode && CurrentFile2 != null)
@@ -1125,7 +1125,7 @@ namespace Finn.ViewModels
             RequestPage1 = Math.Max(0, page);
         }
 
-        // Minimal blank A4 PDF (595 × 842 pt) used as the whiteboard canvas.
+        // Minimal blank A4 PDF (595 Ã— 842 pt) used as the whiteboard canvas.
         private static readonly byte[] BlankA4Pdf = System.Text.Encoding.ASCII.GetBytes(
             "%PDF-1.0\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
             "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
@@ -1142,7 +1142,7 @@ namespace Finn.ViewModels
         {
             if (disposed) return;
 
-            // Whiteboard is single-page only — collapse dual modes first.
+            // Whiteboard is single-page only â€” collapse dual modes first.
             if (DualFileMode)
                 DualFileMode = false;
             if (TwopageMode)
@@ -1190,7 +1190,7 @@ namespace Finn.ViewModels
         #region File Operations
         public async Task SetFileAsync(string? search = null, CancellationToken cancellationToken = default, bool preserveDualFile = false)
         {
-            if (disposed || RequestFile?.Sökväg == null)
+            if (disposed || RequestFile?.SÃ¶kvÃ¤g == null)
                 return;
 
             WhiteboardMode = false;
@@ -1199,10 +1199,10 @@ namespace Finn.ViewModels
             // DisposeCurrentDocumentAsync skips the secondary renderer while
             // dualFileMode is true, so we must reset it synchronously first.
             // When preserveDualFile is set (View Left in Dual-File mode),
-            // only close diff state — keep the dual-file layout intact.
+            // only close diff state â€” keep the dual-file layout intact.
             // CloseDiffModeSync writes backing fields directly (bypassing the
             // DualFileMode property setter) so we must dispose the secondary
-            // document explicitly — otherwise it's orphaned and the GC may
+            // document explicitly â€” otherwise it's orphaned and the GC may
             // finalize its context first, causing LifetimeManagementException.
             if (_diffOverlayActive)
             {
@@ -1222,7 +1222,7 @@ namespace Finn.ViewModels
             // competing for the render semaphore during the debounce window.
             FileWorkerBusy = true;
 
-            // Cancel previous load — use synchronous Cancel() to avoid
+            // Cancel previous load â€” use synchronous Cancel() to avoid
             // blocking on callback completion (CancelAsync waits for all
             // registered callbacks which can be slow for cache/search I/O).
             try
@@ -1237,7 +1237,7 @@ namespace Finn.ViewModels
             // Cancel any running search BEFORE the debounce so search batches
             // stop blocking the UI thread immediately. When a search is started
             // by the user (not by SetFileAsync), its token is only linked to
-            // searchCts — mainCts.Cancel() above won't reach it. Without this,
+            // searchCts â€” mainCts.Cancel() above won't reach it. Without this,
             // search batches keep running on the UI thread for the entire
             // debounce window, freezing the UI.
             try
@@ -1265,7 +1265,7 @@ namespace Finn.ViewModels
             }
             catch (OperationCanceledException)
             {
-                // A newer request or cancellation arrived — abort early.
+                // A newer request or cancellation arrived â€” abort early.
                 // Only clear FileWorkerBusy if no newer call will handle it.
                 if (!IsStale(myGeneration))
                     FileWorkerBusy = false;
@@ -1288,7 +1288,7 @@ namespace Finn.ViewModels
             {
                 if (IsStale(myGeneration)) return;
 
-                string path = RequestFile.Sökväg;
+                string path = RequestFile.SÃ¶kvÃ¤g;
                 var reqFileRef = RequestFile;
 
                 // Route through local cache when the file is explicitly cached
@@ -1298,7 +1298,7 @@ namespace Finn.ViewModels
                 bool wasStale = false;
                 string originalPath = path;
                 bool isNetworkPath = LocalFileCache.IsNetworkPath(path);
-                // Always cache network files in ReadBytesMode — without this,
+                // Always cache network files in ReadBytesMode â€” without this,
                 // ReadAllBytesAsync reads the entire file over the network on
                 // every switch. Multiple rapid switches pile up concurrent
                 // multi-MB reads that saturate the network and thread pool.
@@ -1307,7 +1307,7 @@ namespace Finn.ViewModels
 
                 if (useCache)
                 {
-                    StatusMessage = "Caching…";
+                    StatusMessage = "Cachingâ€¦";
                     var result = await _fileCache.GetLocalPathAsync(path, token, p => Progress = p).ConfigureAwait(false);
                     Progress = 0;
                     if (IsStale(myGeneration)) return;
@@ -1329,10 +1329,10 @@ namespace Finn.ViewModels
                 if (_autoCacheNetworkFiles && isNetworkPath && cachedLocally && !reqFileRef.IsCached)
                     reqFileRef.IsCached = true;
 
-                // Create MuPDF objects on the background thread — document
+                // Create MuPDF objects on the background thread â€” document
                 // construction is pure native file I/O with no UI dependency.
                 // Only the renderer (Initialize) requires the UI thread.
-                StatusMessage = "Opening…";
+                StatusMessage = "Openingâ€¦";
 
                 // Final staleness check before the expensive, non-cancellable
                 // native MuPDF call. Without this, if the user selects files
@@ -1407,7 +1407,7 @@ namespace Finn.ViewModels
                         var prevCtx = context;
                         MainPreviewFile = previewDoc;
                         context = previewContext;
-                        // Ownership transferred — null the locals so the outer
+                        // Ownership transferred â€” null the locals so the outer
                         // finally block won't double-dispose them.
                         previewDoc = null;
                         previewContext = null;
@@ -1484,7 +1484,7 @@ namespace Finn.ViewModels
             {
                 // Safety net: dispose doc (before ctx!) if they were never
                 // swapped into the ViewModel fields. This covers all exception
-                // paths — e.g. OCE from renderSemaphore.WaitAsync, or any
+                // paths â€” e.g. OCE from renderSemaphore.WaitAsync, or any
                 // unexpected throw between document creation and the swap.
                 if (previewDoc != null)
                 {
@@ -1570,7 +1570,7 @@ namespace Finn.ViewModels
 
         /// <summary>
         /// Quickly disposes the current document. Cancels search, releases
-        /// renderer resources, and disposes MuPDF objects — all on the UI
+        /// renderer resources, and disposes MuPDF objects â€” all on the UI
         /// thread in a single dispatch (no polling loops).
         /// </summary>
         private async Task DisposeCurrentDocumentAsync(CancellationToken token)
@@ -1667,7 +1667,7 @@ namespace Finn.ViewModels
 
         public async Task SetFile2Async(FileData file, CancellationToken cancellationToken = default)
         {
-            if (disposed || file.Sökväg == null) return;
+            if (disposed || file.SÃ¶kvÃ¤g == null) return;
 
             int myGen = Interlocked.Increment(ref secondaryFileGeneration);
             try
@@ -1697,7 +1697,7 @@ namespace Finn.ViewModels
 
                 // Resolve through local cache when the file is marked for caching
                 // or auto-cache is enabled for network paths.
-                string filePath = file.Sökväg;
+                string filePath = file.SÃ¶kvÃ¤g;
                 bool secondaryCachedLocally = false;
                 bool useCache2 = file.IsCached
                     || ((_autoCacheNetworkFiles || _readBytesMode) && LocalFileCache.IsNetworkPath(filePath));
@@ -1758,7 +1758,7 @@ namespace Finn.ViewModels
                     if (secondaryRenderer?.Bounds is { Width: > 0, Height: > 0 })
                         secondaryRenderer.Contain();
                 }).GetTask().ConfigureAwait(false);
-                newDoc = null;     // ownership transferred — prevent finally from double-disposing
+                newDoc = null;     // ownership transferred â€” prevent finally from double-disposing
                 newContext = null;
             }
             catch (OperationCanceledException)
@@ -1792,7 +1792,7 @@ namespace Finn.ViewModels
             {
                 int index = RecentFiles.IndexOf(file);
 
-                // Already at the top — nothing to do
+                // Already at the top â€” nothing to do
                 if (index == 0) return;
 
                 if (index > 0)
@@ -1874,7 +1874,7 @@ namespace Finn.ViewModels
                 if (!DualFileMode)
                     requestPage2 = requestPage1 + 1;
 
-                // In DualFileMode the main document hasn't changed — only the layout
+                // In DualFileMode the main document hasn't changed â€” only the layout
                 // split. Contain() handles the resize, so skip the redundant re-render.
                 if (!DualFileMode)
                     await SetMainPageAsync().ConfigureAwait(false);
@@ -1889,7 +1889,7 @@ namespace Finn.ViewModels
                     {
                         if (secondaryRenderer != null)
                             secondaryRenderer.IsVisible = true;
-                        // In DualFileMode, retry secondary page init — the initial call
+                        // In DualFileMode, retry secondary page init â€” the initial call
                         // in OpenDiffSideBySideAsync may have been skipped due to zero
                         // bounds before layout settled. Now bounds are valid.
                         FireAndForget(SetSecondaryPageAsync(), nameof(SetSecondaryPageAsync));
@@ -1902,7 +1902,7 @@ namespace Finn.ViewModels
                     }
                     if (!LinkedPageMode && !DualFileMode)
                         LinkedPageMode = true;
-                    // Restore focus after layout settles — the caller's
+                    // Restore focus after layout settles â€” the caller's
                     // immediate Focus() call gets lost when Contain() /
                     // IsVisible changes reshape the visual tree.
                     mainRenderer?.Focus();
@@ -1963,7 +1963,7 @@ namespace Finn.ViewModels
                             // this page (e.g. DarkMode toggle, layout changes).
                             // Exception: when search results arrived after the
                             // initial render, force re-Initialize so highlights
-                            // are composited into the render pass — Search()
+                            // are composited into the render pass â€” Search()
                             // alone doesn't repaint an already-rendered page.
                             bool needsSearchHighlight = SearchPages?.Count > 0
                                 && SearchPages.Contains(targetPage) && regex != null;
@@ -2224,7 +2224,7 @@ namespace Finn.ViewModels
             await StopSearchAsync().ConfigureAwait(false);
             ClearSearch();
             // If SetFileAsync started a new load while we were waiting, don't dispose
-            // the document it just created — that would blank the preview after the
+            // the document it just created â€” that would blank the preview after the
             // first search-result click.
             if (Volatile.Read(ref fileGeneration) != gen) return;
             await SafeDisposeAsync().ConfigureAwait(false);
