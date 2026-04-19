@@ -32,6 +32,8 @@ internal static class SharedProjectMerge
         if (keepLocal) return false;
 
         bool changed = false;
+        if (local.ParentNamn != server.ParentNamn) { local.ParentNamn = server.ParentNamn; changed = true; }
+        if (local.IsGroup != server.IsGroup) { local.IsGroup = server.IsGroup; changed = true; }
         if (local.Sökväg != server.Sökväg) { local.Sökväg = server.Sökväg; changed = true; }
         if (local.Filtyp != server.Filtyp) { local.Filtyp = server.Filtyp; changed = true; }
         if (local.CurrentVersion != server.CurrentVersion) { local.CurrentVersion = server.CurrentVersion; changed = true; }

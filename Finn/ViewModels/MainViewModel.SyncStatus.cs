@@ -564,9 +564,6 @@ namespace Finn.ViewModels
                 foreach (var f in changedFiles)
                     System.Diagnostics.Debug.WriteLine($"[SharedSync]   changed: {f}");
 
-                // Ignore events triggered by our own push
-                if (_suppressSharedWatcher) return;
-
                 // Snapshot projects on this thread-pool thread
                 List<ProjectData> affected;
                 lock (_folderSnapshotLock)
@@ -576,8 +573,9 @@ namespace Finn.ViewModels
                     {
                         bool hasPath = !string.IsNullOrEmpty(project.SharedPath);
                         bool match = hasPath && changedFiles.Contains(project.SharedPath);
-                        System.Diagnostics.Debug.WriteLine($"[SharedSync]   project '{project.Namn}' path='{project.SharedPath}' match={match}");
-                        if (match)
+                        bool suppressSelfPush = match && ShouldSuppressSharedFileChange(project);
+                        System.Diagnostics.Debug.WriteLine($"[SharedSync]   project '{project.Namn}' path='{project.SharedPath}' match={match} suppressSelfPush={suppressSelfPush}");
+                        if (match && !suppressSelfPush)
                             affected.Add(project);
                     }
                 }
@@ -602,6 +600,34 @@ namespace Finn.ViewModels
                     }
                     BuildTreeData();
                 });
+            }
+
+            private bool ShouldSuppressSharedFileChange(ProjectData project)
+            {
+                if (!_suppressSharedWatcher)
+                    return false;
+
+                if (string.IsNullOrEmpty(project.SharedPath))
+                    return true;
+
+                if (!project.LastPushedUtc.HasValue)
+                    return true;
+
+                try
+                {
+                    var serverModified = File.GetLastWriteTimeUtc(project.SharedPath);
+
+                    // Ignore only the file changes that still fall within our own
+                    // push window. Real external updates should have a newer write
+                    // time than the last local push baseline.
+                    return serverModified <= project.LastPushedUtc.Value.AddSeconds(5);
+                }
+                catch
+                {
+                    // If we cannot read the timestamp, preserve the existing
+                    // suppression behavior so self-pushes remain quiet.
+                    return true;
+                }
             }
 
             /// <summary>
