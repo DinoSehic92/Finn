@@ -30,7 +30,18 @@ public partial class MainView
     private void OnTreeNodeContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (sender is StackPanel sp && sp.DataContext is TreeNodeData node)
+        {
             _lastRightClickedNode = node;
+            if (node.Tag == "All Types")
+            {
+                var project = _ctx.Storage.StoredProjects.FirstOrDefault(p => p.Namn == node.Header);
+                if (project != null)
+                {
+                    _ctx.CurrentProject = project;
+                    _ctx.SelectedTreeNode = node;
+                }
+            }
+        }
         else
             _lastRightClickedNode = null;
     }

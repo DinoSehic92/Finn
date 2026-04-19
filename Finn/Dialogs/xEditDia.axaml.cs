@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Finn.Model;
 using Finn.ViewModels;
 using Finn.Views;
+using iText.Kernel.XMP.Impl.XPath;
 
 namespace Finn.Dialogs;
 

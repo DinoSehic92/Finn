@@ -1,0 +1,42 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="320"
+        Width="300"
+        MinWidth="300"
+        MinHeight="320"
+        MaxWidth="300"  
+        MaxHeight="320"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        x:Class="Finn.Dialogs.xExportOptionsDia"
+        Title=""
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="30"
+        xmlns:controls="clr-namespace:Finn.Controls"
+        x:DataType="vm:MainViewModel">
+
+    <Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+
+        <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,8">
+            <controls:DialogHeader Icon="Settings" Title="Export Options"/>
+            <TextBlock Text="Top-level files are always included." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="250" Margin="10,0"/>
+
+            <StackPanel Orientation="Vertical" Spacing="4" Margin="0,2,0,0" HorizontalAlignment="Center">
+                <CheckBox Name="IncludeGroupsCheckBox" Content="Include groups" IsChecked="True"/>
+                <CheckBox Name="IncludeAttachedFilesCheckBox" Content="Include attached files" IsChecked="True"/>
+                <CheckBox Name="IncludeOtherFilesCheckBox" Content="Include other files" IsChecked="True"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,12" Spacing="8">
+                <Button Name="AcceptButton" HotKey="Enter" Width="76" Classes="accent" Content="Export" Click="OnAccept"/>
+                <Button Name="CancelButton" HotKey="Escape" Width="76" Classes="normal" Content="Cancel" Click="OnCancel"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+
+</Window>

@@ -1860,6 +1860,9 @@
 										<MenuItem Name="NewProjectMenuItem" Header="New Project" Click="OnTreeNewProjectButton">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
 										</MenuItem>
+								<MenuItem Name="ExportProjectMenuItem" Header="Export" Click="OnExportProjectZip">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowDown"/></MenuItem.Icon>
+								</MenuItem>
 										<!-- Project nodes only -->
 										<MenuItem Name="AddFilesMenuItem" Header="Add Files" Click="OnAddFiles">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>

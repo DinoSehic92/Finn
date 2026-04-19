@@ -1,11 +1,15 @@
 using Finn.Model;
+using iText.Kernel.XMP.Impl.XPath;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 
 namespace Finn.ViewModels
 {
@@ -239,6 +243,328 @@ namespace Finn.ViewModels
         {
             return Storage.StoredProjects.FirstOrDefault();
         }
+
+        public void CreateZipFromProject() => _ = CreateZipFromProjectAsync(new ExportProjectOptions());
+
+        public async Task CreateZipFromProjectAsync(ExportProjectOptions options)
+        {
+            if (CurrentProject == null || string.IsNullOrWhiteSpace(SavePath))
+                return;
+
+            using var exportCts = new CancellationTokenSource();
+            PreviewVM.SetBackgroundTaskCts(exportCts);
+            PreviewVM.BackgroundTaskActive = true;
+            PreviewVM.BackgroundTaskMessage = "Preparing export…";
+            PreviewVM.BackgroundTaskProgress = 0;
+
+            try
+            {
+                await Task.Run(() => ExportProjectZip(options, exportCts.Token), exportCts.Token).ConfigureAwait(true);
+                PreviewVM.BackgroundTaskMessage = "Export complete";
+                PreviewVM.BackgroundTaskProgress = 100;
+            }
+            catch (OperationCanceledException)
+            {
+                PreviewVM.BackgroundTaskMessage = "Export cancelled";
+                PreviewVM.BackgroundTaskProgress = 0;
+            }
+            catch (Exception ex)
+            {
+                Utils.ErrorLogger.Log(ex, "CreateZipFromProject");
+                PreviewVM.BackgroundTaskMessage = "Export failed";
+            }
+            finally
+            {
+                PreviewVM.SetBackgroundTaskCts(null);
+                PreviewVM.BackgroundTaskActive = false;
+            }
+        }
+
+        private void ExportProjectZip(ExportProjectOptions options, CancellationToken token)
+        {
+            string? tempDir = null;
+
+            try
+            {
+                token.ThrowIfCancellationRequested();
+
+                tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+                string storeDir = Path.Combine(SavePath, "Exports");
+                string zipPath = GetUniqueExportZipPath(storeDir, CurrentProject.Namn);
+
+                Directory.CreateDirectory(storeDir);
+                Directory.CreateDirectory(tempDir);
+
+                var exportReport = new List<string>
+                {
+                    $"Project: {CurrentProject.Namn}",
+                    $"Exported: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+                    string.Empty,
+                    "Notes:"
+                };
+
+                var childrenByParent = CurrentProject.StoredFiles
+                    .Where(file => !string.IsNullOrWhiteSpace(file.ParentNamn))
+                    .GroupBy(file => file.ParentNamn, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                var rootFiles = CurrentProject.StoredFiles.Where(file => !file.IsChild).ToList();
+                int totalWork = CountExportWork(rootFiles, childrenByParent, options) + 1;
+                var progress = new ExportProgressContext(totalWork, ReportExportProgress, token);
+
+                foreach (var rootFile in rootFiles)
+                    ExportFileTree(rootFile, tempDir, childrenByParent, new HashSet<string>(StringComparer.OrdinalIgnoreCase), exportReport, progress, options, token, isRoot: true, branchIsGroup: false);
+
+                token.ThrowIfCancellationRequested();
+                File.WriteAllLines(Path.Combine(tempDir, "ExportReport.txt"), exportReport);
+
+                progress.Report("Creating archive…");
+                System.IO.Compression.ZipFile.CreateFromDirectory(tempDir, zipPath);
+                progress.Advance("Export complete");
+            }
+            finally
+            {
+                CleanupTempExportDirectory(tempDir);
+            }
+        }
+
+        private int CountExportWork(IEnumerable<FileData> files, IReadOnlyDictionary<string, List<FileData>> childrenByParent, ExportProjectOptions options)
+        {
+            int total = 0;
+
+            foreach (var file in files)
+                total += CountExportWork(file, childrenByParent, options, isRoot: true, branchIsGroup: false);
+
+            return total;
+        }
+
+        private int CountExportWork(FileData file, IReadOnlyDictionary<string, List<FileData>> childrenByParent, ExportProjectOptions options, bool isRoot, bool branchIsGroup)
+        {
+            if (!ShouldIncludeNode(file, isRoot, branchIsGroup, options))
+                return 0;
+
+            int total = 1;
+
+            if (options.IncludeOtherFiles)
+                total += file.OtherFiles?.Count ?? 0;
+
+            if (childrenByParent.TryGetValue(file.Namn, out var children))
+            {
+                foreach (var child in children)
+                    total += CountExportWork(child, childrenByParent, options, isRoot: false, branchIsGroup: branchIsGroup || file.IsGroup);
+            }
+
+            return total;
+        }
+
+        private void ReportExportProgress(string message, int progress)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                PreviewVM.BackgroundTaskMessage = message;
+                PreviewVM.BackgroundTaskProgress = progress;
+            });
+        }
+
+        private static void CleanupTempExportDirectory(string? tempDir)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(tempDir) && Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, recursive: true);
+            }
+            catch (Exception ex)
+            {
+                Utils.ErrorLogger.Log(ex, "CreateZipFromProject.Cleanup");
+            }
+        }
+
+        private void ExportFileTree(FileData file, string destinationDirectory, IReadOnlyDictionary<string, List<FileData>> childrenByParent, HashSet<string> usedNames, List<string> exportReport, ExportProgressContext progress, ExportProjectOptions options, CancellationToken token, bool isRoot, bool branchIsGroup)
+        {
+            token.ThrowIfCancellationRequested();
+
+            if (!ShouldIncludeNode(file, isRoot, branchIsGroup, options))
+                return;
+
+            string baseName = string.IsNullOrWhiteSpace(file.Namn) ? Path.GetFileNameWithoutExtension(file.Sökväg) : file.Namn;
+            string safeName = GetUniquePathSegment(destinationDirectory, SanitizePathSegment(baseName), usedNames);
+            bool hasChildren = childrenByParent.TryGetValue(file.Namn, out var children) && children.Count > 0;
+            bool hasOtherFiles = file.OtherFiles?.Count > 0;
+            bool shouldCreateFolder = file.IsGroup || hasChildren || hasOtherFiles;
+
+            string currentDirectory = destinationDirectory;
+            if (shouldCreateFolder)
+            {
+                currentDirectory = Path.Combine(destinationDirectory, safeName);
+                Directory.CreateDirectory(currentDirectory);
+            }
+
+            if (File.Exists(file.Sökväg))
+            {
+                string fileName = BuildStableExportFileName(baseName, file.Sökväg);
+                fileName = GetUniquePathSegment(currentDirectory, SanitizePathSegment(fileName), null);
+                string destPath = Path.Combine(currentDirectory, fileName);
+                File.Copy(file.Sökväg, destPath, overwrite: true);
+            }
+            else if (!file.IsGroup)
+            {
+                exportReport.Add($"Missing file skipped: {file.Namn} ({file.Sökväg})");
+            }
+
+            if (hasOtherFiles && options.IncludeOtherFiles)
+                ExportOtherFiles(file, currentDirectory, exportReport, progress, token);
+
+            progress.Advance($"Exported {file.Namn}");
+
+            if (!hasChildren)
+                return;
+
+            var childNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var child in children)
+                ExportFileTree(child, currentDirectory, childrenByParent, childNames, exportReport, progress, options, token, isRoot: false, branchIsGroup: branchIsGroup || file.IsGroup);
+        }
+
+        private static bool ShouldIncludeNode(FileData file, bool isRoot, bool branchIsGroup, ExportProjectOptions options)
+        {
+            if (isRoot)
+                return !file.IsGroup || options.IncludeGroups;
+
+            if (file.IsGroup)
+                return options.IncludeGroups;
+
+            return branchIsGroup ? options.IncludeGroups : options.IncludeAttachedFiles;
+        }
+
+        private static void ExportOtherFiles(FileData file, string destinationDirectory, List<string> exportReport, ExportProgressContext progress, CancellationToken token)
+        {
+            string otherFilesDirectory = Path.Combine(destinationDirectory, "Attachments");
+            Directory.CreateDirectory(otherFilesDirectory);
+
+            var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var otherFile in file.OtherFiles)
+            {
+                if (string.IsNullOrWhiteSpace(otherFile.Filepath) || !File.Exists(otherFile.Filepath))
+                {
+                    exportReport.Add($"Missing attachment skipped: {file.Namn} -> {otherFile.Name} ({otherFile.Filepath})");
+                    continue;
+                }
+
+                string fileName = BuildStableExportFileName(otherFile.Name, otherFile.Filepath);
+                fileName = GetUniquePathSegment(otherFilesDirectory, SanitizePathSegment(fileName), usedNames);
+
+                string destPath = Path.Combine(otherFilesDirectory, fileName);
+                File.Copy(otherFile.Filepath, destPath, overwrite: true);
+                progress.Advance($"Exported attachment {otherFile.Name}");
+                token.ThrowIfCancellationRequested();
+            }
+        }
+
+        public sealed record ExportProjectOptions(
+            bool IncludeGroups = true,
+            bool IncludeAttachedFiles = true,
+            bool IncludeOtherFiles = true);
+
+        private sealed class ExportProgressContext
+        {
+            private readonly Action<string, int> _report;
+            private readonly CancellationToken _token;
+            private int _processed;
+
+            public ExportProgressContext(int totalWork, Action<string, int> report, CancellationToken token)
+            {
+                TotalWork = Math.Max(totalWork, 1);
+                _report = report;
+                _token = token;
+            }
+
+            public int TotalWork { get; }
+
+            public void Advance(string message)
+            {
+                _token.ThrowIfCancellationRequested();
+                int processed = Interlocked.Increment(ref _processed);
+                _report(message, GetProgress(processed));
+            }
+
+            public void Report(string message) => _report(message, GetProgress(_processed));
+
+            private int GetProgress(int processed)
+            {
+                if (TotalWork <= 0)
+                    return 0;
+
+                return Math.Clamp((int)Math.Round(processed * 100.0 / TotalWork), 0, 100);
+            }
+        }
+
+        private static string BuildStableExportFileName(string preferredName, string sourcePath)
+        {
+            string extension = Path.GetExtension(sourcePath);
+            string baseName = SanitizePathSegment(string.IsNullOrWhiteSpace(preferredName)
+                ? Path.GetFileNameWithoutExtension(sourcePath)
+                : preferredName);
+
+            if (string.IsNullOrWhiteSpace(extension))
+                return baseName;
+
+            return baseName + extension;
+        }
+
+        private static string GetUniqueExportZipPath(string exportDirectory, string projectName)
+        {
+            Directory.CreateDirectory(exportDirectory);
+
+            string safeName = SanitizePathSegment(string.IsNullOrWhiteSpace(projectName) ? "Export" : projectName);
+            string candidate = Path.Combine(exportDirectory, safeName + ".zip");
+            int suffix = 1;
+
+            while (File.Exists(candidate))
+            {
+                candidate = Path.Combine(exportDirectory, $"{safeName} ({suffix}).zip");
+                suffix++;
+            }
+
+            return candidate;
+        }
+
+        private static string GetUniquePathSegment(string directory, string desiredName, HashSet<string>? usedNames)
+        {
+            string candidate = string.IsNullOrWhiteSpace(desiredName) ? "Unnamed" : desiredName;
+            string extension = Path.GetExtension(candidate);
+            string baseName = string.IsNullOrWhiteSpace(extension)
+                ? candidate
+                : Path.GetFileNameWithoutExtension(candidate);
+
+            int suffix = 1;
+            while (true)
+            {
+                bool existsOnDisk = Directory.Exists(Path.Combine(directory, candidate)) || File.Exists(Path.Combine(directory, candidate));
+                bool existsInMemory = usedNames != null && usedNames.Contains(candidate);
+                if (!existsOnDisk && !existsInMemory)
+                {
+                    usedNames?.Add(candidate);
+                    return candidate;
+                }
+
+                candidate = string.IsNullOrWhiteSpace(extension)
+                    ? $"{baseName} ({suffix})"
+                    : $"{baseName} ({suffix}){extension}";
+                suffix++;
+            }
+        }
+
+        private static string SanitizePathSegment(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "Unnamed";
+
+            foreach (char invalidChar in Path.GetInvalidFileNameChars())
+                value = value.Replace(invalidChar, '_');
+
+            return value.Trim().TrimEnd('.');
+        }
+
 
         #region Shared Projects
 

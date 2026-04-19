@@ -19,6 +19,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
+using Finn.Dialogs;
 
 namespace Finn.Views;
 
@@ -891,6 +892,21 @@ public partial class MainView : UserControl
     {
         await _ctx.SaveFileAuto();
         _ctx.RefreshFolderWatchers();
+    }
+
+    private async void OnExportProjectZip(object? sender, RoutedEventArgs e)
+    {
+        var window = ParentWindow;
+        var dialog = new xExportOptionsDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.RequestedThemeVariant = window.ActualThemeVariant;
+
+        await dialog.ShowDialog(window);
+
+        if (!dialog.Confirmed)
+            return;
+
+        await _ctx.CreateZipFromProjectAsync(dialog.Options);
     }
 
     /// <summary>
