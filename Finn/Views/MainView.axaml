@@ -1860,9 +1860,6 @@
 										<MenuItem Name="NewProjectMenuItem" Header="New Project" Click="OnTreeNewProjectButton">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
 										</MenuItem>
-								<MenuItem Name="ExportProjectMenuItem" Header="Export" Click="OnExportProjectZip">
-									<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowDown"/></MenuItem.Icon>
-								</MenuItem>
 										<!-- Project nodes only -->
 										<MenuItem Name="AddFilesMenuItem" Header="Add Files" Click="OnAddFiles">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
@@ -1871,6 +1868,8 @@
 											<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
 										</MenuItem>
 										<Separator Name="SharedSeparator"/>
+								<MenuItem x:Name="ShareMenuItem" Header="Share">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
 										<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
 										</MenuItem>
@@ -1889,6 +1888,10 @@
 										<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
 										</MenuItem>
+									</MenuItem>
+									<MenuItem Name="ExportProjectMenuItem" Header="Export" Click="OnExportProjectZip">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowDown"/></MenuItem.Icon>
+									</MenuItem>
 										<Separator Name="RemoveSeparator"/>
 										<MenuItem Name="RemoveProjectMenuItem" Header="Remove" Click="OnRemoveProject">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>

@@ -60,13 +60,14 @@ public partial class MainView
         if (sender is not ContextMenu menu) return;
 
         string tag = _lastRightClickedNode?.Tag ?? string.Empty;
-        bool isProjectNode = tag is not ("Header" or "Group" or "");
+        bool isProjectNode = tag == "All Types";
+        bool isGroupNode = tag == "Group";
         bool isShared = _ctx.CurrentProject?.IsShared == true;
         bool isViewer = _ctx.CurrentProject?.IsViewer == true;
         bool isSuperuser = _ctx.UI.SuperuserMode;
 
-        // Any shared superuser items visible at all?
-        bool anyShared = isSuperuser && isProjectNode;
+        bool showProjectActions = isProjectNode;
+        bool showShareActions = isSuperuser && isProjectNode;
 
         foreach (var child in menu.Items)
         {
@@ -75,8 +76,8 @@ public partial class MainView
                 case Separator sep:
                     sep.IsVisible = sep.Name switch
                     {
-                        "SharedSeparator" => anyShared,
-                        "RemoveSeparator" => isProjectNode,
+                        "SharedSeparator" => showShareActions,
+                        "RemoveSeparator" => showProjectActions,
                         _ => true
                     };
                     break;
@@ -84,17 +85,34 @@ public partial class MainView
                     mi.IsVisible = mi.Name switch
                     {
                         "NewProjectMenuItem"    => true,
-                        "AddFilesMenuItem"      => isProjectNode,
-                        "EditProjectMenuItem"   => isProjectNode,
-                        "MakeSharedMenuItem"    => isSuperuser && isProjectNode && !isShared,
-                        "ImportSharedMenuItem"  => isSuperuser && isProjectNode && !isShared,
-                        "PushMenuItem"          => isSuperuser && isProjectNode && isShared && !isViewer,
-                        "PullMenuItem"          => isSuperuser && isProjectNode && isShared,
-                        "UnshareMenuItem"       => isSuperuser && isProjectNode && isShared,
-                        "RestoreBackupMenuItem" => isSuperuser && isProjectNode && isShared,
-                        "RemoveProjectMenuItem" => isProjectNode,
+                        "AddFilesMenuItem"      => showProjectActions,
+                        "EditProjectMenuItem"   => showProjectActions,
+                        "ExportProjectMenuItem" => showProjectActions,
+                        "ShareMenuItem"         => showShareActions,
+                        "RemoveProjectMenuItem" => showProjectActions,
                         _                       => true
                     };
+
+                    if (mi.Name == "ShareMenuItem")
+                    {
+                        foreach (var shareChild in mi.Items)
+                        {
+                            if (shareChild is MenuItem shareItem)
+                            {
+                                shareItem.IsVisible = shareItem.Name switch
+                                {
+                                    "MakeSharedMenuItem"    => showShareActions && !isShared,
+                                    "ImportSharedMenuItem"  => showShareActions && !isShared,
+                                    "PushMenuItem"          => showShareActions && isShared && !isViewer,
+                                    "PullMenuItem"          => showShareActions && isShared,
+                                    "UnshareMenuItem"       => showShareActions && isShared,
+                                    "RestoreBackupMenuItem" => showShareActions && isShared,
+                                    _                       => true
+                                };
+                            }
+                        }
+                    }
+
                     break;
             }
         }

@@ -248,7 +248,10 @@ namespace Finn.ViewModels
 
         public async Task CreateZipFromProjectAsync(ExportProjectOptions options)
         {
-            if (CurrentProject == null || string.IsNullOrWhiteSpace(SavePath))
+            ProjectData? project = CurrentProject;
+            string savePath = SavePath;
+
+            if (project == null || string.IsNullOrWhiteSpace(savePath))
                 return;
 
             using var exportCts = new CancellationTokenSource();
@@ -259,7 +262,7 @@ namespace Finn.ViewModels
 
             try
             {
-                await Task.Run(() => ExportProjectZip(options, exportCts.Token), exportCts.Token).ConfigureAwait(true);
+                await Task.Run(() => ExportProjectZip(options, exportCts.Token, project, savePath), exportCts.Token).ConfigureAwait(true);
                 PreviewVM.BackgroundTaskMessage = "Export complete";
                 PreviewVM.BackgroundTaskProgress = 100;
             }
@@ -280,35 +283,37 @@ namespace Finn.ViewModels
             }
         }
 
-        private void ExportProjectZip(ExportProjectOptions options, CancellationToken token)
+        private void ExportProjectZip(ExportProjectOptions options, CancellationToken token, ProjectData project, string savePath)
         {
             string? tempDir = null;
+            string? tempZipPath = null;
 
             try
             {
                 token.ThrowIfCancellationRequested();
 
                 tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                string storeDir = Path.Combine(SavePath, "Exports");
-                string zipPath = GetUniqueExportZipPath(storeDir, CurrentProject.Namn);
+                string storeDir = Path.Combine(savePath, "Exports");
+                string zipPath = GetUniqueExportZipPath(storeDir, project.Namn);
+                tempZipPath = Path.Combine(storeDir, $"{Path.GetFileNameWithoutExtension(zipPath)}.{Guid.NewGuid():N}.tmp.zip");
 
                 Directory.CreateDirectory(storeDir);
                 Directory.CreateDirectory(tempDir);
 
                 var exportReport = new List<string>
                 {
-                    $"Project: {CurrentProject.Namn}",
+                    $"Project: {project.Namn}",
                     $"Exported: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
                     string.Empty,
                     "Notes:"
                 };
 
-                var childrenByParent = CurrentProject.StoredFiles
+                var childrenByParent = project.StoredFiles
                     .Where(file => !string.IsNullOrWhiteSpace(file.ParentNamn))
                     .GroupBy(file => file.ParentNamn, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
 
-                var rootFiles = CurrentProject.StoredFiles.Where(file => !file.IsChild).ToList();
+                var rootFiles = project.StoredFiles.Where(file => !file.IsChild).ToList();
                 int totalWork = CountExportWork(rootFiles, childrenByParent, options) + 1;
                 var progress = new ExportProgressContext(totalWork, ReportExportProgress, token);
 
@@ -319,11 +324,26 @@ namespace Finn.ViewModels
                 File.WriteAllLines(Path.Combine(tempDir, "ExportReport.txt"), exportReport);
 
                 progress.Report("Creating archive…");
-                System.IO.Compression.ZipFile.CreateFromDirectory(tempDir, zipPath);
+                System.IO.Compression.ZipFile.CreateFromDirectory(tempDir, tempZipPath);
+                File.Move(tempZipPath, zipPath, overwrite: true);
+                tempZipPath = null;
                 progress.Advance("Export complete");
             }
             finally
             {
+                if (!string.IsNullOrWhiteSpace(tempZipPath))
+                {
+                    try
+                    {
+                        if (File.Exists(tempZipPath))
+                            File.Delete(tempZipPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Utils.ErrorLogger.Log(ex, "CreateZipFromProject.TempZipCleanup");
+                    }
+                }
+
                 CleanupTempExportDirectory(tempDir);
             }
         }
