@@ -29,7 +29,7 @@ public partial class MainView
     /// </summary>
     private void OnTreeNodeContextRequested(object? sender, ContextRequestedEventArgs e)
     {
-        if (sender is StackPanel sp && sp.DataContext is TreeNodeData node)
+        if (sender is Control control && control.DataContext is TreeNodeData node)
         {
             _lastRightClickedNode = node;
             if (node.Tag == "All Types")
