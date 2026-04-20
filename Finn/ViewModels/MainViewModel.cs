@@ -408,6 +408,21 @@ namespace Finn.ViewModels
             }
 
 
+            #region Error Helpers
+
+            /// <summary>
+            /// Logs the exception to disk and surfaces a short message in the
+            /// status bar. Use for user-initiated operations (sync, push, import, export)
+            /// where silent failure leaves the user wondering what happened.
+            /// </summary>
+            internal void LogAndNotify(Exception ex, string context, string? userMessage = null)
+            {
+                Utils.ErrorLogger.Log(ex, context);
+                PreviewVM.StatusMessage = userMessage ?? $"{context} failed: {ex.Message}";
+            }
+
+            #endregion
+
             #region Dirty Tracking
 
             private bool _isDirty;

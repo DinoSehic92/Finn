@@ -538,7 +538,11 @@ namespace Finn.ViewModels
                             && !IsFolderOutOfSync(folder))
                             continue;
                     }
-                    catch { continue; }
+                    catch (Exception ex)
+                    {
+                        Utils.ErrorLogger.Log(ex, $"OnFolderWatcherChanged({folder.Path})");
+                        continue;
+                    }
 
                     newEntries.Add(SyncStatusEntry.FromFolder(folder, projectName));
                 }

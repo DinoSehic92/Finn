@@ -156,7 +156,7 @@ public partial class MainView : UserControl
             // Clean up stale diff temp directories from previous crashes
             PreviewViewModel.CleanupStaleDiffTempDirs();
 
-            _ctx.LoadFileAuto();
+            await _ctx.LoadFileAutoAsync();
             _ctx.ReconcileFileCache();
             UpdateFont();
             // Refresh calendar day indicators when data changes

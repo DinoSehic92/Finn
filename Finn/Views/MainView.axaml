@@ -684,11 +684,19 @@
 									</Panel>
                                     <Panel Grid.Column="1" Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"
 										   IsVisible="{Binding IsAppendedFile}"/>
-									<TextBlock Grid.Column="2" Text="{Binding Namn}" VerticalAlignment="Center"
-											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-											   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
-											   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-                                             Opacity="{Binding IsChild, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+									<TextBlock Grid.Column="2" VerticalAlignment="Center"
+												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+												   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
+												   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+												 Opacity="{Binding IsChild, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}">
+										<TextBlock.Inlines>
+											<MultiBinding Converter="{x:Static converter:SearchHighlightConverter.Instance}">
+												<Binding Path="Namn"/>
+												<Binding Path="SearchTerm"/>
+												<Binding Path="IsSearchMatch"/>
+											</MultiBinding>
+										</TextBlock.Inlines>
+									</TextBlock>
 								   <TextBlock Grid.Column="3" Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
 									   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 									   Opacity="0.45"/>

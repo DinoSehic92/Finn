@@ -62,7 +62,7 @@ namespace Finn.ViewModels
             foreach (ProjectData project in list)
             {
                 Storage.StoredProjects.Remove(project);
-                foreach (FileData file in CurrentProject.StoredFiles)
+                foreach (FileData file in project.StoredFiles)
                 {
                     PreviewVM.RecentFiles.Remove(file);
                 }
@@ -117,9 +117,15 @@ namespace Finn.ViewModels
                 .ThenBy(x => x.Namn)
                 .ToList();
 
-            // Replace the entire collection in one shot instead of
-            // Clear + N individual Add calls (each firing CollectionChanged).
-            Storage.StoredProjects = new ObservableCollection<ProjectData>(sorted);
+            // Sort in-place by moving items to their target positions.
+            // Avoids replacing the collection instance, which would disconnect
+            // any bindings and watcher subscriptions that hold a reference to it.
+            for (int i = 0; i < sorted.Count; i++)
+            {
+                int currentIndex = Storage.StoredProjects.IndexOf(sorted[i]);
+                if (currentIndex != i)
+                    Storage.StoredProjects.Move(currentIndex, i);
+            }
 
             SetProjectlist();
         }
@@ -128,7 +134,10 @@ namespace Finn.ViewModels
         {
             ProjectData project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
 
-            // Use backing fields directly to avoid cascading UpdateFilter calls.
+            // Clear any active search highlights before switching projects.
+            ClearSearchMatchFlags();
+
+            // Use backing fields directly
             // Previously SelectProjectAsync + Type setter each triggered UpdateFilter,
             // doubling the work every time a project was switched.
             currentProject = project;
@@ -166,6 +175,10 @@ namespace Finn.ViewModels
         public void NavigateTo(string projectName, string typeName)
         {
             bool projectChanged = currentProject?.Namn != projectName;
+
+            // Clear any active search highlights before switching projects.
+            if (projectChanged)
+                ClearSearchMatchFlags();
 
             if (projectChanged)
             {
@@ -946,7 +959,11 @@ namespace Finn.ViewModels
                     file.RefreshAnnotationStatus();
                 return project;
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                Utils.ErrorLogger.Log(ex, $"ReadServerProject({sharedPath})");
+                return null;
+            }
         }
 
         /// <summary>

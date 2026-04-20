@@ -577,6 +577,44 @@ namespace Finn.Model
             }
         }
 
+        private bool _isSearchMatch;
+        private string _searchTerm = string.Empty;
+
+        /// <summary>
+        /// True when this file directly matched the most recent search query.
+        /// False for files pulled in as hierarchy context (parent/children).
+        /// Not serialized — set by the search logic and cleared on exit.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsSearchMatch
+        {
+            get => _isSearchMatch;
+            set
+            {
+                if (_isSearchMatch == value) return;
+                _isSearchMatch = value;
+                OnPropertyChanged(nameof(IsSearchMatch));
+            }
+        }
+
+        /// <summary>
+        /// The active search term for inline highlight rendering.
+        /// Set alongside <see cref="IsSearchMatch"/> and cleared when the
+        /// search result is dismissed.
+        /// Not serialized.
+        /// </summary>
+        [JsonIgnore]
+        public string SearchTerm
+        {
+            get => _searchTerm;
+            set
+            {
+                if (_searchTerm == value) return;
+                _searchTerm = value;
+                OnPropertyChanged(nameof(SearchTerm));
+            }
+        }
+
         public string Note
         {
             get => _note;

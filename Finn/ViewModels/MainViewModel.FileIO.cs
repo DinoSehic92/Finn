@@ -45,16 +45,17 @@ namespace Finn.ViewModels
                 }
             }
 
-            public void LoadFileAuto()
+            public async Task LoadFileAutoAsync()
             {
                 string path = Path.Combine(SavePath, "Projects.json");
                 try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
 
                 try
                 {
-                    using StreamReader streamReader = new(path);
-                    string fileContent = streamReader.ReadToEnd();
+                    PreviewVM.StatusMessage = "Loading projects…";
+                    string fileContent = await Task.Run(() => File.ReadAllText(path)).ConfigureAwait(true);
                     DeserializeLoadFile(fileContent);
+                    PreviewVM.StatusMessage = "Ready!";
                 }
                 catch
                 {
@@ -62,6 +63,7 @@ namespace Finn.ViewModels
                     EnsureDefaultProject();
                     SetProjectlist();
                     SetDefaultSelection();
+                    PreviewVM.StatusMessage = "Ready!";
                 }
             }
 
