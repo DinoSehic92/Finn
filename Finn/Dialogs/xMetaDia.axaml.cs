@@ -247,4 +247,9 @@ public partial class xMetaDia : Window
         }
     }
 
+    private void OnCancel(object? sender, RoutedEventArgs e)
+    {
+        this.Close();
+    }
+
 }

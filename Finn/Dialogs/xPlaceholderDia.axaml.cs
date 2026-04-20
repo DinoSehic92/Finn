@@ -36,4 +36,9 @@ public partial class xPlaceholderDia : Window
             OnAddPlaceholder(sender, e);
     }
 
+    private void OnCancel(object? sender, RoutedEventArgs e)
+    {
+        this.Close();
+    }
+
 }

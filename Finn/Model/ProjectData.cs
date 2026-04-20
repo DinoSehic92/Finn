@@ -61,9 +61,10 @@ namespace Finn.Model
         /// </summary>
         public void WireParentReferences()
         {
-            var byName = new Dictionary<string, FileData>(System.StringComparer.OrdinalIgnoreCase);
-            foreach (var file in StoredFiles.Where(f => !f.IsAppendedFile))
-                byName.TryAdd(file.Namn, file);
+            var parentGroups = StoredFiles
+                .Where(f => !f.IsAppendedFile)
+                .GroupBy(f => f.Namn, System.StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), System.StringComparer.OrdinalIgnoreCase);
 
             foreach (var file in StoredFiles)
             {
@@ -73,9 +74,18 @@ namespace Finn.Model
                     continue;
                 }
 
-                file.ParentFile = byName.TryGetValue(file.ParentNamn, out var parent)
-                    ? parent
-                    : null;
+                if (!parentGroups.TryGetValue(file.ParentNamn, out var matches) || matches.Count != 1)
+                {
+                    // Broken or ambiguous parent reference:
+                    // promote the file to top-level instead of silently binding
+                    // to an arbitrary same-name parent.
+                    file.ParentNamn = string.Empty;
+                    file.ParentFile = null;
+                    file.RefreshParentRelationshipState();
+                    continue;
+                }
+
+                file.ParentFile = matches[0];
                 file.RefreshParentRelationshipState();
             }
         }

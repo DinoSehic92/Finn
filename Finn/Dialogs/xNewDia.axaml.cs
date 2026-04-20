@@ -55,4 +55,9 @@ public partial class xNewDia : Window
             OnAddProject(sender, e);
     }
 
+    private void OnCancel(object? sender, RoutedEventArgs e)
+    {
+        this.Close();
+    }
+
 }

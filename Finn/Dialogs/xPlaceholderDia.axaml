@@ -27,8 +27,9 @@
                 <TextBlock Name="HeaderText" Text="New Group" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
 				<TextBox Name="NewFileName" HorizontalContentAlignment="Center" Width="160" />
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20">
+             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
 					<Button Name="Accept" HotKey="Enter" Classes="accent" Content="Accept" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnAddPlaceholder"/>
+                  <Button Name="PlaceholderCancel" Content="Cancel" Width="70" Classes="normal" Click="OnCancel"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>

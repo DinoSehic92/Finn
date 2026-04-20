@@ -254,6 +254,18 @@ namespace Finn.ViewModels
             if (project == null || string.IsNullOrWhiteSpace(savePath))
                 return;
 
+            var integrityIssues = ValidateProjectIntegrity(project);
+            int blockingErrors = integrityIssues.Count(i => i.Severity == IntegrityIssueSeverity.Error);
+            if (blockingErrors > 0)
+            {
+                PreviewVM.StatusMessage = "Export blocked by project integrity issues. Resolve duplicates/ambiguous links first.";
+                PreviewVM.BackgroundTaskMessage = "Export blocked";
+                return;
+            }
+
+            if (integrityIssues.Count > 0)
+                PreviewVM.StatusMessage = BuildIntegritySummary(integrityIssues);
+
             using var exportCts = new CancellationTokenSource();
             PreviewVM.SetBackgroundTaskCts(exportCts);
             PreviewVM.BackgroundTaskActive = true;
@@ -583,6 +595,172 @@ namespace Finn.ViewModels
                 value = value.Replace(invalidChar, '_');
 
             return value.Trim().TrimEnd('.');
+        }
+
+        /// <summary>
+        /// Validates project relationships before sync/export operations.
+        /// Reports duplicate top-level names, unresolved/ambiguous parent links,
+        /// and folder attachments with unresolved owners.
+        /// </summary>
+        public List<IntegrityIssue> ValidateProjectIntegrity(ProjectData project)
+        {
+            var issues = new List<IntegrityIssue>();
+            if (project == null)
+                return issues;
+
+            var topLevel = project.StoredFiles.Where(f => !f.IsAppendedFile).ToList();
+
+            var topByName = topLevel
+                .GroupBy(f => f.Namn, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var duplicate in topByName.Where(g => !string.IsNullOrWhiteSpace(g.Key) && g.Value.Count > 1))
+            {
+                issues.Add(new IntegrityIssue(
+                    IntegrityIssueSeverity.Error,
+                    "DuplicateTopLevelName",
+                    $"Duplicate top-level name: \"{duplicate.Key}\" ({duplicate.Value.Count} entries)",
+                    FileName: duplicate.Key));
+            }
+
+            foreach (var child in project.StoredFiles.Where(f => f.IsAppendedFile))
+            {
+                if (string.IsNullOrWhiteSpace(child.ParentNamn))
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Error,
+                        "MissingParentName",
+                        $"Child \"{child.Namn}\" has no parent name.",
+                        FileName: child.Namn));
+                    continue;
+                }
+
+                if (!topByName.TryGetValue(child.ParentNamn, out var parents) || parents.Count == 0)
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Error,
+                        "MissingParent",
+                        $"Child \"{child.Namn}\" points to missing parent \"{child.ParentNamn}\".",
+                        FileName: child.Namn));
+                    continue;
+                }
+
+                if (parents.Count > 1)
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Error,
+                        "AmbiguousParent",
+                        $"Child \"{child.Namn}\" has ambiguous parent \"{child.ParentNamn}\".",
+                        FileName: child.Namn));
+                }
+            }
+
+            foreach (var folder in project.Folders.Where(f => !f.IsProjectLevel))
+            {
+                int pathMatches = 0;
+                if (!string.IsNullOrWhiteSpace(folder.AttachToFilePath))
+                {
+                    string targetPath = NormalizePathForComparison(folder.AttachToFilePath);
+                    pathMatches = topLevel.Count(f =>
+                        string.Equals(NormalizePathForComparison(f.Sökväg), targetPath, GetPathComparison()));
+                }
+
+                if (pathMatches > 1)
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Error,
+                        "AmbiguousFolderOwnerPath",
+                        $"Folder \"{folder.Name}\" path owner is ambiguous.",
+                        FolderPath: folder.Path));
+                    continue;
+                }
+
+                if (pathMatches == 1)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(folder.AttachToFile))
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Warning,
+                        "MissingFolderOwner",
+                        $"Folder \"{folder.Name}\" has no attached-file owner.",
+                        FolderPath: folder.Path));
+                    continue;
+                }
+
+                int nameMatches = topLevel.Count(f => string.Equals(f.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase));
+                if (nameMatches == 0)
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Warning,
+                        "FolderOwnerNotFound",
+                        $"Folder \"{folder.Name}\" owner \"{folder.AttachToFile}\" not found.",
+                        FolderPath: folder.Path));
+                }
+                else if (nameMatches > 1)
+                {
+                    issues.Add(new IntegrityIssue(
+                        IntegrityIssueSeverity.Error,
+                        "AmbiguousFolderOwner",
+                        $"Folder \"{folder.Name}\" owner \"{folder.AttachToFile}\" is ambiguous.",
+                        FolderPath: folder.Path));
+                }
+            }
+
+            return issues;
+        }
+
+        public List<IntegrityIssue> ValidateCurrentProjectIntegrity() =>
+            CurrentProject == null ? [] : ValidateProjectIntegrity(CurrentProject);
+
+        public static string BuildIntegritySummary(IReadOnlyList<IntegrityIssue> issues)
+        {
+            if (issues == null || issues.Count == 0)
+                return "No project integrity issues found.";
+
+            int errors = issues.Count(i => i.Severity == IntegrityIssueSeverity.Error);
+            int warnings = issues.Count - errors;
+            string severity = errors > 0
+                ? $"Integrity check: {errors} error(s), {warnings} warning(s)."
+                : $"Integrity check: {warnings} warning(s).";
+
+            var sample = issues.Take(3).Select(i => i.Message);
+            string sampleText = string.Join(" | ", sample);
+            return string.IsNullOrWhiteSpace(sampleText)
+                ? severity
+                : severity + " " + sampleText;
+        }
+
+        public static string BuildIntegrityReportMessage(string? projectName, IReadOnlyList<IntegrityIssue> issues, int maxDetails = 20)
+        {
+            string header = string.IsNullOrWhiteSpace(projectName)
+                ? "Integrity check"
+                : $"Integrity check for \"{projectName}\"";
+
+            if (issues == null || issues.Count == 0)
+                return header + "\n\nNo issues found.";
+
+            int errors = issues.Count(i => i.Severity == IntegrityIssueSeverity.Error);
+            int warnings = issues.Count - errors;
+            var lines = new List<string>
+            {
+                header,
+                string.Empty,
+                $"Errors: {errors}",
+                $"Warnings: {warnings}",
+                string.Empty
+            };
+
+            foreach (var issue in issues.Take(maxDetails))
+            {
+                string marker = issue.Severity == IntegrityIssueSeverity.Error ? "[Error]" : "[Warning]";
+                lines.Add($"{marker} {issue.Message}");
+            }
+
+            if (issues.Count > maxDetails)
+                lines.Add($"... and {issues.Count - maxDetails} more issue(s)");
+
+            return string.Join(Environment.NewLine, lines);
         }
 
 

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Finn.Model;
 using Finn.ViewModels;
 using Finn.Views;
@@ -23,6 +24,11 @@ public partial class xContentDia : Window
         {
             this.Close();
         }
+    }
+
+    private void OnCancel(object? sender, RoutedEventArgs e)
+    {
+        this.Close();
     }
 
 }

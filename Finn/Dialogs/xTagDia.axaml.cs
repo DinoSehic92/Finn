@@ -35,4 +35,9 @@ public partial class xTagDia : Window
             OnSetTag(sender, e);
     }
 
+    private void OnCancel(object? sender, RoutedEventArgs e)
+    {
+        this.Close();
+    }
+
 }

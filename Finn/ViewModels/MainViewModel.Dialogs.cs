@@ -217,6 +217,24 @@ namespace Finn.ViewModels
                 await window.ShowDialog(mainWindow);
             }
 
+            public async Task ShowIntegrityReportAsync(Window mainWindow)
+            {
+                var issues = ValidateCurrentProjectIntegrity();
+                string message = BuildIntegrityReportMessage(CurrentProject?.Namn, issues);
+
+                var window = new xMessageDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetMessage(message);
+                await window.ShowDialog(mainWindow);
+
+                int errorCount = issues.Count(i => i.Severity == IntegrityIssueSeverity.Error);
+                PreviewVM.StatusMessage = errorCount > 0
+                    ? "Integrity check found blocking issues"
+                    : issues.Count > 0
+                        ? "Integrity check found warnings"
+                        : "Integrity check passed";
+            }
+
             /// <summary>
             /// Opens diff mode in the previewer with the two selected paths.
             /// Enters dual view immediately (SideBySide) so the user can see

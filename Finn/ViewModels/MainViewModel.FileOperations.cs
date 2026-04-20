@@ -522,7 +522,9 @@ namespace Finn.ViewModels
             public void AddOtherFile(string filepath)
             {
                 var owner = OtherFilesOwner;
-                if (owner != null && !owner.OtherFiles.Any(x => x.Filepath == filepath))
+                string candidatePath = NormalizePathForComparison(filepath);
+                if (owner != null && !owner.OtherFiles.Any(x =>
+                    string.Equals(NormalizePathForComparison(x.Filepath), candidatePath, GetPathComparison())))
                 {
                     OtherData newFile = new() { Filepath = filepath };
                     newFile.SetFile();
@@ -530,6 +532,25 @@ namespace Finn.ViewModels
                     owner.OtherFiles.Add(newFile);
                     SortOtherFiles();
                     MarkDirty();
+                }
+            }
+
+            private static StringComparison GetPathComparison() =>
+                OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+            private static string NormalizePathForComparison(string? path)
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                    return string.Empty;
+
+                try
+                {
+                    return Path.GetFullPath(path)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                }
+                catch
+                {
+                    return path;
                 }
             }
 
@@ -602,6 +623,9 @@ namespace Finn.ViewModels
                 if (file == null || string.IsNullOrEmpty(newName))
                     return;
 
+                if (file.IsTopLevel)
+                    newName = EnsureUniqueName(newName, file);
+
                 string oldName = file.Namn;
                 if (string.Equals(oldName, newName, StringComparison.Ordinal))
                     return;
@@ -612,6 +636,9 @@ namespace Finn.ViewModels
 
             public void RenameOriginal(string newName)
             {
+                if (CurrentFile?.IsTopLevel == true)
+                    newName = EnsureUniqueName(newName, CurrentFile);
+
                 string oldName = CurrentFile.Namn;
                 string oldPath = CurrentFile.Sökväg;
 
@@ -642,6 +669,8 @@ namespace Finn.ViewModels
                 bool wasGroup = CurrentFile.IsGroup;
                 string oldName = CurrentFile.Namn;
                 string newName = System.IO.Path.GetFileNameWithoutExtension(newPath);
+                if (CurrentFile.IsTopLevel)
+                    newName = EnsureUniqueName(newName, CurrentFile);
                 CurrentFile.Sökväg = newPath;
                 CurrentFile.Namn = newName;
                 CurrentFile.IsFileMissing = !fileExists;

@@ -41,8 +41,9 @@
 					</Border>
 				</Grid>
 
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0" Spacing="8">
 					<Button Name="RenameAccept" HotKey="Enter" Classes="accent" Content="Accept" Width="70" Background="{DynamicResource SystemAccentColor}" Click="OnAddProject"/>
+                 <Button Name="NewCancel" Content="Cancel" Width="70" Classes="normal" Click="OnCancel"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>

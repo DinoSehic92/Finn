@@ -894,6 +894,12 @@ public partial class MainView : UserControl
         _ctx.RefreshFolderWatchers();
     }
 
+    private async void OnRunIntegrityCheck(object? sender, RoutedEventArgs e)
+    {
+        var window = ParentWindow;
+        await _ctx.ShowIntegrityReportAsync(window);
+    }
+
     private async void OnExportProjectZip(object? sender, RoutedEventArgs e)
     {
         var window = ParentWindow;

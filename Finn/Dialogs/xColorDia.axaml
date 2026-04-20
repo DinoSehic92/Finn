@@ -174,7 +174,7 @@
 		<!-- Footer buttons pinned at bottom -->
 		<StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,14">
 			<Button Classes="accent" Width="80" Content="Save" Click="OnSave" Background="{DynamicResource TextControlBackground}"/>
-			<Button Classes="accent" Width="80" Content="Close" Click="OnClose" Background="{DynamicResource TextControlBackground}"/>
+           <Button Classes="normal" Width="80" Content="Cancel" Click="OnClose"/>
 		</StackPanel>
 	</Grid>
 

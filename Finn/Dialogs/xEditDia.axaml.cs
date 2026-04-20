@@ -112,6 +112,17 @@ public partial class xEditDia : Window
         this.Close();
     }
 
+    private async void OnRunIntegrityCheck(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainViewModel ctx)
+            await ctx.ShowIntegrityReportAsync(this);
+    }
+
+    private void OnCancel(object? sender, RoutedEventArgs e)
+    {
+        this.Close();
+    }
+
     private void ResetColor(object sender, RoutedEventArgs e)
     {
         ColorPickerForeground.Color = Color.Parse("#FFFFFFFF");

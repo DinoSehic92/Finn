@@ -28,8 +28,9 @@
                 <TextBlock Text="Edit Tag" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
             </StackPanel>
             <TextBox Name="TagMenuInput" HorizontalContentAlignment="Center" Width="200" />
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0" Spacing="8">
                 <Button Name="TagAccept" HotKey="Enter" Content="Accept" Width="70" Classes="accent" Click="OnSetTag"/>
+                <Button Name="TagCancel" Content="Cancel" Width="70" Classes="normal" Click="OnCancel"/>
             </StackPanel>
         </StackPanel>
     </Grid>

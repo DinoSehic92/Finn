@@ -18,7 +18,7 @@
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		x:DataType="vm:MainViewModel">
 
-	<Grid RowDefinitions="130,*" ColumnDefinitions="*,*" VerticalAlignment="Stretch" Margin="5">
+    <Grid RowDefinitions="130,*,Auto" ColumnDefinitions="*,*" VerticalAlignment="Stretch" Margin="5">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 			<StackPanel Grid.Column="0" Grid.ColumnSpan="2" Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,36,0,0">
 				<Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
@@ -41,9 +41,13 @@
 					<DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
-			<Border Classes="shadow" Grid.Column="1" Grid.Row="1" Margin="5" VerticalAlignment="Stretch">
+           <Border Classes="shadow" Grid.Column="1" Grid.Row="1" Margin="5" VerticalAlignment="Stretch">
 				<TextBox Grid.Column="1" Grid.Row="1" Text="{Binding Data.SelectedTextContent.PlainText, Mode=OneWay}" VerticalAlignment="Stretch"/>
 			</Border>
+
+			<StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,4">
+             <Button Name="ContentCancel" Content="Cancel" Width="70" Classes="normal" Click="OnCancel"/>
+			</StackPanel>
 
 	</Grid>
 

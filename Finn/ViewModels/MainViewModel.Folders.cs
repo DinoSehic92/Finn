@@ -37,9 +37,27 @@ namespace Finn.ViewModels
                 return false;
             }
 
-            private FileData? FindAttachedFolderOwner(FolderData folder) =>
-                CurrentProject.StoredFiles.FirstOrDefault(
-                    x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase));
+            private FileData? FindAttachedFolderOwner(FolderData folder)
+            {
+                var topLevel = CurrentProject.StoredFiles.Where(x => !x.IsAppendedFile);
+
+                if (!string.IsNullOrWhiteSpace(folder.AttachToFilePath))
+                {
+                    var byPath = topLevel.FirstOrDefault(x =>
+                        string.Equals(x.Sökväg, folder.AttachToFilePath, StringComparison.OrdinalIgnoreCase));
+                    if (byPath != null)
+                        return byPath;
+                }
+
+                if (string.IsNullOrWhiteSpace(folder.AttachToFile))
+                    return null;
+
+                var matches = topLevel
+                    .Where(x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                return matches.Count == 1 ? matches[0] : null;
+            }
 
             private List<FileData> GetSyncedAttachedChildren(FileData parent, string folderPath) =>
                 CurrentProject.GetChildren(parent)
@@ -222,6 +240,13 @@ namespace Finn.ViewModels
                 if (folder == null || string.IsNullOrEmpty(folder.Path))
                     return false;
 
+                var integrityIssues = ValidateCurrentProjectIntegrity();
+                if (integrityIssues.Any(i => i.Severity == IntegrityIssueSeverity.Error))
+                {
+                    PreviewVM.StatusMessage = "Sync blocked by project integrity issues. Resolve duplicates/ambiguous links first.";
+                    return false;
+                }
+
                 if (!folder.ExistsOnDisk())
                 {
                     PreviewVM.StatusMessage = $"Folder not found: {folder.Name}";
@@ -242,7 +267,7 @@ namespace Finn.ViewModels
 
                     if (file == null)
                     {
-                        PreviewVM.StatusMessage = $"Parent file \"{folder.AttachToFile}\" not found";
+                        PreviewVM.StatusMessage = $"Parent file \"{folder.AttachToFile}\" not found or ambiguous";
                         return false;
                     }
 
