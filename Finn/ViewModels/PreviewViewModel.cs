@@ -1292,18 +1292,15 @@ namespace Finn.ViewModels
                 var reqFileRef = RequestFile;
 
                 // Route through local cache when the file is explicitly cached
-                // or when AutoCacheNetworkFiles is on and this is a network path.
+                // or when AutoCacheNetworkFiles is on for a network path.
+                // ReadBytesMode alone should not persist files to the cache folder.
                 bool cacheHit = false;
                 bool cachedLocally = false;
                 bool wasStale = false;
                 string originalPath = path;
                 bool isNetworkPath = LocalFileCache.IsNetworkPath(path);
-                // Always cache network files in ReadBytesMode — without this,
-                // ReadAllBytesAsync reads the entire file over the network on
-                // every switch. Multiple rapid switches pile up concurrent
-                // multi-MB reads that saturate the network and thread pool.
                 bool useCache = RequestFile.IsCached
-                    || ((_autoCacheNetworkFiles || _readBytesMode) && isNetworkPath);
+                    || (_autoCacheNetworkFiles && isNetworkPath);
 
                 if (useCache)
                 {
@@ -1697,10 +1694,11 @@ namespace Finn.ViewModels
 
                 // Resolve through local cache when the file is marked for caching
                 // or auto-cache is enabled for network paths.
+                // ReadBytesMode alone should not write to the cache folder.
                 string filePath = file.Sökväg;
                 bool secondaryCachedLocally = false;
                 bool useCache2 = file.IsCached
-                    || ((_autoCacheNetworkFiles || _readBytesMode) && LocalFileCache.IsNetworkPath(filePath));
+                    || (_autoCacheNetworkFiles && LocalFileCache.IsNetworkPath(filePath));
 
                 if (useCache2)
                 {
