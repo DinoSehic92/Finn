@@ -1824,8 +1824,16 @@
 							<Style Selector="TreeViewItem" x:DataType="vm:TreeNodeData">
 								<Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
 								<Setter Property="HorizontalAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="1,1"/>
 								<Setter Property="Margin" Value="{Binding NodeMargin}"/>
-								<Setter Property="MinHeight" Value="{Binding NodeMinHeight, FallbackValue=26}"/>
+                                <Setter Property="MinHeight" Value="{Binding NodeMinHeight, FallbackValue=24}"/>
+							</Style>
+                         <Style Selector="TreeViewItem:selected Border.TreeNodeRow">
+								<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+								<Setter Property="Opacity" Value="0.18"/>
+							</Style>
+							<Style Selector="TreeViewItem:selected TextBlock.TreeNodeHeader">
+								<Setter Property="FontWeight" Value="SemiBold"/>
 							</Style>
 							<Style Selector="TreeView /template/ ScrollViewer">
 								<Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
@@ -1833,25 +1841,41 @@
 						</TreeView.Styles>
 							<TreeView.ItemTemplate>
 								<TreeDataTemplate ItemsSource="{Binding Children}">
-										<StackPanel Orientation="Horizontal" Spacing="6"
-															Background="Transparent"
-															Opacity="{Binding NodeOpacity}"
-															ContextRequested="OnTreeNodeContextRequested">
-											<ic:SymbolIcon Symbol="{Binding IconSymbol}" FontSize="14"
+                                        <Border Classes="TreeNodeRow" CornerRadius="4" Padding="2,1"
+												Background="Transparent"
+												Opacity="{Binding NodeOpacity}"
+												ContextRequested="OnTreeNodeContextRequested">
+											<StackPanel Orientation="Horizontal" Spacing="6">
+												<ic:SymbolIcon Symbol="{Binding IconSymbol}" FontSize="14"
 														   IsVisible="{Binding IconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
 														   Opacity="0.7"/>
-											<TextBlock Text="{Binding Header}"
-													   FontSize="{Binding FontSize}"
-													   FontWeight="{Binding FontWeight}"
-													   FontStyle="{Binding FontStyle}"
-													   Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
-											<ic:SymbolIcon Symbol="{Binding SyncIconSymbol}" FontSize="12"
+												<TextBlock Classes="TreeNodeHeader" Text="{Binding Header}"
+														   FontSize="{Binding FontSize}"
+														   FontWeight="{Binding FontWeight}"
+														   FontStyle="{Binding FontStyle}"
+														   Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
+                                                <Border
+														IsVisible="{Binding BadgeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                        CornerRadius="7"
+														Padding="3,0"
+														MinWidth="14"
+														Opacity="0.6"
+														Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+														BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                                     BorderThickness="0.5"
+														Margin="2,0,0,0">
+                                                  <TextBlock Text="{Binding BadgeText}" FontSize="10" HorizontalAlignment="Center" Opacity="0.85"/>
+												</Border>
+												<ic:SymbolIcon Symbol="{Binding SyncIconSymbol}" FontSize="12"
 														   IsVisible="{Binding SyncIconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-														   Opacity="0.6" Margin="2,0,0,0"/>
-											<ic:SymbolIcon Symbol="Eye" FontSize="12"
+														   Opacity="0.6" Margin="2,0,0,0"
+														   ToolTip.Tip="{Binding SyncTooltip}"/>
+												<ic:SymbolIcon Symbol="Eye" FontSize="12"
 														   IsVisible="{Binding IsViewer}"
-														   Opacity="0.5" Margin="0,0,0,0"/>
-										</StackPanel>
+														   Opacity="0.5" Margin="0,0,0,0"
+														   ToolTip.Tip="{Binding ViewerTooltip}"/>
+											</StackPanel>
+										</Border>
 									</TreeDataTemplate>
 							</TreeView.ItemTemplate>
 							<TreeView.ContextMenu>

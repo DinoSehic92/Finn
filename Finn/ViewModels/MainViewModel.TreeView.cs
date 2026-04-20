@@ -50,8 +50,8 @@ namespace Finn.ViewModels
 
             foreach (string category in CategoryTypes)
             {
-                var projects = Storage.StoredProjects.Where(x => x.Category == category);
-                if (!projects.Any())
+                var projects = Storage.StoredProjects.Where(x => x.Category == category).ToList();
+                if (projects.Count == 0)
                     continue;
 
                 var categoryChildren = new List<TreeNodeData>();
@@ -69,7 +69,10 @@ namespace Finn.ViewModels
                 {
                     foreach (string group in Groups)
                     {
-                        var groupedProjects = Storage.StoredProjects.Where(x => x.Parent == group);
+                        var groupedProjects = Storage.StoredProjects.Where(x => x.Parent == group).ToList();
+                        if (groupedProjects.Count == 0)
+                            continue;
+
                         var groupChildren = new List<TreeNodeData>();
 
                         foreach (var project in groupedProjects)
@@ -87,6 +90,7 @@ namespace Finn.ViewModels
                             FontSize = 15,
                             FontWeight = FontWeight.Bold,
                             IsExpanded = true,
+                            NodeOpacity = 0.92,
                             Children = groupChildren
                         });
                     }
@@ -102,13 +106,15 @@ namespace Finn.ViewModels
                 nodes.Add(new TreeNodeData
                 {
                     Header = category,
+                    BadgeText = projects.Count.ToString(),
                     Tag = "Header",
                     IconSymbol = categoryIcon,
                     FontSize = 15,
                     FontWeight = FontWeight.Bold,
                     IsExpanded = true,
+                    NodeOpacity = 0.9,
                     NodeMargin = nodes.Count > 0 ? new Avalonia.Thickness(0, 6, 0, 0) : new Avalonia.Thickness(0),
-                    NodeMinHeight = 26,
+                    NodeMinHeight = 24,
                     Children = categoryChildren
                 });
             }
@@ -161,7 +167,7 @@ namespace Finn.ViewModels
         /// </summary>
         private TreeNodeData? TrySelectProjectNode(TreeNodeData projectNode)
         {
-            if (projectNode.Tag != "All Types" || projectNode.Header.Split("  ")[0] != CurrentProject?.Namn)
+            if (projectNode.Tag != "All Types" || projectNode.Header != CurrentProject?.Namn)
             {
                 projectNode.IsExpanded = false;
                 return null;
@@ -177,7 +183,7 @@ namespace Finn.ViewModels
             {
                 foreach (var child in projectNode.Children)
                 {
-                    string childFiletype = child.Header.Split("  ")[0];
+                    string childFiletype = child.Header;
                     if (childFiletype == targetType)
                         return child;
                 }
@@ -200,7 +206,8 @@ namespace Finn.ViewModels
 
                 var child = new TreeNodeData
                 {
-                    Header = $"{filetype}  ({count})",
+                    Header = filetype,
+                    BadgeText = count.ToString(),
                     Tag = project.Namn,
                     IconSymbol = GetFiletypeIcon(filetype),
                     FontSize = 13,
@@ -227,7 +234,9 @@ namespace Finn.ViewModels
                 Tag = "All Types",
                 IconSymbol = project.IsShared ? "People" : "Folder",
                 SyncIconSymbol = project.IsShared ? project.SharedSyncIconSymbol : null,
+                SyncTooltip = project.IsShared ? project.SharedSyncStatus.ToString() : null,
                 IsViewer = project.IsViewer,
+                ViewerTooltip = project.IsViewer ? "Read-only viewer" : null,
                 FontSize = 15,
                 IsExpanded = isCurrent,
                 Foreground = foreground,

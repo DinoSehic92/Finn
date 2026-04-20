@@ -15,6 +15,7 @@ namespace Finn.ViewModels
     public class TreeNodeData : INotifyPropertyChanged
     {
         public string Header { get; init; } = string.Empty;
+        public string? BadgeText { get; init; }
         public string Tag { get; init; } = string.Empty;
 
         /// <summary>
@@ -44,9 +45,19 @@ namespace Finn.ViewModels
         public string? SyncIconSymbol { get; init; }
 
         /// <summary>
+        /// Optional tooltip for the sync icon.
+        /// </summary>
+        public string? SyncTooltip { get; init; }
+
+        /// <summary>
         /// When true, the node represents a shared project the user is viewing (not owning).
         /// </summary>
         public bool IsViewer { get; init; }
+
+        /// <summary>
+        /// Optional tooltip for viewer indicator.
+        /// </summary>
+        public string? ViewerTooltip { get; init; }
 
         public double FontSize { get; init; } = 14;
         public FontWeight FontWeight { get; init; } = FontWeight.Normal;
