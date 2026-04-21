@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -6,6 +7,7 @@ using Finn.Views;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using Finn.Storage;
 using Finn.Utils;
 using Finn.ViewModels;
@@ -23,6 +25,12 @@ public partial class xColorDia : Window
         FontCombo.ItemsSource = new List<string>() {"Barlow","Fira Sans", "IBM Plex Sans", "Jost", "Lato", "Lexend Deca", "Montserrat", "Nunito", "Open Sans", "Quicksand", "Raleway", "Recursive", "Roboto", "Rosario", "Share Tech", "Source Code Pro", "Ubuntu", "Urbanist", "Work Sans"};
 
         FontSizeCombo.ItemsSource = new List<int>() { 14, 15, 16 };
+
+        DarkPresetCombo.ItemsSource  = UISettingsViewModel.DarkPresets.Select(p => p.Name).ToList();
+        LightPresetCombo.ItemsSource = UISettingsViewModel.LightPresets.Select(p => p.Name).ToList();
+
+        DarkPresetCombo.SelectionChanged  += OnDarkPresetSelected;
+        LightPresetCombo.SelectionChanged += OnLightPresetSelected;
 
         KeyDown += CloseKey;
     }
@@ -55,16 +63,32 @@ public partial class xColorDia : Window
         this.Close();
     }
 
-    public void ResetDark(object sender, RoutedEventArgs e)
+    public void OnDarkPresetSelected(object? sender, SelectionChangedEventArgs e)
     {
-        BackgroundColorPickerDark.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor1;
-        AccentColorPickerDark.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor2;
+        int idx = DarkPresetCombo.SelectedIndex;
+        if (idx < 0 || idx >= UISettingsViewModel.DarkPresets.Count) return;
+        if (this.DataContext is not MainViewModel vm) return;
+
+        var preset = UISettingsViewModel.DarkPresets[idx];
+        BackgroundColorPickerDark.Color = preset.Background;
+        AccentColorPickerDark.Color     = preset.Accent;
+        vm.UI.CornerRadiusVal           = preset.Rounded;
+        vm.UI.ShadowVal                 = preset.Shadows;
+        vm.UI.ShowBorders               = preset.Borders;
     }
 
-    public void ResetLight(object sender, RoutedEventArgs e)
+    public void OnLightPresetSelected(object? sender, SelectionChangedEventArgs e)
     {
-        BackgroundColorPickerLight.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor3;
-        AccentColorPickerLight.Color = Finn.ViewModels.UISettingsViewModel.Defaults.DefaultColor4;
+        int idx = LightPresetCombo.SelectedIndex;
+        if (idx < 0 || idx >= UISettingsViewModel.LightPresets.Count) return;
+        if (this.DataContext is not MainViewModel vm) return;
+
+        var preset = UISettingsViewModel.LightPresets[idx];
+        BackgroundColorPickerLight.Color = preset.Background;
+        AccentColorPickerLight.Color     = preset.Accent;
+        vm.UI.CornerRadiusVal            = preset.Rounded;
+        vm.UI.ShadowVal                  = preset.Shadows;
+        vm.UI.ShowBorders                = preset.Borders;
     }
 
     public void ResetFonts(object sender, RoutedEventArgs e)

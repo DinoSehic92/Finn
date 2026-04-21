@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Avalonia.Media;
 using Avalonia;
@@ -7,8 +9,52 @@ using Avalonia.Themes.Fluent;
 
 namespace Finn.ViewModels
 {
-    public class UISettingsViewModel : ObservableObject
+/// <summary>A complete style preset: colours, corner rounding, shadow depth and border visibility.</summary>
+public record ThemePreset(
+    string Name,
+    Color  Background,
+    Color  Accent,
+    bool   Rounded  = true,
+    bool   Shadows  = false,
+    bool   Borders  = false);
+
+public class UISettingsViewModel : ObservableObject
+{
+    // ── 10 dark presets ─────────────────────────────────────────────────────────
+    // Each belongs to a different colour family and carries tuned style flags.
+    public static readonly IReadOnlyList<ThemePreset> DarkPresets = new[]
     {
+        //                              Background   Accent       R      S      B
+        new ThemePreset("Default",     Color.Parse("#1F2933"), Color.Parse("#0A84FF"), true,  false, false), // blue-charcoal  + bright blue
+        new ThemePreset("Nord",        Color.Parse("#2E3440"), Color.Parse("#88C0D0"), true,  false, false), // cool slate     + frost teal
+        new ThemePreset("Midnight",    Color.Parse("#0D1117"), Color.Parse("#58A6FF"), false, false, false), // near-black     + sky blue   (flat/minimal)
+        new ThemePreset("Tokyo Night", Color.Parse("#1A1B2E"), Color.Parse("#7AA2F7"), true,  true,  false), // deep navy      + soft blue  (layered depth)
+        new ThemePreset("Dracula",     Color.Parse("#282A36"), Color.Parse("#BD93F9"), true,  false, false), // gray-purple    + violet
+        new ThemePreset("Forest",      Color.Parse("#343434"), Color.Parse("#498205"), false, false, false), // neutral grey   + earthy green (flat/grounded)
+        new ThemePreset("Coffee",      Color.Parse("#2B1D0E"), Color.Parse("#D4A843"), true,  true,  false), // dark espresso  + warm gold
+        new ThemePreset("Ember",       Color.Parse("#1C1410"), Color.Parse("#E07B39"), true,  true,  false), // charred wood   + orange flame
+        new ThemePreset("Terminal",    Color.Parse("#0C0C0C"), Color.Parse("#00FF88"), false, false, true),  // true black     + mint green (borders fit terminal grid)
+        new ThemePreset("Rosé",        Color.Parse("#201A1E"), Color.Parse("#F28FAD"), true,  true,  false), // muted dark     + soft pink
+    };
+
+    // ── 10 light presets ────────────────────────────────────────────────────────
+    // Shadows/borders are calibrated to the amount of tint — paler backgrounds
+    // get more visual structure so buttons remain clearly defined.
+    public static readonly IReadOnlyList<ThemePreset> LightPresets = new[]
+    {
+        //                             Background   Accent       R      S      B
+        new ThemePreset("Default",   Color.Parse("#E9EEF5"), Color.Parse("#0066C0"), true,  true,  false), // cool blue-gray  — tinted enough; shadows add depth
+        new ThemePreset("Sage",      Color.Parse("#E4EDE4"), Color.Parse("#2D6A4F"), true,  false, false), // soft green      — tint carries the visibility
+        new ThemePreset("Lavender",  Color.Parse("#EDE8F5"), Color.Parse("#6B21A8"), true,  true,  false), // purple tint     — shadows bring focus
+        new ThemePreset("Blossom",   Color.Parse("#FCE8EE"), Color.Parse("#B5174B"), true,  true,  false), // warm rose       — shadows needed (pale bg)
+        new ThemePreset("Ocean",     Color.Parse("#E0F4F4"), Color.Parse("#00838F"), true,  false, false), // light teal      — tint is clear enough
+        new ThemePreset("Nordic",    Color.Parse("#DCE4EE"), Color.Parse("#1A237E"), true,  true,  false), // strong cool blue — darker tint, shadows add polish
+        new ThemePreset("Dusk",      Color.Parse("#F0E6D6"), Color.Parse("#7B3F00"), true,  true,  false), // warm peach      — pale; shadows lift elements
+        new ThemePreset("Ivory",     Color.Parse("#FEFCF0"), Color.Parse("#C2410C"), true,  true,  false), // near-white warm — shadows essential on pale bg
+        new ThemePreset("Paper",     Color.Parse("#F5EFE4"), Color.Parse("#8B4513"), false, false, true),  // parchment       — flat + borders = classic document
+        new ThemePreset("Mineral",   Color.Parse("#E3E9E6"), Color.Parse("#37474F"), false, false, true),  // muted gray-green — flat + borders = structured/corporate
+    };
+
         // Localized defaults moved here from Finn.Services.UIDefaults
         public static class Defaults
         {

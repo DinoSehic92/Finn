@@ -29,12 +29,13 @@
 			<StackPanel Grid.Column="0" Orientation="Vertical" Spacing="0">
 
 				<!-- Dark Theme -->
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-					<TextBlock Classes="SectionHeader" Text="Dark Theme"/>
-					<Button Click="ResetDark" BorderBrush="Transparent" Height="24" Width="24" MinHeight="0" MinWidth="0" Padding="0" Margin="0,8,0,0">
-						<ic:SymbolIcon Symbol="ArrowReset" FontSize="15"/>
-					</Button>
-				</StackPanel>
+				<TextBlock Classes="SectionHeader" Text="Dark Theme" HorizontalAlignment="Center"/>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Preset"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="DarkPresetCombo" Width="120" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Background"/><ColorPicker Grid.Column="1" Color="{Binding UI.Color1}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerDark"/>
 				</Grid>
@@ -43,12 +44,13 @@
 				</Grid>
 
 				<!-- Light Theme -->
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
-					<TextBlock Classes="SectionHeader" Text="Light Theme"/>
-					<Button Click="ResetLight" BorderBrush="Transparent" Height="24" Width="24" MinHeight="0" MinWidth="0" Padding="0" Margin="0,8,0,0">
-						<ic:SymbolIcon Symbol="ArrowReset" FontSize="15"/>
-					</Button>
-				</StackPanel>
+				<TextBlock Classes="SectionHeader" Text="Light Theme" HorizontalAlignment="Center"/>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Preset"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="LightPresetCombo" Width="120" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Background"/><ColorPicker Grid.Column="1" Color="{Binding UI.Color3}" Width="80" HorizontalAlignment="Left" Name="BackgroundColorPickerLight"/>
 				</Grid>
