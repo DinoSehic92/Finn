@@ -42,6 +42,27 @@
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Accent"/><ColorPicker Grid.Column="1" Color="{Binding UI.Color2}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerDark"/>
 				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Text"/>
+					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+						<ToggleSwitch IsChecked="{Binding UI.DarkTextColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
+						<ColorPicker Color="{Binding UI.DarkTextColor}" Width="80" HorizontalAlignment="Left" Name="TextColorPickerDark"/>
+					</StackPanel>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Grid"/>
+					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+						<ToggleSwitch IsChecked="{Binding UI.DarkPanelColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
+						<ColorPicker Color="{Binding UI.DarkPanelColor}" Width="80" HorizontalAlignment="Left" Name="PanelColorPickerDark"/>
+					</StackPanel>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Border"/>
+					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+						<ToggleSwitch IsChecked="{Binding UI.DarkBorderColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
+						<ColorPicker Color="{Binding UI.DarkBorderColor}" Width="80" HorizontalAlignment="Left" Name="BorderColorPickerDark"/>
+					</StackPanel>
+				</Grid>
 
 				<!-- Light Theme -->
 				<TextBlock Classes="SectionHeader" Text="Light Theme" HorizontalAlignment="Center"/>
@@ -56,6 +77,27 @@
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Accent"/><ColorPicker Grid.Column="1" Color="{Binding UI.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Text"/>
+					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+						<ToggleSwitch IsChecked="{Binding UI.LightTextColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
+						<ColorPicker Color="{Binding UI.LightTextColor}" Width="80" HorizontalAlignment="Left" Name="TextColorPickerLight"/>
+					</StackPanel>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Grid"/>
+					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+						<ToggleSwitch IsChecked="{Binding UI.LightPanelColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
+						<ColorPicker Color="{Binding UI.LightPanelColor}" Width="80" HorizontalAlignment="Left" Name="PanelColorPickerLight"/>
+					</StackPanel>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+					<Label Content="Border"/>
+					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+						<ToggleSwitch IsChecked="{Binding UI.LightBorderColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
+						<ColorPicker Color="{Binding UI.LightBorderColor}" Width="80" HorizontalAlignment="Left" Name="BorderColorPickerLight"/>
+					</StackPanel>
 				</Grid>
 
 				<!-- Fonts -->

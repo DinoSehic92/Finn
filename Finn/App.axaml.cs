@@ -90,7 +90,13 @@ public partial class App : Application
             switch (e.PropertyName)
             {
                 case "Color1" or "Color2" or "Color3" or "Color4" or "DarkMode"
-                    or "CornerRadius" or "Shadow" or "BorderThickness":
+                    or "CornerRadius" or "Shadow" or "BorderThickness"
+                    or "DarkTextColorEnabled"  or "DarkTextColor"
+                    or "DarkPanelColorEnabled" or "DarkPanelColor"
+                    or "DarkBorderColorEnabled" or "DarkBorderColor"
+                    or "LightTextColorEnabled"  or "LightTextColor"
+                    or "LightPanelColorEnabled" or "LightPanelColor"
+                    or "LightBorderColorEnabled" or "LightBorderColor":
                     vm.UI.ApplyTheme();
                     break;
             }

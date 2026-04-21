@@ -10,6 +10,15 @@ namespace Finn.Storage
         public string Color3 { get; set; } = string.Empty;
         public string Color4 { get; set; } = string.Empty;
 
+        // Extended per-theme overrides: Dark = 5-7, Light = 8-10
+        // Empty string means "use Fluent default" for that slot.
+        public string DarkTextColor   { get; set; } = string.Empty;  // Color5
+        public string DarkPanelColor  { get; set; } = string.Empty;  // Color6
+        public string DarkBorderColor { get; set; } = string.Empty;  // Color7
+        public string LightTextColor  { get; set; } = string.Empty;  // Color8
+        public string LightPanelColor { get; set; } = string.Empty;  // Color9
+        public string LightBorderColor{ get; set; } = string.Empty;  // Color10
+
         public bool CornerRadiusVal { get; set; }
         public double CornerRadius { get; set; }
 

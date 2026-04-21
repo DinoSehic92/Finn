@@ -14,45 +14,59 @@ public record ThemePreset(
     string Name,
     Color  Background,
     Color  Accent,
+    Color? PanelBackground = null,
+    Color? TextColor = null,
+    Color? BorderColor = null,
     bool   Rounded  = true,
     bool   Shadows  = false,
     bool   Borders  = false);
 
 public class UISettingsViewModel : ObservableObject
 {
-    // ── 10 dark presets ─────────────────────────────────────────────────────────
+    // ── dark presets ─────────────────────────────────────────────────────────
     // Each belongs to a different colour family and carries tuned style flags.
     public static readonly IReadOnlyList<ThemePreset> DarkPresets = new[]
     {
-        //                              Background   Accent       R      S      B
-        new ThemePreset("Default",     Color.Parse("#1F2933"), Color.Parse("#0A84FF"), true,  false, false), // blue-charcoal  + bright blue
-        new ThemePreset("Nord",        Color.Parse("#2E3440"), Color.Parse("#88C0D0"), true,  false, false), // cool slate     + frost teal
-        new ThemePreset("Midnight",    Color.Parse("#0D1117"), Color.Parse("#58A6FF"), false, false, false), // near-black     + sky blue   (flat/minimal)
-        new ThemePreset("Tokyo Night", Color.Parse("#1A1B2E"), Color.Parse("#7AA2F7"), true,  true,  false), // deep navy      + soft blue  (layered depth)
-        new ThemePreset("Dracula",     Color.Parse("#282A36"), Color.Parse("#BD93F9"), true,  false, false), // gray-purple    + violet
-        new ThemePreset("Forest",      Color.Parse("#343434"), Color.Parse("#498205"), false, false, false), // neutral grey   + earthy green (flat/grounded)
-        new ThemePreset("Coffee",      Color.Parse("#2B1D0E"), Color.Parse("#D4A843"), true,  true,  false), // dark espresso  + warm gold
-        new ThemePreset("Ember",       Color.Parse("#1C1410"), Color.Parse("#E07B39"), true,  true,  false), // charred wood   + orange flame
-        new ThemePreset("Terminal",    Color.Parse("#0C0C0C"), Color.Parse("#00FF88"), false, false, true),  // true black     + mint green (borders fit terminal grid)
-        new ThemePreset("Rosé",        Color.Parse("#201A1E"), Color.Parse("#F28FAD"), true,  true,  false), // muted dark     + soft pink
+        //                            Background   Accent       PanelBg      Text         Border       R      S      B
+
+        // ── High-Contrast / Developer Favorites (Monochromatic bases, stark vibrant accents)
+        new ThemePreset("Graphite",  Color.Parse("#161618"), Color.Parse("#FFB340"), Color.Parse("#202022"), Color.Parse("#EBEBF5"), Color.Parse("#38383A"), true,  true,  false),
+        new ThemePreset("Midnight",  Color.Parse("#0D1117"), Color.Parse("#58A6FF"), Color.Parse("#161B22"), Color.Parse("#C9D1D9"), Color.Parse("#30363D"), true,  false, true), // GitHub Dark inspired
+        new ThemePreset("Nord",      Color.Parse("#2E3440"), Color.Parse("#88C0D0"), Color.Parse("#3B4252"), Color.Parse("#D8DEE9"), Color.Parse("#4C566A"), true,  false, false), // Classic Nord
+        new ThemePreset("Dracula",   Color.Parse("#282A36"), Color.Parse("#FF79C6"), Color.Parse("#383A59"), Color.Parse("#F8F8F2"), Color.Parse("#44475A"), true,  true,  false), // Dracula theme
+        new ThemePreset("Tokyo",     Color.Parse("#1A1B26"), Color.Parse("#7AA2F7"), Color.Parse("#24283B"), Color.Parse("#C0CAF5"), Color.Parse("#414868"), true,  true,  true),  // Tokyo Night
+
+        // ── Creative / Complementary Palettes (Mixing hues across color wheel)
+        // Eclipse: Deep dark blue background, vibrant coral/orange accent, off-white text
+        new ThemePreset("Eclipse",   Color.Parse("#0B132B"), Color.Parse("#FF7A59"), Color.Parse("#152238"), Color.Parse("#E0E6ED"), Color.Parse("#283B59"), true,  true,  false),
+
+        // Cyberpunk: Almost pure black shell, deep purple panel, electric teal accent, high-contrast cyan/white text
+        new ThemePreset("Cyber",     Color.Parse("#09050C"), Color.Parse("#00FFCC"), Color.Parse("#1B1226"), Color.Parse("#E0F2FE"), Color.Parse("#392A4D"), false, false, true),
+
+        // Emerald City: Very dark charcoal / yellow-green tint, gold/amber accent, bright cream text
+        new ThemePreset("Emerald",   Color.Parse("#111A16"), Color.Parse("#E5B567"), Color.Parse("#1A2620"), Color.Parse("#F2F0E6"), Color.Parse("#31473A"), true,  true,  false),
+
+        // Neo-Brutalism: Very dark grey, bright pink accent, slightly lighter grey panel, stark outlines
+        new ThemePreset("Neo",       Color.Parse("#121212"), Color.Parse("#F92672"), Color.Parse("#1E1E1E"), Color.Parse("#F8F8F2"), Color.Parse("#333333"), false, false, true),
+
+        // Outrun: Dark navy/purple shell, magenta accent, soft pinkish-white text
+        new ThemePreset("Outrun",    Color.Parse("#140D26"), Color.Parse("#FF2A6D"), Color.Parse("#21183B"), Color.Parse("#FDE4EC"), Color.Parse("#463366"), true,  true,  false),
     };
 
-    // ── 10 light presets ────────────────────────────────────────────────────────
-    // Shadows/borders are calibrated to the amount of tint — paler backgrounds
-    // get more visual structure so buttons remain clearly defined.
+    // ── light presets ────────────────────────────────────────────────────────
     public static readonly IReadOnlyList<ThemePreset> LightPresets = new[]
     {
-        //                             Background   Accent       R      S      B
-        new ThemePreset("Default",   Color.Parse("#E9EEF5"), Color.Parse("#0066C0"), true,  true,  false), // cool blue-gray  — tinted enough; shadows add depth
-        new ThemePreset("Sage",      Color.Parse("#E4EDE4"), Color.Parse("#2D6A4F"), true,  false, false), // soft green      — tint carries the visibility
-        new ThemePreset("Lavender",  Color.Parse("#EDE8F5"), Color.Parse("#6B21A8"), true,  true,  false), // purple tint     — shadows bring focus
-        new ThemePreset("Blossom",   Color.Parse("#FCE8EE"), Color.Parse("#B5174B"), true,  true,  false), // warm rose       — shadows needed (pale bg)
-        new ThemePreset("Ocean",     Color.Parse("#E0F4F4"), Color.Parse("#00838F"), true,  false, false), // light teal      — tint is clear enough
-        new ThemePreset("Nordic",    Color.Parse("#DCE4EE"), Color.Parse("#1A237E"), true,  true,  false), // strong cool blue — darker tint, shadows add polish
-        new ThemePreset("Dusk",      Color.Parse("#F0E6D6"), Color.Parse("#7B3F00"), true,  true,  false), // warm peach      — pale; shadows lift elements
-        new ThemePreset("Ivory",     Color.Parse("#FEFCF0"), Color.Parse("#C2410C"), true,  true,  false), // near-white warm — shadows essential on pale bg
-        new ThemePreset("Paper",     Color.Parse("#F5EFE4"), Color.Parse("#8B4513"), false, false, true),  // parchment       — flat + borders = classic document
-        new ThemePreset("Mineral",   Color.Parse("#E3E9E6"), Color.Parse("#37474F"), false, false, true),  // muted gray-green — flat + borders = structured/corporate
+        //                           Background   Accent       PanelBg      Text         Border       R      S      B
+        new ThemePreset("Cloud",    Color.Parse("#E8EFF8"), Color.Parse("#1A6FD4"), Color.Parse("#FFFFFF"), Color.Parse("#17283C"), Color.Parse("#A8BDD4"), true,  true,  false),
+        new ThemePreset("Linen",    Color.Parse("#F5EEE4"), Color.Parse("#BF5322"), Color.Parse("#FFFFFF"), Color.Parse("#2A1A0A"), Color.Parse("#CEC0AE"), true,  true,  false),
+        new ThemePreset("Meadow",   Color.Parse("#E8F3EA"), Color.Parse("#1F7A45"), Color.Parse("#FFFFFF"), Color.Parse("#122618"), Color.Parse("#A8CCB4"), true,  false, true),
+        new ThemePreset("Pearl",    Color.Parse("#F2F4F7"), Color.Parse("#2E5FA3"), Color.Parse("#FFFFFF"), Color.Parse("#1C2330"), Color.Parse("#C4CAD6"), true,  true,  false),
+        new ThemePreset("Rosewood", Color.Parse("#F5EAEC"), Color.Parse("#A03050"), Color.Parse("#FFFFFF"), Color.Parse("#2E121A"), Color.Parse("#D4B4BC"), true,  true,  false),
+        new ThemePreset("Birch",    Color.Parse("#EDE8DC"), Color.Parse("#6B7A2A"), Color.Parse("#FFFFFF"), Color.Parse("#28220E"), Color.Parse("#C8C0A8"), true,  false, true),
+        new ThemePreset("Lavender", Color.Parse("#EFEBF5"), Color.Parse("#6B21A8"), Color.Parse("#FFFFFF"), Color.Parse("#251A33"), Color.Parse("#C2B4D6"), true,  true,  false),
+        new ThemePreset("Dusk",     Color.Parse("#EBECEE"), Color.Parse("#4A5568"), Color.Parse("#FFFFFF"), Color.Parse("#2D3748"), Color.Parse("#CBD5E0"), true,  false, true),
+        new ThemePreset("Peach",    Color.Parse("#F8EFEF"), Color.Parse("#B5415C"), Color.Parse("#FFFFFF"), Color.Parse("#331C21"), Color.Parse("#DFC1C8"), true,  true,  false),
+        new ThemePreset("Frost",    Color.Parse("#EFF4F5"), Color.Parse("#00838F"), Color.Parse("#FFFFFF"), Color.Parse("#183336"), Color.Parse("#BCE2E6"), true,  true,  false),
     };
 
         // Localized defaults moved here from Finn.Services.UIDefaults
@@ -82,6 +96,14 @@ public class UISettingsViewModel : ObservableObject
             Color2 = Defaults.DefaultColor2;
             Color3 = Defaults.DefaultColor3;
             Color4 = Defaults.DefaultColor4;
+
+            // Extended overrides default to disabled (empty = Fluent default)
+            DarkTextColor    = Color.Parse("#FFFFFF");
+            DarkPanelColor   = Color.Parse("#2C2C2E");
+            DarkBorderColor  = Color.Parse("#48484A");
+            LightTextColor   = Color.Parse("#000000");
+            LightPanelColor  = Color.Parse("#FFFFFF");
+            LightBorderColor = Color.Parse("#C0C8D0");
 
             CornerRadius = new CornerRadius(Defaults.DefaultCornerRadius);
             CornerRadiusVal = Defaults.DefaultCornerRadiusVal;
@@ -189,6 +211,39 @@ public class UISettingsViewModel : ObservableObject
 
         private Color color4;
         public Color Color4 { get => color4; set { color4 = value; OnPropertyChanged(nameof(Color4)); } }
+
+        // ── extended per-theme overrides (empty = use Fluent default) ─────────────────────────────
+        private Color darkTextColor;
+        public Color DarkTextColor   { get => darkTextColor;   set { darkTextColor   = value; OnPropertyChanged(nameof(DarkTextColor));   } }
+        private bool darkTextColorEnabled;
+        public bool DarkTextColorEnabled { get => darkTextColorEnabled; set { darkTextColorEnabled = value; OnPropertyChanged(nameof(DarkTextColorEnabled)); } }
+
+        private Color darkPanelColor;
+        public Color DarkPanelColor  { get => darkPanelColor;  set { darkPanelColor  = value; OnPropertyChanged(nameof(DarkPanelColor));  } }
+        private bool darkPanelColorEnabled;
+        public bool DarkPanelColorEnabled { get => darkPanelColorEnabled; set { darkPanelColorEnabled = value; OnPropertyChanged(nameof(DarkPanelColorEnabled)); } }
+
+        private Color darkBorderColor;
+        public Color DarkBorderColor { get => darkBorderColor; set { darkBorderColor = value; OnPropertyChanged(nameof(DarkBorderColor)); } }
+        private bool darkBorderColorEnabled;
+        public bool DarkBorderColorEnabled { get => darkBorderColorEnabled; set { darkBorderColorEnabled = value; OnPropertyChanged(nameof(DarkBorderColorEnabled)); } }
+
+        private Color lightTextColor;
+        public Color LightTextColor   { get => lightTextColor;   set { lightTextColor   = value; OnPropertyChanged(nameof(LightTextColor));   } }
+        private bool lightTextColorEnabled;
+        public bool LightTextColorEnabled { get => lightTextColorEnabled; set { lightTextColorEnabled = value; OnPropertyChanged(nameof(LightTextColorEnabled)); } }
+
+        private Color lightPanelColor;
+        public Color LightPanelColor  { get => lightPanelColor;  set { lightPanelColor  = value; OnPropertyChanged(nameof(LightPanelColor));  } }
+        private bool lightPanelColorEnabled;
+        public bool LightPanelColorEnabled { get => lightPanelColorEnabled; set { lightPanelColorEnabled = value; OnPropertyChanged(nameof(LightPanelColorEnabled)); } }
+
+        private Color lightBorderColor;
+        public Color LightBorderColor { get => lightBorderColor; set { lightBorderColor = value; OnPropertyChanged(nameof(LightBorderColor)); } }
+        private bool lightBorderColorEnabled;
+        public bool LightBorderColorEnabled { get => lightBorderColorEnabled; set { lightBorderColorEnabled = value; OnPropertyChanged(nameof(LightBorderColorEnabled)); } }
+
+
 
         private bool cornerRadiusVal;
         public bool CornerRadiusVal { get => cornerRadiusVal; set { cornerRadiusVal = value; OnPropertyChanged(nameof(CornerRadiusVal)); SetCornerRadius(); } }
@@ -356,6 +411,12 @@ public class UISettingsViewModel : ObservableObject
                 FolderWatchEnabled = this.FolderWatchEnabled,
                 AlternatingRowShading = this.AlternatingRowShading,
                 SuperuserMode = this.SuperuserMode,
+                DarkTextColor   = this.DarkTextColorEnabled   ? this.DarkTextColor.ToString()   : string.Empty,
+                DarkPanelColor  = this.DarkPanelColorEnabled  ? this.DarkPanelColor.ToString()  : string.Empty,
+                DarkBorderColor = this.DarkBorderColorEnabled ? this.DarkBorderColor.ToString() : string.Empty,
+                LightTextColor   = this.LightTextColorEnabled   ? this.LightTextColor.ToString()   : string.Empty,
+                LightPanelColor  = this.LightPanelColorEnabled  ? this.LightPanelColor.ToString()  : string.Empty,
+                LightBorderColor = this.LightBorderColorEnabled ? this.LightBorderColor.ToString() : string.Empty,
             };
         }
 
@@ -412,6 +473,13 @@ public class UISettingsViewModel : ObservableObject
                 this.FolderWatchEnabled = ui.FolderWatchEnabled;
                 this.AlternatingRowShading = ui.AlternatingRowShading;
                 this.SuperuserMode = ui.SuperuserMode;
+
+                if (!string.IsNullOrWhiteSpace(ui.DarkTextColor))   { try { this.DarkTextColor   = Color.Parse(ui.DarkTextColor);   this.DarkTextColorEnabled   = true; } catch { } }
+                if (!string.IsNullOrWhiteSpace(ui.DarkPanelColor))  { try { this.DarkPanelColor  = Color.Parse(ui.DarkPanelColor);  this.DarkPanelColorEnabled  = true; } catch { } }
+                if (!string.IsNullOrWhiteSpace(ui.DarkBorderColor)) { try { this.DarkBorderColor = Color.Parse(ui.DarkBorderColor); this.DarkBorderColorEnabled = true; } catch { } }
+                if (!string.IsNullOrWhiteSpace(ui.LightTextColor))   { try { this.LightTextColor   = Color.Parse(ui.LightTextColor);   this.LightTextColorEnabled   = true; } catch { } }
+                if (!string.IsNullOrWhiteSpace(ui.LightPanelColor))  { try { this.LightPanelColor  = Color.Parse(ui.LightPanelColor);  this.LightPanelColorEnabled  = true; } catch { } }
+                if (!string.IsNullOrWhiteSpace(ui.LightBorderColor)) { try { this.LightBorderColor = Color.Parse(ui.LightBorderColor); this.LightBorderColorEnabled = true; } catch { } }
             }
             catch
             {
@@ -440,6 +508,44 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppCornerRadius"] = this.CornerRadius;
             App.Current.Resources["AppShadow"] = this.Shadow;
             App.Current.Resources["AppBorderThickness"] = this.BorderThickness;
+
+            // Re-apply per-theme custom overrides (survive every palette swap)
+            if (DarkMode)
+            {
+                if (DarkTextColorEnabled)
+                {
+                    var b = new SolidColorBrush(DarkTextColor);
+                    App.Current.Resources["SystemControlForegroundBaseHighBrush"] = b;
+                    App.Current.Resources["ButtonForeground"]      = b;
+                    App.Current.Resources["TextControlForeground"] = b;
+                }
+                if (DarkPanelColorEnabled)
+                    App.Current.Resources["TextControlBackground"] = new SolidColorBrush(DarkPanelColor);
+                if (DarkBorderColorEnabled)
+                {
+                    var b = new SolidColorBrush(DarkBorderColor);
+                    App.Current.Resources["DataGridGridLinesBrush"]    = b;
+                    App.Current.Resources["SystemBaseMediumLowColor"]  = DarkBorderColor;
+                }
+            }
+            else
+            {
+                if (LightTextColorEnabled)
+                {
+                    var b = new SolidColorBrush(LightTextColor);
+                    App.Current.Resources["SystemControlForegroundBaseHighBrush"] = b;
+                    App.Current.Resources["ButtonForeground"]      = b;
+                    App.Current.Resources["TextControlForeground"] = b;
+                }
+                if (LightPanelColorEnabled)
+                    App.Current.Resources["TextControlBackground"] = new SolidColorBrush(LightPanelColor);
+                if (LightBorderColorEnabled)
+                {
+                    var b = new SolidColorBrush(LightBorderColor);
+                    App.Current.Resources["DataGridGridLinesBrush"]    = b;
+                    App.Current.Resources["SystemBaseMediumLowColor"]  = LightBorderColor;
+                }
+            }
 
             App.Current.RequestedThemeVariant = DarkMode ? ThemeVariant.Dark : ThemeVariant.Light;
         }
