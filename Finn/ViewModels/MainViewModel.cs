@@ -109,6 +109,9 @@ namespace Finn.ViewModels
                 set => _previewWindow = value;
             }
 
+            /// <summary>Splash window shown during startup; closed by InitStartup when ready.</summary>
+            public Window? SplashWindow { get; set; }
+
             private ObservableCollection<string> groups = new();
             public ObservableCollection<string> Groups
             {

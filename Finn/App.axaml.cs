@@ -4,6 +4,7 @@ using Finn.Views;
 using System;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
@@ -21,11 +22,22 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = InitializeViewModel();
-            desktop.MainWindow = new MainWindow
+            var main = new MainWindow
             {
-                DataContext = vm
+                DataContext = vm,
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                Position = new PixelPoint(-30000, -30000),
+                ShowActivated = false
             };
+            var splash = new SplashWindow();
+
+            desktop.MainWindow = main;
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
+
+            // Show splash on top as soon as the main window opens.
+            main.Opened += (_, _) => splash.Show(main);
+
+            vm.SplashWindow = splash;
         }
         else if (ApplicationLifetime is ISingleViewApplicationLifetime singleViewPlatform)
         {

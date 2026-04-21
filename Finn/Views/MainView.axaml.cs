@@ -157,6 +157,7 @@ public partial class MainView : UserControl
             PreviewViewModel.CleanupStaleDiffTempDirs();
 
             await _ctx.LoadFileAutoAsync();
+            _ctx.BuildTreeData();
             _ctx.ReconcileFileCache();
             UpdateFont();
             // Refresh calendar day indicators when data changes
@@ -196,6 +197,26 @@ public partial class MainView : UserControl
 
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;
+
+                // Everything is ready — center and activate the main window, then close the splash.
+                if (_ctx.SplashWindow is { } splash)
+                {
+                    var mainWindow = ParentWindow;
+                    var screen = mainWindow.Screens.ScreenFromWindow(mainWindow)
+                                 ?? mainWindow.Screens.Primary;
+                    if (screen != null)
+                    {
+                        var workArea = screen.WorkingArea;
+                        int width = (int)(mainWindow.Width > 0 ? mainWindow.Width : mainWindow.Bounds.Width);
+                        int height = (int)(mainWindow.Height > 0 ? mainWindow.Height : mainWindow.Bounds.Height);
+                        mainWindow.Position = new PixelPoint(
+                            workArea.X + (workArea.Width - width) / 2,
+                            workArea.Y + (workArea.Height - height) / 2);
+                    }
+                    mainWindow.Activate();
+                    splash.Close();
+                    _ctx.SplashWindow = null;
+                }
             }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

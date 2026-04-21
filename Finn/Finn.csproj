@@ -35,6 +35,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Views\SplashWindow.axaml.cs">
+      <DependentUpon>SplashWindow.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
     <AvaloniaXaml Update="Dialogs\xMetaDia.axaml">
       <SubType>Designer</SubType>
     </AvaloniaXaml>
