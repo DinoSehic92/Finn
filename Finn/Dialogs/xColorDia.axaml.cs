@@ -81,25 +81,7 @@ public partial class xColorDia : Window
         if (this.DataContext is not MainViewModel vm) return;
 
         var preset = UISettingsViewModel.DarkPresets[idx];
-
-        var bgPicker     = this.FindControl<ColorPicker>("BackgroundColorPickerDark");
-        var accentPicker = this.FindControl<ColorPicker>("AccentColorPickerDark");
-
-        if (bgPicker != null)     bgPicker.Color     = preset.Background;
-        if (accentPicker != null) accentPicker.Color = preset.Accent;
-
-        vm.UI.CornerRadiusVal = preset.Rounded;
-        vm.UI.ShadowVal       = preset.Shadows;
-        vm.UI.ShowBorders     = preset.Borders;
-
-        vm.UI.DarkTextColorEnabled   = preset.TextColor.HasValue;
-        if (preset.TextColor.HasValue)   vm.UI.DarkTextColor   = preset.TextColor.Value;
-        vm.UI.DarkPanelColorEnabled  = preset.PanelBackground.HasValue;
-        if (preset.PanelBackground.HasValue) vm.UI.DarkPanelColor  = preset.PanelBackground.Value;
-        vm.UI.DarkBorderColorEnabled = preset.BorderColor.HasValue;
-        if (preset.BorderColor.HasValue) vm.UI.DarkBorderColor = preset.BorderColor.Value;
-
-        vm.UI.ApplyTheme();
+        vm.UI.ApplyDarkPreset(preset);
     }
 
     public void OnLightPresetSelected(object? sender, SelectionChangedEventArgs e)
@@ -112,25 +94,7 @@ public partial class xColorDia : Window
         if (this.DataContext is not MainViewModel vm) return;
 
         var preset = UISettingsViewModel.LightPresets[idx];
-
-        var bgPicker     = this.FindControl<ColorPicker>("BackgroundColorPickerLight");
-        var accentPicker = this.FindControl<ColorPicker>("AccentColorPickerLight");
-
-        if (bgPicker != null)     bgPicker.Color     = preset.Background;
-        if (accentPicker != null) accentPicker.Color = preset.Accent;
-
-        vm.UI.CornerRadiusVal = preset.Rounded;
-        vm.UI.ShadowVal       = preset.Shadows;
-        vm.UI.ShowBorders     = preset.Borders;
-
-        vm.UI.LightTextColorEnabled   = preset.TextColor.HasValue;
-        if (preset.TextColor.HasValue)   vm.UI.LightTextColor   = preset.TextColor.Value;
-        vm.UI.LightPanelColorEnabled  = preset.PanelBackground.HasValue;
-        if (preset.PanelBackground.HasValue) vm.UI.LightPanelColor  = preset.PanelBackground.Value;
-        vm.UI.LightBorderColorEnabled = preset.BorderColor.HasValue;
-        if (preset.BorderColor.HasValue) vm.UI.LightBorderColor = preset.BorderColor.Value;
-
-        vm.UI.ApplyTheme();
+        vm.UI.ApplyLightPreset(preset);
     }
 
     public void ResetFonts(object sender, RoutedEventArgs e)
