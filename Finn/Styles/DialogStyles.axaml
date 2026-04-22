@@ -10,8 +10,8 @@
         <Setter Property="FontSize" Value="15"/>
     </Style>
     <Style Selector="Button.normal">
-        <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
+        <Setter Property="Background" Value="{DynamicResource AppFlyoutSurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
         <Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
@@ -19,8 +19,8 @@
         <Setter Property="FontSize" Value="15"/>
     </Style>
     <Style Selector="Button.default">
-        <Setter Property="Background" Value="{DynamicResource TextControlBackground}"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextControlForeground}"/>
+        <Setter Property="Background" Value="{DynamicResource AppFlyoutSurfaceBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
         <Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource DataGridGridLinesBrush}"/>
         <Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>

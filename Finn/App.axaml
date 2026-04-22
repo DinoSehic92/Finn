@@ -34,7 +34,7 @@
        <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#4B5C6A"/>
 		<Thickness x:Key="MenuFlyoutPresenterBorderThemeThickness">1</Thickness>
 		<Thickness x:Key="MenuFlyoutPresenterThemePadding">2,4</Thickness>
-		<SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="#9CA9B6"/>
+		<SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="#8A9BAA"/>
 		<SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="Transparent"/>
 		<SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="Transparent"/>
 		<SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="Transparent"/>
@@ -317,25 +317,27 @@
 		<Style Selector="Border.shadow">
 			<Setter Property="BoxShadow" Value="{DynamicResource AppShadow}"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
-           <Setter Property="BorderBrush" Value="{DynamicResource AppPanelBorderBrush}"/>
-           <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource AppPanelBorderBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="Margin" Value="5"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
-		<!-- Inner border in double-border overlay pattern: match parent's corner radius -->
-		<Style Selector="Border.shadow > Border">
+		<!-- Inner clipping border: used inside a Border.shadow to clip rounded corners without clipping the shadow -->
+		<Style Selector="Border.clip-inner">
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
 		</Style>
 
 		<Style Selector="DataGridColumnHeader">
-			<Setter Property="Height" Value="24"/>
-			<Setter Property="FontSize" Value="13"/>
-         <Setter Property="Foreground" Value="{DynamicResource AppMutedForegroundBrush}"/>
-			<Setter Property="FontStyle" Value="Italic"/>
+			<Setter Property="Height" Value="26"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="FontStyle" Value="Normal"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppMutedForegroundBrush}"/>
 			<Setter Property="Padding" Value="8,0,0,0"/>
+			<Setter Property="Background" Value="{DynamicResource AppChromeSurfaceBrush}"/>
 		</Style>
 
 		<Style Selector="DataGridColumnHeader:pointerover">
@@ -343,23 +345,18 @@
 		</Style>
 
 		<Style Selector="DataGrid">
-         <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
-			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
-           <Setter Property="BorderBrush" Value="{DynamicResource AppPanelBorderBrush}"/>
-			<Setter Property="Padding" Value="5"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
 			<Setter Property="Margin" Value="0"/>
-			<Setter Property="ClipToBounds" Value="False"/>
 		</Style>
 		<Style Selector="DataGrid /template/ Border#DataGridBorder">
-			<Setter Property="BoxShadow" Value="{DynamicResource AppShadow}"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
-			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AppStrongBorderBrush}"/>
-           <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
-			<Setter Property="Margin" Value="5"/>
-            <Setter Property="ClipToBounds" Value="False"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="ClipToBounds" Value="True"/>
 		</Style>
 
 		<Style Selector="DataGrid /template/ Rectangle#PART_ColumnHeadersAndRowsSeparator">
@@ -429,9 +426,5 @@
 		</Style>
 
 	</Application.Styles>
-		
-	
+
 </Application>
-
-
-

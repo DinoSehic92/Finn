@@ -87,6 +87,7 @@ public partial class App : Application
 
         vm.UI.PropertyChanged += (s, e) =>
         {
+            if (vm.UI.SuppressThemeUpdates) return;
             switch (e.PropertyName)
             {
                 case "Color1" or "Color2" or "Color3" or "Color4" or "DarkMode"

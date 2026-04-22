@@ -24,37 +24,75 @@ public record ThemePreset(
 public class UISettingsViewModel : ObservableObject
 {
     // ── dark presets ─────────────────────────────────────────────────────────
-    // Curated toward neutral bases, reliable contrast and restrained accents.
     public static readonly IReadOnlyList<ThemePreset> DarkPresets = new[]
     {
         //                            Background   Accent       PanelBg      Text         Border       R      S      B
 
-        new ThemePreset("Graphite",  Color.Parse("#161618"), Color.Parse("#D8A44A"), Color.Parse("#202124"), Color.Parse("#ECECF2"), Color.Parse("#393B40"), true,  true,  false),
-        new ThemePreset("Midnight",  Color.Parse("#0D1117"), Color.Parse("#58A6FF"), Color.Parse("#151C24"), Color.Parse("#C9D1D9"), Color.Parse("#2E3844"), true,  false, true),
-        new ThemePreset("Nord",      Color.Parse("#2E3440"), Color.Parse("#88C0D0"), Color.Parse("#394150"), Color.Parse("#D8DEE9"), Color.Parse("#4C566A"), true,  false, false),
-        new ThemePreset("Tokyo",     Color.Parse("#1A1B26"), Color.Parse("#7AA2F7"), Color.Parse("#232637"), Color.Parse("#C0CAF5"), Color.Parse("#3F4660"), true,  true,  true),
-        new ThemePreset("Slate",     Color.Parse("#1C232B"), Color.Parse("#6EA8FE"), Color.Parse("#252E38"), Color.Parse("#D9E1EA"), Color.Parse("#3B4956"), true,  false, true),
-        new ThemePreset("Harbor",    Color.Parse("#141D24"), Color.Parse("#4CB7C5"), Color.Parse("#1C2831"), Color.Parse("#DCE7EE"), Color.Parse("#31424E"), true,  true,  false),
-        new ThemePreset("Moss",      Color.Parse("#171B18"), Color.Parse("#68B36B"), Color.Parse("#202622"), Color.Parse("#E2E9E2"), Color.Parse("#38443B"), true,  false, true),
-        new ThemePreset("Ember",     Color.Parse("#1A1715"), Color.Parse("#D1905A"), Color.Parse("#24201D"), Color.Parse("#EEE5DD"), Color.Parse("#443931"), true,  true,  false),
-        new ThemePreset("Alloy",     Color.Parse("#171A1F"), Color.Parse("#8E95F2"), Color.Parse("#20252C"), Color.Parse("#E6EAF0"), Color.Parse("#39414C"), true,  true,  false),
-        new ThemePreset("Ash",       Color.Parse("#1B1D21"), Color.Parse("#9AA5B1"), Color.Parse("#24282D"), Color.Parse("#E5E7EB"), Color.Parse("#3E4650"), true,  false, true),
+        // Graphite — warm charcoal with amber gold; panels slightly lifted, crisp contrast
+        new ThemePreset("Graphite",  Color.Parse("#18181A"), Color.Parse("#D4983C"), Color.Parse("#222225"), Color.Parse("#EEEEF2"), Color.Parse("#3A3A3E"), true,  true,  false),
+
+        // Midnight — deep navy ink, cool blue accent; panel gives depth without being too dark
+        new ThemePreset("Midnight",  Color.Parse("#0C1220"), Color.Parse("#4D9CFF"), Color.Parse("#141F30"), Color.Parse("#C8D6E8"), Color.Parse("#263347"), true,  true,  true),
+
+        // Nord — muted arctic slate, soft cyan; panels breathe with a lighter lift
+        new ThemePreset("Nord",      Color.Parse("#2E3440"), Color.Parse("#81AABD"), Color.Parse("#373E4D"), Color.Parse("#D8DEE9"), Color.Parse("#4C566A"), true,  false, true),
+
+        // Tokyo — deep blue-purple night, vivid periwinkle; panels add legible contrast
+        new ThemePreset("Tokyo",     Color.Parse("#1A1B26"), Color.Parse("#7AA2F7"), Color.Parse("#24263A"), Color.Parse("#C0CAF5"), Color.Parse("#3B3F60"), true,  true,  false),
+
+        // Slate — cool dark teal-grey, soft sky blue; subtle tonal relationship between bg and panel
+        new ThemePreset("Slate",     Color.Parse("#1B2430"), Color.Parse("#56A0D3"), Color.Parse("#222E3C"), Color.Parse("#D4DDE8"), Color.Parse("#354557"), true,  false, true),
+
+        // Harbor — deep ocean teal, vivid teal-cyan; panels slightly warmer than bg
+        new ThemePreset("Harbor",    Color.Parse("#101A22"), Color.Parse("#3DAFBE"), Color.Parse("#182430"), Color.Parse("#D2E8EE"), Color.Parse("#264050"), true,  true,  false),
+
+        // Moss — dark forest green, soft sage accent; earthy and restful, panels barely lifted
+        new ThemePreset("Moss",      Color.Parse("#161A17"), Color.Parse("#5FAD62"), Color.Parse("#1E2520"), Color.Parse("#DCE8DC"), Color.Parse("#34403A"), true,  false, false),
+
+        // Ember — warm near-black brown, terracotta-amber; cozy, wood-fire palette
+        new ThemePreset("Ember",     Color.Parse("#1C1714"), Color.Parse("#C87D45"), Color.Parse("#261F1A"), Color.Parse("#EDE4D8"), Color.Parse("#42342A"), true,  true,  false),
+
+        // Alloy — blue-tinted dark grey, lavender-indigo; cool professional, soft purple highlight
+        new ThemePreset("Alloy",     Color.Parse("#16191E"), Color.Parse("#8490E8"), Color.Parse("#1F242C"), Color.Parse("#E2E6F0"), Color.Parse("#363C4A"), true,  true,  false),
+
+        // Ash — neutral near-black, muted steel-blue; minimal, monochromatic, clean
+        new ThemePreset("Ash",       Color.Parse("#1A1C20"), Color.Parse("#8DA4B8"), Color.Parse("#23262B"), Color.Parse("#E4E7EA"), Color.Parse("#3C424C"), true,  false, true),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
     public static readonly IReadOnlyList<ThemePreset> LightPresets = new[]
     {
         //                           Background   Accent       PanelBg      Text         Border       R      S      B
-        new ThemePreset("Cloud",    Color.Parse("#E8EFF8"), Color.Parse("#1A6FD4"), Color.Parse("#FFFFFF"), Color.Parse("#17283C"), Color.Parse("#A8BDD4"), true,  true,  false),
-        new ThemePreset("Pearl",    Color.Parse("#F2F4F7"), Color.Parse("#2E5FA3"), Color.Parse("#FFFFFF"), Color.Parse("#1C2330"), Color.Parse("#C4CAD6"), true,  true,  false),
-        new ThemePreset("Frost",    Color.Parse("#EFF4F5"), Color.Parse("#0A7C86"), Color.Parse("#FFFFFF"), Color.Parse("#183336"), Color.Parse("#B7DDE1"), true,  true,  false),
-        new ThemePreset("Linen",    Color.Parse("#F5EEE4"), Color.Parse("#BF5322"), Color.Parse("#FFFFFF"), Color.Parse("#2A1A0A"), Color.Parse("#CEC0AE"), true,  true,  false),
-        new ThemePreset("Birch",    Color.Parse("#EDE8DC"), Color.Parse("#6B7A2A"), Color.Parse("#FFFFFF"), Color.Parse("#28220E"), Color.Parse("#C8C0A8"), true,  false, true),
-        new ThemePreset("Meadow",   Color.Parse("#E8F3EA"), Color.Parse("#1F7A45"), Color.Parse("#FFFFFF"), Color.Parse("#122618"), Color.Parse("#A8CCB4"), true,  false, true),
-        new ThemePreset("Sage",     Color.Parse("#EEF2EC"), Color.Parse("#5C7F62"), Color.Parse("#FFFFFF"), Color.Parse("#1F2A20"), Color.Parse("#C4D0C1"), true,  false, false),
-        new ThemePreset("Lavender", Color.Parse("#EFEBF5"), Color.Parse("#6B21A8"), Color.Parse("#FFFFFF"), Color.Parse("#251A33"), Color.Parse("#C2B4D6"), true,  true,  false),
-        new ThemePreset("Dusk",     Color.Parse("#EBECEE"), Color.Parse("#4A5568"), Color.Parse("#FFFFFF"), Color.Parse("#2D3748"), Color.Parse("#CBD5E0"), true,  false, true),
-        new ThemePreset("Blush",    Color.Parse("#F6ECEF"), Color.Parse("#B24567"), Color.Parse("#FFFFFF"), Color.Parse("#331E24"), Color.Parse("#DEC2CB"), true,  true,  false),
+
+        // Cloud — cool blue-grey wash, vivid blue accent; pure white panels for contrast and readability
+        new ThemePreset("Cloud",    Color.Parse("#DDE6F2"), Color.Parse("#1460C8"), Color.Parse("#FFFFFF"), Color.Parse("#152033"), Color.Parse("#9AB0CC"), true,  true,  false),
+
+        // Pearl — neutral cool grey-white, refined navy accent; timeless and clean
+        new ThemePreset("Pearl",    Color.Parse("#F0F2F5"), Color.Parse("#2C58A0"), Color.Parse("#FFFFFF"), Color.Parse("#1C2334"), Color.Parse("#BEC6D4"), true,  true,  false),
+
+        // Frost — icy teal-white, deep teal accent; crisp and airy
+        new ThemePreset("Frost",    Color.Parse("#EAF3F5"), Color.Parse("#0B7480"), Color.Parse("#FFFFFF"), Color.Parse("#143135"), Color.Parse("#AACFD5"), true,  true,  false),
+
+        // Linen — warm parchment, burnt sienna accent; editorial and warm
+        new ThemePreset("Linen",    Color.Parse("#F4ECE0"), Color.Parse("#B34B1A"), Color.Parse("#FDFAF6"), Color.Parse("#2C1A0C"), Color.Parse("#C8B89E"), true,  true,  false),
+
+        // Birch — warm tan-grey, earthy olive accent; natural and grounded
+        new ThemePreset("Birch",    Color.Parse("#EAE4D6"), Color.Parse("#6A7828"), Color.Parse("#F8F6F0"), Color.Parse("#282210"), Color.Parse("#C4BCA8"), true,  false, true),
+
+        // Meadow — fresh pale green, forest green accent; calm and organic
+        new ThemePreset("Meadow",   Color.Parse("#E4F0E8"), Color.Parse("#1D7840"), Color.Parse("#FAFCFA"), Color.Parse("#112516"), Color.Parse("#A4C8B0"), true,  false, true),
+
+        // Sage — silvery sage green-grey, muted mid-green accent; sophisticated understated
+        new ThemePreset("Sage",     Color.Parse("#EBF0EA"), Color.Parse("#507858"), Color.Parse("#FAFBFA"), Color.Parse("#1E2A20"), Color.Parse("#BECABF"), true,  false, false),
+
+        // Lavender — soft lilac, deep purple accent; elegant with warmth
+        new ThemePreset("Lavender", Color.Parse("#EDE8F5"), Color.Parse("#6418A8"), Color.Parse("#FDFBFF"), Color.Parse("#23183A"), Color.Parse("#C0B0D8"), true,  true,  false),
+
+        // Dusk — blue-grey cool neutral, steel-slate accent; refined minimal
+        new ThemePreset("Dusk",     Color.Parse("#E8EAEE"), Color.Parse("#445066"), Color.Parse("#F8F9FB"), Color.Parse("#2B3343"), Color.Parse("#C0C8D4"), true,  false, true),
+
+        // Blush — warm pink-cream, deep rose accent; refined and warm
+        new ThemePreset("Blush",    Color.Parse("#F4E8EC"), Color.Parse("#A83050"), Color.Parse("#FEFBFC"), Color.Parse("#311820"), Color.Parse("#D8B8C4"), true,  true,  false),
     };
 
         // Localized defaults moved here from Finn.Services.UIDefaults
@@ -356,90 +394,111 @@ public class UISettingsViewModel : ObservableObject
                 Shadow = new BoxShadows();
         }
 
+        // When true, property-change notifications for colour/style properties will not
+        // trigger ApplyTheme() from the external listener in App.axaml.cs. We call it
+        // once ourselves at the end of each batch update instead.
+        internal bool SuppressThemeUpdates { get; private set; }
+
         public void ApplyDarkPreset(ThemePreset preset)
         {
-            color1 = preset.Background;
-            color2 = preset.Accent;
+            SuppressThemeUpdates = true;
+            try
+            {
+                color1 = preset.Background;
+                color2 = preset.Accent;
 
-            cornerRadiusVal = preset.Rounded;
-            SetCornerRadius();
+                cornerRadiusVal = preset.Rounded;
+                SetCornerRadius();
 
-            shadowVal = preset.Shadows;
-            SetShadow();
+                shadowVal = preset.Shadows;
+                SetShadow();
 
-            showBorders = preset.Borders;
-            SetBorderThickness();
+                showBorders = preset.Borders;
+                SetBorderThickness();
 
-            darkTextColorEnabled = preset.TextColor.HasValue;
-            if (preset.TextColor.HasValue)
-                darkTextColor = preset.TextColor.Value;
+                darkTextColorEnabled = preset.TextColor.HasValue;
+                if (preset.TextColor.HasValue)
+                    darkTextColor = preset.TextColor.Value;
 
-            darkPanelColorEnabled = preset.PanelBackground.HasValue;
-            if (preset.PanelBackground.HasValue)
-                darkPanelColor = preset.PanelBackground.Value;
+                darkPanelColorEnabled = preset.PanelBackground.HasValue;
+                if (preset.PanelBackground.HasValue)
+                    darkPanelColor = preset.PanelBackground.Value;
 
-            darkBorderColorEnabled = preset.BorderColor.HasValue;
-            if (preset.BorderColor.HasValue)
-                darkBorderColor = preset.BorderColor.Value;
+                darkBorderColorEnabled = preset.BorderColor.HasValue;
+                if (preset.BorderColor.HasValue)
+                    darkBorderColor = preset.BorderColor.Value;
 
-            OnPropertyChanged(nameof(Color1));
-            OnPropertyChanged(nameof(Color2));
-            OnPropertyChanged(nameof(CornerRadiusVal));
-            OnPropertyChanged(nameof(CornerRadius));
-            OnPropertyChanged(nameof(ShadowVal));
-            OnPropertyChanged(nameof(Shadow));
-            OnPropertyChanged(nameof(ShowBorders));
-            OnPropertyChanged(nameof(BorderThickness));
-            OnPropertyChanged(nameof(DarkTextColorEnabled));
-            OnPropertyChanged(nameof(DarkTextColor));
-            OnPropertyChanged(nameof(DarkPanelColorEnabled));
-            OnPropertyChanged(nameof(DarkPanelColor));
-            OnPropertyChanged(nameof(DarkBorderColorEnabled));
-            OnPropertyChanged(nameof(DarkBorderColor));
+                OnPropertyChanged(nameof(Color1));
+                OnPropertyChanged(nameof(Color2));
+                OnPropertyChanged(nameof(CornerRadiusVal));
+                OnPropertyChanged(nameof(CornerRadius));
+                OnPropertyChanged(nameof(ShadowVal));
+                OnPropertyChanged(nameof(Shadow));
+                OnPropertyChanged(nameof(ShowBorders));
+                OnPropertyChanged(nameof(BorderThickness));
+                OnPropertyChanged(nameof(DarkTextColorEnabled));
+                OnPropertyChanged(nameof(DarkTextColor));
+                OnPropertyChanged(nameof(DarkPanelColorEnabled));
+                OnPropertyChanged(nameof(DarkPanelColor));
+                OnPropertyChanged(nameof(DarkBorderColorEnabled));
+                OnPropertyChanged(nameof(DarkBorderColor));
+            }
+            finally
+            {
+                SuppressThemeUpdates = false;
+            }
 
             ApplyTheme();
         }
 
         public void ApplyLightPreset(ThemePreset preset)
         {
-            color3 = preset.Background;
-            color4 = preset.Accent;
+            SuppressThemeUpdates = true;
+            try
+            {
+                color3 = preset.Background;
+                color4 = preset.Accent;
 
-            cornerRadiusVal = preset.Rounded;
-            SetCornerRadius();
+                cornerRadiusVal = preset.Rounded;
+                SetCornerRadius();
 
-            shadowVal = preset.Shadows;
-            SetShadow();
+                shadowVal = preset.Shadows;
+                SetShadow();
 
-            showBorders = preset.Borders;
-            SetBorderThickness();
+                showBorders = preset.Borders;
+                SetBorderThickness();
 
-            lightTextColorEnabled = preset.TextColor.HasValue;
-            if (preset.TextColor.HasValue)
-                lightTextColor = preset.TextColor.Value;
+                lightTextColorEnabled = preset.TextColor.HasValue;
+                if (preset.TextColor.HasValue)
+                    lightTextColor = preset.TextColor.Value;
 
-            lightPanelColorEnabled = preset.PanelBackground.HasValue;
-            if (preset.PanelBackground.HasValue)
-                lightPanelColor = preset.PanelBackground.Value;
+                lightPanelColorEnabled = preset.PanelBackground.HasValue;
+                if (preset.PanelBackground.HasValue)
+                    lightPanelColor = preset.PanelBackground.Value;
 
-            lightBorderColorEnabled = preset.BorderColor.HasValue;
-            if (preset.BorderColor.HasValue)
-                lightBorderColor = preset.BorderColor.Value;
+                lightBorderColorEnabled = preset.BorderColor.HasValue;
+                if (preset.BorderColor.HasValue)
+                    lightBorderColor = preset.BorderColor.Value;
 
-            OnPropertyChanged(nameof(Color3));
-            OnPropertyChanged(nameof(Color4));
-            OnPropertyChanged(nameof(CornerRadiusVal));
-            OnPropertyChanged(nameof(CornerRadius));
-            OnPropertyChanged(nameof(ShadowVal));
-            OnPropertyChanged(nameof(Shadow));
-            OnPropertyChanged(nameof(ShowBorders));
-            OnPropertyChanged(nameof(BorderThickness));
-            OnPropertyChanged(nameof(LightTextColorEnabled));
-            OnPropertyChanged(nameof(LightTextColor));
-            OnPropertyChanged(nameof(LightPanelColorEnabled));
-            OnPropertyChanged(nameof(LightPanelColor));
-            OnPropertyChanged(nameof(LightBorderColorEnabled));
-            OnPropertyChanged(nameof(LightBorderColor));
+                OnPropertyChanged(nameof(Color3));
+                OnPropertyChanged(nameof(Color4));
+                OnPropertyChanged(nameof(CornerRadiusVal));
+                OnPropertyChanged(nameof(CornerRadius));
+                OnPropertyChanged(nameof(ShadowVal));
+                OnPropertyChanged(nameof(Shadow));
+                OnPropertyChanged(nameof(ShowBorders));
+                OnPropertyChanged(nameof(BorderThickness));
+                OnPropertyChanged(nameof(LightTextColorEnabled));
+                OnPropertyChanged(nameof(LightTextColor));
+                OnPropertyChanged(nameof(LightPanelColorEnabled));
+                OnPropertyChanged(nameof(LightPanelColor));
+                OnPropertyChanged(nameof(LightBorderColorEnabled));
+                OnPropertyChanged(nameof(LightBorderColor));
+            }
+            finally
+            {
+                SuppressThemeUpdates = false;
+            }
 
             ApplyTheme();
         }
@@ -654,8 +713,8 @@ public class UISettingsViewModel : ObservableObject
             var hoverSurface = Mix(controlSurface, accent, isDark ? 0.12 : 0.08);
             var selectedSurface = Mix(controlSurface, accent, isDark ? 0.22 : 0.16);
             var menuHoverSurface = Mix(chromeSurface, accent, isDark ? 0.08 : 0.06);
-            var rowHoverSurface = Mix(panelSurface, accent, isDark ? 0.08 : 0.05);
-            var rowSelectionSurface = Mix(panelSurface, accent, isDark ? 0.14 : 0.10);
+            var rowHoverSurface = Mix(panelSurface, accent, isDark ? 0.16 : 0.11);
+            var rowSelectionSurface = Mix(panelSurface, accent, isDark ? 0.28 : 0.20);
             var accentForeground = GetReadableForeground(accent);
 
             var theme = new FluentTheme

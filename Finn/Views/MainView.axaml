@@ -57,7 +57,7 @@
 
 		<!-- Shared styles as reusable resources to reduce duplication -->
 		<ControlTemplate x:Key="ThumbnailTooltipTemplate">
-			<Panel Background="White">
+			<Panel Background="{DynamicResource AppFlyoutSurfaceBrush}">
 				<Image Source="{Binding (model:FileData).ThumbnailSource, Converter={StaticResource BitmapConverter}, Mode=OneWay}"/>
 			</Panel>
 		</ControlTemplate>
@@ -86,7 +86,7 @@
 							HorizontalAlignment="Center" VerticalAlignment="Center">
 						<Border Name="Fill" Width="8" Height="8" CornerRadius="1"
 								IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
-								Background="White"/>
+								Background="{DynamicResource SystemControlForegroundAltHighBrush}"/>
 					</Border>
 				</ControlTemplate>
 			</Setter>
@@ -199,6 +199,30 @@
 			<Setter Property="FontWeight" Value="Normal"/>
 		</Style>
 
+		<!-- Themed row hover / selection for all DataGrids -->
+		<Style Selector="DataGridRow:pointerover /template/ Rectangle#BackgroundRectangle">
+			<Setter Property="Fill" Value="{DynamicResource AppRowHoverBrush}"/>
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+		<Style Selector="DataGridRow:selected /template/ Rectangle#BackgroundRectangle">
+			<Setter Property="Fill" Value="{DynamicResource AppRowSelectionBrush}"/>
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+		<Style Selector="DataGridRow:selected:pointerover /template/ Rectangle#BackgroundRectangle">
+			<Setter Property="Fill" Value="{DynamicResource AppRowSelectionBrush}"/>
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+
+		<!-- Toolbar ToggleButtons: tint with accent colour when checked -->
+		<Style Selector="ToggleButton:checked">
+			<Setter Property="Background" Value="{DynamicResource AppRowSelectionBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+			<Setter Property="BorderThickness" Value="0,0,0,2"/>
+		</Style>
+		<Style Selector="ToggleButton:checked:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppRowSelectionBrush}"/>
+		</Style>
+
 		<!-- Splitter grip dots: fade in on pointer-over -->
 		<Style Selector="GridSplitter:pointerover /template/ StackPanel#GripDots">
 			<Setter Property="Opacity" Value="0.5"/>
@@ -282,7 +306,7 @@
 		<!-- Project / file info -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
 			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="6">
-				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="13" Opacity="0.7"/>
+				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
 				<TextBlock FontStyle="Italic" FontSize="14" Opacity="0.7">
 					<TextBlock.Text>
 						<MultiBinding StringFormat="{}{0}  |  Filtered: {1}  |  Selected: {2}">
@@ -294,7 +318,7 @@
 				</TextBlock>
 			</StackPanel>
 			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6">
-				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="13" Opacity="0.7"/>
+				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
 				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
 				<TextBlock Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
 			</StackPanel>
@@ -303,7 +327,7 @@
 		<!-- Right-aligned row 1: Columns flyout + tray toggles -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" FlowDirection="RightToLeft">
 			<Border Classes="shadow" Height="30">
-				<Button Name="Columns" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed" Background="{DynamicResource TextControlBackground}">
+				<Button Name="Columns" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed" Background="{DynamicResource AppChromeSurfaceBrush}">
 					<Grid ColumnDefinitions="25,*,20" Height="30">
 						<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
 						<Label Grid.Column="1" Content="Columns" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -338,7 +362,7 @@
 			</Border>
 
 					<Border Classes="shadow" Height="30" IsVisible="{Binding UI.TrayViewOpen}">
-						<Button Height="30" MinHeight="30" Width="140" Background="{DynamicResource TextControlBackground}">
+						<Button Height="30" MinHeight="30" Width="140" Background="{DynamicResource AppChromeSurfaceBrush}">
 							<Grid ColumnDefinitions="25,*,20" Height="30">
 								<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
 								<Label Grid.Column="1" Content="Tray Panels" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -434,7 +458,7 @@
 			</StackPanel>
 
 			<!-- Search bar -->
-			<Grid ColumnDefinitions="*,30,30">
+			<Grid ColumnDefinitions="*,30,4,30">
 				<Border Classes="shadow">
 					<TextBox Grid.Column="0" PlaceholderText="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
 						<TextBox.InnerRightContent>
@@ -446,16 +470,15 @@
 						</TextBox.InnerRightContent>
 					</TextBox>
 				</Border>
-				<Button  Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
+				<Button Grid.Column="1" Click="OnSearch" Height="30" Width="30" ToolTip.Tip="Search">
 					<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</Button>
-				<ToggleButton Grid.Column="2" ToolTip.Tip="Stored Content Search" Height="30" Width="30" IsChecked="{Binding IndexedSearch}" IsVisible="{Binding UI.SuperuserMode}">
+				<ToggleButton Grid.Column="3" ToolTip.Tip="Stored Content Search" Height="30" Width="30" IsChecked="{Binding IndexedSearch}" IsVisible="{Binding UI.SuperuserMode}">
 					<ic:SymbolIcon Symbol="Text" IconVariant="Regular" FontSize="16" Padding="0"/>
 				</ToggleButton>
 			</Grid>
 		</StackPanel>
 
-		<!-- Main toolbar -->
 		<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right"
 					Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,155,0"
 					WindowDecorationProperties.ElementRole="User">
@@ -541,7 +564,7 @@
 				</Button.IsVisible>
 				<Panel>
 					<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="18"
-								  Foreground="MediumSeaGreen"
+								  Foreground="{StaticResource TagColorGreen}"
 								  IsVisible="{Binding !HasPendingSyncFolders}"/>
 					<ic:SymbolIcon Symbol="ArrowSync" FontSize="18"
 								  Foreground="{DynamicResource SystemAccentColor}"
@@ -554,7 +577,7 @@
 							<StackPanel Orientation="Vertical" Spacing="6" IsVisible="{Binding !HasPendingSyncFolders}"
 										HorizontalAlignment="Center" Margin="8,12">
 								<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="28" HorizontalAlignment="Center"
-											   Foreground="MediumSeaGreen"/>
+											   Foreground="{StaticResource TagColorGreen}"/>
 								<TextBlock Text="All folders up to date" FontSize="13" FontWeight="SemiBold"
 										   HorizontalAlignment="Center" Opacity="0.8"/>
 							</StackPanel>
@@ -567,7 +590,7 @@
 								<ItemsControl ItemsSource="{Binding PendingSyncFolders}" IsVisible="{Binding HasPendingSyncFolders}">
 									<ItemsControl.ItemTemplate>
 										<DataTemplate x:DataType="model:SyncStatusEntry">
-											<Border Background="{DynamicResource TextControlBackground}"
+											<Border Background="{DynamicResource AppPanelSurfaceBrush}"
 													CornerRadius="5" Padding="10,7" Margin="0,1">
 												<Grid ColumnDefinitions="Auto,*,Auto">
 													<ic:SymbolIcon Grid.Column="0" Symbol="Folder" FontSize="16"
@@ -617,6 +640,7 @@
 		<Grid Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" RowDefinitions="*,Auto,Auto" MinWidth="300">
 
 			<!-- Main file list with empty state and drop hint overlays -->
+			<Border Classes="shadow">
 			<Panel>
 				<DataGrid Name="FileGrid" Padding="0" Classes="ThumbnailGrid"
 					  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
@@ -670,11 +694,9 @@
 										   IsVisible="{Binding HasHierarchyMarker}">
 									  <Border Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch"
 												Margin="{Binding IsLastChild, Converter={x:Static converter:AppendedFileStyleConverter.SpineMargin}}"
-												IsVisible="{Binding IsAppendedFile}">
-											<Border.Background>
-												<SolidColorBrush Color="Gray" Opacity="0.24"/>
-											</Border.Background>
-										</Border>
+												IsVisible="{Binding IsAppendedFile}"
+												Background="{DynamicResource AppDividerBrush}"
+												Opacity="0.5"/>
 										<Button Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
 												Background="Transparent" BorderThickness="0" Cursor="Hand"
                                                 IsVisible="{Binding HasChildren}" Click="OnToggleGroupExpanded" DoubleTapped="OnToggleGroupExpandedDoubleTapped">
@@ -991,10 +1013,10 @@
 					</StackPanel>
 				</Border>
 			</Panel>
-
-			<!-- Folder sync grid -->
+			</Border>
 					<Grid Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}" RowDefinitions="*,Auto" DragDrop.AllowDrop="True">
-						<Panel Grid.Row="0">
+						<Border Classes="shadow">
+						<Panel>
 						<DataGrid Name="FolderGrid"
 								  ItemsSource="{Binding CurrentProject.Folders}"
 								  SelectionMode="Extended" IsReadOnly="True">
@@ -1010,7 +1032,7 @@
 												</DataGridTemplateColumn.CellTemplate>
 											</DataGridTemplateColumn>
 											<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="{Binding UI.FontSize}"/>
-											<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="{Binding UI.FontSize}" Foreground="Gray"/>
+											<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="{Binding UI.FontSize}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 											<DataGridTextColumn Binding="{Binding DisplayFileCount}"    Header="Files"             Width="60"   FontSize="{Binding UI.FontSize}"/>
 											<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="{Binding UI.FontSize}" FontStyle="Italic" IsVisible="false"/>
 						</DataGrid.Columns>
@@ -1054,9 +1076,10 @@
 								<TextBlock Text="Drop to create Version Delivery folder" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
 							</StackPanel>
 						</Border>
-							</Panel>
-						</Grid>
-		</Grid>
+											</Panel>
+											</Border>
+										</Grid>
+							</Grid>
 
 		<!-- Preview splitter -->
 		<GridSplitter Name="PreviewSplitter" Grid.Column="2" Grid.Row="2"
@@ -1094,7 +1117,7 @@
 					<Binding Path="UI.SuperuserMode"/>
 				</MultiBinding>
 			</Grid.IsVisible>
-			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource TextControlBackground}" Width="310" Height="345">
+			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource AppPanelSurfaceBrush}" Width="310" Height="345">
 				<StackPanel Orientation="Vertical">
 					<Calendar Name="MainCalendar" Height="305" Background="Transparent" HorizontalAlignment="Center"
 							  DisplayDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
@@ -1124,7 +1147,7 @@
 								<Setter Property="Background" Value="Transparent"/>
 							</Style>
 							<Style Selector="CalendarDayButton:inactive /template/ ContentPresenter">
-								<Setter Property="Foreground" Value="Gray"/>
+								<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 							</Style>
 						</Calendar.Styles>
 					</Calendar>
@@ -1196,8 +1219,8 @@
 						</Style>
 					</DataGrid.Styles>
 				</DataGrid>
-				<Ellipse Width="6" Height="6" Fill="DodgerBlue" HorizontalAlignment="Right" VerticalAlignment="Top"
-						 Margin="0,9,11,0" IsHitTestVisible="False"/>
+				<Ellipse Width="6" Height="6" Fill="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right" VerticalAlignment="Top"
+							 Margin="0,9,11,0" IsHitTestVisible="False"/>
 			</Panel>
 
 			<!-- Notepad -->
@@ -1205,7 +1228,7 @@
 				<Panel>
 					<TextBox Text="{Binding Calendar.CurrentCalendarData.Note1}" PlaceholderText="Notepad"
 							 AcceptsReturn="True" AcceptsTab="True" FontSize="{Binding UI.FontSize}" VerticalAlignment="Stretch"/>
-					<Ellipse Width="6" Height="6" Fill="MediumSeaGreen" HorizontalAlignment="Right" VerticalAlignment="Top"
+					<Ellipse Width="6" Height="6" Fill="{StaticResource TagColorGreen}" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,4,6,0" IsHitTestVisible="False"/>
 				</Panel>
 			</Border>
@@ -1214,7 +1237,7 @@
 			<Border Grid.Row="4" Classes="shadow">
 				<Panel>
 					<TextBox Text="{Binding Calendar.CurrentCalendarData.Reminder}" PlaceholderText="Reminder" FontSize="{Binding UI.FontSize}"/>
-					<Ellipse Width="6" Height="6" Fill="Orange" HorizontalAlignment="Right" VerticalAlignment="Top"
+					<Ellipse Width="6" Height="6" Fill="{StaticResource TagColorOrange}" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,4,6,0" IsHitTestVisible="False"/>
 				</Panel>
 			</Border>
@@ -1298,12 +1321,12 @@
 
 			<!-- Analog clock (auto-shown when window is tall enough) -->
 			<Border Grid.Row="6" Classes="shadow" IsVisible="{Binding UI.ShowClock}"
-					Background="{DynamicResource TextControlBackground}"
+					Background="{DynamicResource AppPanelSurfaceBrush}"
+					BorderBrush="{DynamicResource AppPanelBorderBrush}"
+					BorderThickness="{DynamicResource AppBorderThickness}"
 					Padding="8" Margin="5" HorizontalAlignment="Stretch">
-				<controls:AnalogWatchControl HorizontalAlignment="Center" Height="190" Width="190">
-					<controls:AnalogWatchControl.FaceBrush>
-						<SolidColorBrush Color="White"/>
-					</controls:AnalogWatchControl.FaceBrush>
+				<controls:AnalogWatchControl HorizontalAlignment="Center" Height="190" Width="190"
+											 FaceBrush="{DynamicResource AppPanelSurfaceBrush}">
 				</controls:AnalogWatchControl>
 			</Border>
 		</Grid>
@@ -1376,6 +1399,7 @@
 
 			<!-- Collections list -->
 			<Panel Grid.Row="2" IsVisible="{Binding UI.TrayCollections}">
+			<Border Classes="shadow">
 			<DataGrid Name="Collections"
 					  ItemsSource="{Binding Storage.Collections}" SelectedItem="{Binding Collections.CurrentCollection}"
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
@@ -1384,12 +1408,14 @@
 					<DataGridTextColumn Binding="{ReflectionBinding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
+			</Border>
 			<controls:EmptyHint Name="CollectionsEmptyHint" Icon="Album"
 						Title="No collections" Subtitle="Type a name above and click + to create one"/>
 			</Panel>
 
 			<!-- Collection content -->
 			<Panel Grid.Row="3" IsVisible="{Binding UI.TrayCollections}">
+			<Border Classes="shadow">
 			<DataGrid Name="CollectionContent" Classes="ThumbnailGrid"
 					  ItemsSource="{Binding Collections.CollectionContent, Mode=OneWay}" SelectionMode="Single"
 					  SelectedItem="{Binding Collections.SelectedCollectionFile}"
@@ -1430,6 +1456,7 @@
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 			</DataGrid>
+			</Border>
 			<controls:EmptyHint Name="CollectionContentEmptyHint" Icon="DocumentCopy"
 						Title="No files in collection" Subtitle="Right-click files in the grid to add them to the selected collection"/>
 			</Panel>
@@ -1460,6 +1487,7 @@
 						<Binding Path="UI.SuperuserMode"/>
 					</MultiBinding>
 				</Panel.IsVisible>
+			<Border Classes="shadow">
 			<DataGrid Name="BookmarkGrid"
 					  ItemsSource="{Binding PreviewVM.CurrentFile.FavPages, Mode=OneWay}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
@@ -1469,12 +1497,14 @@
 					<DataGridTextColumn Binding="{Binding PageName}"                                            Header="Bookmark" Width="*"  FontSize="{Binding UI.FontSize}"/>
 				</DataGrid.Columns>
 			</DataGrid>
+			</Border>
 			<controls:EmptyHint Name="BookmarksEmptyHint" Icon="Bookmark"
 						Title="No bookmarks" Subtitle="Navigate to a page and click + to bookmark"/>
 			</Panel>
 
 			<!-- Recent files -->
 			<Panel Grid.Row="6" IsVisible="{Binding UI.TrayRecent}">
+			<Border Classes="shadow">
 			<DataGrid Name="RecentGrid"
 					  ItemsSource="{Binding PreviewVM.RecentFiles}" SelectionMode="Single"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
@@ -1505,6 +1535,7 @@
 					</DataGridTemplateColumn>
 				</DataGrid.Columns>
 			</DataGrid>
+			</Border>
 			<controls:EmptyHint Name="RecentEmptyHint" Icon="History"
 						Title="No recent files" Subtitle="Recently viewed files will appear here"/>
 			</Panel>
@@ -1517,6 +1548,7 @@
 						<Binding Path="UI.SuperuserMode"/>
 					</MultiBinding>
 				</Panel.IsVisible>
+				<Border Classes="shadow">
 				<DataGrid Name="OtherFilesGrid"
 						  ItemsSource="{Binding OtherFilesOwner.OtherFiles, Mode=OneWay}" SelectionMode="Single"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
@@ -1554,6 +1586,7 @@
 						</ContextMenu>
 					</DataGrid.ContextMenu>
 				</DataGrid>
+				</Border>
 				<controls:EmptyHint Name="OtherFilesEmptyHint" Icon="Attach"
 							Title="No other files" Subtitle="Drop files or folders here to attach"/>
 				<!-- Drop hint for other files -->
@@ -1569,6 +1602,7 @@
 
 			<!-- File versions panel -->
 								<Grid Grid.Row="8" IsVisible="{Binding UI.TrayVersions}">
+									<Border Classes="shadow">
 										<DataGrid Name="VersionsGrid"
 									  ItemsSource="{Binding CurrentFile.Versions, Mode=OneWay}" SelectionMode="Single"
 									  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None">
@@ -1634,6 +1668,7 @@
 									</ContextMenu>
 								</DataGrid.ContextMenu>
 							</DataGrid>
+							</Border>
 							<controls:EmptyHint Name="VersionsEmptyHint" Icon="History"
 										Title="No versions" Subtitle="Drop version folders onto the grid to track revisions"/>
 								</Grid>
@@ -1651,10 +1686,11 @@
 										<Button Width="30" ToolTip.Tip="Clear Layer" Click="OnClearSelectedLayer"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 										<Button Width="30" ToolTip.Tip="Remove Layer" Click="OnRemoveSelectedLayer"><ic:SymbolIcon Symbol="Dismiss" FontSize="16"/></Button>
 									</StackPanel>
-									<DataGrid Grid.Row="1" Name="LayerList"
-											  SelectionMode="Single" SelectionChanged="OnLayerSelected"
-											  AutoGenerateColumns="False" IsReadOnly="True"
-											  GridLinesVisibility="None" RowHeight="22" HeadersVisibility="None">
+									<Border Classes="shadow" Grid.Row="1">
+									<DataGrid Name="LayerList"
+												  SelectionMode="Single" SelectionChanged="OnLayerSelected"
+												  AutoGenerateColumns="False" IsReadOnly="True"
+												  GridLinesVisibility="None" RowHeight="22" HeadersVisibility="None">
 										<DataGrid.Columns>
 											<DataGridTemplateColumn Width="28" CanUserResize="False">
 												<DataGridTemplateColumn.CellTemplate>
@@ -1689,12 +1725,14 @@
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
 										</DataGrid>
+										</Border>
 										<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
 													Title="No annotation layers" Subtitle="Click + to add a layer, then draw on the preview"/>
 													</Grid>
 
 									<!-- To-Do List -->
 									<Panel Grid.Row="10" IsVisible="{Binding UI.TrayTodo}">
+									<Border Classes="shadow">
 										<DataGrid Name="TodoGrid"
 												  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
 												  AutoGenerateColumns="False" IsReadOnly="False"
@@ -1794,6 +1832,7 @@
 											</DataGridTemplateColumn>
 										</DataGrid.Columns>
 									</DataGrid>
+									</Border>
 									<controls:EmptyHint Name="TodoEmptyHint" Icon="Checkmark" IconSize="26"
 												Title="No tasks" Subtitle="Right-click to add a task"/>
 									</Panel>
@@ -1809,22 +1848,27 @@
 
 		<!-- Tree view -->
 		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="{Binding UI.TreeViewWidth}" Classes="AnimatedPanel">
-			<Border Classes="shadow" Background="{DynamicResource TextControlBackground}">
+			<Border Classes="shadow" Background="{DynamicResource AppSurfaceBrush}">
+				<Border Classes="clip-inner" CornerRadius="{DynamicResource AppCornerRadius}" ClipToBounds="True">
 				<Grid RowDefinitions="31,Auto,*">
-					<Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-						<TextBlock Text="Projects" Height="23" FontSize="13" FontWeight="SemiBold"
-								   FontStyle="Italic" Margin="12,8,0,0" Opacity="0.7"/>
+					<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppChromeSurfaceBrush}">
+						<StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
+							<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
+							<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
+									   Foreground="{DynamicResource AppMutedForegroundBrush}"
+									   VerticalAlignment="Center"/>
+						</StackPanel>
 						<Button Grid.Column="1" Click="OnTreeNewProjectButton"
 								ToolTip.Tip="New Project"
+								BorderThickness="0"
 								Padding="6,2" Margin="0,2,4,2"
-								VerticalAlignment="Center"
-								Classes="subtle">
+								VerticalAlignment="Center">
 							<ic:SymbolIcon Symbol="FolderAdd" FontSize="16"/>
 						</Button>
 					</Grid>
 					<Border Grid.Row="1" Height="1"
-							Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
-							Opacity="0.4" HorizontalAlignment="Stretch"/>
+							Background="{DynamicResource AppDividerBrush}"
+							Opacity="0.6" HorizontalAlignment="Stretch"/>
 					<TreeView Grid.Row="2" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
 											  ItemsSource="{Binding TreeNodes}"
 							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
@@ -1930,9 +1974,10 @@
 										</MenuItem>
 									</ContextMenu>
 								</TreeView.ContextMenu>
-									</TreeView>
-								</Grid>
-							</Border>
-						</Grid>
-	</Grid>
-</UserControl>
+																	</TreeView>
+																</Grid>
+																</Border>
+															</Border>
+														</Grid>
+										</Grid>
+									</UserControl>

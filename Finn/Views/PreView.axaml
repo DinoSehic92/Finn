@@ -24,7 +24,7 @@
 		</Style>
 	</UserControl.Styles>
 
-	<Grid Name="MainPreviewGrid" RowDefinitions="*,40" ColumnDefinitions="*,Auto" Margin="0">
+	<Grid Name="MainPreviewGrid" RowDefinitions="*,45" ColumnDefinitions="*,Auto" Margin="0">
 		<Grid Name="PreviewGrid" ClipToBounds="True" ColumnDefinitions="*" RowDefinitions="*"
 	  Grid.Row="0" Grid.Column="0"
 	  Background="{Binding PreviewVM.PreviewBackground}">
@@ -749,7 +749,7 @@
 		</Grid>
 
 		<Grid ColumnDefinitions="*,Auto,*" Grid.Row="1" Grid.ColumnSpan="2">
-			<Border Classes="shadow" Grid.Column="1" Background="{DynamicResource TextControlBackground}" Margin="5" Padding="4,0">
+			<Border Classes="shadow" Grid.Column="1" Background="{DynamicResource TextControlBackground}" Padding="4,3">
 				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}">
                    
 					<Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
@@ -788,29 +788,29 @@
 									   Opacity="0.75" Width="30" Height="30"
 									   ToolTip.Tip="{Binding CacheSourceTooltip}"/>
 
-						<ToggleButton ToolTip.Tip="Invert Colors (Ctrl+G)" Width="30" Height="30" FontWeight="Normal" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
+						<ToggleButton ToolTip.Tip="Invert Colors (Ctrl+G)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
 							<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Dual Page (Ctrl+D)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}" IsEnabled="{Binding CanToggleLayout}">
+						<ToggleButton ToolTip.Tip="Dual Page (Ctrl+D)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Name="DualMode" IsChecked="{Binding TwopageMode}" IsVisible="{Binding !DualFileMode}" IsEnabled="{Binding CanToggleLayout}">
 							<ic:SymbolIcon Symbol="BookOpen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}" IsEnabled="{Binding CanToggleLayout}" IsVisible="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).UI.SuperuserMode}">
+						<ToggleButton ToolTip.Tip="Dual File" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" IsChecked="{Binding DualFileMode}" IsEnabled="{Binding CanToggleLayout}" IsVisible="{Binding $parent[UserControl].((vm:MainViewModel)DataContext).UI.SuperuserMode}">
 							<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton ToolTip.Tip="Linked Pages (Ctrl+L)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
+						<ToggleButton ToolTip.Tip="Linked Pages (Ctrl+L)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Name="LinkedPageMode" IsVisible="{Binding ShowLinkedPageButton}" IsChecked="{Binding LinkedPageMode}">
 							<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
 						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
 
-						<ToggleButton ToolTip.Tip="Search (Ctrl+F)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}" IsEnabled="{Binding CanSearch}">
+						<ToggleButton ToolTip.Tip="Search (Ctrl+F)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}" IsEnabled="{Binding CanSearch}">
 							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<ToggleButton Name="AnnotateToggle" ToolTip.Tip="Annotate (Esc to exit)" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" Click="OnToggleAnnotate" IsEnabled="{Binding CanAnnotate}">
+						<ToggleButton Name="AnnotateToggle" ToolTip.Tip="Annotate (Esc to exit)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Click="OnToggleAnnotate" IsEnabled="{Binding CanAnnotate}">
 							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
