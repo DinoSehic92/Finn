@@ -28,35 +28,35 @@ public class UISettingsViewModel : ObservableObject
     {
         //                            Background   Accent       PanelBg      Text         Border       R      S      B
 
-        // Graphite — warm charcoal with amber gold; panels slightly lifted, crisp contrast
-        new ThemePreset("Graphite",  Color.Parse("#18181A"), Color.Parse("#D4983C"), Color.Parse("#222225"), Color.Parse("#EEEEF2"), Color.Parse("#3A3A3E"), true,  true,  false),
+        // Graphite — neutral charcoal with a restrained steel accent; dark but not pitch black
+        new ThemePreset("Graphite",  Color.Parse("#24272C"), Color.Parse("#7F97AD"), Color.Parse("#2E333A"), Color.Parse("#E8EBEF"), Color.Parse("#4C545F"), true,  true,  false),
 
-        // Midnight — deep navy ink, cool blue accent; panel gives depth without being too dark
-        new ThemePreset("Midnight",  Color.Parse("#0C1220"), Color.Parse("#4D9CFF"), Color.Parse("#141F30"), Color.Parse("#C8D6E8"), Color.Parse("#263347"), true,  true,  true),
+        // Midnight — deep navy anchor; the clearest marine dark preset
+        new ThemePreset("Midnight",  Color.Parse("#18202B"), Color.Parse("#5B8FC0"), Color.Parse("#222D3A"), Color.Parse("#D6E0EA"), Color.Parse("#3A4A5C"), true,  true,  true),
 
-        // Nord — muted arctic slate, soft cyan; panels breathe with a lighter lift
-        new ThemePreset("Nord",      Color.Parse("#2E3440"), Color.Parse("#81AABD"), Color.Parse("#373E4D"), Color.Parse("#D8DEE9"), Color.Parse("#4C566A"), true,  false, true),
+        // Nord — lighter slate-blue dark mode; panels sit noticeably darker than the shell for stronger depth
+        new ThemePreset("Nord",      Color.Parse("#343C47"), Color.Parse("#7FA5B8"), Color.Parse("#252B34"), Color.Parse("#DEE5ED"), Color.Parse("#566373"), true,  false, true),
 
-        // Tokyo — deep blue-purple night, vivid periwinkle; panels add legible contrast
-        new ThemePreset("Tokyo",     Color.Parse("#1A1B26"), Color.Parse("#7AA2F7"), Color.Parse("#24263A"), Color.Parse("#C0CAF5"), Color.Parse("#3B3F60"), true,  true,  false),
+        // Harbor — cool marine blue-grey; panel surfaces are darker so the shell keeps its marine tint
+        new ThemePreset("Harbor",    Color.Parse("#2C3740"), Color.Parse("#5F95A8"), Color.Parse("#1F2A32"), Color.Parse("#DEE7EC"), Color.Parse("#52616D"), true,  true,  false),
 
-        // Slate — cool dark teal-grey, soft sky blue; subtle tonal relationship between bg and panel
-        new ThemePreset("Slate",     Color.Parse("#1B2430"), Color.Parse("#56A0D3"), Color.Parse("#222E3C"), Color.Parse("#D4DDE8"), Color.Parse("#354557"), true,  false, true),
+        // Slate — blue-grey workhorse theme; stronger panel drop improves separation in semi-dark use
+        new ThemePreset("Slate",     Color.Parse("#2B343D"), Color.Parse("#6B98B7"), Color.Parse("#202830"), Color.Parse("#DCE3E9"), Color.Parse("#505D69"), true,  false, true),
 
-        // Harbor — deep ocean teal, vivid teal-cyan; panels slightly warmer than bg
-        new ThemePreset("Harbor",    Color.Parse("#101A22"), Color.Parse("#3DAFBE"), Color.Parse("#182430"), Color.Parse("#D2E8EE"), Color.Parse("#264050"), true,  true,  false),
+        // Granite — neutral semi-dark grey; panels are pushed further down to avoid a flat washed look
+        new ThemePreset("Granite",   Color.Parse("#3A403F"), Color.Parse("#879A94"), Color.Parse("#2A302E"), Color.Parse("#E5E9E7"), Color.Parse("#5B6662"), true,  false, true),
 
-        // Moss — dark forest green, soft sage accent; earthy and restful, panels barely lifted
-        new ThemePreset("Moss",      Color.Parse("#161A17"), Color.Parse("#5FAD62"), Color.Parse("#1E2520"), Color.Parse("#DCE8DC"), Color.Parse("#34403A"), true,  false, false),
+        // Steel — cool industrial grey with blue undertones; firmer panel darkening gives it better structure
+        new ThemePreset("Steel",     Color.Parse("#373F48"), Color.Parse("#7D93A8"), Color.Parse("#293039"), Color.Parse("#E1E7EC"), Color.Parse("#586573"), true,  false, true),
 
-        // Ember — warm near-black brown, terracotta-amber; cozy, wood-fire palette
-        new ThemePreset("Ember",     Color.Parse("#1C1714"), Color.Parse("#C87D45"), Color.Parse("#261F1A"), Color.Parse("#EDE4D8"), Color.Parse("#42342A"), true,  true,  false),
+        // Deep Sea — cleaner marine preset; teal carried mainly through the accent, not the whole shell
+        new ThemePreset("Deep Sea",  Color.Parse("#24343B"), Color.Parse("#5C9EA4"), Color.Parse("#2D4047"), Color.Parse("#DCE8EA"), Color.Parse("#4A6267"), true,  true,  false),
 
-        // Alloy — blue-tinted dark grey, lavender-indigo; cool professional, soft purple highlight
-        new ThemePreset("Alloy",     Color.Parse("#16191E"), Color.Parse("#8490E8"), Color.Parse("#1F242C"), Color.Parse("#E2E6F0"), Color.Parse("#363C4A"), true,  true,  false),
+        // Mist — semi-dark olive-grey inspired by softer values like 525E54; panel is clearly darker so the shell color can read
+        new ThemePreset("Mist",      Color.Parse("#525E54"), Color.Parse("#8FA59A"), Color.Parse("#3E4740"), Color.Parse("#E6EBE7"), Color.Parse("#748178"), true,  false, true),
 
-        // Ash — neutral near-black, muted steel-blue; minimal, monochromatic, clean
-        new ThemePreset("Ash",       Color.Parse("#1A1C20"), Color.Parse("#8DA4B8"), Color.Parse("#23262B"), Color.Parse("#E4E7EA"), Color.Parse("#3C424C"), true,  false, true),
+        // Tide — soft blue-green semi-dark theme; panel darkening is stronger to keep the shell airy but structured
+        new ThemePreset("Tide",      Color.Parse("#4E5F63"), Color.Parse("#7FA5AC"), Color.Parse("#39474B"), Color.Parse("#E4EAEB"), Color.Parse("#71848A"), true,  false, true),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
@@ -64,35 +64,35 @@ public class UISettingsViewModel : ObservableObject
     {
         //                           Background   Accent       PanelBg      Text         Border       R      S      B
 
-        // Cloud — cool blue-grey wash, vivid blue accent; pure white panels for contrast and readability
-        new ThemePreset("Cloud",    Color.Parse("#DDE6F2"), Color.Parse("#1460C8"), Color.Parse("#FFFFFF"), Color.Parse("#152033"), Color.Parse("#9AB0CC"), true,  true,  false),
+        // Cloud — cool blue-grey wash with crisp blue accent; clear, bright and versatile
+        new ThemePreset("Cloud",    Color.Parse("#DEE7F2"), Color.Parse("#1A66C7"), Color.Parse("#FFFFFF"), Color.Parse("#172235"), Color.Parse("#9DAFCC"), true,  true,  false),
 
-        // Pearl — neutral cool grey-white, refined navy accent; timeless and clean
-        new ThemePreset("Pearl",    Color.Parse("#F0F2F5"), Color.Parse("#2C58A0"), Color.Parse("#FFFFFF"), Color.Parse("#1C2334"), Color.Parse("#BEC6D4"), true,  true,  false),
+        // Pearl — neutral cool white with navy accent; safest all-purpose light preset
+        new ThemePreset("Pearl",    Color.Parse("#F1F3F6"), Color.Parse("#315A9C"), Color.Parse("#FFFFFF"), Color.Parse("#1D2434"), Color.Parse("#BEC6D3"), true,  true,  false),
 
-        // Frost — icy teal-white, deep teal accent; crisp and airy
-        new ThemePreset("Frost",    Color.Parse("#EAF3F5"), Color.Parse("#0B7480"), Color.Parse("#FFFFFF"), Color.Parse("#143135"), Color.Parse("#AACFD5"), true,  true,  false),
+        // Frost — icy teal-white with a deeper teal accent; airy but still anchored
+        new ThemePreset("Frost",    Color.Parse("#EAF3F4"), Color.Parse("#14717A"), Color.Parse("#FFFFFF"), Color.Parse("#173236"), Color.Parse("#A9CDD2"), true,  true,  false),
 
-        // Linen — warm parchment, burnt sienna accent; editorial and warm
-        new ThemePreset("Linen",    Color.Parse("#F4ECE0"), Color.Parse("#B34B1A"), Color.Parse("#FDFAF6"), Color.Parse("#2C1A0C"), Color.Parse("#C8B89E"), true,  true,  false),
+        // Linen — warm paper and restrained terracotta; soft without becoming beige mush
+        new ThemePreset("Linen",    Color.Parse("#F4ECE2"), Color.Parse("#B45A28"), Color.Parse("#FCFAF6"), Color.Parse("#2C1C11"), Color.Parse("#C9B79F"), true,  true,  false),
 
-        // Birch — warm tan-grey, earthy olive accent; natural and grounded
-        new ThemePreset("Birch",    Color.Parse("#EAE4D6"), Color.Parse("#6A7828"), Color.Parse("#F8F6F0"), Color.Parse("#282210"), Color.Parse("#C4BCA8"), true,  false, true),
+        // Porcelain — crisp blue-white with cooler structure; ideal for a sharper office look
+        new ThemePreset("Porcelain",Color.Parse("#E8EEF6"), Color.Parse("#3A6FB3"), Color.Parse("#FCFDFF"), Color.Parse("#1A2435"), Color.Parse("#B8C6DA"), true,  true,  false),
 
-        // Meadow — fresh pale green, forest green accent; calm and organic
-        new ThemePreset("Meadow",   Color.Parse("#E4F0E8"), Color.Parse("#1D7840"), Color.Parse("#FAFCFA"), Color.Parse("#112516"), Color.Parse("#A4C8B0"), true,  false, true),
+        // Sandstone — warm mineral neutral with muted rust accent; cleaner than the older earthy themes
+        new ThemePreset("Sandstone",Color.Parse("#EEE5DA"), Color.Parse("#A76432"), Color.Parse("#FBF8F3"), Color.Parse("#2B2117"), Color.Parse("#C8B9A7"), true,  false, true),
 
-        // Sage — silvery sage green-grey, muted mid-green accent; sophisticated understated
-        new ThemePreset("Sage",     Color.Parse("#EBF0EA"), Color.Parse("#507858"), Color.Parse("#FAFBFA"), Color.Parse("#1E2A20"), Color.Parse("#BECABF"), true,  false, false),
+        // Willow — pale green-grey with restrained green accent; natural but much cleaner than meadow tones
+        new ThemePreset("Willow",   Color.Parse("#E8EEE6"), Color.Parse("#5D8066"), Color.Parse("#FAFBF9"), Color.Parse("#1F2A22"), Color.Parse("#BCC8BE"), true,  false, false),
 
-        // Lavender — soft lilac, deep purple accent; elegant with warmth
-        new ThemePreset("Lavender", Color.Parse("#EDE8F5"), Color.Parse("#6418A8"), Color.Parse("#FDFBFF"), Color.Parse("#23183A"), Color.Parse("#C0B0D8"), true,  true,  false),
+        // Iris — soft periwinkle-lilac; cooler and more refined than a sugary lavender treatment
+        new ThemePreset("Iris",     Color.Parse("#ECEAF6"), Color.Parse("#5B66B0"), Color.Parse("#FCFCFF"), Color.Parse("#24233A"), Color.Parse("#BBB8D7"), true,  true,  false),
 
-        // Dusk — blue-grey cool neutral, steel-slate accent; refined minimal
-        new ThemePreset("Dusk",     Color.Parse("#E8EAEE"), Color.Parse("#445066"), Color.Parse("#F8F9FB"), Color.Parse("#2B3343"), Color.Parse("#C0C8D4"), true,  false, true),
+        // Dusk — cool neutral grey with slate accent; minimal, sober and very usable
+        new ThemePreset("Dusk",     Color.Parse("#E8EAED"), Color.Parse("#4A5568"), Color.Parse("#F8F9FB"), Color.Parse("#2C3443"), Color.Parse("#C0C8D2"), true,  false, true),
 
-        // Blush — warm pink-cream, deep rose accent; refined and warm
-        new ThemePreset("Blush",    Color.Parse("#F4E8EC"), Color.Parse("#A83050"), Color.Parse("#FEFBFC"), Color.Parse("#311820"), Color.Parse("#D8B8C4"), true,  true,  false),
+        // Rose Paper — subtle rose-tinted paper with restrained berry accent; warm but still grown-up
+        new ThemePreset("Rose Paper", Color.Parse("#F3E8EA"), Color.Parse("#A24B63"), Color.Parse("#FEFBFC"), Color.Parse("#311F24"), Color.Parse("#D6BAC3"), true,  true,  false),
     };
 
         // Localized defaults moved here from Finn.Services.UIDefaults

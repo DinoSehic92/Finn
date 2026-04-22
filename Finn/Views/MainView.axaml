@@ -398,13 +398,13 @@
 					<ic:SymbolIcon Symbol="FolderOpen" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
-				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
+				<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,6" Opacity="0.55"/>
 
 				<Button ToolTip.Tip="Copy Name"       Height="28" Width="28" Padding="0" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
 					<ic:SymbolIcon Symbol="ClipboardText" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
-				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
+				<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,6" Opacity="0.55"/>
 
 				<Button Name="ColorTagButton" ToolTip.Tip="Color Tag" Height="28" Width="28" Padding="0">
 					<ic:SymbolIcon Symbol="Color" IconVariant="Regular" FontSize="15"/>
@@ -424,7 +424,7 @@
 									<Button Width="22" Height="22" Background="{StaticResource TagColorRed}"    Opacity="0.85" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
 									<Button Width="22" Height="22" Background="{StaticResource TagColorMagenta}" Opacity="0.85" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
 									<Button Width="22" Height="22" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"
-											BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
+									BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}">
 										<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
 									</Button>
 								</StackPanel>
@@ -454,7 +454,7 @@
 					<ic:SymbolIcon Symbol="GroupList" IconVariant="Regular" FontSize="15"/>
 				</Button>
 
-				<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="3,6" Opacity="0.4"/>
+				<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,6" Opacity="0.55"/>
 			</StackPanel>
 
 			<!-- Search bar -->
@@ -488,13 +488,13 @@
 			<ToggleButton ToolTip.Tip="Tray (Ctrl+E)"            HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Folders (Ctrl+L)"         HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
-			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
 			<!-- View group -->
 			<ToggleButton ToolTip.Tip="Preview Window (Ctrl+W)"  HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
 			<ToggleButton ToolTip.Tip="Embedded Preview (Ctrl+P)" HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
 
-			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
 			<!-- Settings & tools group -->
 			<Button       ToolTip.Tip="UI Settings"                              Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Settings" FontSize="18"/></Button>
@@ -550,7 +550,7 @@
 				</Button.Flyout>
 			</Button>
 
-			<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
 			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" HotKey="Ctrl+K" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsVisible="{Binding UI.SuperuserMode}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 
@@ -1004,7 +1004,7 @@
 
 				<!-- Drag-and-drop hint overlay -->
 				<Border Name="DropOverlay" Classes="DropHint"
-						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+						Background="{DynamicResource AppDropOverlayBrush}" BorderBrush="{DynamicResource AppDropOverlayBorderBrush}"
 						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}"
 						IsVisible="False">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
@@ -1069,7 +1069,7 @@
 									Title="No synced folders" Subtitle="Drag a folder onto any grid to start syncing"/>
 						<!-- Drop hint for version delivery folders -->
 						<Border Name="FolderDropOverlay" Classes="DropHint"
-								Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+								Background="{DynamicResource AppDropOverlayBrush}" BorderBrush="{DynamicResource AppDropOverlayBorderBrush}"
 								BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}">
 							<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 								<ic:SymbolIcon Symbol="History" FontSize="22" HorizontalAlignment="Center"/>
@@ -1280,7 +1280,7 @@
 							<Setter Property="MaxHeight" Value="0"/>
 						</Style>
 						<Style Selector="DataGridRow:nth-last-child(1)">
-							<Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"/>
+							<Setter Property="BorderBrush" Value="{DynamicResource AppDividerBrush}"/>
 							<Setter Property="BorderThickness" Value="0,1,0,0"/>
 						</Style>
 						<Style Selector="DataGridRow:nth-last-child(1) DataGridCell">
@@ -1591,7 +1591,7 @@
 							Title="No other files" Subtitle="Drop files or folders here to attach"/>
 				<!-- Drop hint for other files -->
 				<Border Name="OtherFilesDropOverlay" Classes="DropHint"
-						Background="#30007ACC" BorderBrush="{DynamicResource SystemAccentColor}"
+						Background="{DynamicResource AppDropOverlayBrush}" BorderBrush="{DynamicResource AppDropOverlayBorderBrush}"
 						BorderThickness="2" CornerRadius="{Binding UI.CornerRadius}">
 					<StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.9">
 						<ic:SymbolIcon Symbol="Attach" FontSize="22" HorizontalAlignment="Center"/>
@@ -1851,11 +1851,11 @@
 			<Border Classes="shadow" Background="{DynamicResource AppSurfaceBrush}">
 				<Border Classes="clip-inner" CornerRadius="{DynamicResource AppCornerRadius}" ClipToBounds="True">
 				<Grid RowDefinitions="31,Auto,*">
-					<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppChromeSurfaceBrush}">
+				<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppHeaderSurfaceBrush}">
 						<StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
 							<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
-							<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
-									   Foreground="{DynamicResource AppMutedForegroundBrush}"
+						<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
+									   Foreground="{DynamicResource AppHeaderForegroundBrush}"
 									   VerticalAlignment="Center"/>
 						</StackPanel>
 						<Button Grid.Column="1" Click="OnTreeNewProjectButton"
@@ -1868,7 +1868,7 @@
 					</Grid>
 					<Border Grid.Row="1" Height="1"
 							Background="{DynamicResource AppDividerBrush}"
-							Opacity="0.6" HorizontalAlignment="Stretch"/>
+							Opacity="0.75" HorizontalAlignment="Stretch"/>
 					<TreeView Grid.Row="2" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
 											  ItemsSource="{Binding TreeNodes}"
 							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
@@ -1900,20 +1900,20 @@
 											<StackPanel Orientation="Horizontal" Spacing="6">
 												<ic:SymbolIcon Symbol="{Binding IconSymbol}" FontSize="14"
 														   IsVisible="{Binding IconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-														   Opacity="0.7"/>
+										   Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 												<TextBlock Classes="TreeNodeHeader" Text="{Binding Header}"
 														   FontSize="{Binding FontSize}"
 														   FontWeight="{Binding FontWeight}"
 														   FontStyle="{Binding FontStyle}"
-														   Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource SystemControlForegroundBaseHighBrush}}"/>
+											Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource AppForegroundBrush}}"/>
                                                 <Border
 														IsVisible="{Binding BadgeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                         CornerRadius="7"
 														Padding="3,0"
 														MinWidth="14"
 														Opacity="0.6"
-														Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-														BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+										Background="{DynamicResource AppControlSurfaceBrush}"
+										BorderBrush="{DynamicResource AppControlBorderBrush}"
                                                      BorderThickness="0.5"
 														Margin="2,0,0,0">
                                                   <TextBlock Text="{Binding BadgeText}" FontSize="10" HorizontalAlignment="Center" Opacity="0.85"/>

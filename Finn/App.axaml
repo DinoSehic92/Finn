@@ -23,9 +23,15 @@
      <SolidColorBrush x:Key="AppRowHoverBrush" Color="#3B5268"/>
      <SolidColorBrush x:Key="AppRowSelectionBrush" Color="#315E82"/>
 		<SolidColorBrush x:Key="AppDividerBrush" Color="#566473"/>
+		<SolidColorBrush x:Key="AppToolbarSeparatorBrush" Color="#566473"/>
       <SolidColorBrush x:Key="AppPanelBorderBrush" Color="#4B5B69"/>
 		<SolidColorBrush x:Key="AppControlBorderBrush" Color="#516170"/>
      <SolidColorBrush x:Key="AppFlyoutBorderBrush" Color="#4B5C6A"/>
+		<SolidColorBrush x:Key="AppHeaderSurfaceBrush" Color="#26313C"/>
+		<SolidColorBrush x:Key="AppHeaderForegroundBrush" Color="#9CA9B6"/>
+		<SolidColorBrush x:Key="AppDropOverlayBrush" Color="#30007ACC"/>
+		<SolidColorBrush x:Key="AppDropOverlaySubtleBrush" Color="#20007ACC"/>
+		<SolidColorBrush x:Key="AppDropOverlayBorderBrush" Color="#0A84FF"/>
       <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#2B3742"/>
        <SolidColorBrush x:Key="FlyoutBorderThemeBrush" Color="#4B5C6A"/>
 		<Thickness x:Key="FlyoutBorderThemeThickness">1</Thickness>
@@ -254,6 +260,10 @@
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
+		<Style Selector="Label /template/ ContentPresenter">
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
 		<Style Selector="MenuItem">
 			<Setter Property="MinHeight" Value="0"/>
 			<Setter Property="Height" Value="30"/>
@@ -311,6 +321,7 @@
 			<Setter Property="BorderBrush" Value="{DynamicResource AppFlyoutBorderBrush}"/>
            <Setter Property="BorderThickness" Value="{DynamicResource AppPopupBorderThickness}"/>
             <Setter Property="CornerRadius" Value="8"/>
+			<Setter Property="BoxShadow" Value="{DynamicResource AppShadow}"/>
 		</Style>
 
 		<!-- Shadow border: use Classes="shadow" on a Border to get shadow, rounded corners, and optional visible border -->
@@ -335,9 +346,9 @@
 			<Setter Property="FontSize" Value="12"/>
 			<Setter Property="FontWeight" Value="SemiBold"/>
 			<Setter Property="FontStyle" Value="Normal"/>
-			<Setter Property="Foreground" Value="{DynamicResource AppMutedForegroundBrush}"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppHeaderForegroundBrush}"/>
 			<Setter Property="Padding" Value="8,0,0,0"/>
-			<Setter Property="Background" Value="{DynamicResource AppChromeSurfaceBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppHeaderSurfaceBrush}"/>
 		</Style>
 
 		<Style Selector="DataGridColumnHeader:pointerover">

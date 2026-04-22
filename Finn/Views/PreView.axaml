@@ -177,7 +177,7 @@
 								<Button ToolTip.Tip="Select / Move (V)" Width="26" Height="26" Padding="0" Tag="Select" Click="OnAnnotateToolSelect" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Cursor" IconVariant="Regular" FontSize="14"/>
 								</Button>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
 								<Button ToolTip.Tip="Draw (1)" Width="26" Height="26" Padding="0" Tag="Draw" Click="OnAnnotateToolSelect" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="14"/>
 								</Button>
@@ -190,7 +190,7 @@
 								<Button ToolTip.Tip="Dot (D)" Width="26" Height="26" Padding="0" Tag="Dot" Click="OnAnnotateToolSelect" BorderThickness="0">
 									<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
 								<Button ToolTip.Tip="Rectangle (3)" Width="26" Height="26" Padding="0" Tag="Rectangle" Click="OnAnnotateToolSelect" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Square" IconVariant="Regular" FontSize="14"/>
 								</Button>
@@ -409,12 +409,12 @@
 								</Button>
 								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
 								<TextBlock Name="AnnotationCountBadge" Text="" FontSize="9" VerticalAlignment="Center" Margin="3,0"
-									Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}" Opacity="0.7"/>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+									Foreground="{DynamicResource AppMutedForegroundBrush}"/>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
 								<Button Name="LayerPickerBtn" ToolTip.Tip="Active layer — click to switch" Height="26" Padding="4,0" Click="OnLayerPickerClick" BorderThickness="0">
 									<StackPanel Orientation="Horizontal" Spacing="3">
 										<ic:SymbolIcon Symbol="Layer" IconVariant="Regular" FontSize="12"/>
-										<TextBlock Name="ActiveLayerLabel" Text="Layer 1" FontSize="9" VerticalAlignment="Center" Opacity="0.7" MaxWidth="60" TextTrimming="CharacterEllipsis"/>
+									<TextBlock Name="ActiveLayerLabel" Text="Layer 1" FontSize="9" VerticalAlignment="Center" Foreground="{DynamicResource AppMutedForegroundBrush}" MaxWidth="60" TextTrimming="CharacterEllipsis"/>
 									</StackPanel>
 								</Button>
 								<Button Name="LayerVisBtn" ToolTip.Tip="Toggle active layer visibility" Width="26" Height="26" Padding="0" Click="OnToggleLayerVisibility" BorderThickness="0">
@@ -435,7 +435,7 @@
 				<Border.Background>
 					<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
 				</Border.Background>
-				<Border Background="{DynamicResource TextControlBackground}" Margin="-6,-3" Padding="6,3">
+				<Border Background="{DynamicResource AppFlyoutSurfaceBrush}" Margin="-6,-3" Padding="6,3">
 				<StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
 					<!-- Mode buttons — radio-style (OneWay + Click ensures one is always selected) -->
 					<ToggleButton ToolTip.Tip="A/B Toggle — swap between original and revised" Height="30" Width="30" Padding="0" IsChecked="{Binding PreviewVM.IsToggleMode, Mode=OneWay}" Click="OnDiffModeToggle">
@@ -445,7 +445,10 @@
 						<ic:SymbolIcon Symbol="SplitHorizontal" IconVariant="Regular" FontSize="16"/>
 					</ToggleButton>
 
-					<Border Width="1" Height="16" Background="{DynamicResource TextControlBorderBrush}" Margin="2,0"/>
+					<Border Width="1"
+							Height="16"
+							Background="{DynamicResource AppToolbarSeparatorBrush}"
+							Opacity="0.7"/>
 
 					<!-- A/B switch (visible in Toggle mode) -->
 					<ToggleButton Name="DiffABToggle" Height="30" MinWidth="56" Padding="6,0"
@@ -459,12 +462,18 @@
 						</StackPanel>
 					</ToggleButton>
 
-					<Border Width="1" Height="16" Background="{DynamicResource TextControlBorderBrush}" Margin="2,0"
+					<Border Width="1"
+							Height="16"
+							Background="{DynamicResource AppToolbarSeparatorBrush}"
+							Opacity="0.7"
 							IsVisible="{Binding PreviewVM.ShowDiffToggle}"/>
 
-					<TextBlock Text="{Binding PreviewVM.DiffSummary}" FontSize="11" Opacity="0.7" VerticalAlignment="Center"/>
+					<TextBlock Text="{Binding PreviewVM.DiffSummary}" FontSize="11" Foreground="{DynamicResource AppMutedForegroundBrush}" VerticalAlignment="Center"/>
 
-					<Border Width="1" Height="16" Background="{DynamicResource TextControlBorderBrush}" Margin="2,0"/>
+					<Border Width="1"
+							Height="16"
+							Background="{DynamicResource AppToolbarSeparatorBrush}"
+							Opacity="0.7"/>
 
 					<!-- Run pixel comparison -->
 						<ToggleButton ToolTip.Tip="Run pixel comparison" Height="30" Padding="8,0" BorderThickness="0" Click="OnRunDiffComparison" IsEnabled="{Binding !PreviewVM.DiffBusy}" IsChecked="{Binding PreviewVM.HasPixelDiffResults, Mode=OneWay}">
@@ -516,7 +525,7 @@
 					<Border.Background>
 						<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
 					</Border.Background>
-					<Border Background="{DynamicResource TextControlBackground}" Margin="-8" Padding="8">
+					<Border Background="{DynamicResource AppFlyoutSurfaceBrush}" Margin="-8" Padding="8">
 					<StackPanel Spacing="6">
 						<TextBlock Name="CalibrationPromptText" Text="Enter real-world distance for the last measurement:" FontSize="12" TextWrapping="Wrap" MaxWidth="220"/>
 						<StackPanel Orientation="Horizontal" Spacing="4">
@@ -539,7 +548,7 @@
 						<Border.Background>
 							<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
 						</Border.Background>
-						<Border Background="{DynamicResource TextControlBackground}" Margin="-8" Padding="8">
+						<Border Background="{DynamicResource AppFlyoutSurfaceBrush}" Margin="-8" Padding="8">
 						<StackPanel Spacing="6">
 							<TextBlock Text="Enter hex color:" FontSize="12"/>
 							<TextBox Name="ColorInputBox" Width="120" PlaceholderText="#FF6600" KeyDown="OnColorInputKeyDown"/>
@@ -560,7 +569,7 @@
 						<Border.Background>
 							<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
 						</Border.Background>
-						<Border Background="{DynamicResource TextControlBackground}" Margin="-8,-6" Padding="8,6">
+						<Border Background="{DynamicResource AppFlyoutSurfaceBrush}" Margin="-8,-6" Padding="8,6">
 						<StackPanel Spacing="4">
 							<StackPanel Orientation="Horizontal" Spacing="2">
 								<Button ToolTip.Tip="Red" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
@@ -594,7 +603,7 @@
 								<Button ToolTip.Tip="Thick" Width="20" Height="20" Padding="0" Tag="4" Click="OnPropertyWidth" BorderThickness="0">
 									<Ellipse Width="9" Height="9" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
-								<Border Width="1" Background="#50888888" Margin="2,3" CornerRadius="1"/>
+								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 								<Button ToolTip.Tip="Solid" Width="24" Height="20" Padding="0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
 									<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
 								</Button>
@@ -607,7 +616,7 @@
 								<Button ToolTip.Tip="Dash-Dot" Width="24" Height="20" Padding="0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
 									<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
 								</Button>
-								<Border Width="1" Background="#50888888" Margin="2,3" CornerRadius="1"/>
+								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 								<Button Name="PropertyFillBtn" ToolTip.Tip="Toggle Fill" Width="24" Height="24" Padding="0" Click="OnPropertyFill" BorderThickness="0">
 									<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>
 								</Button>
@@ -637,26 +646,26 @@
 									<Border Height="1" Background="#20888888" Margin="0,2"/>
 									<TextBox Name="PropertyTextBox" MinWidth="220" MinHeight="50" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text..." HorizontalAlignment="Stretch"/>
 								</StackPanel>
-								<Border Height="1" Background="#20888888" Margin="0,2"/>
+								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,2" Opacity="0.5"/>
 								<StackPanel Name="PropertyActionsRow" Orientation="Horizontal" Spacing="1">
 									<Button Name="PropertyClosePolyBtn" ToolTip.Tip="Close Polyline" Width="24" Height="24" Padding="0" Click="OnPropertyClosePolyline" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Flowchart" IconVariant="Regular" FontSize="12"/>
 									</Button>
-									<Border Width="1" Background="#50888888" Margin="2,3" CornerRadius="1"/>
+									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 									<Button ToolTip.Tip="Match Style" Width="24" Height="24" Padding="0" Click="OnPropertyMatchStyle" BorderThickness="0">
 										<ic:SymbolIcon Symbol="ColorLine" IconVariant="Regular" FontSize="12"/>
 									</Button>
 									<Button ToolTip.Tip="Duplicate" Width="24" Height="24" Padding="0" Click="OnPropertyDuplicate" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Copy" IconVariant="Regular" FontSize="12"/>
 									</Button>
-									<Border Width="1" Background="#50888888" Margin="2,3" CornerRadius="1"/>
+									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 									<Button ToolTip.Tip="Bring to Front" Width="24" Height="24" Padding="0" Click="OnPropertyBringToFront" BorderThickness="0">
 										<ic:SymbolIcon Symbol="ArrowExportUp" IconVariant="Regular" FontSize="12"/>
 									</Button>
 									<Button ToolTip.Tip="Send to Back" Width="24" Height="24" Padding="0" Click="OnPropertySendToBack" BorderThickness="0">
 										<ic:SymbolIcon Symbol="ArrowImport" IconVariant="Regular" FontSize="12"/>
 									</Button>
-									<Border Width="1" Background="#50888888" Margin="2,3" CornerRadius="1"/>
+									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 									<Button ToolTip.Tip="Delete" Width="24" Height="24" Padding="0" Click="OnPropertyDelete" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="12" Foreground="#E05050"/>
 									</Button>
@@ -673,7 +682,7 @@
 							<Border.Background>
 								<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
 							</Border.Background>
-							<Border Background="{DynamicResource TextControlBackground}" Margin="-8" Padding="8">
+							<Border Background="{DynamicResource AppFlyoutSurfaceBrush}" Margin="-8" Padding="8">
 							<StackPanel Spacing="6">
 								<TextBlock Text="Enter review name:" FontSize="12"/>
 								<TextBox Name="ReviewNameBox" Width="180" PlaceholderText="e.g. Draft review" KeyDown="OnReviewNameKeyDown"/>
@@ -689,7 +698,7 @@
 				</Grid>
 
 		<Grid Name="SearchGrid" MinWidth="0" Grid.Column="1" ClipToBounds="False" Width="200" IsVisible="{Binding PreviewVM.SearchMode}">
-			<Border Name="SearchGridBorder" Classes="shadow" Grid.Row="0" Margin="5" Background="{DynamicResource TextControlBackground}">
+			<Border Name="SearchGridBorder" Classes="shadow" Grid.Row="0" Margin="5" Background="{DynamicResource AppPanelSurfaceBrush}">
 				<Grid RowDefinitions="10,Auto,30,*">
 
 					<!-- Text search input (hidden during diff page list mode) -->
@@ -711,12 +720,12 @@
 					<!-- Diff page list header (shown during diff page list mode) -->
 					<Border Grid.Row="1" IsVisible="{Binding PreviewVM.DiffPageListMode}" Padding="8,6">
 						<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-							<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
+							<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 							<TextBlock Text="Changed Pages" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
 						</StackPanel>
 					</Border>
 
-					<Border Grid.Row="2" BorderThickness="0 0 0 1" CornerRadius="0" BorderBrush="{DynamicResource DataGridGridLinesBrush}">
+					<Border Grid.Row="2" BorderThickness="0 0 0 1" CornerRadius="0" BorderBrush="{DynamicResource AppDividerBrush}">
 						<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
 							<Button ToolTip.Tip="Previous Result" ToolTip.Placement="Right" BorderThickness="0" Theme="{DynamicResource MaterialButtonBase}" Command="{Binding PreviewVM.PrevSearchPage}">
 								<ic:SymbolIcon Symbol="ArrowPrevious" IconVariant="Regular" FontSize="16"/>
@@ -749,7 +758,7 @@
 		</Grid>
 
 		<Grid ColumnDefinitions="*,Auto,*" Grid.Row="1" Grid.ColumnSpan="2">
-			<Border Classes="shadow" Grid.Column="1" Background="{DynamicResource TextControlBackground}" Padding="4,3">
+			<Border Classes="shadow" Grid.Column="1" Background="{DynamicResource AppPanelSurfaceBrush}" Padding="4,3">
 				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}">
                    
 					<Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
@@ -769,7 +778,7 @@
 							<ic:SymbolIcon Symbol="ArrowNext" IconVariant="Regular" FontSize="16"/>
 						</Button>
 
-						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+						<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.7"/>
 
 						<Button ToolTip.Tip="Rotate Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateLeft">
 							<ic:SymbolIcon Symbol="RotateLeft" IconVariant="Regular" FontSize="16"/>
@@ -779,7 +788,7 @@
 							<ic:SymbolIcon Symbol="RotateRight" IconVariant="Regular" FontSize="16"/>
 						</Button>
 
-						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+						<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.7"/>
 
 						<!-- Cache source indicator: accent-colored icon matching button width -->
 						<ic:SymbolIcon Symbol="{Binding CacheSourceIcon}" IconVariant="Regular" FontSize="16"
@@ -804,7 +813,7 @@
 							<ic:SymbolIcon Symbol="Link" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
-						<Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Margin="4,6" Opacity="0.5"/>
+						<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.7"/>
 
 						<ToggleButton ToolTip.Tip="Search (Ctrl+F)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Name="SearchMode" IsChecked="{Binding SearchMode}" IsEnabled="{Binding CanSearch}">
 							<ic:SymbolIcon Symbol="Search" IconVariant="Regular" FontSize="16"/>

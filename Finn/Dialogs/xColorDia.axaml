@@ -14,7 +14,18 @@
 		WindowStartupLocation="CenterScreen"
 		ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
 		xmlns:controls="clr-namespace:Finn.Controls"
-		x:DataType="vm:MainViewModel">
+		x:DataType="vm:MainViewModel"
+		Foreground="{DynamicResource AppForegroundBrush}"
+		Background="{DynamicResource AppBackgroundBrush}">
+
+	<Window.Styles>
+		<Style Selector="Label">
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+		<Style Selector="Label /template/ ContentPresenter">
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+	</Window.Styles>
 
 	<Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
