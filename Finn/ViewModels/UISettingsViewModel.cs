@@ -810,10 +810,6 @@ public class UISettingsViewModel : ObservableObject
                 ? (DarkMode ? this.DarkPanelColor : this.LightPanelColor)
                 : Mix(background, Colors.White, isDark ? 0.07 : 0.55);
 
-            var surfaceAlt = isDark
-                ? Mix(panel, Colors.White, 0.045)
-                : Mix(panel, background, 0.12);
-
             var chromeSurface = isDark
                 ? Mix(panel, background, 0.34)
                 : Mix(background, panel, 0.35);
@@ -857,7 +853,6 @@ public class UISettingsViewModel : ObservableObject
             var menuHoverSurface = Mix(chromeSurface, accent, isDark ? 0.08 : 0.06);
             var rowHoverSurface = Mix(panelSurface, accent, isDark ? 0.16 : 0.11);
             var rowSelectionSurface = Mix(panelSurface, accent, isDark ? 0.35 : 0.25);
-            var accentForeground = GetReadableForeground(accent);
 
             var theme = new FluentTheme
             {
@@ -876,16 +871,12 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppCornerRadius"] = this.CornerRadius;
             App.Current.Resources["AppShadow"] = this.Shadow;
             App.Current.Resources["AppBorderThickness"] = this.BorderThickness;
-            App.Current.Resources["AppPopupBorderThickness"] = new Thickness(1);
 
             var foregroundBrush = new SolidColorBrush(text);
             var mutedForegroundBrush = new SolidColorBrush(mutedText);
             var mediumForegroundBrush = new SolidColorBrush(mediumText);
             var headerForegroundBrush = new SolidColorBrush(headerText);
             var backgroundBrush = new SolidColorBrush(background);
-            var surfaceBrush = new SolidColorBrush(panel);
-            var surfaceAltBrush = new SolidColorBrush(surfaceAlt);
-            var chromeSurfaceBrush = new SolidColorBrush(chromeSurface);
             var headerSurfaceBrush = new SolidColorBrush(headerSurface);
             var flyoutSurfaceBrush = new SolidColorBrush(flyoutSurface);
             var panelSurfaceBrush = new SolidColorBrush(panelSurface);
@@ -899,14 +890,9 @@ public class UISettingsViewModel : ObservableObject
             var panelBorderBrush = new SolidColorBrush(panelBorder);
             var controlBorderBrush = new SolidColorBrush(controlBorder);
             var flyoutBorderBrush = new SolidColorBrush(flyoutBorder);
-            var subtleBorderBrush = new SolidColorBrush(subtleBorder);
             var strongBorderBrush = new SolidColorBrush(strongBorder);
-            var accentForegroundBrush = new SolidColorBrush(accentForeground);
 
             App.Current.Resources["AppBackgroundBrush"] = backgroundBrush;
-            App.Current.Resources["AppSurfaceBrush"] = surfaceBrush;
-            App.Current.Resources["AppSurfaceAltBrush"] = surfaceAltBrush;
-            App.Current.Resources["AppChromeSurfaceBrush"] = chromeSurfaceBrush;
             App.Current.Resources["AppFlyoutSurfaceBrush"] = flyoutSurfaceBrush;
             App.Current.Resources["AppPanelSurfaceBrush"] = panelSurfaceBrush;
             App.Current.Resources["AppControlSurfaceBrush"] = controlSurfaceBrush;
@@ -920,12 +906,11 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppRowHoverBrush"] = rowHoverSurfaceBrush;
             App.Current.Resources["AppRowSelectionBrush"] = rowSelectionSurfaceBrush;
             App.Current.Resources["AppDividerBrush"] = dividerBrush;
+            App.Current.Resources["AppToolbarSeparatorBrush"] = dividerBrush;
             App.Current.Resources["AppPanelBorderBrush"] = panelBorderBrush;
             App.Current.Resources["AppControlBorderBrush"] = controlBorderBrush;
             App.Current.Resources["AppFlyoutBorderBrush"] = flyoutBorderBrush;
-            App.Current.Resources["AppSubtleBorderBrush"] = subtleBorderBrush;
             App.Current.Resources["AppStrongBorderBrush"] = strongBorderBrush;
-            App.Current.Resources["AppAccentForegroundBrush"] = accentForegroundBrush;
 
             App.Current.Resources["SystemControlForegroundBaseHighBrush"] = foregroundBrush;
             App.Current.Resources["SystemControlForegroundBaseMediumBrush"] = mediumForegroundBrush;
@@ -933,20 +918,14 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["SystemControlForegroundBaseMediumLowBrush"] = mutedForegroundBrush;
             App.Current.Resources["ButtonForeground"] = foregroundBrush;
             App.Current.Resources["TextControlForeground"] = foregroundBrush;
-            App.Current.Resources["TextControlBackground"] = controlSurfaceBrush;
+            App.Current.Resources["TextControlBackground"] = panelSurfaceBrush;
             App.Current.Resources["FlyoutPresenterBackground"] = flyoutSurfaceBrush;
             App.Current.Resources["FlyoutBorderThemeBrush"] = flyoutBorderBrush;
-            App.Current.Resources["FlyoutBorderThemeThickness"] = new Thickness(1);
-            App.Current.Resources["FlyoutContentThemePadding"] = new Thickness(8, 6);
             App.Current.Resources["MenuFlyoutPresenterBackground"] = flyoutSurfaceBrush;
             App.Current.Resources["MenuFlyoutPresenterBorderBrush"] = flyoutBorderBrush;
-            App.Current.Resources["MenuFlyoutPresenterBorderThemeThickness"] = new Thickness(1);
-            App.Current.Resources["MenuFlyoutPresenterThemePadding"] = new Thickness(2, 4);
-            App.Current.Resources["DataGridColumnHeaderForegroundBrush"] = mutedForegroundBrush;
-            App.Current.Resources["DataGridColumnHeaderBackgroundBrush"] = new SolidColorBrush(Colors.Transparent);
-            App.Current.Resources["DataGridColumnHeaderHoveredBackgroundBrush"] = new SolidColorBrush(Colors.Transparent);
-            App.Current.Resources["DataGridColumnHeaderPressedBackgroundBrush"] = new SolidColorBrush(Colors.Transparent);
-            App.Current.Resources["DataGridColumnHeaderDraggedBackgroundBrush"] = new SolidColorBrush(Colors.Transparent);
+            App.Current.Resources["ComboBoxDropDownBackground"] = flyoutSurfaceBrush;
+            App.Current.Resources["ComboBoxDropDownBorderBrush"] = flyoutBorderBrush;
+            App.Current.Resources["ComboBoxDropDownGlyphForeground"] = foregroundBrush;
             App.Current.Resources["DataGridGridLinesBrush"] = dividerBrush;
             App.Current.Resources["SystemBaseMediumLowColor"] = strongBorder;
 

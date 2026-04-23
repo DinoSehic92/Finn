@@ -9,9 +9,6 @@
 		<Thickness x:Key="AppBorderThickness">0</Thickness>
        <Thickness x:Key="AppPopupBorderThickness">1</Thickness>
 		<SolidColorBrush x:Key="AppBackgroundBrush" Color="#1F2933"/>
-		<SolidColorBrush x:Key="AppSurfaceBrush" Color="#2C3640"/>
-		<SolidColorBrush x:Key="AppSurfaceAltBrush" Color="#313C47"/>
-       <SolidColorBrush x:Key="AppChromeSurfaceBrush" Color="#26313C"/>
         <SolidColorBrush x:Key="AppFlyoutSurfaceBrush" Color="#2B3742"/>
 		<SolidColorBrush x:Key="AppPanelSurfaceBrush" Color="#34404B"/>
 		<SolidColorBrush x:Key="AppControlSurfaceBrush" Color="#3A4754"/>
@@ -40,14 +37,7 @@
        <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#4B5C6A"/>
 		<Thickness x:Key="MenuFlyoutPresenterBorderThemeThickness">1</Thickness>
 		<Thickness x:Key="MenuFlyoutPresenterThemePadding">2,4</Thickness>
-		<SolidColorBrush x:Key="DataGridColumnHeaderForegroundBrush" Color="#8A9BAA"/>
-		<SolidColorBrush x:Key="DataGridColumnHeaderBackgroundBrush" Color="Transparent"/>
-		<SolidColorBrush x:Key="DataGridColumnHeaderHoveredBackgroundBrush" Color="Transparent"/>
-		<SolidColorBrush x:Key="DataGridColumnHeaderPressedBackgroundBrush" Color="Transparent"/>
-		<SolidColorBrush x:Key="DataGridColumnHeaderDraggedBackgroundBrush" Color="Transparent"/>
-		<SolidColorBrush x:Key="AppSubtleBorderBrush" Color="#44515E"/>
 		<SolidColorBrush x:Key="AppStrongBorderBrush" Color="#607182"/>
-		<SolidColorBrush x:Key="AppAccentForegroundBrush" Color="#F4F7FB"/>
 
 		<!-- Named tag/color-dot palette used by color picker flyout, context menus and To-Do -->
 		<SolidColorBrush x:Key="TagColorYellow"  Color="#E5A820"/>
@@ -74,10 +64,10 @@
 		<StyleInclude Source="/Styles/DialogStyles.axaml"/>
 
 
-		<Style Selector="FlyoutPresenter.mySpecialClass">
-			<Setter Property="MaxWidth" Value="999" />
-			<Setter Property="Padding" Value="4" />
-			<Setter Property="CornerRadius" Value="8" />
+		<Style Selector="FlyoutPresenter.wide-flyout">
+			<Setter Property="MaxWidth" Value="999"/>
+			<Setter Property="Padding" Value="4"/>
+			<Setter Property="CornerRadius" Value="8"/>
 		</Style>
 
 		<Style Selector="FlyoutPresenter">
@@ -175,12 +165,24 @@
 		</Style>
 
 		<Style Selector="Button.dropdown-surface">
-			<Setter Property="Background" Value="{DynamicResource AppControlSurfaceBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 		</Style>
 
 		<Style Selector="Button.dropdown-surface:pointerover">
 			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
+		</Style>
+
+		<!-- Ghost button: transparent background, subtle hover tint, no border -->
+		<Style Selector="Button.ghost">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+		</Style>
+		<Style Selector="Button.ghost:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
+		</Style>
+		<Style Selector="Button.ghost:pressed">
+			<Setter Property="Opacity" Value="0.7"/>
 		</Style>
 
 		<Style Selector="Button:pressed">
@@ -241,7 +243,25 @@
 			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
-			<Setter Property="Background" Value="{DynamicResource AppControlSurfaceBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="ComboBox:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
+		</Style>
+
+		<Style Selector="ComboBoxItem">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="ComboBoxItem:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
+		</Style>
+
+		<Style Selector="ComboBoxItem:selected">
+			<Setter Property="Background" Value="{DynamicResource AppSelectedSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
@@ -278,10 +298,6 @@
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
-		<Style Selector="Label /template/ ContentPresenter">
-			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
-		</Style>
-
 		<Style Selector="MenuItem">
 			<Setter Property="MinHeight" Value="0"/>
 			<Setter Property="Height" Value="30"/>
@@ -313,19 +329,11 @@
 			<Setter Property="BorderBrush" Value="{DynamicResource AppFlyoutBorderBrush}"/>
 		</Style>
 
-		<Style Selector="MenuItem:selected">
-			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
-		</Style>
-
-		<Style Selector="MenuItem:open">
-			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
-		</Style>
-
 		<!-- Separator lines in menus: subtle and thin -->
 		<Style Selector="ContextMenu Separator">
 			<Setter Property="Height" Value="1"/>
 			<Setter Property="Margin" Value="8,4"/>
-         <Setter Property="Background" Value="{DynamicResource AppDividerBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppDividerBrush}"/>
 		</Style>
 
 		<!-- Context menu container -->
@@ -426,10 +434,6 @@
 
 		<Style Selector="DataGridRow:selected">
            <Setter Property="Background" Value="{DynamicResource AppRowSelectionBrush}"/>
-		</Style>
-
-		<Style Selector="DataGrid:focus DataGridCell:current /template/ Grid#FocusVisual">
-			<Setter Property="IsVisible" Value="True" />
 		</Style>
 
 		<!-- Refined tooltips -->

@@ -334,7 +334,7 @@
 						<ic:SymbolIcon Grid.Column="2" Symbol="DocumentHeaderArrowDown" IconVariant="Regular" FontSize="18"/>
 					</Grid>
 					<Button.Flyout>
-						<Flyout FlyoutPresenterClasses="mySpecialClass" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
+						<Flyout FlyoutPresenterClasses="wide-flyout" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
 							<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
 								<CheckBox Content="Name"          Height="28" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/>
 								<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
@@ -387,75 +387,78 @@
 		</StackPanel>
 
 		<!-- Center search bar with optional action bar -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0" Spacing="2">
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0" Spacing="4">
 
 			<!-- Action bar (toggled via UI.ShowActionBar) -->
-			<StackPanel Orientation="Horizontal" Spacing="1" IsVisible="{Binding UI.ShowActionBar}" IsEnabled="{Binding FileSelected}" VerticalAlignment="Center">
-				<Button ToolTip.Tip="Open PDF"        Height="28" Width="28" Padding="0" Command="{Binding OpenFile}" IsVisible="{Binding SelectedFileIsNotSketch}">
+			<Border IsVisible="{Binding UI.ShowActionBar}" IsEnabled="{Binding FileSelected}"
+					Classes="shadow"
+					Background="{DynamicResource AppPanelSurfaceBrush}"
+					BorderBrush="{DynamicResource AppControlBorderBrush}"
+					BorderThickness="{DynamicResource AppBorderThickness}"
+					CornerRadius="{DynamicResource AppCornerRadius}"
+					Padding="2,0" VerticalAlignment="Center">
+				<StackPanel Orientation="Horizontal" Spacing="0">
+					<Button Classes="ghost" ToolTip.Tip="Open PDF"    Height="28" Width="28" Padding="0" Command="{Binding OpenFile}" IsVisible="{Binding SelectedFileIsNotSketch}">
 						<ic:SymbolIcon Symbol="DocumentPdf" IconVariant="Regular" FontSize="15"/>
 					</Button>
-					<Button ToolTip.Tip="Open Folder"     Height="28" Width="28" Padding="0" Command="{Binding OpenPath}" IsVisible="{Binding SelectedFileIsNotSketch}">
-					<ic:SymbolIcon Symbol="FolderOpen" IconVariant="Regular" FontSize="15"/>
-				</Button>
+					<Button Classes="ghost" ToolTip.Tip="Open Folder" Height="28" Width="28" Padding="0" Command="{Binding OpenPath}" IsVisible="{Binding SelectedFileIsNotSketch}">
+						<ic:SymbolIcon Symbol="FolderOpen" IconVariant="Regular" FontSize="15"/>
+					</Button>
+					<Button Classes="ghost" ToolTip.Tip="Copy Name"   Height="28" Width="28" Padding="0" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
+						<ic:SymbolIcon Symbol="ClipboardText" IconVariant="Regular" FontSize="15"/>
+					</Button>
 
-				<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,6" Opacity="0.55"/>
+					<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,6" Opacity="0.55"/>
 
-				<Button ToolTip.Tip="Copy Name"       Height="28" Width="28" Padding="0" Command="{Binding CopyFilenameToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
-					<ic:SymbolIcon Symbol="ClipboardText" IconVariant="Regular" FontSize="15"/>
-				</Button>
+					<Button Name="ColorTagButton" Classes="ghost" ToolTip.Tip="Color Tag" Height="28" Width="28" Padding="0">
+						<ic:SymbolIcon Symbol="Color" IconVariant="Regular" FontSize="15"/>
+						<Button.Flyout>
+							<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway"
+									FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
+								<Border Classes="shadow" MinHeight="0" Padding="6,4">
+									<Border.Background>
+										<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
+									</Border.Background>
+									<StackPanel Orientation="Vertical" Spacing="2">
+										<Button Width="22" Height="22" Background="{StaticResource TagColorYellow}" Opacity="0.85" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Background="{StaticResource TagColorOrange}" Opacity="0.85" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Background="{StaticResource TagColorBrown}"  Opacity="0.85" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Background="{StaticResource TagColorGreen}"  Opacity="0.85" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Background="{StaticResource TagColorBlue}"   Opacity="0.85" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Background="{StaticResource TagColorRed}"    Opacity="0.85" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Background="{StaticResource TagColorMagenta}" Opacity="0.85" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
+										<Button Width="22" Height="22" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"
+												BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}">
+											<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
+										</Button>
+									</StackPanel>
+								</Border>
+							</Flyout>
+						</Button.Flyout>
+					</Button>
 
-				<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,6" Opacity="0.55"/>
+					<Button Name="CollectionButton" Classes="ghost" ToolTip.Tip="Collection" Height="28" Width="28" Padding="0">
+						<ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/>
+						<Button.Flyout>
+							<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
+								<ItemsControl ItemsSource="{Binding Storage.Collections}" Margin="4">
+									<ItemsControl.ItemTemplate>
+										<DataTemplate>
+											<Button Content="{ReflectionBinding}" Click="OnAddToCollection" HorizontalAlignment="Stretch"
+													Height="26" MinHeight="0" FontSize="13" Padding="8,2"
+													HorizontalContentAlignment="Left"/>
+										</DataTemplate>
+									</ItemsControl.ItemTemplate>
+								</ItemsControl>
+							</Flyout>
+						</Button.Flyout>
+					</Button>
 
-				<Button Name="ColorTagButton" ToolTip.Tip="Color Tag" Height="28" Width="28" Padding="0">
-					<ic:SymbolIcon Symbol="Color" IconVariant="Regular" FontSize="15"/>
-					<Button.Flyout>
-						<Flyout Placement="Bottom"  ShowMode="TransientWithDismissOnPointerMoveAway"
-								FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
-							<Border Classes="shadow" MinHeight="0" Padding="6,4">
-								<Border.Background>
-									<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
-								</Border.Background>
-								<StackPanel Orientation="Vertical" Spacing="2">
-									<Button Width="22" Height="22" Background="{StaticResource TagColorYellow}" Opacity="0.85" Tag="Yellow"  Click="EditColor" ToolTip.Tip="Yellow"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="{StaticResource TagColorOrange}" Opacity="0.85" Tag="Orange"  Click="EditColor" ToolTip.Tip="Orange"  Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="{StaticResource TagColorBrown}"  Opacity="0.85" Tag="Brown"   Click="EditColor" ToolTip.Tip="Brown"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="{StaticResource TagColorGreen}"  Opacity="0.85" Tag="Green"   Click="EditColor" ToolTip.Tip="Green"   Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="{StaticResource TagColorBlue}"   Opacity="0.85" Tag="Blue"    Click="EditColor" ToolTip.Tip="Blue"    Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="{StaticResource TagColorRed}"    Opacity="0.85" Tag="Red"     Click="EditColor" ToolTip.Tip="Red"     Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Background="{StaticResource TagColorMagenta}" Opacity="0.85" Tag="Magenta" Click="EditColor" ToolTip.Tip="Magenta" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"/>
-									<Button Width="22" Height="22" Tag="" Click="EditColor" ToolTip.Tip="Clear" Padding="0" MinWidth="0" MinHeight="0" CornerRadius="11"
-									BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}">
-										<ic:SymbolIcon Symbol="Dismiss" FontSize="12"/>
-									</Button>
-								</StackPanel>
-							</Border>
-						</Flyout>
-					</Button.Flyout>
-				</Button>
-
-				<Button Name="CollectionButton" ToolTip.Tip="Collection" Height="28" Width="28" Padding="0">
-					<ic:SymbolIcon Symbol="Collections" IconVariant="Regular" FontSize="15"/>
-					<Button.Flyout>
-						<Flyout Placement="Bottom" ShowMode="Transient" FlyoutPresenterClasses="compact">
-							<ItemsControl ItemsSource="{Binding Storage.Collections}" Margin="4">
-								<ItemsControl.ItemTemplate>
-									<DataTemplate>
-										<Button Content="{ReflectionBinding}" Click="OnAddToCollection" HorizontalAlignment="Stretch"
-												Height="26" MinHeight="0" FontSize="13" Padding="8,2"
-												HorizontalContentAlignment="Left"/>
-									</DataTemplate>
-								</ItemsControl.ItemTemplate>
-							</ItemsControl>
-						</Flyout>
-					</Button.Flyout>
-				</Button>
-
-				<Button Name="GroupButton" ToolTip.Tip="New Group — select multiple files first to group them together" Height="28" Width="28" Padding="0" Click="OnNewGroup">
-					<ic:SymbolIcon Symbol="GroupList" IconVariant="Regular" FontSize="15"/>
-				</Button>
-
-				<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,6" Opacity="0.55"/>
-			</StackPanel>
+					<Button Name="GroupButton" Classes="ghost" ToolTip.Tip="New Group — select multiple files first to group them together" Height="28" Width="28" Padding="0" Click="OnNewGroup">
+						<ic:SymbolIcon Symbol="GroupList" IconVariant="Regular" FontSize="15"/>
+					</Button>
+				</StackPanel>
+			</Border>
 
 			<!-- Search bar -->
 			<Grid ColumnDefinitions="*,30,4,30">
@@ -1387,14 +1390,14 @@
 			</Border>
 			</Panel>
 
-            <!-- Collections toolbar -->
-			<Grid Grid.Row="1" ColumnDefinitions="*,34,34,34" ColumnSpacing="3" Margin="0,0,5,0" IsVisible="{Binding UI.TrayCollections}">
+			<!-- Collections toolbar -->
+			<Grid Grid.Row="1" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,5,0" IsVisible="{Binding UI.TrayCollections}">
 				<Border Classes="shadow" Grid.Column="0">
 					<TextBox Name="CollectionInput" PlaceholderText="Add Collection"/>
 				</Border>
-              <Button Grid.Column="1" Width="34" Padding="2" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-				<Button Grid.Column="2" Width="34" Padding="2" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-				<Button Grid.Column="3" Width="34" Padding="2" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
+			  <Button Grid.Column="1" Width="28" Padding="2" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="15"/></Button>
+				<Button Grid.Column="2" Width="28" Padding="2" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="15"/></Button>
+				<Button Grid.Column="3" Width="28" Padding="2" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="15"/></Button>
 			</Grid>
 
 			<!-- Collections list -->
@@ -1469,13 +1472,13 @@
 						<Binding Path="UI.SuperuserMode"/>
 					</MultiBinding>
 				</Grid.IsVisible>
-              <Grid Grid.Row="0" ColumnDefinitions="*,34,34,34" ColumnSpacing="3" Margin="0,0,5,0" >
+			  <Grid Grid.Row="0" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,5,0" >
 					<Border Grid.Column="0" Classes="shadow">
 						<TextBox Name="BookmarkInput" PlaceholderText="Add Bookmark"/>
 					</Border>
-                    <Button Grid.Column="1" Width="34" Padding="2" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-					<Button Grid.Column="2" Width="34" Padding="2" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-					<Button Grid.Column="3" Width="34" Padding="2" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
+					<Button Grid.Column="1" Width="28" Padding="2" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="15"/></Button>
+				<Button Grid.Column="2" Width="28" Padding="2" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="15"/></Button>
+				<Button Grid.Column="3" Width="28" Padding="2" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="15"/></Button>
 				</Grid>
 			</Grid>
 
@@ -1686,51 +1689,53 @@
 										<Button Width="30" ToolTip.Tip="Clear Layer" Click="OnClearSelectedLayer"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 										<Button Width="30" ToolTip.Tip="Remove Layer" Click="OnRemoveSelectedLayer"><ic:SymbolIcon Symbol="Dismiss" FontSize="16"/></Button>
 									</StackPanel>
-									<Border Classes="shadow" Grid.Row="1">
-									<DataGrid Name="LayerList"
+									<Panel Grid.Row="1">
+										<Border Classes="shadow">
+										<DataGrid Name="LayerList"
 												  SelectionMode="Single" SelectionChanged="OnLayerSelected"
 												  AutoGenerateColumns="False" IsReadOnly="True"
 												  GridLinesVisibility="None" RowHeight="22" HeadersVisibility="None">
-										<DataGrid.Columns>
-											<DataGridTemplateColumn Width="28" CanUserResize="False">
-												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:AnnotationLayer">
-														<CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
-																  Width="18" Height="18" Padding="0" Margin="4,0,0,0"
-																  Click="OnLayerVisibilityToggled"/>
-													</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
-											<DataGridTemplateColumn Header="Layer" Width="*">
-												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:AnnotationLayer">
-														<StackPanel Orientation="Horizontal" Spacing="5" Margin="4,0">
-															<Ellipse Width="8" Height="8" VerticalAlignment="Center">
-																<Ellipse.Fill>
-																	<SolidColorBrush Color="{Binding Color}"/>
-																</Ellipse.Fill>
-															</Ellipse>
-															<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" VerticalAlignment="Center"/>
-														</StackPanel>
-													</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
-											<DataGridTemplateColumn Width="30" CanUserResize="False">
-												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:AnnotationLayer">
-																			<TextBlock Text="{Binding TotalCount}" FontSize="11"
-																					   Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
-																		</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
-										</DataGrid.Columns>
+											<DataGrid.Columns>
+												<DataGridTemplateColumn Width="28" CanUserResize="False">
+													<DataGridTemplateColumn.CellTemplate>
+														<DataTemplate x:DataType="model:AnnotationLayer">
+															<CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
+																	  Width="18" Height="18" Padding="0" Margin="4,0,0,0"
+																	  Click="OnLayerVisibilityToggled"/>
+														</DataTemplate>
+													</DataGridTemplateColumn.CellTemplate>
+												</DataGridTemplateColumn>
+												<DataGridTemplateColumn Header="Layer" Width="*">
+													<DataGridTemplateColumn.CellTemplate>
+														<DataTemplate x:DataType="model:AnnotationLayer">
+															<StackPanel Orientation="Horizontal" Spacing="5" Margin="4,0">
+																<Ellipse Width="8" Height="8" VerticalAlignment="Center">
+																	<Ellipse.Fill>
+																		<SolidColorBrush Color="{Binding Color}"/>
+																	</Ellipse.Fill>
+																</Ellipse>
+																<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" VerticalAlignment="Center"/>
+															</StackPanel>
+														</DataTemplate>
+													</DataGridTemplateColumn.CellTemplate>
+												</DataGridTemplateColumn>
+												<DataGridTemplateColumn Width="30" CanUserResize="False">
+													<DataGridTemplateColumn.CellTemplate>
+														<DataTemplate x:DataType="model:AnnotationLayer">
+															<TextBlock Text="{Binding TotalCount}" FontSize="11"
+																	   Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
+														</DataTemplate>
+													</DataGridTemplateColumn.CellTemplate>
+												</DataGridTemplateColumn>
+											</DataGrid.Columns>
 										</DataGrid>
 										</Border>
-										<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
-													Title="No annotation layers" Subtitle="Click + to add a layer, then draw on the preview"/>
-													</Grid>
+											<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
+														Title="No annotation layers" Subtitle="Click + to add a layer, then draw on the preview"/>
+										</Panel>
+										</Grid>
 
-									<!-- To-Do List -->
+										<!-- To-Do List -->
 									<Panel Grid.Row="10" IsVisible="{Binding UI.TrayTodo}">
 									<Border Classes="shadow">
 										<DataGrid Name="TodoGrid"
@@ -1860,7 +1865,7 @@
 						</StackPanel>
 						<Button Grid.Column="1" Click="OnTreeNewProjectButton"
 								ToolTip.Tip="New Project"
-								BorderThickness="0"
+								Classes="ghost"
 								Padding="6,2" Margin="0,2,4,2"
 								VerticalAlignment="Center">
 							<ic:SymbolIcon Symbol="FolderAdd" FontSize="16"/>
@@ -1906,17 +1911,17 @@
 														   FontWeight="{Binding FontWeight}"
 														   FontStyle="{Binding FontStyle}"
 											Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource AppForegroundBrush}}"/>
-                                                <Border
-														IsVisible="{Binding BadgeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                        CornerRadius="7"
-														Padding="3,0"
-														MinWidth="14"
-														Opacity="0.6"
-										Background="{DynamicResource AppControlSurfaceBrush}"
-										BorderBrush="{DynamicResource AppControlBorderBrush}"
-                                                     BorderThickness="0.5"
-														Margin="2,0,0,0">
-                                                  <TextBlock Text="{Binding BadgeText}" FontSize="10" HorizontalAlignment="Center" Opacity="0.85"/>
+												<Border
+													IsVisible="{Binding BadgeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+														CornerRadius="7"
+													Padding="4,0"
+													MinWidth="14"
+													Opacity="1.0"
+										Background="{DynamicResource AppDividerBrush}"
+										BorderBrush="{DynamicResource AppStrongBorderBrush}"
+													 BorderThickness="0.5"
+													Margin="2,0,0,0">
+												  <TextBlock Text="{Binding BadgeText}" FontSize="10" HorizontalAlignment="Center" Opacity="1.0"/>
 												</Border>
 												<ic:SymbolIcon Symbol="{Binding SyncIconSymbol}" FontSize="12"
 														   IsVisible="{Binding SyncIconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"

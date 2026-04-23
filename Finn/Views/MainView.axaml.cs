@@ -241,6 +241,7 @@ public partial class MainView : UserControl
                 UpdateVersionsEmptyHint();
                 UpdateLayersEmptyHint();
                 UpdateBookmarksEmptyHint();
+                SyncLayerList();
                 break;
             case nameof(MainViewModel.CurrentProject):
                 SubscribeTodoItems();
