@@ -445,7 +445,7 @@
 			<Border Name="DiffToolbar" Classes="shadow" IsVisible="{Binding PreviewVM.ShowDiffToolbar}" IsHitTestVisible="True"
 					HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,6"
 					Padding="6,3">
-				<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-6,-3" Padding="6,3">
+				<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-6,-3" Padding="6,3" BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}" CornerRadius="4">
 				<StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
 					<!-- Mode buttons — radio-style (OneWay + Click ensures one is always selected) -->
 					<ToggleButton Classes="ghost" ToolTip.Tip="A/B Toggle — swap between original and revised" Height="30" Width="30" Padding="0" IsChecked="{Binding PreviewVM.IsToggleMode, Mode=OneWay}" Click="OnDiffModeToggle">
@@ -468,7 +468,7 @@
 								  VerticalAlignment="Center">
 						<StackPanel Orientation="Horizontal" Spacing="4">
 							<ic:SymbolIcon Symbol="ArrowSwap" IconVariant="Regular" FontSize="14"/>
-							<TextBlock Name="DiffABLabel" Text="B" FontSize="14" FontWeight="Black" VerticalAlignment="Center"/>
+							<TextBlock Name="DiffABLabel" Classes="h2" Text="B" VerticalAlignment="Center"/>
 						</StackPanel>
 					</ToggleButton>
 
@@ -532,16 +532,16 @@
 			<!-- Calibration input overlay -->
 			<Canvas Name="CalibrationCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 				<Border Name="CalibrationBorder" Classes="shadow" Padding="8">
-					<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8">
+					<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="4">
 					<StackPanel Spacing="6">
-						<TextBlock Name="CalibrationPromptText" Text="Enter real-world distance for the last measurement:" FontSize="12" TextWrapping="Wrap" MaxWidth="220"/>
+						<TextBlock Name="CalibrationPromptText" Classes="body" Text="Enter real-world distance for the last measurement:" TextWrapping="Wrap" MaxWidth="220"/>
 						<StackPanel Orientation="Horizontal" Spacing="4">
 							<TextBox Name="CalibrationValueBox" Width="120" PlaceholderText="e.g. 210" KeyDown="OnCalibrationKeyDown"/>
-							<TextBlock Text="mm" VerticalAlignment="Center" FontSize="12"/>
+							<TextBlock Classes="body" Text="mm" VerticalAlignment="Center"/>
 						</StackPanel>
 						<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-							<Button Content="Apply" Click="OnCalibrationApply" Padding="8,2" FontSize="11"/>
-							<Button Content="Cancel" Click="OnCalibrationCancel" Padding="8,2" FontSize="11"/>
+							<Button Classes="body" Content="Apply" Click="OnCalibrationApply" Padding="8,2"/>
+							<Button Classes="body" Content="Cancel" Click="OnCalibrationCancel" Padding="8,2"/>
 						</StackPanel>
 					</StackPanel>
 					</Border>
@@ -552,13 +552,13 @@
 				<Canvas Name="ColorInputCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 					<Border Classes="shadow" Padding="8"
 							Canvas.Left="80" Canvas.Top="40">
-						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8">
+						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8" BorderThickness="1" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" CornerRadius="4">
 						<StackPanel Spacing="6">
-							<TextBlock Text="Enter hex color:" FontSize="12"/>
+							<TextBlock Classes="body" Text="Enter hex color:"/>
 							<TextBox Name="ColorInputBox" Width="120" PlaceholderText="#FF6600" KeyDown="OnColorInputKeyDown"/>
 							<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-								<Button Content="Apply" Click="OnColorInputApply" Padding="8,2" FontSize="11"/>
-								<Button Content="Cancel" Click="OnColorInputCancel" Padding="8,2" FontSize="11"/>
+								<Button Classes="body" Content="Apply" Click="OnColorInputApply" Padding="8,2"/>
+								<Button Classes="body" Content="Cancel" Click="OnColorInputCancel" Padding="8,2"/>
 							</StackPanel>
 						</StackPanel>
 						</Border>
@@ -570,7 +570,7 @@
 						HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
 						PointerPressed="OnPropertyPanelBackgroundClick">
 					<Border Name="PropertyPanelBorder" Classes="shadow" Padding="8,6">
-						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8,-6" Padding="8,6">
+						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8,-6" Padding="8,6" BorderThickness="1" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" CornerRadius="4">
 						<StackPanel Spacing="4">
 							<StackPanel Orientation="Horizontal" Spacing="2">
 								<Button ToolTip.Tip="Red" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
@@ -680,14 +680,14 @@
 					<Grid Name="ReviewExportCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 						<Border Classes="shadow" Padding="8"
 								HorizontalAlignment="Center" VerticalAlignment="Center">
-							<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8">
+							<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="4">
 							<StackPanel Spacing="6">
-								<TextBlock Text="Enter review name:" FontSize="12"/>
+								<TextBlock Text="Enter review name:" Classes="body"/>
 								<TextBox Name="ReviewNameBox" Width="180" PlaceholderText="e.g. Draft review" KeyDown="OnReviewNameKeyDown"/>
-								<TextBlock Name="ReviewExportStatus" Text="" FontSize="10" Foreground="{DynamicResource AppMutedForegroundBrush}" TextWrapping="Wrap" MaxWidth="260"/>
+								<TextBlock Name="ReviewExportStatus" Classes="caption" Text="" Foreground="{DynamicResource AppMutedForegroundBrush}" TextWrapping="Wrap" MaxWidth="260"/>
 								<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
-									<Button Content="Export" Click="OnReviewExportConfirm" Padding="8,2" FontSize="11"/>
-									<Button Content="Cancel" Click="OnReviewExportCancel" Padding="8,2" FontSize="11"/>
+									<Button Content="Export" Click="OnReviewExportConfirm" Padding="8,2" Classes="body"/>
+									<Button Content="Cancel" Click="OnReviewExportCancel" Padding="8,2" Classes="body"/>
 								</StackPanel>
 							</StackPanel>
 							</Border>

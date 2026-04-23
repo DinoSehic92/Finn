@@ -306,8 +306,8 @@
 		<!-- Project / file info -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
 			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="6">
-				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
-				<TextBlock FontStyle="Italic" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}">
+				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="14" Foreground="{DynamicResource SystemAccentColor}"/>
+				<TextBlock Classes="h2" FontStyle="Italic" Foreground="{DynamicResource AppMutedForegroundBrush}">
 					<TextBlock.Text>
 						<MultiBinding StringFormat="{}{0}  |  Filtered: {1}  |  Selected: {2}">
 							<Binding Path="CurrentProject.Namn"/>
@@ -318,9 +318,9 @@
 				</TextBlock>
 			</StackPanel>
 			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6">
-				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
-				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
-				<TextBlock Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic" FontSize="14"/>
+				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="14" Foreground="{DynamicResource SystemAccentColor}"/>
+				<TextBlock Classes="h2" Text="{Binding CurrentFile.Namn}" FontStyle="Italic" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
+				<TextBlock Classes="h2" Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic"/>
 			</StackPanel>
 		</StackPanel>
 

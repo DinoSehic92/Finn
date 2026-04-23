@@ -259,13 +259,17 @@
 		</Style>
 		<Style Selector="ToggleButton.ghost:checked">
 			<Setter Property="Background" Value="{DynamicResource AppSelectedSurfaceBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="Opacity" Value="1.0"/>
 		</Style>
 
 		<!-- Subtle checked indicator for toggle buttons -->
 		<Style Selector="ToggleButton:checked">
 			<Setter Property="Opacity" Value="1.0"/>
-            <Setter Property="Background" Value="{DynamicResource AppSelectedSurfaceBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppSelectedSurfaceBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+			<Setter Property="BorderThickness" Value="1"/>
 		</Style>
 
 		<Style Selector="ToggleButton:unchecked">
@@ -475,6 +479,29 @@
 		<Style Selector="TextBlock.metadata">
 			<Setter Property="FontSize" Value="12"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppMutedForegroundBrush}"/>
+		</Style>
+
+		<!-- Semantic Typography Scale -->
+		<Style Selector="TextBlock.h1">
+			<Setter Property="FontSize" Value="18"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="TextBlock.h2">
+			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="FontWeight" Value="SemiBold"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppHeaderForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="TextBlock.body">
+			<Setter Property="FontSize" Value="13"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="TextBlock.micro">
+			<Setter Property="FontSize" Value="10"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppSubtleForegroundBrush}"/>
 		</Style>
 
 		<Style Selector="Menu">

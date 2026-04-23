@@ -100,10 +100,7 @@ public class UISettingsViewModel : ObservableObject
         new ThemePreset("Iris",     Color.Parse("#EDEBF6"), Color.Parse("#616CB4"), Color.Parse("#FCFCFF"), Color.Parse("#25243A"), Color.Parse("#BDBAD8"), true,  true,  false),
 
         // Dusk — cool neutral grey with slate accent; minimal and highly usable
-        new ThemePreset("Dusk",     Color.Parse("#E9EBEE"), Color.Parse("#556274"), Color.Parse("#F9FAFB"), Color.Parse("#2D3544"), Color.Parse("#C2CAD4"), true,  false, true),
-
-        // Dusk — cool neutral grey with slate accent; minimal and highly usable
-        new ThemePreset("Dusk",     Color.Parse("#E9EBEE"), Color.Parse("#556274"), Color.Parse("#F9FAFB"), Color.Parse("#2D3544"), Color.Parse("#C2CAD4"), true,  false, true),
+        new ThemePreset("Dusk",     Color.Parse("#E9EBEE"), Color.Parse("#556274"), Color.Parse("#F9FAFB"), Color.Parse("#2D3544"), Color.Parse("#C2CAD4"), true,  false, true)
     };
 
         // Localized defaults moved here from Finn.Services.UIDefaults
