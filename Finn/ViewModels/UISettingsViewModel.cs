@@ -28,35 +28,35 @@ public class UISettingsViewModel : ObservableObject
     {
         //                            Background   Accent       PanelBg      Text         Border       R      S      B
 
-        // Graphite — neutral charcoal with a restrained steel accent; dark but not pitch black
-        new ThemePreset("Graphite",  Color.Parse("#24272C"), Color.Parse("#7F97AD"), Color.Parse("#2E333A"), Color.Parse("#E8EBEF"), Color.Parse("#4C545F"), true,  true,  false),
+        // Default — matches the original hardcoded dark styling baseline for the app
+        new ThemePreset("Default",   Color.Parse("#1F2933"), Color.Parse("#0A84FF"), Color.Parse("#2C3640"), Color.Parse("#F4F7FB"), Color.Parse("#44515E"), true,  false, false),
 
-        // Midnight — deep navy anchor; the clearest marine dark preset
-        new ThemePreset("Midnight",  Color.Parse("#18202B"), Color.Parse("#5B8FC0"), Color.Parse("#222D3A"), Color.Parse("#D6E0EA"), Color.Parse("#3A4A5C"), true,  true,  true),
+        // Graphite — neutral charcoal with a lifted panel so areas separate cleanly without borders
+        new ThemePreset("Graphite",  Color.Parse("#24272C"), Color.Parse("#8EA4B5"), Color.Parse("#31363D"), Color.Parse("#E8EBEF"), Color.Parse("#56616C"), true,  true,  false),
 
-        // Nord — lighter slate-blue dark mode; panels sit noticeably darker than the shell for stronger depth
-        new ThemePreset("Nord",      Color.Parse("#343C47"), Color.Parse("#7FA5B8"), Color.Parse("#252B34"), Color.Parse("#DEE5ED"), Color.Parse("#566373"), true,  false, true),
+        // Midnight — deep navy anchor with a clearly brighter work surface
+        new ThemePreset("Midnight",  Color.Parse("#1B2530"), Color.Parse("#6EA5DA"), Color.Parse("#2C3B49"), Color.Parse("#DAE3EC"), Color.Parse("#4B5D71"), true,  true,  true),
 
-        // Harbor — cool marine blue-grey; panel surfaces are darker so the shell keeps its marine tint
-        new ThemePreset("Harbor",    Color.Parse("#2C3740"), Color.Parse("#5F95A8"), Color.Parse("#1F2A32"), Color.Parse("#DEE7EC"), Color.Parse("#52616D"), true,  true,  false),
+        // Nord — soft slate shell with a gently lifted panel and icy accent
+        new ThemePreset("Nord",      Color.Parse("#39424D"), Color.Parse("#8FB7CB"), Color.Parse("#444F5B"), Color.Parse("#E0E7EE"), Color.Parse("#657483"), true,  false, true),
 
-        // Slate — blue-grey workhorse theme; stronger panel drop improves separation in semi-dark use
-        new ThemePreset("Slate",     Color.Parse("#2B343D"), Color.Parse("#6B98B7"), Color.Parse("#202830"), Color.Parse("#DCE3E9"), Color.Parse("#505D69"), true,  false, true),
+        // Harbor — marine blue-grey with a gently raised panel and calmer teal-blue accent
+        new ThemePreset("Harbor",    Color.Parse("#2F3942"), Color.Parse("#71A4B0"), Color.Parse("#3B4751"), Color.Parse("#DEE7EC"), Color.Parse("#60717D"), true,  true,  false),
 
-        // Granite — neutral semi-dark grey; panels are pushed further down to avoid a flat washed look
-        new ThemePreset("Granite",   Color.Parse("#3A403F"), Color.Parse("#879A94"), Color.Parse("#2A302E"), Color.Parse("#E5E9E7"), Color.Parse("#5B6662"), true,  false, true),
+        // Slate — dependable blue-grey workhorse with a slightly brighter panel and restrained blue accent
+        new ThemePreset("Slate",     Color.Parse("#303942"), Color.Parse("#80ABCA"), Color.Parse("#3A4650"), Color.Parse("#DCE3E9"), Color.Parse("#5D6B78"), true,  false, true),
 
-        // Steel — cool industrial grey with blue undertones; firmer panel darkening gives it better structure
-        new ThemePreset("Steel",     Color.Parse("#373F48"), Color.Parse("#7D93A8"), Color.Parse("#293039"), Color.Parse("#E1E7EC"), Color.Parse("#586573"), true,  false, true),
+        // Granite — brighter neutral shell with a modestly lifted mineral panel
+        new ThemePreset("Granite",   Color.Parse("#434947"), Color.Parse("#94A29D"), Color.Parse("#4A504E"), Color.Parse("#E6EAE7"), Color.Parse("#66716C"), true,  false, true),
 
-        // Deep Sea — cleaner marine preset; teal carried mainly through the accent, not the whole shell
-        new ThemePreset("Deep Sea",  Color.Parse("#24343B"), Color.Parse("#5C9EA4"), Color.Parse("#2D4047"), Color.Parse("#DCE8EA"), Color.Parse("#4A6267"), true,  true,  false),
+        // Steel — industrial grey-blue, cleaner and more technical than Slate
+        new ThemePreset("Steel",     Color.Parse("#3B434C"), Color.Parse("#90A5BA"), Color.Parse("#47515B"), Color.Parse("#E2E7EC"), Color.Parse("#61707E"), true,  false, true),
 
-        // Mist — semi-dark olive-grey inspired by softer values like 525E54; panel is clearly darker so the shell color can read
-        new ThemePreset("Mist",      Color.Parse("#525E54"), Color.Parse("#8FA59A"), Color.Parse("#3E4740"), Color.Parse("#E6EBE7"), Color.Parse("#748178"), true,  false, true),
+        // Mist — olive-grey shell with a darker, but not dramatically darker, panel and no border emphasis
+        new ThemePreset("Mist",      Color.Parse("#525E54"), Color.Parse("#94AA9D"), Color.Parse("#3F4842"), Color.Parse("#E6EBE7"), Color.Parse("#667168"), true,  false, false),
 
-        // Tide — soft blue-green semi-dark theme; panel darkening is stronger to keep the shell airy but structured
-        new ThemePreset("Tide",      Color.Parse("#4E5F63"), Color.Parse("#7FA5AC"), Color.Parse("#39474B"), Color.Parse("#E4EAEB"), Color.Parse("#71848A"), true,  false, true),
+        // Tide — airy blue-green shell with a deeper blue-grey panel for clearer structure
+        new ThemePreset("Tide",      Color.Parse("#536267"), Color.Parse("#8EB3B8"), Color.Parse("#344044"), Color.Parse("#E4EAEB"), Color.Parse("#73868B"), true,  false, true),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
@@ -64,35 +64,35 @@ public class UISettingsViewModel : ObservableObject
     {
         //                           Background   Accent       PanelBg      Text         Border       R      S      B
 
-        // Cloud — cool blue-grey wash with crisp blue accent; clear, bright and versatile
-        new ThemePreset("Cloud",    Color.Parse("#DEE7F2"), Color.Parse("#1A66C7"), Color.Parse("#FFFFFF"), Color.Parse("#172235"), Color.Parse("#9DAFCC"), true,  true,  false),
+        // Cloud — cool blue-grey wash with crisp blue accent; clear and versatile
+        new ThemePreset("Cloud",    Color.Parse("#E2EBF5"), Color.Parse("#226BCB"), Color.Parse("#FFFFFF"), Color.Parse("#182438"), Color.Parse("#A5B7D1"), true,  true,  false),
 
         // Pearl — neutral cool white with navy accent; safest all-purpose light preset
-        new ThemePreset("Pearl",    Color.Parse("#F1F3F6"), Color.Parse("#315A9C"), Color.Parse("#FFFFFF"), Color.Parse("#1D2434"), Color.Parse("#BEC6D3"), true,  true,  false),
+        new ThemePreset("Pearl",    Color.Parse("#F3F5F7"), Color.Parse("#365F9D"), Color.Parse("#FFFFFF"), Color.Parse("#1F2635"), Color.Parse("#C0C8D4"), true,  true,  false),
 
-        // Frost — icy teal-white with a deeper teal accent; airy but still anchored
-        new ThemePreset("Frost",    Color.Parse("#EAF3F4"), Color.Parse("#14717A"), Color.Parse("#FFFFFF"), Color.Parse("#173236"), Color.Parse("#A9CDD2"), true,  true,  false),
+        // Frost — icy teal-white with a controlled teal accent
+        new ThemePreset("Frost",    Color.Parse("#ECF4F5"), Color.Parse("#1A7882"), Color.Parse("#FFFFFF"), Color.Parse("#173236"), Color.Parse("#ABCFD4"), true,  true,  false),
 
-        // Linen — warm paper and restrained terracotta; soft without becoming beige mush
-        new ThemePreset("Linen",    Color.Parse("#F4ECE2"), Color.Parse("#B45A28"), Color.Parse("#FCFAF6"), Color.Parse("#2C1C11"), Color.Parse("#C9B79F"), true,  true,  false),
+        // Linen — warm paper with restrained terracotta; soft without drifting muddy
+        new ThemePreset("Linen",    Color.Parse("#F4ECE3"), Color.Parse("#B66332"), Color.Parse("#FCFAF7"), Color.Parse("#2D1D12"), Color.Parse("#CBB9A2"), true,  true,  false),
 
-        // Porcelain — crisp blue-white with cooler structure; ideal for a sharper office look
-        new ThemePreset("Porcelain",Color.Parse("#E8EEF6"), Color.Parse("#3A6FB3"), Color.Parse("#FCFDFF"), Color.Parse("#1A2435"), Color.Parse("#B8C6DA"), true,  true,  false),
+        // Porcelain — crisp blue-white with cooler structure; sharper than Cloud
+        new ThemePreset("Porcelain",Color.Parse("#E8EEF6"), Color.Parse("#4475B5"), Color.Parse("#FDFEFF"), Color.Parse("#1B2536"), Color.Parse("#B9C7DA"), true,  true,  false),
 
-        // Sandstone — warm mineral neutral with muted rust accent; cleaner than the older earthy themes
-        new ThemePreset("Sandstone",Color.Parse("#EEE5DA"), Color.Parse("#A76432"), Color.Parse("#FBF8F3"), Color.Parse("#2B2117"), Color.Parse("#C8B9A7"), true,  false, true),
+        // Sandstone — warm mineral neutral with muted rust accent
+        new ThemePreset("Sandstone",Color.Parse("#EFE6DC"), Color.Parse("#A96A3D"), Color.Parse("#FBF8F4"), Color.Parse("#2C2218"), Color.Parse("#CBBBA9"), true,  false, true),
 
-        // Willow — pale green-grey with restrained green accent; natural but much cleaner than meadow tones
-        new ThemePreset("Willow",   Color.Parse("#E8EEE6"), Color.Parse("#5D8066"), Color.Parse("#FAFBF9"), Color.Parse("#1F2A22"), Color.Parse("#BCC8BE"), true,  false, false),
+        // Willow — pale green-grey with restrained green accent; natural and low-noise
+        new ThemePreset("Willow",   Color.Parse("#E9EFE7"), Color.Parse("#66856D"), Color.Parse("#FBFCFA"), Color.Parse("#1F2A22"), Color.Parse("#BECABF"), true,  false, false),
 
-        // Iris — soft periwinkle-lilac; cooler and more refined than a sugary lavender treatment
-        new ThemePreset("Iris",     Color.Parse("#ECEAF6"), Color.Parse("#5B66B0"), Color.Parse("#FCFCFF"), Color.Parse("#24233A"), Color.Parse("#BBB8D7"), true,  true,  false),
+        // Iris — soft periwinkle-lilac; cooler and more refined than sugary lavender
+        new ThemePreset("Iris",     Color.Parse("#EDEBF6"), Color.Parse("#616CB4"), Color.Parse("#FCFCFF"), Color.Parse("#25243A"), Color.Parse("#BDBAD8"), true,  true,  false),
 
-        // Dusk — cool neutral grey with slate accent; minimal, sober and very usable
-        new ThemePreset("Dusk",     Color.Parse("#E8EAED"), Color.Parse("#4A5568"), Color.Parse("#F8F9FB"), Color.Parse("#2C3443"), Color.Parse("#C0C8D2"), true,  false, true),
+        // Dusk — cool neutral grey with slate accent; minimal and highly usable
+        new ThemePreset("Dusk",     Color.Parse("#E9EBEE"), Color.Parse("#556274"), Color.Parse("#F9FAFB"), Color.Parse("#2D3544"), Color.Parse("#C2CAD4"), true,  false, true),
 
         // Rose Paper — subtle rose-tinted paper with restrained berry accent; warm but still grown-up
-        new ThemePreset("Rose Paper", Color.Parse("#F3E8EA"), Color.Parse("#A24B63"), Color.Parse("#FEFBFC"), Color.Parse("#311F24"), Color.Parse("#D6BAC3"), true,  true,  false),
+        new ThemePreset("Rose Paper", Color.Parse("#F4E9EB"), Color.Parse("#A8576D"), Color.Parse("#FEFBFC"), Color.Parse("#322026"), Color.Parse("#D8BDC5"), true,  true,  false),
     };
 
         // Localized defaults moved here from Finn.Services.UIDefaults
@@ -503,6 +503,74 @@ public class UISettingsViewModel : ObservableObject
             ApplyTheme();
         }
 
+        public void AutoGenerateDarkThemeFromBackground(Color background)
+        {
+            SuppressThemeUpdates = true;
+            try
+            {
+                color1 = background;
+
+                var generatedText = GetReadableForeground(background);
+                var generatedPanel = GeneratePanelColor(background, preferBrighterPanel: ShouldPreferBrighterPanel(background));
+                var generatedBorder = GenerateBorderColor(background, generatedPanel, generatedText);
+
+                darkTextColor = generatedText;
+                darkTextColorEnabled = true;
+                darkPanelColor = generatedPanel;
+                darkPanelColorEnabled = true;
+                darkBorderColor = generatedBorder;
+                darkBorderColorEnabled = true;
+
+                OnPropertyChanged(nameof(Color1));
+                OnPropertyChanged(nameof(DarkTextColor));
+                OnPropertyChanged(nameof(DarkTextColorEnabled));
+                OnPropertyChanged(nameof(DarkPanelColor));
+                OnPropertyChanged(nameof(DarkPanelColorEnabled));
+                OnPropertyChanged(nameof(DarkBorderColor));
+                OnPropertyChanged(nameof(DarkBorderColorEnabled));
+            }
+            finally
+            {
+                SuppressThemeUpdates = false;
+            }
+
+            ApplyTheme();
+        }
+
+        public void AutoGenerateLightThemeFromBackground(Color background)
+        {
+            SuppressThemeUpdates = true;
+            try
+            {
+                color3 = background;
+
+                var generatedText = GetReadableForeground(background);
+                var generatedPanel = GeneratePanelColor(background, preferBrighterPanel: true);
+                var generatedBorder = GenerateBorderColor(background, generatedPanel, generatedText);
+
+                lightTextColor = generatedText;
+                lightTextColorEnabled = true;
+                lightPanelColor = generatedPanel;
+                lightPanelColorEnabled = true;
+                lightBorderColor = generatedBorder;
+                lightBorderColorEnabled = true;
+
+                OnPropertyChanged(nameof(Color3));
+                OnPropertyChanged(nameof(LightTextColor));
+                OnPropertyChanged(nameof(LightTextColorEnabled));
+                OnPropertyChanged(nameof(LightPanelColor));
+                OnPropertyChanged(nameof(LightPanelColorEnabled));
+                OnPropertyChanged(nameof(LightBorderColor));
+                OnPropertyChanged(nameof(LightBorderColorEnabled));
+            }
+            finally
+            {
+                SuppressThemeUpdates = false;
+            }
+
+            ApplyTheme();
+        }
+
         private static Color Mix(Color baseColor, Color tintColor, double amount)
         {
             amount = Math.Clamp(amount, 0, 1);
@@ -533,6 +601,33 @@ public class UISettingsViewModel : ObservableObject
         }
 
         private static bool IsDark(Color color) => GetLuminance(color) < 0.45;
+
+        private static bool ShouldPreferBrighterPanel(Color background)
+        {
+            var luminance = GetLuminance(background);
+            return luminance < 0.17;
+        }
+
+        private static Color GeneratePanelColor(Color background, bool preferBrighterPanel)
+        {
+            var isDark = IsDark(background);
+
+            if (isDark)
+            {
+                return preferBrighterPanel
+                    ? Mix(background, Colors.White, 0.11)
+                    : Mix(background, Colors.Black, 0.22);
+            }
+
+            return Mix(background, Colors.White, 0.58);
+        }
+
+        private static Color GenerateBorderColor(Color background, Color panel, Color text)
+        {
+            var isDark = IsDark(background);
+            var baseBorder = Mix(panel, text, isDark ? 0.20 : 0.16);
+            return Mix(baseBorder, background, isDark ? 0.18 : 0.08);
+        }
 
         private static Color GetReadableForeground(Color background) =>
             IsDark(background)
@@ -683,7 +778,7 @@ public class UISettingsViewModel : ObservableObject
                 : Mix(panel, background, 0.12);
 
             var chromeSurface = isDark
-                ? Mix(background, Colors.White, 0.05)
+                ? Mix(panel, background, 0.45)
                 : Mix(background, panel, 0.35);
 
             var flyoutSurface = isDark
@@ -700,6 +795,7 @@ public class UISettingsViewModel : ObservableObject
 
             var mutedText = Mix(text, background, isDark ? 0.38 : 0.50);
             var mediumText = Mix(text, background, isDark ? 0.22 : 0.30);
+            var headerText = Mix(text, background, isDark ? 0.16 : 0.22);
 
             var subtleBorder = borderEnabled
                 ? (DarkMode ? this.DarkBorderColor : this.LightBorderColor)
@@ -739,6 +835,7 @@ public class UISettingsViewModel : ObservableObject
             var foregroundBrush = new SolidColorBrush(text);
             var mutedForegroundBrush = new SolidColorBrush(mutedText);
             var mediumForegroundBrush = new SolidColorBrush(mediumText);
+            var headerForegroundBrush = new SolidColorBrush(headerText);
             var backgroundBrush = new SolidColorBrush(background);
             var surfaceBrush = new SolidColorBrush(panel);
             var surfaceAltBrush = new SolidColorBrush(surfaceAlt);
@@ -769,6 +866,8 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppHoverSurfaceBrush"] = hoverSurfaceBrush;
             App.Current.Resources["AppSelectedSurfaceBrush"] = selectedSurfaceBrush;
             App.Current.Resources["AppForegroundBrush"] = foregroundBrush;
+            App.Current.Resources["AppHeaderSurfaceBrush"] = chromeSurfaceBrush;
+            App.Current.Resources["AppHeaderForegroundBrush"] = headerForegroundBrush;
             App.Current.Resources["AppMutedForegroundBrush"] = mutedForegroundBrush;
             App.Current.Resources["AppMenuHoverBrush"] = menuHoverSurfaceBrush;
             App.Current.Resources["AppRowHoverBrush"] = rowHoverSurfaceBrush;

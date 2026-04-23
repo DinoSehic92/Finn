@@ -25,6 +25,15 @@
 		<Style Selector="Label /template/ ContentPresenter">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
+        <Style Selector="Grid > Label">
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+		<Style Selector="Grid > Label /template/ ContentPresenter">
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+        <Style Selector="TextBlock">
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
 	</Window.Styles>
 
 	<Grid RowDefinitions="30,Auto,*,Auto" Margin="0">

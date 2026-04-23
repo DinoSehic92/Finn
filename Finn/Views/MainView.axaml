@@ -326,8 +326,8 @@
 
 		<!-- Right-aligned row 1: Columns flyout + tray toggles -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" FlowDirection="RightToLeft">
-			<Border Classes="shadow" Height="30">
-				<Button Name="Columns" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed" Background="{DynamicResource AppChromeSurfaceBrush}">
+           <Border Classes="shadow" Height="30">
+				<Button Name="Columns" Classes="dropdown-surface" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed">
 					<Grid ColumnDefinitions="25,*,20" Height="30">
 						<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
 						<Label Grid.Column="1" Content="Columns" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -361,8 +361,8 @@
 				</Button>
 			</Border>
 
-					<Border Classes="shadow" Height="30" IsVisible="{Binding UI.TrayViewOpen}">
-						<Button Height="30" MinHeight="30" Width="140" Background="{DynamicResource AppChromeSurfaceBrush}">
+                 <Border Classes="shadow" Height="30" IsVisible="{Binding UI.TrayViewOpen}">
+						<Button Classes="dropdown-surface" Height="30" MinHeight="30" Width="140">
 							<Grid ColumnDefinitions="25,*,20" Height="30">
 								<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
 								<Label Grid.Column="1" Content="Tray Panels" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -1848,7 +1848,7 @@
 
 		<!-- Tree view -->
 		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="{Binding UI.TreeViewWidth}" Classes="AnimatedPanel">
-			<Border Classes="shadow" Background="{DynamicResource AppSurfaceBrush}">
+            <Border Classes="shadow" Background="{DynamicResource AppPanelSurfaceBrush}">
 				<Border Classes="clip-inner" CornerRadius="{DynamicResource AppCornerRadius}" ClipToBounds="True">
 				<Grid RowDefinitions="31,Auto,*">
 				<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppHeaderSurfaceBrush}">

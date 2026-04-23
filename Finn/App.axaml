@@ -18,6 +18,7 @@
 		<SolidColorBrush x:Key="AppHoverSurfaceBrush" Color="#42607A"/>
 		<SolidColorBrush x:Key="AppSelectedSurfaceBrush" Color="#2D638F"/>
 		<SolidColorBrush x:Key="AppForegroundBrush" Color="#F4F7FB"/>
+      <SolidColorBrush x:Key="AppHeaderForegroundBrush" Color="#DCE6EE"/>
 		<SolidColorBrush x:Key="AppMutedForegroundBrush" Color="#9CA9B6"/>
      <SolidColorBrush x:Key="AppMenuHoverBrush" Color="#36506A"/>
      <SolidColorBrush x:Key="AppRowHoverBrush" Color="#3B5268"/>
@@ -27,8 +28,7 @@
       <SolidColorBrush x:Key="AppPanelBorderBrush" Color="#4B5B69"/>
 		<SolidColorBrush x:Key="AppControlBorderBrush" Color="#516170"/>
      <SolidColorBrush x:Key="AppFlyoutBorderBrush" Color="#4B5C6A"/>
-		<SolidColorBrush x:Key="AppHeaderSurfaceBrush" Color="#26313C"/>
-		<SolidColorBrush x:Key="AppHeaderForegroundBrush" Color="#9CA9B6"/>
+        <SolidColorBrush x:Key="AppHeaderSurfaceBrush" Color="#2C3640"/>
 		<SolidColorBrush x:Key="AppDropOverlayBrush" Color="#30007ACC"/>
 		<SolidColorBrush x:Key="AppDropOverlaySubtleBrush" Color="#20007ACC"/>
 		<SolidColorBrush x:Key="AppDropOverlayBorderBrush" Color="#0A84FF"/>
@@ -126,6 +126,15 @@
           <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 		</Style>
 
+		<Style Selector="TreeView">
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="TreeView /template/ ScrollViewer">
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+		</Style>
+
 		<Style Selector="Window">
 			<Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
@@ -143,7 +152,7 @@
          <Setter Property="Margin" Value="1"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="VerticalContentAlignment" Value="Center"/>
-           <Setter Property="Background" Value="{DynamicResource AppControlSurfaceBrush}"/>
+         <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
@@ -165,13 +174,22 @@
 			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
 		</Style>
 
+		<Style Selector="Button.dropdown-surface">
+			<Setter Property="Background" Value="{DynamicResource AppControlSurfaceBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
+		</Style>
+
+		<Style Selector="Button.dropdown-surface:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
+		</Style>
+
 		<Style Selector="Button:pressed">
 			<Setter Property="Opacity" Value="0.7"/>
 		</Style>
 
 		<Style Selector="ToggleButton">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
-			<Setter Property="Background" Value="{DynamicResource AppControlSurfaceBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
@@ -236,7 +254,7 @@
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="VerticalAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
-			<Setter Property="Background" Value="{DynamicResource AppControlSurfaceBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>

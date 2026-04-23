@@ -82,6 +82,9 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
     </Style>
+    <Style Selector="Grid.SettingRow > Label /template/ ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+    </Style>
     <Style Selector="Grid.SettingRow > ToggleSwitch">
         <Setter Property="VerticalAlignment" Value="Center"/>
         <Setter Property="Margin" Value="0,-4,0,0"/>
