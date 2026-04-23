@@ -71,9 +71,6 @@ namespace Finn.ViewModels
             {
                 var window = new xColorDia();
                 ConfigureWindow(window, mainWindow);
-                // Let the dialog inherit the app-level theme so toggling
-                // DarkMode inside the dialog updates it in real-time.
-                window.RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Default;
                 window.FontCombo.SelectionChanged += OnFontComboChanged;
                 window.FontSizeCombo.SelectionChanged += OnFontComboChanged;
                 window.ShowDialog(mainWindow);
