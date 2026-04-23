@@ -1387,14 +1387,14 @@
 			</Border>
 			</Panel>
 
-			<!-- Collections toolbar -->
-			<Grid Grid.Row="1" ColumnDefinitions="*,30,30,30" IsVisible="{Binding UI.TrayCollections}">
+            <!-- Collections toolbar -->
+			<Grid Grid.Row="1" ColumnDefinitions="*,34,34,34" ColumnSpacing="3" Margin="0,0,5,0" IsVisible="{Binding UI.TrayCollections}">
 				<Border Classes="shadow" Grid.Column="0">
 					<TextBox Name="CollectionInput" PlaceholderText="Add Collection"/>
 				</Border>
-				<Button Grid.Column="1" Width="30" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-				<Button Grid.Column="2" Width="30" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-				<Button Grid.Column="3" Width="30" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
+              <Button Grid.Column="1" Width="34" Padding="2" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+				<Button Grid.Column="2" Width="34" Padding="2" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+				<Button Grid.Column="3" Width="34" Padding="2" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
 			</Grid>
 
 			<!-- Collections list -->
@@ -1469,13 +1469,13 @@
 						<Binding Path="UI.SuperuserMode"/>
 					</MultiBinding>
 				</Grid.IsVisible>
-				<Grid Grid.Row="0" ColumnDefinitions="*,30,30,30">
+              <Grid Grid.Row="0" ColumnDefinitions="*,34,34,34" ColumnSpacing="3" Margin="0,0,5,0" >
 					<Border Grid.Column="0" Classes="shadow">
 						<TextBox Name="BookmarkInput" PlaceholderText="Add Bookmark"/>
 					</Border>
-					<Button Grid.Column="1" Width="30" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
-					<Button Grid.Column="2" Width="30" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-					<Button Grid.Column="3" Width="30" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
+                    <Button Grid.Column="1" Width="34" Padding="2" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="16"/></Button>
+					<Button Grid.Column="2" Width="34" Padding="2" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+					<Button Grid.Column="3" Width="34" Padding="2" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="16"/></Button>
 				</Grid>
 			</Grid>
 

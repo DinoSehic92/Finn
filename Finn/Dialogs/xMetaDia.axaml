@@ -2,11 +2,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="590" d:DesignHeight="730"
-        MinWidth="590"
-        MinHeight="730"
-        MaxWidth="590"
-        MaxHeight="730"
+       mc:Ignorable="d" d:DesignWidth="660" d:DesignHeight="730"
+        MinWidth="660"
+        MinHeight="760"
+      MaxWidth="660"
+        MaxHeight="760"
         xmlns:ic="using:FluentIcons.Avalonia"
         x:Class="Finn.Dialogs.xMetaDia"
         Title=""
@@ -19,9 +19,9 @@
 
     <Grid RowDefinitions="40,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
         <Panel Grid.Row="0" IsHitTestVisible="False"/>
-        <StackPanel Grid.Row="1" Width="610" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,10">
+        <StackPanel Grid.Row="1" Width="640" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,10">
             <controls:DialogHeader Icon="ColorBackground" Title="Edit Metadata"/>
-            <Grid Name="MainGrid" ColumnDefinitions="30,110,*" HorizontalAlignment="Center" RowDefinitions="35,35,35,35,35,35,35,35,35,35,35,35,35,35,35">
+          <Grid Name="MainGrid" ColumnDefinitions="30,120,*" HorizontalAlignment="Center" RowDefinitions="38,38,38,38,38,38,38,38,38,38,38,38,38,38,38">
                 <CheckBox Grid.Row="0" Grid.Column="0" Name="NameCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 <CheckBox Grid.Row="5" Grid.Column="0" Name="HandlingCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 <CheckBox Grid.Row="6" Grid.Column="0" Name="StatusCheck" VerticalAlignment="Center" HorizontalAlignment="Center"/>
@@ -48,21 +48,21 @@
                 <Label Grid.Row="12" Grid.Column="1" Content="Beskrivning 4" VerticalAlignment="Center"/>
                 <Label Grid.Row="13" Grid.Column="1" Content="Revidering" VerticalAlignment="Center"/>
                 <Label Grid.Row="14" Grid.Column="1" Content="Sökväg" VerticalAlignment="Center"/>
-                <Border Classes="shadow" Grid.Row="0" Grid.Column="2" Width="400"><TextBox Name="FileNameInp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="1" Grid.Column="2" Width="400"><TextBox Name="FileTypeInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="2" Grid.Column="2" Width="400"><TextBox Name="ProjectInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="3" Grid.Column="2" Width="400"><TextBox Name="TagInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="4" Grid.Column="2" Width="400"><TextBox Name="ColorInp" IsReadOnly="True" Foreground="Gray" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="5" Grid.Column="2" Width="400"><TextBox Name="HandlingInp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="6" Grid.Column="2" Width="400"><TextBox Name="StatusInp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="7" Grid.Column="2" Width="400"><TextBox Name="DatumInp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="8" Grid.Column="2" Width="400"><TextBox Name="RitningInp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="9" Grid.Column="2" Width="400"><TextBox Name="Besk1Inp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="10" Grid.Column="2" Width="400"><TextBox Name="Besk2Inp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="11" Grid.Column="2" Width="400"><TextBox Name="Besk3Inp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="12" Grid.Column="2" Width="400"><TextBox Name="Besk4Inp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="13" Grid.Column="2" Width="400"><TextBox Name="RevInp" Width="400" VerticalAlignment="Center"/></Border>
-                <Border Classes="shadow" Grid.Row="14" Grid.Column="2" Width="400"><TextBox Name="PathInp" Width="400" VerticalAlignment="Center"/></Border>
+             <Border Classes="shadow" Grid.Row="0" Grid.Column="2" Width="460"><TextBox Name="FileNameInp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="1" Grid.Column="2" Width="460"><TextBox Name="FileTypeInp" IsReadOnly="True" Foreground="Gray" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="2" Grid.Column="2" Width="460"><TextBox Name="ProjectInp" IsReadOnly="True" Foreground="Gray" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="3" Grid.Column="2" Width="460"><TextBox Name="TagInp" IsReadOnly="True" Foreground="Gray" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="4" Grid.Column="2" Width="460"><TextBox Name="ColorInp" IsReadOnly="True" Foreground="Gray" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="5" Grid.Column="2" Width="460"><TextBox Name="HandlingInp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="6" Grid.Column="2" Width="460"><TextBox Name="StatusInp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="7" Grid.Column="2" Width="460"><TextBox Name="DatumInp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="8" Grid.Column="2" Width="460"><TextBox Name="RitningInp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="9" Grid.Column="2" Width="460"><TextBox Name="Besk1Inp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="10" Grid.Column="2" Width="460"><TextBox Name="Besk2Inp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="11" Grid.Column="2" Width="460"><TextBox Name="Besk3Inp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="12" Grid.Column="2" Width="460"><TextBox Name="Besk4Inp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="13" Grid.Column="2" Width="460"><TextBox Name="RevInp" Width="460" VerticalAlignment="Center"/></Border>
+                <Border Classes="shadow" Grid.Row="14" Grid.Column="2" Width="460"><TextBox Name="PathInp" Width="460" VerticalAlignment="Center"/></Border>
             </Grid>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0" Spacing="8">
                 <Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="70" Classes="accent" Click="OnEditProject"/>

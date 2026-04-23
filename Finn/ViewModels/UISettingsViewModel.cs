@@ -28,35 +28,55 @@ public class UISettingsViewModel : ObservableObject
     {
         //                            Background   Accent       PanelBg      Text         Border       R      S      B
 
-        // Default — balanced neutral blue-grey baseline
-        new ThemePreset("Default",   Color.Parse("#3E4652"), Color.Parse("#5D90D8"), Color.Parse("#21262D"), Color.Parse("#F4F7FB"), Color.Parse("#313945"), true,  false, false),
+        // Slate Ember — blue-slate shell, ink panel, controlled copper accent
+        new ThemePreset("Slate Ember", Color.Parse("#40474D"), Color.Parse("#BE7551"), Color.Parse("#23272B"), Color.Parse("#E7E1DA"), Color.Parse("#384048"), true,  false, true),
 
-        // Graphite — cool graphite shell with restrained cyan-blue accent
-        new ThemePreset("Graphite",  Color.Parse("#353C40"), Color.Parse("#6F96B7"), Color.Parse("#1E2326"), Color.Parse("#E8EBEF"), Color.Parse("#2C3438"), true,  true,  false),
+        // Harbor Night — sea-smoke shell with greener coastal accent
+        new ThemePreset("Harbor Night", Color.Parse("#3D4748"), Color.Parse("#6A9B93"), Color.Parse("#212829"), Color.Parse("#DEE8E5"), Color.Parse("#323C3C"), true,  true,  false),
 
-        // Obsidian — monochrome and crisp, the flattest dark option
-        new ThemePreset("Obsidian",  Color.Parse("#414141"), Color.Parse("#8F99A2"), Color.Parse("#202020"), Color.Parse("#E7E7E7"), Color.Parse("#313131"), false, false, true),
+        // Ink & Cream — cool navy structure with muted crimson highlights
+        new ThemePreset("Ink & Cream", Color.Parse("#3F4650"), Color.Parse("#BA3B46"), Color.Parse("#1F242A"), Color.Parse("#F1E8D8"), Color.Parse("#353D46"), true,  false, true),
 
-        // Nord — slightly lighter arctic shell with cooler inset panel
-        new ThemePreset("Nord",      Color.Parse("#4B5563"), Color.Parse("#7FA6B6"), Color.Parse("#2A313A"), Color.Parse("#ECEFF4"), Color.Parse("#38424E"), true,  false, false),
+        // Olive Studio — dry olive shell and darker workshop panel
+        new ThemePreset("Olive Studio", Color.Parse("#49544A"), Color.Parse("#8C9C69"), Color.Parse("#272F28"), Color.Parse("#E8E6D9"), Color.Parse("#3B463D"), true,  false, false),
 
-        // Harbor — muted coastal grey-green, more structure and less colour push
-        new ThemePreset("Harbor",    Color.Parse("#353F42"), Color.Parse("#5D8D88"), Color.Parse("#1F2628"), Color.Parse("#DEE7E6"), Color.Parse("#2C3638"), true,  true,  false),
+        // Plum Smoke — smoky plum-grey with subdued mauve accent
+        new ThemePreset("Plum Smoke", Color.Parse("#4A454D"), Color.Parse("#9A7AA1"), Color.Parse("#27232A"), Color.Parse("#E8E0EA"), Color.Parse("#39353C"), true,  true,  false),
 
-        // Rust — warm stone charcoal with a controlled copper accent
-        new ThemePreset("Rust",      Color.Parse("#45403C"), Color.Parse("#B08264"), Color.Parse("#282320"), Color.Parse("#EAE3DF"), Color.Parse("#35302C"), true,  true,  true),
+        // Copper Stone — warm charcoal balanced by a brass-copper accent
+        new ThemePreset("Copper Stone", Color.Parse("#4B433D"), Color.Parse("#B68557"), Color.Parse("#29231F"), Color.Parse("#ECE2D8"), Color.Parse("#3B342F"), true,  false, true),
 
-        // Woodland — dry sage shell around a deeper forest panel
-        new ThemePreset("Woodland",  Color.Parse("#3C453E"), Color.Parse("#7F9E83"), Color.Parse("#252C26"), Color.Parse("#D9E3DA"), Color.Parse("#303A31"), true,  false, true),
+        // Arctic Dusk — cooler steel shell with icy blue detail
+        new ThemePreset("Arctic Dusk", Color.Parse("#495563"), Color.Parse("#83A9B7"), Color.Parse("#27303A"), Color.Parse("#E9EFF4"), Color.Parse("#394451"), true,  false, false),
 
-        // Espresso — warm dark neutral with a softened brass accent
-        new ThemePreset("Espresso",  Color.Parse("#4A4038"), Color.Parse("#B59663"), Color.Parse("#2A221E"), Color.Parse("#EAE2DD"), Color.Parse("#38302A"), true,  false, true),
+        // Forest Ledger — structured forest shell with calm botanical accent
+        new ThemePreset("Forest Ledger", Color.Parse("#445047"), Color.Parse("#7F9C84"), Color.Parse("#242B26"), Color.Parse("#E1E8E2"), Color.Parse("#354038"), true,  true,  false),
 
-        // Tokyo — dusk blue shell with a darker ink panel
-        new ThemePreset("Tokyo",     Color.Parse("#404754"), Color.Parse("#748FB7"), Color.Parse("#21262E"), Color.Parse("#D8E1EE"), Color.Parse("#313945"), true,  false, true),
+        // Storm Blue — modern app-like blue-grey with restrained steel accent
+        new ThemePreset("Storm Blue", Color.Parse("#46505B"), Color.Parse("#6D8FB8"), Color.Parse("#252C34"), Color.Parse("#E3E9F0"), Color.Parse("#38404A"), true,  false, true),
 
-        // Sage — your preferred green direction with cleaner separation
-        new ThemePreset("Sage",      Color.Parse("#506350"), Color.Parse("#7EA18A"), Color.Parse("#334233"), Color.Parse("#E8F2EC"), Color.Parse("#415342"), true,  false, false),
+        // Mulberry Ash — warm charcoal with muted berry accents for softer contrast
+        new ThemePreset("Mulberry Ash", Color.Parse("#4A4344"), Color.Parse("#A06C74"), Color.Parse("#282324"), Color.Parse("#ECE3E1"), Color.Parse("#393334"), true,  true,  false),
+
+        // ── darker mixed-colour dark trials ───────────────────────────────
+
+        // Deep Harbor — darker petrol shell with sea-glass accent and warm cream text
+        new ThemePreset("Deep Harbor", Color.Parse("#364245"), Color.Parse("#6FA39D"), Color.Parse("#171D1F"), Color.Parse("#ECE5D9"), Color.Parse("#2B383B"), true,  true,  false),
+
+        // Crimson Ink — inky blue-black structure with a richer red accent
+        new ThemePreset("Crimson Ink", Color.Parse("#38404A"), Color.Parse("#C44756"), Color.Parse("#171C22"), Color.Parse("#F0E6D8"), Color.Parse("#2E3740"), true,  false, true),
+
+        // Ember Olive — dark olive-charcoal with a burnished amber accent
+        new ThemePreset("Ember Olive", Color.Parse("#434A40"), Color.Parse("#C28A4A"), Color.Parse("#1F241E"), Color.Parse("#ECE7D9"), Color.Parse("#333A31"), true,  false, false),
+
+        // Aubergine Steel — darker plum-grey shell with cool steel-blue support
+        new ThemePreset("Aubergine Steel", Color.Parse("#433E46"), Color.Parse("#7D97B6"), Color.Parse("#1F1B22"), Color.Parse("#EAE3E8"), Color.Parse("#332F36"), true,  true,  false),
+
+        // Copper Night — soot-brown structure with stronger copper-orange energy
+        new ThemePreset("Copper Night", Color.Parse("#443B36"), Color.Parse("#C98342"), Color.Parse("#1E1917"), Color.Parse("#EEE2D7"), Color.Parse("#342D29"), true,  false, true),
+
+        // Midnight Pine — dark blue-green shell with a cleaner botanical accent
+        new ThemePreset("Midnight Pine", Color.Parse("#384542"), Color.Parse("#78A087"), Color.Parse("#18201E"), Color.Parse("#E5E9E2"), Color.Parse("#2C3734"), true,  true,  false),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
@@ -91,8 +111,8 @@ public class UISettingsViewModel : ObservableObject
         // Dusk — cool neutral grey with slate accent; minimal and highly usable
         new ThemePreset("Dusk",     Color.Parse("#E9EBEE"), Color.Parse("#556274"), Color.Parse("#F9FAFB"), Color.Parse("#2D3544"), Color.Parse("#C2CAD4"), true,  false, true),
 
-        // Rose Paper — subtle rose-tinted paper with restrained berry accent; warm but still grown-up
-        new ThemePreset("Rose Paper", Color.Parse("#F4E9EB"), Color.Parse("#A8576D"), Color.Parse("#FEFBFC"), Color.Parse("#322026"), Color.Parse("#D8BDC5"), true,  true,  false),
+        // Dusk — cool neutral grey with slate accent; minimal and highly usable
+        new ThemePreset("Dusk",     Color.Parse("#E9EBEE"), Color.Parse("#556274"), Color.Parse("#F9FAFB"), Color.Parse("#2D3544"), Color.Parse("#C2CAD4"), true,  false, true),
     };
 
         // Localized defaults moved here from Finn.Services.UIDefaults
@@ -795,8 +815,12 @@ public class UISettingsViewModel : ObservableObject
                 : Mix(panel, background, 0.12);
 
             var chromeSurface = isDark
-                ? Mix(Mix(panel, background, 0.34), accent, 0.08)
+                ? Mix(panel, background, 0.34)
                 : Mix(background, panel, 0.35);
+
+            var headerSurface = isDark
+                ? Mix(chromeSurface, Colors.White, 0.035)
+                : Mix(chromeSurface, panel, 0.10);
 
             var flyoutSurface = isDark
                 ? Mix(chromeSurface, Colors.White, 0.035)
@@ -807,7 +831,7 @@ public class UISettingsViewModel : ObservableObject
                 : Mix(panel, background, 0.14);
 
             var controlSurface = isDark
-                ? Mix(Mix(panelSurface, Colors.White, 0.06), accent, 0.10)
+                ? Mix(panelSurface, Colors.White, 0.08)
                 : Mix(panelSurface, background, 0.10);
 
             var mutedText = Mix(text, background, isDark ? 0.38 : 0.50);
@@ -825,7 +849,7 @@ public class UISettingsViewModel : ObservableObject
             var panelBorder = Mix(subtleBorder, panelSurface, isDark ? 0.14 : 0.08);
             // Drop inner structural borders entirely on lighter/cleaner themes (keep lightly on very dark panels)
             var controlBorder = isDark
-                ? Mix(Mix(subtleBorder, controlSurface, 0.10), accent, 0.08)
+                ? Mix(subtleBorder, controlSurface, 0.10)
                 : controlSurface;
             var flyoutBorder = Mix(subtleBorder, flyoutSurface, isDark ? 0.24 : 0.18);
             var hoverSurface = Mix(controlSurface, accent, isDark ? 0.12 : 0.08);
@@ -862,6 +886,7 @@ public class UISettingsViewModel : ObservableObject
             var surfaceBrush = new SolidColorBrush(panel);
             var surfaceAltBrush = new SolidColorBrush(surfaceAlt);
             var chromeSurfaceBrush = new SolidColorBrush(chromeSurface);
+            var headerSurfaceBrush = new SolidColorBrush(headerSurface);
             var flyoutSurfaceBrush = new SolidColorBrush(flyoutSurface);
             var panelSurfaceBrush = new SolidColorBrush(panelSurface);
             var controlSurfaceBrush = new SolidColorBrush(controlSurface);
@@ -888,7 +913,7 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppHoverSurfaceBrush"] = hoverSurfaceBrush;
             App.Current.Resources["AppSelectedSurfaceBrush"] = selectedSurfaceBrush;
             App.Current.Resources["AppForegroundBrush"] = foregroundBrush;
-            App.Current.Resources["AppHeaderSurfaceBrush"] = chromeSurfaceBrush;
+            App.Current.Resources["AppHeaderSurfaceBrush"] = headerSurfaceBrush;
             App.Current.Resources["AppHeaderForegroundBrush"] = headerForegroundBrush;
             App.Current.Resources["AppMutedForegroundBrush"] = mutedForegroundBrush;
             App.Current.Resources["AppMenuHoverBrush"] = menuHoverSurfaceBrush;
