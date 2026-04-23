@@ -211,6 +211,22 @@
 			<Setter Property="Opacity" Value="0.7"/>
 		</Style>
 
+		<!-- Ghost toggle button: matches button.ghost, respects checked state -->
+		<Style Selector="ToggleButton.ghost">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+		</Style>
+		<Style Selector="ToggleButton.ghost:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
+		</Style>
+		<Style Selector="ToggleButton.ghost:pressed">
+			<Setter Property="Opacity" Value="0.7"/>
+		</Style>
+		<Style Selector="ToggleButton.ghost:checked">
+			<Setter Property="Background" Value="{DynamicResource AppSelectedSurfaceBrush}"/>
+			<Setter Property="Opacity" Value="1.0"/>
+		</Style>
+
 		<!-- Subtle checked indicator for toggle buttons -->
 		<Style Selector="ToggleButton:checked">
 			<Setter Property="Opacity" Value="1.0"/>

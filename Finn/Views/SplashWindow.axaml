@@ -8,29 +8,40 @@
     CanResize="False"
     ShowInTaskbar="False"
     WindowDecorations="None"
+    Background="Transparent"
+    TransparencyLevelHint="Transparent"
     Icon="/Assets/folder.ico">
 
-    <Border
-        Background="{DynamicResource SystemChromeMediumLowColor}">
+    <!-- Wrapper with padding for shadow -->
+    <Border Padding="12">
+        <Border
+            Classes="shadow"
+            CornerRadius="{DynamicResource AppCornerRadius}"
+            Background="{DynamicResource AppBackgroundBrush}"
+            BorderBrush="{DynamicResource AppStrongBorderBrush}"
+            BorderThickness="1">
 
-        <Grid RowDefinitions="*,Auto,Auto,*" Margin="32,24">
-            <TextBlock
-                Grid.Row="1"
-                Text="FINN"
-                FontSize="28"
-                FontWeight="SemiBold"
-                HorizontalAlignment="Center"
-                Opacity="0.92" />
+            <Grid RowDefinitions="*,Auto,Auto,*" Margin="32,24">
+                <TextBlock
+                    Grid.Row="1"
+                    Text="FINN"
+                    FontSize="32"
+                    FontWeight="Bold"
+                    FontFamily="{DynamicResource AppHeaderFontFamily}"
+                    Foreground="{DynamicResource AppForegroundBrush}"
+                    HorizontalAlignment="Center"
+                    Opacity="0.95" />
 
-            <TextBlock
-                Grid.Row="2"
-                x:Name="StatusText"
-                Text="Starting..."
-                FontSize="13"
-                FontStyle="Italic"
-                HorizontalAlignment="Center"
-                Opacity="0.55"
-                Margin="0,8,0,0" />
-        </Grid>
+                <TextBlock
+                    Grid.Row="2"
+                    x:Name="StatusText"
+                    Text="Starting..."
+                    FontSize="12"
+                    FontStyle="Italic"
+                    Foreground="{DynamicResource AppMutedForegroundBrush}"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,0" />
+            </Grid>
+        </Border>
     </Border>
 </Window>
