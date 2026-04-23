@@ -9,19 +9,26 @@
 		<Thickness x:Key="AppBorderThickness">0</Thickness>
        <Thickness x:Key="AppPopupBorderThickness">1</Thickness>
 		<SolidColorBrush x:Key="AppBackgroundBrush" Color="#1F2933"/>
+		<SolidColorBrush x:Key="AppShellSurfaceBrush" Color="#1F2933"/>
         <SolidColorBrush x:Key="AppFlyoutSurfaceBrush" Color="#2B3742"/>
 		<SolidColorBrush x:Key="AppPanelSurfaceBrush" Color="#34404B"/>
 		<SolidColorBrush x:Key="AppControlSurfaceBrush" Color="#3A4754"/>
+		<SolidColorBrush x:Key="AppOverlaySurfaceBrush" Color="#2B3742"/>
 		<SolidColorBrush x:Key="AppHoverSurfaceBrush" Color="#42607A"/>
 		<SolidColorBrush x:Key="AppSelectedSurfaceBrush" Color="#2D638F"/>
 		<SolidColorBrush x:Key="AppForegroundBrush" Color="#F4F7FB"/>
+		<SolidColorBrush x:Key="AppSubtleForegroundBrush" Color="#B8C3CF"/>
+		<SolidColorBrush x:Key="AppDisabledForegroundBrush" Color="#7E8A96"/>
       <SolidColorBrush x:Key="AppHeaderForegroundBrush" Color="#DCE6EE"/>
 		<SolidColorBrush x:Key="AppMutedForegroundBrush" Color="#9CA9B6"/>
      <SolidColorBrush x:Key="AppMenuHoverBrush" Color="#36506A"/>
      <SolidColorBrush x:Key="AppRowHoverBrush" Color="#3B5268"/>
      <SolidColorBrush x:Key="AppRowSelectionBrush" Color="#315E82"/>
+		<SolidColorBrush x:Key="AppRowCurrentBrush" Color="#4677A1"/>
 		<SolidColorBrush x:Key="AppDividerBrush" Color="#566473"/>
 		<SolidColorBrush x:Key="AppToolbarSeparatorBrush" Color="#566473"/>
+		<SolidColorBrush x:Key="AppIconBrush" Color="#9CA9B6"/>
+		<SolidColorBrush x:Key="AppIconStrongBrush" Color="#F4F7FB"/>
       <SolidColorBrush x:Key="AppPanelBorderBrush" Color="#4B5B69"/>
 		<SolidColorBrush x:Key="AppControlBorderBrush" Color="#516170"/>
      <SolidColorBrush x:Key="AppFlyoutBorderBrush" Color="#4B5C6A"/>
@@ -29,6 +36,9 @@
 		<SolidColorBrush x:Key="AppDropOverlayBrush" Color="#30007ACC"/>
 		<SolidColorBrush x:Key="AppDropOverlaySubtleBrush" Color="#20007ACC"/>
 		<SolidColorBrush x:Key="AppDropOverlayBorderBrush" Color="#0A84FF"/>
+		<SolidColorBrush x:Key="AppOverlayAccentBrush" Color="#0A84FF"/>
+		<SolidColorBrush x:Key="AppWarningBrush" Color="#D4983C"/>
+		<SolidColorBrush x:Key="AppDestructiveBrush" Color="#D64045"/>
       <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#2B3742"/>
        <SolidColorBrush x:Key="FlyoutBorderThemeBrush" Color="#4B5C6A"/>
 		<Thickness x:Key="FlyoutBorderThemeThickness">1</Thickness>
@@ -98,7 +108,8 @@
 
 		<!-- Chevron: dim when collapsed, full opacity when expanded or hovered -->
 		<Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
-			<Setter Property="Opacity" Value="0.65"/>
+			<Setter Property="Opacity" Value="0.85"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppIconBrush}"/>
 			<Setter Property="Transitions">
 				<Transitions>
 					<DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
@@ -107,10 +118,13 @@
 		</Style>
 		<Style Selector="TreeViewItem:expanded /template/ ToggleButton#PART_ExpandCollapseChevron">
 			<Setter Property="Opacity" Value="1.0"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppIconStrongBrush}"/>
 		</Style>
 		<Style Selector="TreeViewItem:pointerover /template/ ToggleButton#PART_ExpandCollapseChevron">
 			<Setter Property="Opacity" Value="1.0"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppIconStrongBrush}"/>
 		</Style>
+
 
 		<Style Selector="ListBox">
           <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
@@ -126,12 +140,12 @@
 		</Style>
 
 		<Style Selector="Window">
-			<Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppShellSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
 		<Style Selector="UserControl">
-			<Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppShellSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
@@ -142,7 +156,7 @@
          <Setter Property="Margin" Value="1"/>
 			<Setter Property="Padding" Value="0"/>
 			<Setter Property="VerticalContentAlignment" Value="Center"/>
-         <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
@@ -156,6 +170,16 @@
 			</Setter>
 		</Style>
 
+		<!-- Contained panel button: default contained role for dialogs/panels/flyouts -->
+		<Style Selector="Button.panel-button">
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
+			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
+		</Style>
+		<Style Selector="Button.panel-button:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
+		</Style>
+
 		<Style Selector="Border.shadow > Button">
 			<Setter Property="Margin" Value="0"/>
 		</Style>
@@ -165,7 +189,7 @@
 		</Style>
 
 		<Style Selector="Button.dropdown-surface">
-            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+				<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 		</Style>
 
@@ -177,9 +201,19 @@
 		<Style Selector="Button.ghost">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderBrush" Value="Transparent"/>
 		</Style>
 		<Style Selector="Button.ghost:pointerover">
 			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
+		</Style>
+
+		<Style Selector="ToggleButton.panel-button">
+			<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
+			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
+		</Style>
+		<Style Selector="ToggleButton.panel-button:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
 		</Style>
 		<Style Selector="Button.ghost:pressed">
 			<Setter Property="Opacity" Value="0.7"/>
@@ -191,7 +225,7 @@
 
 		<Style Selector="ToggleButton">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
-            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+				<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
@@ -215,6 +249,7 @@
 		<Style Selector="ToggleButton.ghost">
 			<Setter Property="Background" Value="Transparent"/>
 			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderBrush" Value="Transparent"/>
 		</Style>
 		<Style Selector="ToggleButton.ghost:pointerover">
 			<Setter Property="Background" Value="{DynamicResource AppMenuHoverBrush}"/>
@@ -240,15 +275,17 @@
 		<!-- Disabled buttons: transparent background, faded foreground -->
 		<Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
 			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppDisabledForegroundBrush}"/>
 		</Style>
 		<Style Selector="Button:disabled">
-			<Setter Property="Opacity" Value="0.35"/>
+			<Setter Property="Opacity" Value="0.5"/>
 		</Style>
 		<Style Selector="ToggleButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
 			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppDisabledForegroundBrush}"/>
 		</Style>
 		<Style Selector="ToggleButton:disabled">
-			<Setter Property="Opacity" Value="0.35"/>
+			<Setter Property="Opacity" Value="0.5"/>
 		</Style>
 
      <Style Selector="ComboBox">
@@ -259,7 +296,7 @@
 			<Setter Property="Padding" Value="12,4,0,0"/>
 			<Setter Property="BorderThickness" Value="{DynamicResource AppBorderThickness}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
-            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+				<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
@@ -290,7 +327,7 @@
 			<Setter Property="MinHeight" Value="25"/>
 			<Setter Property="VerticalAlignment" Value="Center"/>
 			<Setter Property="FontSize" Value="14"/>
-            <Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
+				<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
          <Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
 			<Setter Property="CornerRadius" Value="{DynamicResource AppCornerRadius}"/>
@@ -311,6 +348,10 @@
 
 		<Style Selector="Label">
 			<Setter Property="FontSize" Value="14"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="Label /template/ ContentPresenter">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
@@ -397,6 +438,7 @@
 
 		<Style Selector="DataGridColumnHeader:pointerover">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+			<Setter Property="Background" Value="{DynamicResource AppHeaderSurfaceBrush}"/>
 		</Style>
 
 		<Style Selector="DataGrid">
@@ -425,6 +467,16 @@
             <Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 
+		<Style Selector="TextBlock.caption">
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppMutedForegroundBrush}"/>
+		</Style>
+
+		<Style Selector="TextBlock.metadata">
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="Foreground" Value="{DynamicResource AppMutedForegroundBrush}"/>
+		</Style>
+
 		<Style Selector="Menu">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
          <Setter Property="Background" Value="Transparent"/>
@@ -441,15 +493,24 @@
 
 		<Style Selector="DataGridCell">
 			<Setter Property="MinHeight" Value="22"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AppDividerBrush}"/>
+				<Setter Property="BorderBrush" Value="{DynamicResource AppDividerBrush}"/>
+			<Setter Property="Background" Value="Transparent"/>
 		</Style>
 
 		<Style Selector="DataGridRow:pointerover">
-          <Setter Property="Background" Value="{DynamicResource AppRowHoverBrush}"/>
+			  <Setter Property="Background" Value="{DynamicResource AppRowHoverBrush}"/>
 		</Style>
 
 		<Style Selector="DataGridRow:selected">
-           <Setter Property="Background" Value="{DynamicResource AppRowSelectionBrush}"/>
+			   <Setter Property="Background" Value="{DynamicResource AppRowSelectionBrush}"/>
+		</Style>
+
+		<Style Selector="DataGridRow:selected:pointerover">
+			<Setter Property="Background" Value="{DynamicResource AppRowSelectionBrush}"/>
+		</Style>
+
+		<Style Selector="DataGridCell:current">
+			<Setter Property="Background" Value="Transparent"/>
 		</Style>
 
 		<!-- Refined tooltips -->

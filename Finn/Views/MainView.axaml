@@ -307,7 +307,7 @@
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
 			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="6">
 				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
-				<TextBlock FontStyle="Italic" FontSize="14" Opacity="0.7">
+				<TextBlock FontStyle="Italic" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}">
 					<TextBlock.Text>
 						<MultiBinding StringFormat="{}{0}  |  Filtered: {1}  |  Selected: {2}">
 							<Binding Path="CurrentProject.Namn"/>
@@ -319,8 +319,8 @@
 			</StackPanel>
 			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6">
 				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
-				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
-				<TextBlock Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic" FontSize="14" Opacity="0.7"/>
+				<TextBlock Text="{Binding CurrentFile.Namn}" FontStyle="Italic" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
+				<TextBlock Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic" FontSize="14"/>
 			</StackPanel>
 		</StackPanel>
 
@@ -387,7 +387,7 @@
 		</StackPanel>
 
 		<!-- Center search bar with optional action bar -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0" Spacing="4">
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0" Spacing="6">
 
 			<!-- Action bar (toggled via UI.ShowActionBar) -->
 			<Border IsVisible="{Binding UI.ShowActionBar}" IsEnabled="{Binding FileSelected}"
@@ -396,7 +396,7 @@
 					BorderBrush="{DynamicResource AppControlBorderBrush}"
 					BorderThickness="{DynamicResource AppBorderThickness}"
 					CornerRadius="{DynamicResource AppCornerRadius}"
-					Padding="2,0" VerticalAlignment="Center">
+					Padding="4,1" VerticalAlignment="Center">
 				<StackPanel Orientation="Horizontal" Spacing="0">
 					<Button Classes="ghost" ToolTip.Tip="Open PDF"    Height="28" Width="28" Padding="0" Command="{Binding OpenFile}" IsVisible="{Binding SelectedFileIsNotSketch}">
 						<ic:SymbolIcon Symbol="DocumentPdf" IconVariant="Regular" FontSize="15"/>
@@ -461,7 +461,7 @@
 			</Border>
 
 			<!-- Search bar -->
-			<Grid ColumnDefinitions="*,30,4,30">
+			<Grid ColumnDefinitions="*,30,6,30">
 				<Border Classes="shadow">
 					<TextBox Grid.Column="0" PlaceholderText="Search All Files" Text="{Binding SearchText}" Name="SearchText" Width="180" KeyDown="OnStartSearch">
 						<TextBox.InnerRightContent>
@@ -482,25 +482,25 @@
 			</Grid>
 		</StackPanel>
 
-		<StackPanel Orientation="Horizontal" Spacing="2" Height="35" HorizontalAlignment="Right"
+		<StackPanel Orientation="Horizontal" Spacing="3" Height="35" HorizontalAlignment="Right"
 					Grid.Row="0" Grid.ColumnSpan="5" Margin="0,0,155,0"
 					WindowDecorationProperties.ElementRole="User">
 
 			<!-- Layout group -->
-			<ToggleButton ToolTip.Tip="Tree View (Ctrl+Q)"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Tray (Ctrl+E)"            HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Folders (Ctrl+L)"         HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Tree View (Ctrl+Q)"       HotKey="Ctrl+Q" Height="30" Width="35" Padding="0" Click="SetupTreeview"     IsChecked="{Binding UI.TreeViewOpen}">       <ic:SymbolIcon Symbol="PanelLeft"    IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Tray (Ctrl+E)"            HotKey="Ctrl+E" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.TrayViewOpen}">       <ic:SymbolIcon Symbol="PanelRight"   IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Folders (Ctrl+L)"         HotKey="Ctrl+L" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.ShowFolders}">        <ic:SymbolIcon Symbol="Folder"       IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
 			<!-- View group -->
-			<ToggleButton ToolTip.Tip="Preview Window (Ctrl+W)"  HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
-			<ToggleButton ToolTip.Tip="Embedded Preview (Ctrl+P)" HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Preview Window (Ctrl+W)"  HotKey="Ctrl+W" Height="30" Width="35" Padding="0"                           IsChecked="{Binding PreviewWindowOpen}">  <ic:SymbolIcon Symbol="Window"                            FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Embedded Preview (Ctrl+P)" HotKey="Ctrl+P" Height="30" Width="35" Padding="0"                           IsChecked="{Binding UI.PreviewEmbeddedOpen}"><ic:SymbolIcon Symbol="Eye"          IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
 			<!-- Settings & tools group -->
-			<Button       ToolTip.Tip="UI Settings"                              Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Settings" FontSize="18"/></Button>
+			<Button Classes="ghost" ToolTip.Tip="UI Settings"                              Height="30" Width="35" Padding="0" Command="{Binding OpenColorDia}"     CommandParameter="{Binding $parent[Window]}"><ic:SymbolIcon Symbol="Settings" FontSize="18"/></Button>
 
 			<!-- Hidden hotkey-only toggles (moved to UI Settings dialog) -->
 			<ToggleButton HotKey="Ctrl+B" IsChecked="{Binding UI.ShowActionBar}" IsVisible="False" Width="0" Height="0" IsEnabled="{Binding UI.SuperuserMode}"/>
@@ -509,7 +509,7 @@
 			<ToggleButton HotKey="Ctrl+T" IsChecked="{Binding UI.ShowThumbnails}" IsVisible="False" Width="0" Height="0" IsEnabled="{Binding UI.SuperuserMode}"/>
 
 			<!-- Toolbox: grouped tools (compact icon-only flyout) -->
-			<Button Name="ToolboxButton" ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0" IsVisible="{Binding UI.SuperuserMode}">
+			<Button Classes="ghost" Name="ToolboxButton" ToolTip.Tip="Toolbox" Height="30" MinHeight="0" Width="35" Padding="0" IsVisible="{Binding UI.SuperuserMode}">
 				<ic:SymbolIcon Symbol="Toolbox" FontSize="18"/>
 				<Button.Flyout>
 					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
@@ -555,7 +555,7 @@
 
 			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
-			<ToggleButton ToolTip.Tip="Calendar (Ctrl+K)" IsVisible="False" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Calendar (Ctrl+K)" IsVisible="False" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<!-- Sync status indicator (visible only when folder watching is enabled and superuser mode) -->
            <Button Name="SyncStatusButton" Classes="ghost" Height="30" Width="35" Padding="0" ToolTip.Tip="{Binding SyncStatusText}">
@@ -597,14 +597,14 @@
 													CornerRadius="5" Padding="10,7" Margin="0,1">
 												<Grid ColumnDefinitions="Auto,*,Auto">
 													<ic:SymbolIcon Grid.Column="0" Symbol="Folder" FontSize="16"
-																   VerticalAlignment="Center" Margin="0,0,10,0" Opacity="0.6"/>
+											VerticalAlignment="Center" Margin="0,0,10,0" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 													<StackPanel Grid.Column="1" Orientation="Vertical" Spacing="1" VerticalAlignment="Center">
 																		<TextBlock Text="{Binding FolderName}" FontSize="12.5"
 																				   TextTrimming="CharacterEllipsis"/>
 																		<StackPanel Orientation="Horizontal" Spacing="4">
-																			<TextBlock Text="{Binding ProjectName}" FontSize="11"
-																					   Opacity="0.5" TextTrimming="CharacterEllipsis"/>
-																			<TextBlock Text="·" FontSize="11" Opacity="0.35"
+											<TextBlock Text="{Binding ProjectName}" FontSize="11"
+													   Foreground="{DynamicResource AppMutedForegroundBrush}" TextTrimming="CharacterEllipsis"/>
+											<TextBlock Text="·" FontSize="11" Foreground="{DynamicResource AppSubtleForegroundBrush}"
 																					   IsVisible="{Binding FolderType, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 																			<TextBlock Text="{Binding FolderType}" FontSize="11"
 																					   Opacity="0.35" FontStyle="Italic" TextTrimming="CharacterEllipsis"/>
@@ -1168,7 +1168,7 @@
 			</Border>
 
 			<!-- Daily timesheet entry -->
-			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="10,0,0,0" Opacity="0.7"/>
+			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="10,0,0,0" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 			<StackPanel Grid.Row="1" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="0" Margin="0,4,0,2">
 				<Button Width="28" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove selected"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
 				<Button Width="28" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
@@ -1925,11 +1925,11 @@
 												</Border>
 												<ic:SymbolIcon Symbol="{Binding SyncIconSymbol}" FontSize="12"
 														   IsVisible="{Binding SyncIconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-														   Opacity="0.6" Margin="2,0,0,0"
+											Foreground="{DynamicResource AppMutedForegroundBrush}" Margin="2,0,0,0"
 														   ToolTip.Tip="{Binding SyncTooltip}"/>
 												<ic:SymbolIcon Symbol="Eye" FontSize="12"
 														   IsVisible="{Binding IsViewer}"
-														   Opacity="0.5" Margin="0,0,0,0"
+											Foreground="{DynamicResource AppSubtleForegroundBrush}" Margin="0,0,0,0"
 														   ToolTip.Tip="{Binding ViewerTooltip}"/>
 											</StackPanel>
 										</Border>

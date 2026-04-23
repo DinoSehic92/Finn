@@ -16,22 +16,13 @@
 		xmlns:controls="clr-namespace:Finn.Controls"
 		x:DataType="vm:MainViewModel"
 		Foreground="{DynamicResource AppForegroundBrush}"
-		Background="{DynamicResource AppBackgroundBrush}">
+		Background="{DynamicResource AppShellSurfaceBrush}">
 
 	<Window.Styles>
 		<Style Selector="Label">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 		<Style Selector="Label /template/ ContentPresenter">
-			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
-		</Style>
-        <Style Selector="Grid > Label">
-			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
-		</Style>
-		<Style Selector="Grid > Label /template/ ContentPresenter">
-			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
-		</Style>
-        <Style Selector="TextBlock">
 			<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
 		</Style>
 	</Window.Styles>
@@ -180,7 +171,7 @@
 			</StackPanel>
 
 			<!-- Vertical separator -->
-			<Border Grid.Column="1" Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Opacity="0.3" Margin="14,6,14,6"/>
+			<Border Grid.Column="1" Width="1" Background="{DynamicResource AppDividerBrush}" Opacity="0.5" Margin="14,6,14,6"/>
 
 			<!-- ═══════ Right Column: Toggles + Layout ═══════ -->
 			<StackPanel Grid.Column="2" Orientation="Vertical" Spacing="0">

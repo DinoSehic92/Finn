@@ -72,10 +72,10 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="LetterSpacing" Value="0.6"/>
         <Setter Property="Foreground" Value="{DynamicResource AppHeaderForegroundBrush}"/>
-        <Setter Property="Margin" Value="0,18,0,8"/>
+        <Setter Property="Margin" Value="0,20,0,10"/>
     </Style>
     <Style Selector="Grid.SettingRow">
-        <Setter Property="Margin" Value="0,2"/>
+        <Setter Property="Margin" Value="0,3"/>
         <Setter Property="Height" Value="36"/>
     </Style>
     <Style Selector="Grid.SettingRow > Label">
@@ -99,5 +99,10 @@
     </Style>
     <Style Selector="Grid.SettingRow > Border">
         <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Grid.SettingRow.compact">
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Margin" Value="0,2"/>
     </Style>
 </Styles>

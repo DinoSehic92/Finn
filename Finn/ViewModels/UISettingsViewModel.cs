@@ -864,12 +864,16 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppBorderThickness"] = this.BorderThickness;
 
             var foregroundBrush = new SolidColorBrush(text);
+            var subtleForegroundBrush = new SolidColorBrush(Mix(text, background, isDark ? 0.48 : 0.62));
+            var disabledForegroundBrush = new SolidColorBrush(Mix(text, background, isDark ? 0.62 : 0.72));
             var mutedForegroundBrush = new SolidColorBrush(mutedText);
             var mediumForegroundBrush = new SolidColorBrush(mediumText);
             var headerForegroundBrush = new SolidColorBrush(headerText);
             var backgroundBrush = new SolidColorBrush(background);
+            var shellSurfaceBrush = new SolidColorBrush(background);
             var headerSurfaceBrush = new SolidColorBrush(headerSurface);
             var flyoutSurfaceBrush = new SolidColorBrush(flyoutSurface);
+            var overlaySurfaceBrush = new SolidColorBrush(flyoutSurface);
             var panelSurfaceBrush = new SolidColorBrush(panelSurface);
             var controlSurfaceBrush = new SolidColorBrush(controlSurface);
             var hoverSurfaceBrush = new SolidColorBrush(hoverSurface);
@@ -877,6 +881,7 @@ public class UISettingsViewModel : ObservableObject
             var menuHoverSurfaceBrush = new SolidColorBrush(menuHoverSurface);
             var rowHoverSurfaceBrush = new SolidColorBrush(rowHoverSurface);
             var rowSelectionSurfaceBrush = new SolidColorBrush(rowSelectionSurface);
+            var rowCurrentSurfaceBrush = new SolidColorBrush(Mix(panelSurface, accent, isDark ? 0.20 : 0.14));
             var dividerBrush = new SolidColorBrush(divider);
             var panelBorderBrush = new SolidColorBrush(panelBorder);
             var controlBorderBrush = new SolidColorBrush(controlBorder);
@@ -884,18 +889,23 @@ public class UISettingsViewModel : ObservableObject
             var strongBorderBrush = new SolidColorBrush(strongBorder);
 
             App.Current.Resources["AppBackgroundBrush"] = backgroundBrush;
+            App.Current.Resources["AppShellSurfaceBrush"] = shellSurfaceBrush;
             App.Current.Resources["AppFlyoutSurfaceBrush"] = flyoutSurfaceBrush;
+            App.Current.Resources["AppOverlaySurfaceBrush"] = overlaySurfaceBrush;
             App.Current.Resources["AppPanelSurfaceBrush"] = panelSurfaceBrush;
             App.Current.Resources["AppControlSurfaceBrush"] = controlSurfaceBrush;
             App.Current.Resources["AppHoverSurfaceBrush"] = hoverSurfaceBrush;
             App.Current.Resources["AppSelectedSurfaceBrush"] = selectedSurfaceBrush;
             App.Current.Resources["AppForegroundBrush"] = foregroundBrush;
+            App.Current.Resources["AppSubtleForegroundBrush"] = subtleForegroundBrush;
+            App.Current.Resources["AppDisabledForegroundBrush"] = disabledForegroundBrush;
             App.Current.Resources["AppHeaderSurfaceBrush"] = headerSurfaceBrush;
             App.Current.Resources["AppHeaderForegroundBrush"] = headerForegroundBrush;
             App.Current.Resources["AppMutedForegroundBrush"] = mutedForegroundBrush;
             App.Current.Resources["AppMenuHoverBrush"] = menuHoverSurfaceBrush;
             App.Current.Resources["AppRowHoverBrush"] = rowHoverSurfaceBrush;
             App.Current.Resources["AppRowSelectionBrush"] = rowSelectionSurfaceBrush;
+            App.Current.Resources["AppRowCurrentBrush"] = rowCurrentSurfaceBrush;
             App.Current.Resources["AppDividerBrush"] = dividerBrush;
             App.Current.Resources["AppToolbarSeparatorBrush"] = dividerBrush;
             App.Current.Resources["AppPanelBorderBrush"] = panelBorderBrush;
