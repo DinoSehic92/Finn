@@ -367,6 +367,8 @@
 			<Setter Property="Foreground" Value="{DynamicResource AppHeaderForegroundBrush}"/>
 			<Setter Property="Padding" Value="8,0,0,0"/>
 			<Setter Property="Background" Value="{DynamicResource AppHeaderSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AppStrongBorderBrush}"/>
+			<Setter Property="BorderThickness" Value="0,0,0,1"/>
 		</Style>
 
 		<Style Selector="DataGridColumnHeader:pointerover">
@@ -389,7 +391,7 @@
 		</Style>
 
 		<Style Selector="DataGrid /template/ Rectangle#PART_ColumnHeadersAndRowsSeparator">
-			<Setter Property="Fill" Value="{DynamicResource AppDividerBrush}"/>
+         <Setter Property="Fill" Value="{DynamicResource AppStrongBorderBrush}"/>
 		</Style>
 
 		

@@ -7,11 +7,14 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 
 namespace Finn;
 
 public partial class App : Application
 {
+    private static bool _themeApplyQueued;
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -98,11 +101,24 @@ public partial class App : Application
                     or "LightTextColorEnabled"  or "LightTextColor"
                     or "LightPanelColorEnabled" or "LightPanelColor"
                     or "LightBorderColorEnabled" or "LightBorderColor":
-                    vm.UI.ApplyTheme();
+                    QueueThemeApply(vm.UI);
                     break;
             }
         };
 
         return vm;
+    }
+
+    private static void QueueThemeApply(UISettingsViewModel ui)
+    {
+        if (_themeApplyQueued)
+            return;
+
+        _themeApplyQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _themeApplyQueued = false;
+            ui.ApplyTheme();
+        }, DispatcherPriority.Background);
     }
 }
