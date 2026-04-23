@@ -31,32 +31,32 @@ public class UISettingsViewModel : ObservableObject
         // Default — matches the original hardcoded dark styling baseline for the app
         new ThemePreset("Default",   Color.Parse("#1F2933"), Color.Parse("#0A84FF"), Color.Parse("#2C3640"), Color.Parse("#F4F7FB"), Color.Parse("#44515E"), true,  false, false),
 
-        // Graphite — neutral charcoal with a lifted panel so areas separate cleanly without borders
-        new ThemePreset("Graphite",  Color.Parse("#24272C"), Color.Parse("#8EA4B5"), Color.Parse("#31363D"), Color.Parse("#E8EBEF"), Color.Parse("#56616C"), true,  true,  false),
+        // Graphite — sleek, near-black studio base with stark cyan highlight; highly technical
+        new ThemePreset("Graphite",  Color.Parse("#1A1B1E"), Color.Parse("#00D1FF"), Color.Parse("#25272B"), Color.Parse("#E8EBEF"), Color.Parse("#3A3E45"), true,  true,  false),
 
-        // Midnight — deep navy anchor with a clearly brighter work surface
-        new ThemePreset("Midnight",  Color.Parse("#1B2530"), Color.Parse("#6EA5DA"), Color.Parse("#2C3B49"), Color.Parse("#DAE3EC"), Color.Parse("#4B5D71"), true,  true,  true),
+        // Midnight — extremely deep purple-navy anchor with warmer lilac accents; soft depth
+        new ThemePreset("Midnight",  Color.Parse("#161621"), Color.Parse("#9B8AE6"), Color.Parse("#222230"), Color.Parse("#DCDCEB"), Color.Parse("#494966"), true,  true,  false),
 
-        // Nord — soft slate shell with a gently lifted panel and icy accent
-        new ThemePreset("Nord",      Color.Parse("#39424D"), Color.Parse("#8FB7CB"), Color.Parse("#444F5B"), Color.Parse("#E0E7EE"), Color.Parse("#657483"), true,  false, true),
+        // Nord — famous frosty slate shell; very legible with a crisp arctic accent
+        new ThemePreset("Nord",      Color.Parse("#2E3440"), Color.Parse("#88C0D0"), Color.Parse("#3B4252"), Color.Parse("#ECEFF4"), Color.Parse("#4C566A"), true,  false, false),
 
-        // Harbor — marine blue-grey with a gently raised panel and calmer teal-blue accent
-        new ThemePreset("Harbor",    Color.Parse("#2F3942"), Color.Parse("#71A4B0"), Color.Parse("#3B4751"), Color.Parse("#DEE7EC"), Color.Parse("#60717D"), true,  true,  false),
+        // Harbor — stormy teal-grey with an active sea-green accent; slightly muted but vibrant in focus
+        new ThemePreset("Harbor",    Color.Parse("#232B2E"), Color.Parse("#2E998B"), Color.Parse("#2D363A"), Color.Parse("#DEE7E6"), Color.Parse("#4A565A"), true,  true,  false),
 
-        // Slate — dependable blue-grey workhorse with a slightly brighter panel and restrained blue accent
-        new ThemePreset("Slate",     Color.Parse("#303942"), Color.Parse("#80ABCA"), Color.Parse("#3A4650"), Color.Parse("#DCE3E9"), Color.Parse("#5D6B78"), true,  false, true),
+        // Rust — warm charcoal base with a muted burnt-orange accent; moody and earthy
+        new ThemePreset("Rust",      Color.Parse("#2C2A29"), Color.Parse("#D47B55"), Color.Parse("#383533"), Color.Parse("#EAE3DF"), Color.Parse("#59534F"), true,  true,  true),
 
-        // Granite — brighter neutral shell with a modestly lifted mineral panel
-        new ThemePreset("Granite",   Color.Parse("#434947"), Color.Parse("#94A29D"), Color.Parse("#4A504E"), Color.Parse("#E6EAE7"), Color.Parse("#66716C"), true,  false, true),
+        // Obsidian — pure monochrome grey focus; lets the accent do all the heavy lifting
+        new ThemePreset("Obsidian",  Color.Parse("#262626"), Color.Parse("#A3A3A3"), Color.Parse("#333333"), Color.Parse("#F5F5F5"), Color.Parse("#525252"), false, false, true),
 
-        // Steel — industrial grey-blue, cleaner and more technical than Slate
-        new ThemePreset("Steel",     Color.Parse("#3B434C"), Color.Parse("#90A5BA"), Color.Parse("#47515B"), Color.Parse("#E2E7EC"), Color.Parse("#61707E"), true,  false, true),
+        // Deep Woods — rich dark hunter green with a soft lime lift; calm and focused
+        new ThemePreset("Woodland",  Color.Parse("#1E2420"), Color.Parse("#7CAE72"), Color.Parse("#2A312C"), Color.Parse("#D9E3DA"), Color.Parse("#4B584E"), true,  false, true),
 
-        // Mist — olive-grey shell with a darker, but not dramatically darker, panel and no border emphasis
-        new ThemePreset("Mist",      Color.Parse("#525E54"), Color.Parse("#94AA9D"), Color.Parse("#3F4842"), Color.Parse("#E6EBE7"), Color.Parse("#667168"), true,  false, false),
+        // Velvet — plush plum-black base with coral pink accent; dramatic and rich
+        new ThemePreset("Velvet",    Color.Parse("#211921"), Color.Parse("#DD7886"), Color.Parse("#2D232D"), Color.Parse("#EADEEA"), Color.Parse("#544354"), true,  true,  false),
 
-        // Tide — airy blue-green shell with a deeper blue-grey panel for clearer structure
-        new ThemePreset("Tide",      Color.Parse("#536267"), Color.Parse("#8EB3B8"), Color.Parse("#344044"), Color.Parse("#E4EAEB"), Color.Parse("#73868B"), true,  false, true),
+        // Espresso — very dark mocha background with golden-amber accents
+        new ThemePreset("Espresso",  Color.Parse("#221D1A"), Color.Parse("#E0AC51"), Color.Parse("#2D2723"), Color.Parse("#EAE2DD"), Color.Parse("#524842"), true,  false, true),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
@@ -389,9 +389,20 @@ public class UISettingsViewModel : ObservableObject
         private void SetShadow()
         {
             if (ShadowVal)
-                Shadow = BoxShadows.Parse("0 2 6 0 #22000000, 0 8 24 0 #11000000");
+            {
+                // Create a richer tinted shadow by mixing pure black with some of the background hue
+                // rather than just using raw #000000 black
+                var shadowBase = Mix(Colors.Black, (DarkMode ? Color1 : Color3), 0.15);
+                var colorString = shadowBase.ToString(); // e.g. #FF1A1E24
+
+                // We strip the alpha channel off the mixed color and replace it with our desired opacities (22 and 11 hex)
+                var rgbOnly = colorString.Substring(3); // skip # and FF
+                Shadow = BoxShadows.Parse($"0 2 6 0 #22{rgbOnly}, 0 8 24 0 #11{rgbOnly}");
+            }
             else
+            {
                 Shadow = new BoxShadows();
+            }
         }
 
         // When true, property-change notifications for colour/style properties will not
@@ -614,11 +625,14 @@ public class UISettingsViewModel : ObservableObject
 
             if (isDark)
             {
+                // For dark themes, we want the panel to be noticeably darker than the background shell by default.
+                // (e.g. Background: 515C6B -> Panel: 3A4047)
                 return preferBrighterPanel
-                    ? Mix(background, Colors.White, 0.11)
-                    : Mix(background, Colors.Black, 0.22);
+                    ? Mix(background, Colors.White, 0.08)
+                    : Mix(background, Colors.Black, 0.35); // Strongly mix with black to create a darker panel
             }
 
+            // For light themes, we generally want panels to be lighter a bit cleaner (closer to white) than the background color
             return Mix(background, Colors.White, 0.58);
         }
 
@@ -804,13 +818,14 @@ public class UISettingsViewModel : ObservableObject
             var divider = Mix(subtleBorder, panelSurface, isDark ? 0.24 : 0.12);
             var strongBorder = Mix(subtleBorder, text, isDark ? 0.30 : 0.24);
             var panelBorder = Mix(subtleBorder, panelSurface, isDark ? 0.08 : 0.04);
-            var controlBorder = Mix(subtleBorder, controlSurface, isDark ? 0.05 : 0.03);
+            // Drop inner structural borders entirely on lighter/cleaner themes (keep lightly on very dark panels)
+            var controlBorder = isDark ? Mix(subtleBorder, controlSurface, 0.05) : controlSurface;
             var flyoutBorder = Mix(subtleBorder, flyoutSurface, isDark ? 0.30 : 0.22);
             var hoverSurface = Mix(controlSurface, accent, isDark ? 0.12 : 0.08);
             var selectedSurface = Mix(controlSurface, accent, isDark ? 0.22 : 0.16);
             var menuHoverSurface = Mix(chromeSurface, accent, isDark ? 0.08 : 0.06);
             var rowHoverSurface = Mix(panelSurface, accent, isDark ? 0.16 : 0.11);
-            var rowSelectionSurface = Mix(panelSurface, accent, isDark ? 0.28 : 0.20);
+            var rowSelectionSurface = Mix(panelSurface, accent, isDark ? 0.35 : 0.25);
             var accentForeground = GetReadableForeground(accent);
 
             var theme = new FluentTheme

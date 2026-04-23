@@ -70,8 +70,9 @@
     <Style Selector="TextBlock.SectionHeader">
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="FontSize" Value="13"/>
+        <Setter Property="LetterSpacing" Value="0.6"/>
         <Setter Property="Foreground" Value="{DynamicResource AppHeaderForegroundBrush}"/>
-        <Setter Property="Margin" Value="0,10,0,6"/>
+        <Setter Property="Margin" Value="0,18,0,8"/>
     </Style>
     <Style Selector="Grid.SettingRow">
         <Setter Property="Margin" Value="0,2"/>
