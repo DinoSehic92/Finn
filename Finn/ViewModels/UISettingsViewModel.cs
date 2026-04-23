@@ -31,32 +31,26 @@ public class UISettingsViewModel : ObservableObject
         // Slate Ember — blue-slate shell, ink panel, controlled copper accent
         new ThemePreset("Slate Ember", Color.Parse("#40474D"), Color.Parse("#BE7551"), Color.Parse("#23272B"), Color.Parse("#E7E1DA"), Color.Parse("#384048"), true,  false, true),
 
-        // Harbor Night — sea-smoke shell with greener coastal accent
-        new ThemePreset("Harbor Night", Color.Parse("#3D4748"), Color.Parse("#6A9B93"), Color.Parse("#212829"), Color.Parse("#DEE8E5"), Color.Parse("#323C3C"), true,  true,  false),
+        // Harbor Night — sea-smoke shell with tweaked coastal accent
+        new ThemePreset("Harbor Night", Color.Parse("#3D4748"), Color.Parse("#7CA8A1"), Color.Parse("#212829"), Color.Parse("#DEE8E5"), Color.Parse("#323C3C"), true,  true,  false),
 
         // Ink & Cream — cool navy structure with muted crimson highlights
         new ThemePreset("Ink & Cream", Color.Parse("#3F4650"), Color.Parse("#BA3B46"), Color.Parse("#1F242A"), Color.Parse("#F1E8D8"), Color.Parse("#353D46"), true,  false, true),
 
-        // Olive Studio — dry olive shell and darker workshop panel
-        new ThemePreset("Olive Studio", Color.Parse("#49544A"), Color.Parse("#8C9C69"), Color.Parse("#272F28"), Color.Parse("#E8E6D9"), Color.Parse("#3B463D"), true,  false, false),
+        // Olive Studio — dry olive shell and darker workshop panel, warmer less green accent
+        new ThemePreset("Olive Studio", Color.Parse("#49544A"), Color.Parse("#A6A172"), Color.Parse("#272F28"), Color.Parse("#E8E6D9"), Color.Parse("#3B463D"), true,  false, false),
 
-        // Plum Smoke — smoky plum-grey with subdued mauve accent
-        new ThemePreset("Plum Smoke", Color.Parse("#4A454D"), Color.Parse("#9A7AA1"), Color.Parse("#27232A"), Color.Parse("#E8E0EA"), Color.Parse("#39353C"), true,  true,  false),
-
-        // Copper Stone — warm charcoal balanced by a brass-copper accent
-        new ThemePreset("Copper Stone", Color.Parse("#4B433D"), Color.Parse("#B68557"), Color.Parse("#29231F"), Color.Parse("#ECE2D8"), Color.Parse("#3B342F"), true,  false, true),
+        // Copper Stone — warm charcoal balanced by a slightly tweaked brass-copper accent
+        new ThemePreset("Copper Stone", Color.Parse("#4B433D"), Color.Parse("#C4905D"), Color.Parse("#29231F"), Color.Parse("#ECE2D8"), Color.Parse("#3B342F"), true,  false, true),
 
         // Arctic Dusk — cooler steel shell with icy blue detail
         new ThemePreset("Arctic Dusk", Color.Parse("#495563"), Color.Parse("#83A9B7"), Color.Parse("#27303A"), Color.Parse("#E9EFF4"), Color.Parse("#394451"), true,  false, false),
 
-        // Forest Ledger — structured forest shell with calm botanical accent
-        new ThemePreset("Forest Ledger", Color.Parse("#445047"), Color.Parse("#7F9C84"), Color.Parse("#242B26"), Color.Parse("#E1E8E2"), Color.Parse("#354038"), true,  true,  false),
+        // Forest Ledger — structured forest shell with calmer, slightly warmer botanical accent
+        new ThemePreset("Forest Ledger", Color.Parse("#445047"), Color.Parse("#8EAA93"), Color.Parse("#242B26"), Color.Parse("#E1E8E2"), Color.Parse("#354038"), true,  true,  false),
 
         // Storm Blue — modern app-like blue-grey with restrained steel accent
         new ThemePreset("Storm Blue", Color.Parse("#46505B"), Color.Parse("#6D8FB8"), Color.Parse("#252C34"), Color.Parse("#E3E9F0"), Color.Parse("#38404A"), true,  false, true),
-
-        // Mulberry Ash — warm charcoal with muted berry accents for softer contrast
-        new ThemePreset("Mulberry Ash", Color.Parse("#4A4344"), Color.Parse("#A06C74"), Color.Parse("#282324"), Color.Parse("#ECE3E1"), Color.Parse("#393334"), true,  true,  false),
 
         // ── darker mixed-colour dark trials ───────────────────────────────
 
@@ -68,9 +62,6 @@ public class UISettingsViewModel : ObservableObject
 
         // Ember Olive — dark olive-charcoal with a burnished amber accent
         new ThemePreset("Ember Olive", Color.Parse("#434A40"), Color.Parse("#C28A4A"), Color.Parse("#1F241E"), Color.Parse("#ECE7D9"), Color.Parse("#333A31"), true,  false, false),
-
-        // Aubergine Steel — darker plum-grey shell with cool steel-blue support
-        new ThemePreset("Aubergine Steel", Color.Parse("#433E46"), Color.Parse("#7D97B6"), Color.Parse("#1F1B22"), Color.Parse("#EAE3E8"), Color.Parse("#332F36"), true,  true,  false),
 
         // Copper Night — soot-brown structure with stronger copper-orange energy
         new ThemePreset("Copper Night", Color.Parse("#443B36"), Color.Parse("#C98342"), Color.Parse("#1E1917"), Color.Parse("#EEE2D7"), Color.Parse("#342D29"), true,  false, true),
