@@ -37,37 +37,26 @@ public class UISettingsViewModel : ObservableObject
         // Ink & Cream — cool navy structure with muted crimson highlights
         new ThemePreset("Ink & Cream", Color.Parse("#3F4650"), Color.Parse("#BA3B46"), Color.Parse("#1F242A"), Color.Parse("#F1E8D8"), Color.Parse("#353D46"), true,  false, true),
 
-        // Olive Studio — dry olive shell and darker workshop panel, warmer less green accent
-        new ThemePreset("Olive Studio", Color.Parse("#49544A"), Color.Parse("#A6A172"), Color.Parse("#272F28"), Color.Parse("#E8E6D9"), Color.Parse("#3B463D"), true,  false, false),
+        // Olive Studio — dry olive shell and darker workshop panel with a richer ochre accent
+        new ThemePreset("Olive Studio", Color.Parse("#49544A"), Color.Parse("#C29A58"), Color.Parse("#272F28"), Color.Parse("#E8E6D9"), Color.Parse("#3B463D"), true,  false, true),
 
-        // Copper Stone — warm charcoal balanced by a slightly tweaked brass-copper accent
-        new ThemePreset("Copper Stone", Color.Parse("#4B433D"), Color.Parse("#C4905D"), Color.Parse("#29231F"), Color.Parse("#ECE2D8"), Color.Parse("#3B342F"), true,  false, true),
+        // Atlantic Frame — dark navy shell with a near-ink panel and restrained cool blue accent
+        new ThemePreset("Atlantic Frame", Color.Parse("#404B5A"), Color.Parse("#7398C2"), Color.Parse("#1A2027"), Color.Parse("#E5ECF2"), Color.Parse("#313B47"), true, false, true),
 
-        // Arctic Dusk — cooler steel shell with icy blue detail
-        new ThemePreset("Arctic Dusk", Color.Parse("#495563"), Color.Parse("#83A9B7"), Color.Parse("#27303A"), Color.Parse("#E9EFF4"), Color.Parse("#394451"), true,  false, false),
+        // Harbor Graphite — dark harbor-grey shell, clean ink panel, and quiet slate-blue accent
+        new ThemePreset("Harbor Graphite", Color.Parse("#43494E"), Color.Parse("#7C95AA"), Color.Parse("#1D2125"), Color.Parse("#E5E9EC"), Color.Parse("#34393E"), true, false, true),
 
-        // Forest Ledger — structured forest shell with calmer, slightly warmer botanical accent
-        new ThemePreset("Forest Ledger", Color.Parse("#445047"), Color.Parse("#8EAA93"), Color.Parse("#242B26"), Color.Parse("#E1E8E2"), Color.Parse("#354038"), true,  true,  false),
+        // Aurora Forge — blue-steel shell, ember-dark panel, and luminous apricot accent with dramatic contrast
+        new ThemePreset("Aurora Forge", Color.Parse("#455262"), Color.Parse("#E79A72"), Color.Parse("#1F2329"), Color.Parse("#F1E9E2"), Color.Parse("#36424F"), true, true, true),
 
-        // Storm Blue — modern app-like blue-grey with restrained steel accent
-        new ThemePreset("Storm Blue", Color.Parse("#46505B"), Color.Parse("#6D8FB8"), Color.Parse("#252C34"), Color.Parse("#E3E9F0"), Color.Parse("#38404A"), true,  false, true),
+        // Saffron Coal — charcoal shell, roasted black panel, and rich saffron accent with gallery-like warmth
+        new ThemePreset("Saffron Coal", Color.Parse("#4A4540"), Color.Parse("#D8A44E"), Color.Parse("#201D1A"), Color.Parse("#F0E8DE"), Color.Parse("#39342F"), true, false, true),
 
-        // ── darker mixed-colour dark trials ───────────────────────────────
+        // Moonlit Brass — midnight slate shell, soot-dark panel, and pale brass accent with a refined editorial feel
+        new ThemePreset("Moonlit Brass", Color.Parse("#484B52"), Color.Parse("#C8B078"), Color.Parse("#212327"), Color.Parse("#F0ECE2"), Color.Parse("#383B40"), true, false, true),
 
-        // Deep Harbor — darker petrol shell with sea-glass accent and warm cream text
-        new ThemePreset("Deep Harbor", Color.Parse("#364245"), Color.Parse("#6FA39D"), Color.Parse("#171D1F"), Color.Parse("#ECE5D9"), Color.Parse("#2B383B"), true,  true,  false),
-
-        // Crimson Ink — inky blue-black structure with a richer red accent
-        new ThemePreset("Crimson Ink", Color.Parse("#38404A"), Color.Parse("#C44756"), Color.Parse("#171C22"), Color.Parse("#F0E6D8"), Color.Parse("#2E3740"), true,  false, true),
-
-        // Ember Olive — dark olive-charcoal with a burnished amber accent
-        new ThemePreset("Ember Olive", Color.Parse("#434A40"), Color.Parse("#C28A4A"), Color.Parse("#1F241E"), Color.Parse("#ECE7D9"), Color.Parse("#333A31"), true,  false, false),
-
-        // Copper Night — soot-brown structure with stronger copper-orange energy
-        new ThemePreset("Copper Night", Color.Parse("#443B36"), Color.Parse("#C98342"), Color.Parse("#1E1917"), Color.Parse("#EEE2D7"), Color.Parse("#342D29"), true,  false, true),
-
-        // Midnight Pine — dark blue-green shell with a cleaner botanical accent
-        new ThemePreset("Midnight Pine", Color.Parse("#384542"), Color.Parse("#78A087"), Color.Parse("#18201E"), Color.Parse("#E5E9E2"), Color.Parse("#2C3734"), true,  true,  false),
+        // Petrol Crown — regal petrol shell, near-black panel, and aged-gold accent designed to feel bold and premium
+        new ThemePreset("Petrol Crown", Color.Parse("#3F5356"), Color.Parse("#C7A35B"), Color.Parse("#1A2122"), Color.Parse("#EFE9DD"), Color.Parse("#304144"), true, false, true),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
@@ -81,8 +70,8 @@ public class UISettingsViewModel : ObservableObject
         // Pearl — neutral cool white with navy accent; safest all-purpose light preset
         new ThemePreset("Pearl",    Color.Parse("#F3F5F7"), Color.Parse("#365F9D"), Color.Parse("#FFFFFF"), Color.Parse("#1F2635"), Color.Parse("#C0C8D4"), true,  true,  false),
 
-        // Frost — icy teal-white with a controlled teal accent
-        new ThemePreset("Frost",    Color.Parse("#ECF4F5"), Color.Parse("#1A7882"), Color.Parse("#FFFFFF"), Color.Parse("#173236"), Color.Parse("#ABCFD4"), true,  true,  false),
+        // Frost — sharper icy white-grey shell with brighter cyan
+        new ThemePreset("Frost", Color.Parse("#F0F3F4"), Color.Parse("#008B9B"), Color.Parse("#FFFFFF"), Color.Parse("#14323A"), Color.Parse("#A0D6DE"), true,  true,  false),
 
         // Linen — warm paper with restrained terracotta; soft without drifting muddy
         new ThemePreset("Linen",    Color.Parse("#F4ECE3"), Color.Parse("#B66332"), Color.Parse("#FCFAF7"), Color.Parse("#2D1D12"), Color.Parse("#CBB9A2"), true,  true,  false),
@@ -90,8 +79,8 @@ public class UISettingsViewModel : ObservableObject
         // Porcelain — crisp blue-white with cooler structure; sharper than Cloud
         new ThemePreset("Porcelain",Color.Parse("#E8EEF6"), Color.Parse("#4475B5"), Color.Parse("#FDFEFF"), Color.Parse("#1B2536"), Color.Parse("#B9C7DA"), true,  true,  false),
 
-        // Sandstone — warm mineral neutral with muted rust accent
-        new ThemePreset("Sandstone",Color.Parse("#EFE6DC"), Color.Parse("#A96A3D"), Color.Parse("#FBF8F4"), Color.Parse("#2C2218"), Color.Parse("#CBBBA9"), true,  false, true),
+        // Sandstone — clear white panel to avoid muddy look, warmer burnt terracota
+        new ThemePreset("Sandstone", Color.Parse("#EFECE6"), Color.Parse("#C45A36"), Color.Parse("#FFFFFF"), Color.Parse("#2A201C"), Color.Parse("#CFC7C0"), true,  false, true),
 
         // Willow — pale green-grey with restrained green accent; natural and low-noise
         new ThemePreset("Willow",   Color.Parse("#E9EFE7"), Color.Parse("#66856D"), Color.Parse("#FBFCFA"), Color.Parse("#1F2A22"), Color.Parse("#BECABF"), true,  false, false),
