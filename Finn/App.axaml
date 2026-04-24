@@ -429,14 +429,15 @@
 		</Style>
 
 		<Style Selector="DataGridColumnHeader">
-			<Setter Property="Height" Value="26"/>
+			<Setter Property="MinHeight" Value="26"/>
+			<Setter Property="MaxHeight" Value="26"/>
 			<Setter Property="FontSize" Value="12"/>
 			<Setter Property="FontWeight" Value="SemiBold"/>
 			<Setter Property="FontStyle" Value="Normal"/>
 			<Setter Property="Foreground" Value="{DynamicResource AppHeaderForegroundBrush}"/>
 			<Setter Property="Padding" Value="8,0,0,0"/>
 			<Setter Property="Background" Value="{DynamicResource AppHeaderSurfaceBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AppStrongBorderBrush}"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource AppStrongBorderBrush}"/>
 			<Setter Property="BorderThickness" Value="0,0,0,1"/>
 		</Style>
 

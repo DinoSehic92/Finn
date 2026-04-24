@@ -1855,10 +1855,9 @@
 		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="{Binding UI.TreeViewWidth}" Classes="AnimatedPanel">
             <Border Classes="shadow" Background="{DynamicResource AppPanelSurfaceBrush}">
 				<Border Classes="clip-inner" CornerRadius="{DynamicResource AppCornerRadius}" ClipToBounds="True">
-				<Grid RowDefinitions="31,Auto,*">
+				<Grid RowDefinitions="26,Auto,*">
 				<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppHeaderSurfaceBrush}">
 						<StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
-							<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" FontSize="13" Foreground="{DynamicResource SystemAccentColor}"/>
 						<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
 									   Foreground="{DynamicResource AppHeaderForegroundBrush}"
 									   VerticalAlignment="Center"/>
@@ -1866,14 +1865,15 @@
 						<Button Grid.Column="1" Click="OnTreeNewProjectButton"
 								ToolTip.Tip="New Project"
 								Classes="ghost"
-								Padding="6,2" Margin="0,2,4,2"
+								Padding="6,2" Margin="0,0,4,0"
+								Height="26" MinHeight="0"
 								VerticalAlignment="Center">
 							<ic:SymbolIcon Symbol="FolderAdd" FontSize="16"/>
 						</Button>
 					</Grid>
 					<Border Grid.Row="1" Height="1"
-							Background="{DynamicResource AppDividerBrush}"
-							Opacity="0.75" HorizontalAlignment="Stretch"/>
+							Background="{DynamicResource AppStrongBorderBrush}"
+							Opacity="1.0" HorizontalAlignment="Stretch"/>
 					<TreeView Grid.Row="2" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
 											  ItemsSource="{Binding TreeNodes}"
 							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">

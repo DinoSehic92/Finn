@@ -66,7 +66,7 @@
 					</StackPanel>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-					<Label Content="Grid"/>
+					<Label Content="Panel"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.DarkPanelColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
 						<ColorPicker Color="{Binding UI.DarkPanelColor}" Width="80" HorizontalAlignment="Left" Name="PanelColorPickerDark"/>
@@ -107,7 +107,7 @@
 					</StackPanel>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
-					<Label Content="Grid"/>
+					<Label Content="Panel"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.LightPanelColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
 						<ColorPicker Color="{Binding UI.LightPanelColor}" Width="80" HorizontalAlignment="Left" Name="PanelColorPickerLight"/>

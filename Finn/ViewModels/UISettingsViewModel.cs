@@ -390,10 +390,11 @@ public class UISettingsViewModel : ObservableObject
                 // Create a richer tinted shadow by mixing pure black with some of the background hue
                 // rather than just using raw #000000 black
                 var shadowBase = Mix(Colors.Black, (DarkMode ? Color1 : Color3), 0.15);
-                var colorString = shadowBase.ToString(); // e.g. #FF1A1E24
 
-                // We strip the alpha channel off the mixed color and replace it with our desired opacities (22 and 11 hex)
-                var rgbOnly = colorString.Substring(3); // skip # and FF
+                // Color.ToString() sometimes returns "#RGB" or "Black" instead of "#AARRGGBB"
+                // Extract R, G, B channels directly to ensure proper formatting
+                var rgbOnly = $"{shadowBase.R:X2}{shadowBase.G:X2}{shadowBase.B:X2}";
+
                 Shadow = BoxShadows.Parse($"0 2 6 0 #22{rgbOnly}, 0 8 24 0 #11{rgbOnly}");
             }
             else
@@ -518,7 +519,7 @@ public class UISettingsViewModel : ObservableObject
             {
                 color1 = background;
 
-                var generatedText = GetReadableForeground(background);
+                var generatedText = GetReadableForeground(background, color2);
                 var generatedPanel = GeneratePanelColor(background, preferBrighterPanel: ShouldPreferBrighterPanel(background));
                 var generatedBorder = GenerateBorderColor(background, generatedPanel, generatedText);
 
@@ -552,7 +553,7 @@ public class UISettingsViewModel : ObservableObject
             {
                 color3 = background;
 
-                var generatedText = GetReadableForeground(background);
+                var generatedText = GetReadableForeground(background, color4);
                 var generatedPanel = GeneratePanelColor(background, preferBrighterPanel: true);
                 var generatedBorder = GenerateBorderColor(background, generatedPanel, generatedText);
 
@@ -626,10 +627,10 @@ public class UISettingsViewModel : ObservableObject
             if (isDark)
             {
                 // For dark themes, we want the panel to be noticeably darker than the background shell by default.
-                // (e.g. Background: 515C6B -> Panel: 3A4047)
+                // We mix strongly with black to sink the panel depth, similar to Aurora Forge and Petrol Crown.
                 return preferBrighterPanel
                     ? Mix(background, Colors.White, 0.08)
-                    : Mix(background, Colors.Black, 0.35); // Strongly mix with black to create a darker panel
+                    : Mix(background, Colors.Black, 0.54); 
             }
 
             // For light themes, we generally want panels to be lighter a bit cleaner (closer to white) than the background color
@@ -639,14 +640,22 @@ public class UISettingsViewModel : ObservableObject
         private static Color GenerateBorderColor(Color background, Color panel, Color text)
         {
             var isDark = IsDark(background);
-            var baseBorder = Mix(panel, text, isDark ? 0.20 : 0.16);
+            // Slightly stronger border contrast relative to the darker panel
+            var baseBorder = Mix(panel, text, isDark ? 0.22 : 0.16);
             return Mix(baseBorder, background, isDark ? 0.18 : 0.08);
         }
 
-        private static Color GetReadableForeground(Color background) =>
-            IsDark(background)
-                ? Color.Parse("#F4F7FB")
-                : Color.Parse("#16202B");
+        private static Color GetReadableForeground(Color background, Color accent)
+        {
+            if (IsDark(background))
+            {
+                // Pull warmth and cohesiveness into the text by mixing pure white with the background
+                // AND a bit of the accent color (matching the warmth of Aurora/Petrol)
+                var tintedWhite = Mix(Color.Parse("#FFFFFF"), background, 0.15);
+                return Mix(tintedWhite, accent, 0.08);
+            }
+            return Color.Parse("#16202B");
+        }
 
         // Convert the runtime UI viewmodel into the lightweight storage DTO
         public Finn.Storage.UIStorage ToStorage()
@@ -781,7 +790,7 @@ public class UISettingsViewModel : ObservableObject
 
             var text = textEnabled
                 ? (DarkMode ? this.DarkTextColor : this.LightTextColor)
-                : GetReadableForeground(background);
+                : GetReadableForeground(background, accent);
 
             var panel = panelEnabled
                 ? (DarkMode ? this.DarkPanelColor : this.LightPanelColor)
@@ -799,9 +808,8 @@ public class UISettingsViewModel : ObservableObject
                 ? Mix(chromeSurface, Colors.White, 0.035)
                 : Mix(chromeSurface, panel, 0.08);
 
-            var panelSurface = isDark
-                ? Mix(panel, Colors.White, 0.045)
-                : Mix(panel, background, 0.14);
+            // Use the panel color exactly as chosen for the main layer
+            var panelSurface = panel;
 
             var controlSurface = isDark
                 ? Mix(panelSurface, Colors.White, 0.08)
