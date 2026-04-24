@@ -847,6 +847,9 @@ public partial class MainView : UserControl
             _suppressTreeSelection = true;
             MainTree.SelectedItem = null;
             _suppressTreeSelection = false;
+            using (SuppressSelection())
+                FileGrid.SelectedItem = null;
+            _ = _ctx.PreviewVM.CloseRendererAsync();
             return;
         }
 

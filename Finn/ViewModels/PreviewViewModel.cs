@@ -1098,6 +1098,7 @@ namespace Finn.ViewModels
             }
         }
 
+
         /// <summary>
         /// Re-initializes the secondary renderer after an embedded/windowed swap
         /// while TwopageMode was already active. The caller must have already set
@@ -1584,6 +1585,20 @@ namespace Finn.ViewModels
             SearchBusy = false;
             ClearSearch();
 
+            // Always reset UI-facing state, even when no document is loaded,
+            // so stale page numbers and file references are never left visible.
+            fileAvailable = false;
+            Pagecount = 0;
+            Pagecount2 = 0;
+            CurrentFile = null;
+            RequestFile = null;
+            StatusMessage = string.Empty;
+            Dispatcher.UIThread.Post(() =>
+            {
+                try { mainRenderer?.InvalidateVisual(); } catch { }
+                try { if (!dualFileMode) secondaryRenderer?.InvalidateVisual(); } catch { }
+            });
+
             if (MainPreviewFile == null) return;
 
             // Ensure no render is in progress while disposing native resources.
@@ -1602,8 +1617,12 @@ namespace Finn.ViewModels
                             secondaryRenderer.HighlightedRegions = null;
 
                         mainRenderer?.ReleaseResources();
+                        mainRenderer?.InvalidateVisual();
                         if (!dualFileMode)
+                        {
                             secondaryRenderer?.ReleaseResources();
+                            secondaryRenderer?.InvalidateVisual();
+                        }
 
                         // Null the fields BEFORE disposing so the GC finalizer
                         // cannot race against explicit disposal. Capture the old
@@ -1612,7 +1631,6 @@ namespace Finn.ViewModels
                         var prevCtx = context;
                         MainPreviewFile = null;
                         context = null;
-                        fileAvailable = false;
 
                         try { prevDoc?.Dispose(); }
                         catch { if (prevDoc != null) GC.SuppressFinalize(prevDoc); }
