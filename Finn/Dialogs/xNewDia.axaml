@@ -30,7 +30,7 @@
 						<TextBox Name="ProjectName" VerticalAlignment="Center"/>
 					</Border>
 					<Border Classes="shadow" Grid.Row="1" Grid.Column="1" Width="160">
-						<TextBox Name="ProjectGroup" VerticalAlignment="Center"/>
+						<ComboBox Name="ProjectGroup" Width="160" VerticalAlignment="Center"/>
 					</Border>
 					<Border Classes="shadow" Grid.Row="0" Grid.Column="1" Width="160">
 						<ComboBox Name="ProjectCategory" Width="160" VerticalAlignment="Center" SelectedIndex="2">

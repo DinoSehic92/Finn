@@ -22,6 +22,19 @@ public partial class xEditDia : Window
         ProjectCategory.AddHandler(ComboBox.LoadedEvent, SetupCategory);
         this.FindControl<ComboBox>("ProjectGroup")?.AddHandler(ComboBox.LoadedEvent, SetupGroupCombo);
 
+        // Wire the category→group refresh only after the window is fully open,
+        // so the initial SetupCategory selection does not reset the group picker.
+        Opened += (_, _) =>
+        {
+            if (DataContext is not MainViewModel ctx) return;
+            ProjectCategory.SelectionChanged += (_, _) =>
+            {
+                string cat = (ProjectCategory.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                             ?? ctx.CurrentProject.Category;
+                RefreshGroupPicker(cat, null);
+            };
+        };
+
         KeyDown += CloseKey;
     }
 
@@ -33,11 +46,20 @@ public partial class xEditDia : Window
         _projectGroupCombo = sender as ComboBox ?? this.FindControl<ComboBox>("ProjectGroup");
         if (_projectGroupCombo == null) return;
 
-        _groupItems = ctx.GetProjectGroupPickerItems();
+        RefreshGroupPicker(ctx.CurrentProject.Category, ctx.CurrentProject.Parent);
+    }
+
+    private void RefreshGroupPicker(string category, string? selectedGroup)
+    {
+        if (_projectGroupCombo == null) return;
+        if (DataContext is not MainViewModel ctx) return;
+
+        _groupItems = ctx.GetProjectGroupPickerItems(category);
         _projectGroupCombo.ItemsSource = _groupItems.Select(i => i.Label).ToList();
 
-        string? currentParent = ctx.CurrentProject.Parent;
-        int idx = _groupItems.ToList().FindIndex(i => i.GroupName == currentParent);
+        int idx = selectedGroup != null
+            ? _groupItems.ToList().FindIndex(i => i.GroupName == selectedGroup)
+            : -1;
         _projectGroupCombo.SelectedIndex = idx >= 0 ? idx : 0;
     }
 

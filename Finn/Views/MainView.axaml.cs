@@ -1248,15 +1248,15 @@ public partial class MainView : UserControl
 
     private async void OnTreeNewSubgroup(object? sender, RoutedEventArgs e)
     {
-        // Reuse the same unified dialog — it will pre-select the right parent
-        await OnTreeNewGroupAsync(sender, e);
-    }
-
-    private async Task OnTreeNewGroupAsync(object? sender, RoutedEventArgs e)
-    {
         var window = ParentWindow;
         var dialog = new Finn.Dialogs.xNewGroupDia();
         _ctx.ConfigureWindow(dialog, window);
+
+        // Pre-select the right-clicked group so it opens as the parent
+        string? parentGroupName = _lastRightClickedNode?.GroupName;
+        if (!string.IsNullOrEmpty(parentGroupName))
+            dialog.PreSelectGroup(parentGroupName);
+
         await dialog.ShowDialog(window);
 
         if (!string.IsNullOrWhiteSpace(dialog.ResultName))
@@ -1290,13 +1290,17 @@ public partial class MainView : UserControl
         }
     }
 
-    private void OnTreeRemoveGroup(object? sender, RoutedEventArgs e)
+    private async void OnTreeRemoveGroup(object? sender, RoutedEventArgs e)
     {
         string? groupName = _lastRightClickedNode?.GroupName;
         if (string.IsNullOrEmpty(groupName)) return;
 
         var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
         if (group == null) return;
+
+        var window = ParentWindow;
+        await _ctx.ConfirmDeleteDia(window);
+        if (!_ctx.Confirmed) return;
 
         _ctx.RemoveProjectGroup(group);
         _ctx.BuildTreeData();
@@ -1306,8 +1310,11 @@ public partial class MainView : UserControl
     {
         if (_ctx.CurrentProject == null) return;
 
-        // Build a picker window: a simple flyout with a ListBox of all groups + top-level option
+        string projectCategory = _ctx.CurrentProject.Category;
+
+        // Only show groups that belong to the same category as the project
         var allGroups = _ctx.Storage.ProjectGroups
+            .Where(g => g.Category == projectCategory)
             .OrderBy(g => g.ParentGroup ?? "")
             .ThenBy(g => g.SortOrder)
             .ToList();

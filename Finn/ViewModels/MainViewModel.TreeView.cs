@@ -51,7 +51,8 @@ namespace Finn.ViewModels
             foreach (string category in CategoryTypes)
             {
                 var projects = Storage.StoredProjects.Where(x => x.Category == category).ToList();
-                if (projects.Count == 0) continue;
+                var groups = Storage.ProjectGroups.Where(g => g.Category == category).ToList();
+                if (projects.Count == 0 && groups.Count == 0) continue;
 
                 var categoryChildren = new List<TreeNodeData>();
 
@@ -64,8 +65,8 @@ namespace Finn.ViewModels
                 }
 
                 // Top-level groups for this category
-                var topLevelGroups = Storage.ProjectGroups
-                    .Where(g => g.Category == category && string.IsNullOrEmpty(g.ParentGroup))
+                var topLevelGroups = groups
+                    .Where(g => string.IsNullOrEmpty(g.ParentGroup))
                     .OrderBy(g => g.SortOrder)
                     .ToList();
 
@@ -143,10 +144,11 @@ namespace Finn.ViewModels
                     Tag = "Subgroup",
                     GroupName = sub.Name,
                     IconSymbol = "FolderOpen",
-                    FontSize = 14,
+                    FontSize = 13,
                     FontWeight = FontWeight.SemiBold,
                     IsExpanded = true,
                     NodeOpacity = 0.88,
+                    BadgeText = subChildren.Count > 0 ? subChildren.Count.ToString() : null,
                     Children = subChildren
                 });
             }
@@ -156,11 +158,15 @@ namespace Finn.ViewModels
                 Header = group.Name,
                 Tag = "Group",
                 GroupName = group.Name,
-                IconSymbol = "Album",
-                FontSize = 15,
-                FontWeight = FontWeight.Bold,
+                IconSymbol = "FolderMultiple",
+                FontSize = 14,
+                FontWeight = FontWeight.SemiBold,
                 IsExpanded = true,
                 NodeOpacity = 0.92,
+                BadgeText = groupChildren.Count(c => c.Tag == "All Types") > 0 
+                                ? groupChildren.Count(c => c.Tag == "All Types").ToString() 
+                                : null,
+                NodeMargin = new Avalonia.Thickness(0, 4, 0, 0),
                 Children = groupChildren
             };
 
@@ -289,7 +295,7 @@ namespace Finn.ViewModels
                 SyncTooltip = project.IsShared ? project.SharedSyncStatus.ToString() : null,
                 IsViewer = project.IsViewer,
                 ViewerTooltip = project.IsViewer ? "Read-only viewer" : null,
-                FontSize = 15,
+                FontSize = 14,
                 IsExpanded = isCurrent,
                 Foreground = foreground,
                 Children = children

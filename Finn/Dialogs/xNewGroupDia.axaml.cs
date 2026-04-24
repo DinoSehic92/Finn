@@ -33,9 +33,20 @@ public partial class xNewGroupDia : Window
 
         ParentPicker.ItemsSource = _items.Select(i => i.Label).ToList();
         // Default to the "▶  Project" category entry
-        int idx = _items.ToList().FindIndex(i => i.GroupName == null && i.Category == "Project");
-        ParentPicker.SelectedIndex = idx >= 0 ? idx : 0;
+        int defaultIdx = _items.ToList().FindIndex(i => i.GroupName == null && i.Category == "Project");
+        int idx = _preSelectGroup != null
+            ? _items.ToList().FindIndex(i => i.GroupName == _preSelectGroup)
+            : defaultIdx;
+        ParentPicker.SelectedIndex = idx >= 0 ? idx : (defaultIdx >= 0 ? defaultIdx : 0);
     }
+
+    private string? _preSelectGroup;
+
+    /// <summary>
+    /// Pre-selects a parent group entry in the picker when the dialog opens.
+    /// Call this before ShowDialog.
+    /// </summary>
+    public void PreSelectGroup(string groupName) => _preSelectGroup = groupName;
 
     private void OnCreate(object? sender, RoutedEventArgs e)
     {

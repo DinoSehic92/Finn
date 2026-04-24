@@ -85,10 +85,8 @@ public partial class MainView
                     {
                         "NewProjectMenuItem"         => true,
                         "NewGroupMenuItem"           => !isAnyGroup,
-                        "NewSubgroupMenuItem"        => isGroupNode,
                         "RenameGroupMenuItem"        => isAnyGroup,
                         "RemoveGroupMenuItem"        => isAnyGroup,
-                        "AddFilesMenuItem"           => showProjectActions,
                         "EditProjectMenuItem"        => showProjectActions,
                         "ExportProjectMenuItem"      => showProjectActions,
                         "ShareMenuItem"              => showShareActions,

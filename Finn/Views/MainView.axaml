@@ -1954,24 +1954,18 @@
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
 										</MenuItem>
 										<!-- Group management (visible on group/subgroup nodes) -->
-										<MenuItem Name="NewGroupMenuItem" Header="New Group" Click="OnTreeNewGroup">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="Album"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="NewSubgroupMenuItem" Header="New Subgroup" Click="OnTreeNewSubgroup">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="RenameGroupMenuItem" Header="Rename Group" Click="OnTreeRenameGroup">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="RemoveGroupMenuItem" Header="Remove Group" Click="OnTreeRemoveGroup">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-										</MenuItem>
-										<Separator Name="GroupSeparator"/>
-										<!-- Project nodes only -->
-										<MenuItem Name="AddFilesMenuItem" Header="Add Files" Click="OnAddFiles">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="EditProjectMenuItem" Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
+											<MenuItem Name="NewGroupMenuItem" Header="New Group" Click="OnTreeNewGroup">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="Album"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="RenameGroupMenuItem" Header="Rename Group" Click="OnTreeRenameGroup">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="RemoveGroupMenuItem" Header="Remove Group" Click="OnTreeRemoveGroup">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+											</MenuItem>
+											<Separator Name="GroupSeparator"/>
+											<!-- Project nodes only -->
+											<MenuItem Name="EditProjectMenuItem" Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
 												<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
 											</MenuItem>
 										<Separator Name="SharedSeparator"/>

@@ -103,13 +103,16 @@ namespace Finn.ViewModels
         /// One-time migration: for any ProjectData.Parent string that has no
         /// corresponding GroupData record yet, create a root-level GroupData for it.
         /// Called once from DeserializeLoadFile — not on every tree rebuild.
+        /// Checks per-name so partially-migrated files are handled correctly.
         /// </summary>
         public void MigrateGroupsOnLoad()
         {
-            if (Storage.ProjectGroups.Count > 0) return; // already migrated / populated from JSON
+            var existingNames = new HashSet<string>(
+                Storage.ProjectGroups.Select(g => g.Name),
+                StringComparer.OrdinalIgnoreCase);
 
-            var existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int sortOrder = 0;
+            int sortOrder = Storage.ProjectGroups.Count > 0
+                ? Storage.ProjectGroups.Max(g => g.SortOrder) + 1 : 0;
 
             foreach (var project in Storage.StoredProjects)
             {
@@ -132,12 +135,24 @@ namespace Finn.ViewModels
         /// </summary>
         public Finn.Model.GroupData AddProjectGroup(string name, string category = PROJECT_CATEGORY, string? parentGroup = null)
         {
-            int sortOrder = Storage.ProjectGroups.Count > 0
-                ? Storage.ProjectGroups[Storage.ProjectGroups.Count - 1].SortOrder + 1 : 0;
+            // Enforce one-level nesting: reject parentGroup if it already has a ParentGroup itself
+            if (parentGroup != null)
+            {
+                var parentRecord = Storage.ProjectGroups.FirstOrDefault(g => g.Name == parentGroup);
+                if (parentRecord != null && !string.IsNullOrEmpty(parentRecord.ParentGroup))
+                    parentGroup = parentRecord.ParentGroup; // promote to grandparent so depth stays ≤ 1
+            }
+
+            // Compute SortOrder within the same category + parent scope, not globally
+            int sortOrder = Storage.ProjectGroups
+                .Where(g => g.Category == category && g.ParentGroup == parentGroup)
+                .Select(g => g.SortOrder)
+                .DefaultIfEmpty(-1)
+                .Max() + 1;
 
             var group = new Finn.Model.GroupData
             {
-                Name = EnsureUniqueGroupName(name),
+                Name = EnsureUniqueGroupName(name, category),
                 ParentGroup = parentGroup,
                 Category = category,
                 SortOrder = sortOrder
@@ -154,7 +169,7 @@ namespace Finn.ViewModels
         public void RenameProjectGroup(Finn.Model.GroupData group, string newName)
         {
             if (group == null || string.IsNullOrWhiteSpace(newName)) return;
-            newName = EnsureUniqueGroupName(newName, group);
+            newName = EnsureUniqueGroupName(newName, group.Category, group);
 
             string oldName = group.Name;
             group.Name = newName;
@@ -180,9 +195,13 @@ namespace Finn.ViewModels
 
             string? newParent = group.ParentGroup;
 
-            // Re-parent subgroups to this group's parent (one level up)
-            foreach (var sub in Storage.ProjectGroups.Where(g => g.ParentGroup == group.Name))
+            // Re-parent subgroups to this group's parent (one level up).
+            // Also ensure their Category matches the deleted group's category in case of data drift.
+            foreach (var sub in Storage.ProjectGroups.Where(g => g.ParentGroup == group.Name).ToList())
+            {
                 sub.ParentGroup = newParent;
+                sub.Category = group.Category;
+            }
 
             // Re-parent projects to the parent group (or top-level)
             foreach (var project in Storage.StoredProjects.Where(p => p.Parent == group.Name))
@@ -192,10 +211,10 @@ namespace Finn.ViewModels
             MarkDirty();
         }
 
-        private string EnsureUniqueGroupName(string name, Finn.Model.GroupData? exclude = null)
+        private string EnsureUniqueGroupName(string name, string category, Finn.Model.GroupData? exclude = null)
         {
             var existing = Storage.ProjectGroups
-                .Where(g => g != exclude)
+                .Where(g => g.Category == category && g != exclude)
                 .Select(g => g.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -239,29 +258,28 @@ namespace Finn.ViewModels
         /// Items for the Edit Project Group ComboBox: groups and subgroups only —
         /// no categories (category is set separately). Structured as group → subgroup.
         /// Includes a "No Group" sentinel at the top.
+        /// Only groups belonging to <paramref name="category"/> are included so that
+        /// a project cannot be assigned to a group from a different category.
         /// </summary>
-        public IReadOnlyList<(string Label, string? GroupName, string Category)> GetProjectGroupPickerItems()
+        public IReadOnlyList<(string Label, string? GroupName, string Category)> GetProjectGroupPickerItems(string category)
         {
             var result = new List<(string, string?, string)>();
-            result.Add(("— No Group —", null, "Project"));
+            result.Add(("— No Group —", null, category));
 
-            foreach (var cat in new[] { "Archive", "Library", "Project" })
+            var topLevel = Storage.ProjectGroups
+                .Where(g => g.Category == category && string.IsNullOrEmpty(g.ParentGroup))
+                .OrderBy(g => g.SortOrder)
+                .ToList();
+
+            foreach (var g in topLevel)
             {
-                var topLevel = Storage.ProjectGroups
-                    .Where(g => g.Category == cat && string.IsNullOrEmpty(g.ParentGroup))
-                    .OrderBy(g => g.SortOrder)
-                    .ToList();
+                result.Add((g.Name, g.Name, category));
 
-                foreach (var g in topLevel)
+                foreach (var sub in Storage.ProjectGroups
+                    .Where(s => s.ParentGroup == g.Name)
+                    .OrderBy(s => s.SortOrder))
                 {
-                    result.Add((g.Name, g.Name, cat));
-
-                    foreach (var sub in Storage.ProjectGroups
-                        .Where(s => s.ParentGroup == g.Name)
-                        .OrderBy(s => s.SortOrder))
-                    {
-                        result.Add(($"  ↳ {sub.Name}", sub.Name, cat));
-                    }
+                    result.Add(($"  ↳ {sub.Name}", sub.Name, category));
                 }
             }
 
