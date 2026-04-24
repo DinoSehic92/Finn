@@ -243,10 +243,10 @@ namespace Finn.ViewModels
                 SetProjecCategory(category);
             }
 
-            public void SetGroup(string group)
+            public void SetGroup(string? group)
             {
-                SetGroups(group);
-                GetGroups();
+                CurrentProject.Parent = string.IsNullOrWhiteSpace(group) ? null : group;
+                MarkDirty();
             }
 
             public void CopyFilenameToClipboard(Avalonia.Visual window)

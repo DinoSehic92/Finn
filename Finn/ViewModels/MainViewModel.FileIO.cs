@@ -127,9 +127,9 @@ namespace Finn.ViewModels
                         var projects = JsonHelper.Deserialize<ObservableCollection<ProjectData>>(fileContent);
                         if (projects != null)
                         {
-                            Storage.StoredProjects = projects;
-                            RemoveProjects(Storage.StoredProjects.Where(x => x.Category == SEARCH_CATEGORY).ToList());
-                            RemoveProjects(Storage.StoredProjects.Where(x => x.Category == "Favorites").ToList());
+                            // Filter stale categories directly — avoids per-item SetProjectlist/SortProjects
+                            Storage.StoredProjects = new ObservableCollection<ProjectData>(
+                                projects.Where(x => x.Category != SEARCH_CATEGORY && x.Category != "Favorites"));
                         }
                     }
                     catch (Exception ex)
@@ -146,7 +146,6 @@ namespace Finn.ViewModels
                 // Single pass: migrate, wire references, and validate all files.
                 foreach (var project in Storage.StoredProjects)
                 {
-                    // Migrate legacy nested AppendedFiles into the flat StoredFiles list.
                     project.FlattenAppendedFiles();
 
                     foreach (var file in project.StoredFiles)
@@ -194,9 +193,11 @@ namespace Finn.ViewModels
 
                 SetProjectlist();
                 SetDefaultSelection();
-                GetGroups();
+                MigrateGroupsOnLoad();
                 SyncPreviewRegionColor();
-                Data.SyncPlainText();
+                // SyncPlainText does synchronous file I/O — run on background thread
+                // so it does not block the UI during startup.
+                Task.Run(() => Data.SyncPlainText());
             }
 
             public async Task SaveFile(Avalonia.Visual window)

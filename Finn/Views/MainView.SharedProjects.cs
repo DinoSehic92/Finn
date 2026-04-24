@@ -51,23 +51,21 @@ public partial class MainView
         _ctx.OpenProjectNewDia(ParentWindow);
     }
 
-    /// <summary>
-    /// Shows/hides context menu items based on the node type that was right-clicked
-    /// and the current project's shared state.
-    /// </summary>
     private void OnTreeContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
 
         string tag = _lastRightClickedNode?.Tag ?? string.Empty;
-        bool isProjectNode = tag == "All Types";
-        bool isGroupNode = tag == "Group";
-        bool isShared = _ctx.CurrentProject?.IsShared == true;
-        bool isViewer = _ctx.CurrentProject?.IsViewer == true;
-        bool isSuperuser = _ctx.UI.SuperuserMode;
+        bool isProjectNode  = tag == "All Types";
+        bool isGroupNode    = tag == "Group";
+        bool isSubgroupNode = tag == "Subgroup";
+        bool isAnyGroup     = isGroupNode || isSubgroupNode;
+        bool isShared       = _ctx.CurrentProject?.IsShared == true;
+        bool isViewer       = _ctx.CurrentProject?.IsViewer == true;
+        bool isSuperuser    = _ctx.UI.SuperuserMode;
 
         bool showProjectActions = isProjectNode;
-        bool showShareActions = isSuperuser && isProjectNode;
+        bool showShareActions   = isSuperuser && isProjectNode;
 
         foreach (var child in menu.Items)
         {
@@ -76,21 +74,26 @@ public partial class MainView
                 case Separator sep:
                     sep.IsVisible = sep.Name switch
                     {
+                        "GroupSeparator"  => isAnyGroup,
                         "SharedSeparator" => showShareActions,
                         "RemoveSeparator" => showProjectActions,
-                        _ => true
+                        _                 => true
                     };
                     break;
                 case MenuItem mi:
                     mi.IsVisible = mi.Name switch
                     {
-                        "NewProjectMenuItem"    => true,
-                        "AddFilesMenuItem"      => showProjectActions,
-                        "EditProjectMenuItem"   => showProjectActions,
-                        "ExportProjectMenuItem" => showProjectActions,
-                        "ShareMenuItem"         => showShareActions,
-                        "RemoveProjectMenuItem" => showProjectActions,
-                        _                       => true
+                        "NewProjectMenuItem"         => true,
+                        "NewGroupMenuItem"           => !isAnyGroup,
+                        "NewSubgroupMenuItem"        => isGroupNode,
+                        "RenameGroupMenuItem"        => isAnyGroup,
+                        "RemoveGroupMenuItem"        => isAnyGroup,
+                        "AddFilesMenuItem"           => showProjectActions,
+                        "EditProjectMenuItem"        => showProjectActions,
+                        "ExportProjectMenuItem"      => showProjectActions,
+                        "ShareMenuItem"              => showShareActions,
+                        "RemoveProjectMenuItem"      => showProjectActions,
+                        _                            => true
                     };
 
                     if (mi.Name == "ShareMenuItem")
@@ -112,7 +115,6 @@ public partial class MainView
                             }
                         }
                     }
-
                     break;
             }
         }

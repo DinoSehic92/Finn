@@ -795,10 +795,11 @@
 
 						<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.5"/>
 
-						<!-- Cache source indicator: accent-colored icon matching button width -->
+						<!-- Cache source indicator: shows origin of the loaded file.
+							 HardDrive = local file, Database = from cache, Cloud = from server, ArrowSync = cache refreshed -->
 						<ic:SymbolIcon Symbol="{Binding CacheSourceIcon}" IconVariant="Regular" FontSize="16"
 									   IsVisible="{Binding CacheSourceIcon, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-									   Foreground="{DynamicResource SystemAccentColor}"
+									   Foreground="{DynamicResource AppMutedForegroundBrush}"
 									   Opacity="0.75" Width="30" Height="30"
 									   ToolTip.Tip="{Binding CacheSourceTooltip}"/>
 

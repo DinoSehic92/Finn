@@ -32,8 +32,9 @@
 				<Border Classes="shadow" Grid.Row="2" Grid.Column="1" Width="160" >
 					<TextBox Name="ProjectName" Text="{Binding CurrentProject.Namn, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
 				</Border>
-				<Border Classes="shadow" Grid.Row="1" Grid.Column="1" Width="160" >
-					<TextBox Name="ProjectGroup" Text="{Binding CurrentProject.Parent, Mode=OneTime}" Width="160" VerticalAlignment="Center"/>
+				<Border Classes="shadow" Grid.Row="1" Grid.Column="1" Width="160">
+					<ComboBox Name="ProjectGroup" Width="160" VerticalAlignment="Center"
+							  ToolTip.Tip="Select a category (top-level) or a group (subgroup)"/>
 				</Border>
 				<Border Classes="shadow" Grid.Row="0" Grid.Column="1" Width="160" >
 					<ComboBox Name="ProjectCategory" Width="160" VerticalAlignment="Center">

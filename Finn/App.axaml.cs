@@ -25,6 +25,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = InitializeViewModel();
+            var splash = new SplashWindow();
             var main = new MainWindow
             {
                 DataContext = vm,
@@ -32,13 +33,15 @@ public partial class App : Application
                 Position = new PixelPoint(-30000, -30000),
                 ShowActivated = false
             };
-            var splash = new SplashWindow();
 
             desktop.MainWindow = main;
             desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnMainWindowClose;
 
-            // Show splash on top as soon as the main window opens.
-            main.Opened += (_, _) => splash.Show(main);
+            // Show splash first, then open the hidden main window so its
+            // controls load and InitStartup can run. InitStartup will move
+            // the window to center and close the splash when data is ready.
+            splash.Show();
+            main.Show();
 
             vm.SplashWindow = splash;
         }
@@ -69,23 +72,23 @@ public partial class App : Application
     private static MainViewModel InitializeViewModel()
     {
         var vm = new MainViewModel();
-        // Load persisted UI settings if present (one-time load at startup)
+        // Load persisted UI settings synchronously — file is small and must be
+        // applied before the first frame renders to avoid a flash of default theme.
         try
         {
             var file = System.IO.Path.Combine(MainViewModel.SavePath, "UISettings.json");
             if (System.IO.File.Exists(file))
             {
                 var json = System.IO.File.ReadAllText(file);
-                    var ui = Finn.Utils.JsonHelper.Deserialize<Finn.Storage.UIStorage>(json);
+                var ui = Finn.Utils.JsonHelper.Deserialize<Finn.Storage.UIStorage>(json);
                 if (ui != null)
-                {
                     vm.UI.FromStorage(ui);
-                }
             }
         }
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to load UISettings: {ex}"); }
 
-        // Apply theme and subscribe to UI changes to update theme live
+        // Suppress individual property-changed theme updates while we apply the
+        // full theme once — avoids N redundant ApplyTheme calls during FromStorage.
         vm.UI.ApplyTheme();
 
         vm.UI.PropertyChanged += (s, e) =>

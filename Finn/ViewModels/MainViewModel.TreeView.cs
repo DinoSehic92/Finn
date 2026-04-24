@@ -51,8 +51,7 @@ namespace Finn.ViewModels
             foreach (string category in CategoryTypes)
             {
                 var projects = Storage.StoredProjects.Where(x => x.Category == category).ToList();
-                if (projects.Count == 0)
-                    continue;
+                if (projects.Count == 0) continue;
 
                 var categoryChildren = new List<TreeNodeData>();
 
@@ -64,36 +63,17 @@ namespace Finn.ViewModels
                     selectedNode ??= matched;
                 }
 
-                // Grouped projects (only under "Project" category)
-                if (category == "Project")
+                // Top-level groups for this category
+                var topLevelGroups = Storage.ProjectGroups
+                    .Where(g => g.Category == category && string.IsNullOrEmpty(g.ParentGroup))
+                    .OrderBy(g => g.SortOrder)
+                    .ToList();
+
+                foreach (var group in topLevelGroups)
                 {
-                    foreach (string group in Groups)
-                    {
-                        var groupedProjects = Storage.StoredProjects.Where(x => x.Parent == group).ToList();
-                        if (groupedProjects.Count == 0)
-                            continue;
-
-                        var groupChildren = new List<TreeNodeData>();
-
-                        foreach (var project in groupedProjects)
-                        {
-                            var (projectNode, matched) = BuildProjectNodeData(project);
-                            groupChildren.Add(projectNode);
-                            selectedNode ??= matched;
-                        }
-
-                        categoryChildren.Add(new TreeNodeData
-                        {
-                            Header = group,
-                            Tag = "Group",
-                            IconSymbol = "Album",
-                            FontSize = 15,
-                            FontWeight = FontWeight.Bold,
-                            IsExpanded = true,
-                            NodeOpacity = 0.92,
-                            Children = groupChildren
-                        });
-                    }
+                    var (groupNode, groupMatched) = BuildGroupNodeData(group, projects, ref selectedNode);
+                    categoryChildren.Add(groupNode);
+                    selectedNode ??= groupMatched;
                 }
 
                 string categoryIcon = category switch
@@ -124,6 +104,70 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
+        /// Builds a group node, including any subgroups and their projects.
+        /// </summary>
+        private (TreeNodeData node, TreeNodeData? matched) BuildGroupNodeData(
+            Finn.Model.GroupData group,
+            List<Finn.Model.ProjectData> categoryProjects,
+            ref TreeNodeData? selectedNode)
+        {
+            var groupChildren = new List<TreeNodeData>();
+
+            // Direct projects in this group
+            foreach (var project in categoryProjects.Where(p => p.Parent == group.Name))
+            {
+                var (projectNode, matched) = BuildProjectNodeData(project);
+                groupChildren.Add(projectNode);
+                selectedNode ??= matched;
+            }
+
+            // Subgroups within this group
+            var subGroups = Storage.ProjectGroups
+                .Where(g => g.ParentGroup == group.Name)
+                .OrderBy(g => g.SortOrder)
+                .ToList();
+
+            foreach (var sub in subGroups)
+            {
+                var subChildren = new List<TreeNodeData>();
+                foreach (var project in categoryProjects.Where(p => p.Parent == sub.Name))
+                {
+                    var (projectNode, matched) = BuildProjectNodeData(project);
+                    subChildren.Add(projectNode);
+                    selectedNode ??= matched;
+                }
+
+                groupChildren.Add(new TreeNodeData
+                {
+                    Header = sub.Name,
+                    Tag = "Subgroup",
+                    GroupName = sub.Name,
+                    IconSymbol = "FolderOpen",
+                    FontSize = 14,
+                    FontWeight = FontWeight.SemiBold,
+                    IsExpanded = true,
+                    NodeOpacity = 0.88,
+                    Children = subChildren
+                });
+            }
+
+            var groupNode = new TreeNodeData
+            {
+                Header = group.Name,
+                Tag = "Group",
+                GroupName = group.Name,
+                IconSymbol = "Album",
+                FontSize = 15,
+                FontWeight = FontWeight.Bold,
+                IsExpanded = true,
+                NodeOpacity = 0.92,
+                Children = groupChildren
+            };
+
+            return (groupNode, null);
+        }
+
+        /// <summary>
         /// Lightweight navigation that walks the existing tree nodes to update
         /// <see cref="SelectedTreeNode"/> and <see cref="TreeNodeData.IsExpanded"/>
         /// without rebuilding the tree. Use this when only the current project or
@@ -144,10 +188,18 @@ namespace Finn.ViewModels
             {
                 foreach (var child in categoryNode.Children)
                 {
-                    if (child.Tag == "Group")
+                    if (child.Tag is "Group" or "Subgroup")
                     {
-                        foreach (var projectNode in child.Children)
-                            selectedNode ??= TrySelectProjectNode(projectNode);
+                        foreach (var groupChild in child.Children)
+                        {
+                            if (groupChild.Tag is "Subgroup")
+                            {
+                                foreach (var projectNode in groupChild.Children)
+                                    selectedNode ??= TrySelectProjectNode(projectNode);
+                            }
+                            else
+                                selectedNode ??= TrySelectProjectNode(groupChild);
+                        }
                     }
                     else
                     {

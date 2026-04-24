@@ -96,18 +96,176 @@ namespace Finn.ViewModels
 
         public void GetGroups()
         {
-            Groups.Clear();
+            // Groups are now managed via Storage.ProjectGroups; nothing to recompute.
+        }
 
-            List<string> list = Storage.StoredProjects.Select(x => x.Parent).Where(x => x != null).Distinct().ToList();
-            list.Remove("");
+        /// <summary>
+        /// One-time migration: for any ProjectData.Parent string that has no
+        /// corresponding GroupData record yet, create a root-level GroupData for it.
+        /// Called once from DeserializeLoadFile — not on every tree rebuild.
+        /// </summary>
+        public void MigrateGroupsOnLoad()
+        {
+            if (Storage.ProjectGroups.Count > 0) return; // already migrated / populated from JSON
 
-            Groups = new ObservableCollection<string>(list);
+            var existingNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int sortOrder = 0;
+
+            foreach (var project in Storage.StoredProjects)
+            {
+                if (string.IsNullOrWhiteSpace(project.Parent)) continue;
+                if (existingNames.Contains(project.Parent)) continue;
+
+                Storage.ProjectGroups.Add(new Finn.Model.GroupData
+                {
+                    Name = project.Parent,
+                    ParentGroup = null,
+                    Category = project.Category,
+                    SortOrder = sortOrder++
+                });
+                existingNames.Add(project.Parent);
+            }
+        }
+
+        /// <summary>
+        /// Creates a new GroupData record and optionally places it inside a parent group.
+        /// </summary>
+        public Finn.Model.GroupData AddProjectGroup(string name, string category = PROJECT_CATEGORY, string? parentGroup = null)
+        {
+            int sortOrder = Storage.ProjectGroups.Count > 0
+                ? Storage.ProjectGroups[Storage.ProjectGroups.Count - 1].SortOrder + 1 : 0;
+
+            var group = new Finn.Model.GroupData
+            {
+                Name = EnsureUniqueGroupName(name),
+                ParentGroup = parentGroup,
+                Category = category,
+                SortOrder = sortOrder
+            };
+
+            Storage.ProjectGroups.Add(group);
+            MarkDirty();
+            return group;
+        }
+
+        /// <summary>
+        /// Renames a GroupData record and updates all ProjectData.Parent references.
+        /// </summary>
+        public void RenameProjectGroup(Finn.Model.GroupData group, string newName)
+        {
+            if (group == null || string.IsNullOrWhiteSpace(newName)) return;
+            newName = EnsureUniqueGroupName(newName, group);
+
+            string oldName = group.Name;
+            group.Name = newName;
+
+            // Also update the ParentGroup pointer on any subgroups referencing this group
+            foreach (var sub in Storage.ProjectGroups.Where(g => g.ParentGroup == oldName))
+                sub.ParentGroup = newName;
+
+            // Update all projects that were in this group
+            foreach (var project in Storage.StoredProjects.Where(p => p.Parent == oldName))
+                project.Parent = newName;
+
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// Removes a GroupData record. Projects in the group are moved to the parent group
+        /// (or made top-level if there is no parent). Subgroups are promoted to the same level.
+        /// </summary>
+        public void RemoveProjectGroup(Finn.Model.GroupData group)
+        {
+            if (group == null) return;
+
+            string? newParent = group.ParentGroup;
+
+            // Re-parent subgroups to this group's parent (one level up)
+            foreach (var sub in Storage.ProjectGroups.Where(g => g.ParentGroup == group.Name))
+                sub.ParentGroup = newParent;
+
+            // Re-parent projects to the parent group (or top-level)
+            foreach (var project in Storage.StoredProjects.Where(p => p.Parent == group.Name))
+                project.Parent = newParent;
+
+            Storage.ProjectGroups.Remove(group);
+            MarkDirty();
+        }
+
+        private string EnsureUniqueGroupName(string name, Finn.Model.GroupData? exclude = null)
+        {
+            var existing = Storage.ProjectGroups
+                .Where(g => g != exclude)
+                .Select(g => g.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (!existing.Contains(name)) return name;
+
+            int i = 2;
+            while (existing.Contains($"{name} {i}")) i++;
+            return $"{name} {i}";
         }
 
         public void SetGroups(string group)
         {
             CurrentProject.Parent = group;
             MarkDirty();
+        }
+
+        /// <summary>
+        /// Items for the New Group dialog: categories (creates top-level group)
+        /// and top-level groups (creates subgroup). Shows ▶ for categories, ↳ for groups.
+        /// </summary>
+        public IReadOnlyList<(string Label, string? GroupName, string Category)> GetGroupParentPickerItems()
+        {
+            var result = new List<(string, string?, string)>();
+
+            foreach (var cat in new[] { "Archive", "Library", "Project" })
+            {
+                result.Add(($"▶  {cat}", null, cat));
+
+                foreach (var g in Storage.ProjectGroups
+                    .Where(g => g.Category == cat && string.IsNullOrEmpty(g.ParentGroup))
+                    .OrderBy(g => g.SortOrder))
+                {
+                    result.Add(($"    ↳ {g.Name}", g.Name, cat));
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Items for the Edit Project Group ComboBox: groups and subgroups only —
+        /// no categories (category is set separately). Structured as group → subgroup.
+        /// Includes a "No Group" sentinel at the top.
+        /// </summary>
+        public IReadOnlyList<(string Label, string? GroupName, string Category)> GetProjectGroupPickerItems()
+        {
+            var result = new List<(string, string?, string)>();
+            result.Add(("— No Group —", null, "Project"));
+
+            foreach (var cat in new[] { "Archive", "Library", "Project" })
+            {
+                var topLevel = Storage.ProjectGroups
+                    .Where(g => g.Category == cat && string.IsNullOrEmpty(g.ParentGroup))
+                    .OrderBy(g => g.SortOrder)
+                    .ToList();
+
+                foreach (var g in topLevel)
+                {
+                    result.Add((g.Name, g.Name, cat));
+
+                    foreach (var sub in Storage.ProjectGroups
+                        .Where(s => s.ParentGroup == g.Name)
+                        .OrderBy(s => s.SortOrder))
+                    {
+                        result.Add(($"  ↳ {sub.Name}", sub.Name, cat));
+                    }
+                }
+            }
+
+            return result;
         }
 
         public void SortProjects()

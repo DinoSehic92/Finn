@@ -24,6 +24,12 @@ namespace Finn.ViewModels
         /// </summary>
         public string? IconSymbol { get; init; }
 
+        /// <summary>
+        /// For Group and Subgroup nodes: the GroupData.Name this node represents.
+        /// Used to look up the GroupData record when context menu actions are invoked.
+        /// </summary>
+        public string? GroupName { get; init; }
+
         private bool _isExpanded;
         public bool IsExpanded
         {

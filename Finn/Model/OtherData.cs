@@ -13,6 +13,31 @@ namespace Finn.Model
     /// </summary>
     public class OtherData : INotifyPropertyChanged
     {
+        private bool isLink;
+        /// <summary>
+        /// When true this entry is a hyperlink rather than a local file.
+        /// <see cref="Filepath"/> holds the URL and no icon bytes are used.
+        /// </summary>
+        public bool IsLink
+        {
+            get => isLink;
+            set { isLink = value; RaisePropertyChanged(nameof(IsLink)); RaisePropertyChanged(nameof(IsNotLink)); }
+        }
+
+        /// <summary>Convenience inverse of <see cref="IsLink"/> for XAML visibility bindings.</summary>
+        public bool IsNotLink => !isLink;
+
+        /// <summary>
+        /// Configures this entry as a hyperlink.
+        /// </summary>
+        public void SetLink(string url)
+        {
+            Filepath = url;
+            Name = url;
+            Type = "Link";
+            IsLink = true;
+        }
+
         private string name = string.Empty;
         /// <summary>
         /// Gets or sets the name of the file.

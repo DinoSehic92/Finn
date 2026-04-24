@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Finn.Model;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
@@ -20,5 +21,11 @@ namespace Finn.Storage
             get { return collections; }
             set { collections = value; OnPropertyChanged(nameof(Collections)); }
         }
+
+        /// <summary>
+        /// Explicit group/subgroup records. Populated from ProjectData.Parent strings
+        /// on first load via MigrateGroupsOnLoad(), then managed directly.
+        /// </summary>
+        public List<GroupData> ProjectGroups { get; set; } = new List<GroupData>();
     }
 }

@@ -153,8 +153,8 @@ public partial class MainView : UserControl
 
         try
         {
-            // Clean up stale diff temp directories from previous crashes
-            PreviewViewModel.CleanupStaleDiffTempDirs();
+            // Clean up stale diff temp directories on a background thread — no UI needed
+            _ = Task.Run(() => PreviewViewModel.CleanupStaleDiffTempDirs());
 
             await _ctx.LoadFileAutoAsync();
             _ctx.BuildTreeData();
@@ -198,19 +198,19 @@ public partial class MainView : UserControl
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;
 
-                // Everything is ready — center and activate the main window, then close the splash.
+                // Everything is ready — center the main window and close the splash.
                 if (_ctx.SplashWindow is { } splash)
                 {
                     var mainWindow = ParentWindow;
-                    var screen = mainWindow.Screens.ScreenFromWindow(mainWindow)
+                    var screen = mainWindow.Screens.ScreenFromWindow(splash)
                                  ?? mainWindow.Screens.Primary;
                     if (screen != null)
                     {
                         var workArea = screen.WorkingArea;
-                        int width = (int)(mainWindow.Width > 0 ? mainWindow.Width : mainWindow.Bounds.Width);
+                        int width  = (int)(mainWindow.Width  > 0 ? mainWindow.Width  : mainWindow.Bounds.Width);
                         int height = (int)(mainWindow.Height > 0 ? mainWindow.Height : mainWindow.Bounds.Height);
                         mainWindow.Position = new PixelPoint(
-                            workArea.X + (workArea.Width - width) / 2,
+                            workArea.X + (workArea.Width  - width)  / 2,
                             workArea.Y + (workArea.Height - height) / 2);
                     }
                     mainWindow.Activate();
@@ -842,7 +842,7 @@ public partial class MainView : UserControl
 
         string? tag = selectedNode.Tag;
 
-        if (tag is "Header" or "Group")
+        if (tag is "Header" or "Group" or "Subgroup")
         {
             _suppressTreeSelection = true;
             MainTree.SelectedItem = null;
@@ -887,7 +887,49 @@ public partial class MainView : UserControl
     private void OnOpenOtherFile(object? sender, RoutedEventArgs e)
     {
         if (OtherFilesGrid.SelectedItem is OtherData file)
+            _ctx.OpenFileDirect(file.Filepath); // works for both file paths and URLs
+    }
+
+    private void OnOtherFileDoubleTapped(object? sender, Avalonia.Input.TappedEventArgs e)
+    {
+        if (OtherFilesGrid.SelectedItem is OtherData file)
             _ctx.OpenFileDirect(file.Filepath);
+    }
+
+    private async void OnAddOtherLink(object? sender, RoutedEventArgs e)
+    {
+        var window = ParentWindow;
+        var dialog = new Finn.Dialogs.xPlaceholderDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Add Link";
+        dialog.NewFileName.Watermark = "URL, file path, or shortcut…";
+        await dialog.ShowDialog(window);
+
+        string? url = dialog.ResultName?.Trim();
+        if (string.IsNullOrEmpty(url)) return;
+
+        // Only prepend https:// for bare web addresses — leave everything else as-is:
+        // local paths (C:\...), UNC paths (\\server\share), shortcuts (.lnk),
+        // and explicit schemes (http://, ftp://, mailto:, ms-settings:, etc.)
+        bool hasScheme = url.Contains("://") || url.Contains(':') && url.IndexOf(':') <= 8;
+        bool isLocalPath = url.Length >= 2 && (url[1] == ':' || url.StartsWith("\\\\") || url.StartsWith("//"));
+        if (!hasScheme && !isLocalPath)
+            url = "https://" + url;
+
+        if (_ctx.OtherFilesOwner == null) return;
+
+        var entry = new OtherData();
+        entry.SetLink(url);
+
+        // Use the file name as display name for local paths/shortcuts
+        if (isLocalPath || (System.IO.Path.IsPathRooted(url) && System.IO.File.Exists(url)))
+        {
+            entry.Name = System.IO.Path.GetFileName(url);
+            if (string.IsNullOrEmpty(entry.Name)) entry.Name = url;
+        }
+
+        _ctx.OtherFilesOwner.OtherFiles.Add(entry);
+        _ctx.MarkDirty();
     }
 
     private void OnOpenOtherFolder(object? sender, RoutedEventArgs e)
@@ -1189,6 +1231,113 @@ public partial class MainView : UserControl
     {
         if (_ctx.CurrentFile is { IsGroup: true } group)
             _ctx.DissolveGroup(group);
+    }
+
+    private async void OnTreeNewGroup(object? sender, RoutedEventArgs e)
+    {
+        var window = ParentWindow;
+        var dialog = new Finn.Dialogs.xNewGroupDia();
+        _ctx.ConfigureWindow(dialog, window);
+        await dialog.ShowDialog(window);
+
+        if (!string.IsNullOrWhiteSpace(dialog.ResultName))
+        {
+            _ctx.AddProjectGroup(dialog.ResultName, dialog.ResultCategory, dialog.ResultParentGroup);
+            _ctx.BuildTreeData();
+        }
+    }
+
+    private async void OnTreeNewSubgroup(object? sender, RoutedEventArgs e)
+    {
+        // Reuse the same unified dialog — it will pre-select the right parent
+        await OnTreeNewGroupAsync(sender, e);
+    }
+
+    private async Task OnTreeNewGroupAsync(object? sender, RoutedEventArgs e)
+    {
+        var window = ParentWindow;
+        var dialog = new Finn.Dialogs.xNewGroupDia();
+        _ctx.ConfigureWindow(dialog, window);
+        await dialog.ShowDialog(window);
+
+        if (!string.IsNullOrWhiteSpace(dialog.ResultName))
+        {
+            _ctx.AddProjectGroup(dialog.ResultName, dialog.ResultCategory, dialog.ResultParentGroup);
+            _ctx.BuildTreeData();
+        }
+    }
+
+    private async void OnTreeRenameGroup(object? sender, RoutedEventArgs e)
+    {
+        string? groupName = _lastRightClickedNode?.GroupName;
+        if (string.IsNullOrEmpty(groupName)) return;
+
+        var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
+        if (group == null) return;
+
+        var window = ParentWindow;
+        var dialog = new Finn.Dialogs.xPlaceholderDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Rename Group";
+        dialog.NewFileName.Watermark = "New name";
+        dialog.NewFileName.Text = group.Name;
+        await dialog.ShowDialog(window);
+
+        string? newName = dialog.ResultName;
+        if (!string.IsNullOrWhiteSpace(newName))
+        {
+            _ctx.RenameProjectGroup(group, newName);
+            _ctx.BuildTreeData();
+        }
+    }
+
+    private void OnTreeRemoveGroup(object? sender, RoutedEventArgs e)
+    {
+        string? groupName = _lastRightClickedNode?.GroupName;
+        if (string.IsNullOrEmpty(groupName)) return;
+
+        var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
+        if (group == null) return;
+
+        _ctx.RemoveProjectGroup(group);
+        _ctx.BuildTreeData();
+    }
+
+    private void OnTreeMoveProjectToGroup(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentProject == null) return;
+
+        // Build a picker window: a simple flyout with a ListBox of all groups + top-level option
+        var allGroups = _ctx.Storage.ProjectGroups
+            .OrderBy(g => g.ParentGroup ?? "")
+            .ThenBy(g => g.SortOrder)
+            .ToList();
+
+        // Build display entries: indent subgroups visually
+        var entries = new List<(string Display, string? GroupName)>();
+        entries.Add(("— Top Level —", null));
+        foreach (var g in allGroups)
+        {
+            string indent = string.IsNullOrEmpty(g.ParentGroup) ? "" : "    ";
+            entries.Add(($"{indent}{g.Name}", g.Name));
+        }
+
+        var menu = new Avalonia.Controls.ContextMenu();
+        foreach (var (display, groupName) in entries)
+        {
+            var item = new Avalonia.Controls.MenuItem { Header = display };
+            var captured = groupName;
+            item.Click += (_, _) =>
+            {
+                _ctx.CurrentProject.Parent = captured;
+                _ctx.MarkDirty();
+                _ctx.BuildTreeData();
+            };
+            menu.Items.Add(item);
+        }
+
+        // Open the menu anchored to the treeview
+        menu.Open(MainTree);
     }
 
     private void OnOpenFolderPath(object? sender, RoutedEventArgs e)

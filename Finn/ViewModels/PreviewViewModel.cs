@@ -927,9 +927,10 @@ namespace Finn.ViewModels
         [System.Text.Json.Serialization.JsonIgnore]
         public string? CacheSourceTooltip => _cacheSourceIcon switch
         {
-            "Database" => "Loaded from local cache",
-            "Cloud" => "Read from server",
+            "Database"  => "Loaded from local cache",
+            "Cloud"     => "Read from server",
             "ArrowSync" => "Cache updated — file changed on server",
+            "HardDrive" => "Local file — caching not applicable",
             _ => null,
         };
 
@@ -1316,7 +1317,7 @@ namespace Finn.ViewModels
 
                 CacheSourceIcon = useCache
                     ? (wasStale ? "ArrowSync" : (cacheHit ? "Database" : "Cloud"))
-                    : null;
+                    : (isNetworkPath ? "Cloud" : "HardDrive");
 
                 string openPath = path;
 

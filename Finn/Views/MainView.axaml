@@ -304,10 +304,10 @@
 		<!-- ═══════════════════════════════════════════════ -->
 
 		<!-- Project / file info -->
-		<StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Vertical">
-			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="6">
-				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="20" FontSize="14" Foreground="{DynamicResource SystemAccentColor}"/>
-				<TextBlock Classes="h2" FontStyle="Italic" Foreground="{DynamicResource AppMutedForegroundBrush}">
+		<StackPanel Grid.Row="1" Grid.ColumnSpan="3" Orientation="Vertical" VerticalAlignment="Center">
+			<StackPanel Margin="8,-2,0,0" Orientation="Horizontal" Spacing="6" Height="20">
+				<ic:SymbolIcon Symbol="Folder" IconVariant="Filled" Width="18" FontSize="14" Foreground="{DynamicResource SystemAccentColor}" VerticalAlignment="Center"/>
+				<TextBlock Classes="h2" FontSize="14" FontStyle="Italic" Foreground="{DynamicResource AppMutedForegroundBrush}" VerticalAlignment="Center" ClipToBounds="False">
 					<TextBlock.Text>
 						<MultiBinding StringFormat="{}{0}  |  Filtered: {1}  |  Selected: {2}">
 							<Binding Path="CurrentProject.Namn"/>
@@ -317,10 +317,10 @@
 					</TextBlock.Text>
 				</TextBlock>
 			</StackPanel>
-			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6">
-				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="20" FontSize="14" Foreground="{DynamicResource SystemAccentColor}"/>
-				<TextBlock Classes="h2" Text="{Binding CurrentFile.Namn}" FontStyle="Italic" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
-				<TextBlock Classes="h2" Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic"/>
+			<StackPanel Margin="8,0,0,0" Orientation="Horizontal" Spacing="6" Height="20">
+				<ic:SymbolIcon Symbol="Document" IconVariant="Filled" Width="18" FontSize="14" Foreground="{DynamicResource SystemAccentColor}" VerticalAlignment="Center"/>
+				<TextBlock Classes="h2" FontSize="14" Text="{Binding CurrentFile.Namn}" FontStyle="Italic" Foreground="{DynamicResource AppMutedForegroundBrush}" VerticalAlignment="Center" ClipToBounds="False"/>
+				<TextBlock Classes="h2" FontSize="14" Text="{Binding CurrentFile.CurrentVersion}" Foreground="{DynamicResource SystemAccentColor}" FontStyle="Italic" VerticalAlignment="Center" ClipToBounds="False"/>
 			</StackPanel>
 		</StackPanel>
 
@@ -1555,12 +1555,17 @@
 				<DataGrid Name="OtherFilesGrid"
 						  ItemsSource="{Binding OtherFilesOwner.OtherFiles, Mode=OneWay}" SelectionMode="Single"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-						  DragDrop.AllowDrop="True">
+						  DragDrop.AllowDrop="True" DoubleTapped="OnOtherFileDoubleTapped">
 					<DataGrid.Columns>
 						<DataGridTemplateColumn Width="28" MinWidth="28">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate>
-									<Image Height="16" Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
+									<Panel Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
+										<Image Height="16" IsVisible="{Binding IsNotLink}"
+											   Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
+										<ic:SymbolIcon Symbol="Link" FontSize="14" IsVisible="{Binding IsLink}"
+													   Foreground="{DynamicResource SystemAccentColor}" VerticalAlignment="Center"/>
+									</Panel>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
@@ -1572,15 +1577,19 @@
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
-						<DataGridTextColumn Binding="{Binding Type}" Header="Type" Width="55" MinWidth="40" IsVisible="false"/>
+						<DataGridTextColumn Binding="{Binding Type}" Width="55" MinWidth="40" IsVisible="false"/>
 					</DataGrid.Columns>
 					<DataGrid.ContextMenu>
 						<ContextMenu>
-							<MenuItem Header="Open File" Click="OnOpenOtherFile">
+							<MenuItem Header="Open" Click="OnOpenOtherFile">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Document"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Open Folder" Click="OnOpenOtherFolder">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+							</MenuItem>
+							<Separator/>
+							<MenuItem Header="Add Link…" Click="OnAddOtherLink">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="Link"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
 							<MenuItem Header="Remove" Click="OnRemoveOtherFile">
@@ -1941,13 +1950,27 @@
 										<MenuItem Name="NewProjectMenuItem" Header="New Project" Click="OnTreeNewProjectButton">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderAdd"/></MenuItem.Icon>
 										</MenuItem>
+										<!-- Group management (visible on group/subgroup nodes) -->
+										<MenuItem Name="NewGroupMenuItem" Header="New Group" Click="OnTreeNewGroup">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Album"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="NewSubgroupMenuItem" Header="New Subgroup" Click="OnTreeNewSubgroup">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="RenameGroupMenuItem" Header="Rename Group" Click="OnTreeRenameGroup">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
+										</MenuItem>
+										<MenuItem Name="RemoveGroupMenuItem" Header="Remove Group" Click="OnTreeRemoveGroup">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+										</MenuItem>
+										<Separator Name="GroupSeparator"/>
 										<!-- Project nodes only -->
 										<MenuItem Name="AddFilesMenuItem" Header="Add Files" Click="OnAddFiles">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentAdd"/></MenuItem.Icon>
 										</MenuItem>
 										<MenuItem Name="EditProjectMenuItem" Header="Edit Project" Command="{Binding OpenProjectEditDia}" CommandParameter="{Binding $parent[Window]}">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
-										</MenuItem>
+												<MenuItem.Icon><ic:SymbolIcon Symbol="Edit"/></MenuItem.Icon>
+											</MenuItem>
 										<Separator Name="SharedSeparator"/>
 								<MenuItem x:Name="ShareMenuItem" Header="Share">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
