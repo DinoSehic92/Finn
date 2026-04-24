@@ -1588,8 +1588,11 @@
 								<MenuItem.Icon><ic:SymbolIcon Symbol="FolderOpen"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
-							<MenuItem Header="Add Link…" Click="OnAddOtherLink">
+							<MenuItem Header="Add Link" Click="OnAddOtherLink">
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Link"/></MenuItem.Icon>
+							</MenuItem>
+							<MenuItem Header="Edit Link" Click="OnEditOtherLink">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="LinkEdit"/></MenuItem.Icon>
 							</MenuItem>
 							<Separator/>
 							<MenuItem Header="Remove" Click="OnRemoveOtherFile">

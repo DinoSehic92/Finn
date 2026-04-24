@@ -100,6 +100,10 @@
       <SubType>Code</SubType>
       <DependentUpon>xNewGroupDia.axaml</DependentUpon>
     </Compile>
+    <Compile Update="Dialogs\xEditLinkDia.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>xEditLinkDia.axaml</DependentUpon>
+    </Compile>
     <Compile Update="Dialogs\xColorDia.axaml.cs">
       <DependentUpon>xColorDia.axaml</DependentUpon>
     </Compile>

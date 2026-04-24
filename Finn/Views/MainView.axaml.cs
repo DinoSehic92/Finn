@@ -898,37 +898,36 @@ public partial class MainView : UserControl
 
     private async void OnAddOtherLink(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xPlaceholderDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Add Link";
-        dialog.NewFileName.Watermark = "URL, file path, or shortcut…";
-        await dialog.ShowDialog(window);
-
-        string? url = dialog.ResultName?.Trim();
-        if (string.IsNullOrEmpty(url)) return;
-
-        // Only prepend https:// for bare web addresses — leave everything else as-is:
-        // local paths (C:\...), UNC paths (\\server\share), shortcuts (.lnk),
-        // and explicit schemes (http://, ftp://, mailto:, ms-settings:, etc.)
-        bool hasScheme = url.Contains("://") || url.Contains(':') && url.IndexOf(':') <= 8;
-        bool isLocalPath = url.Length >= 2 && (url[1] == ':' || url.StartsWith("\\\\") || url.StartsWith("//"));
-        if (!hasScheme && !isLocalPath)
-            url = "https://" + url;
-
         if (_ctx.OtherFilesOwner == null) return;
 
+        var window = ParentWindow;
+        var dialog = new Finn.Dialogs.xEditLinkDia();
+        _ctx.ConfigureWindow(dialog, window);
+        await dialog.ShowDialog(window);
+
+        if (!dialog.Confirmed) return;
+
         var entry = new OtherData();
-        entry.SetLink(url);
-
-        // Use the file name as display name for local paths/shortcuts
-        if (isLocalPath || (System.IO.Path.IsPathRooted(url) && System.IO.File.Exists(url)))
-        {
-            entry.Name = System.IO.Path.GetFileName(url);
-            if (string.IsNullOrEmpty(entry.Name)) entry.Name = url;
-        }
-
+        entry.SetLink(dialog.ResultUrl!);
+        entry.Name = dialog.ResultName!;
         _ctx.OtherFilesOwner.OtherFiles.Add(entry);
+        _ctx.MarkDirty();
+    }
+
+    private async void OnEditOtherLink(object? sender, RoutedEventArgs e)
+    {
+        if (OtherFilesGrid.SelectedItem is not OtherData file || !file.IsLink) return;
+
+        var window = ParentWindow;
+        var dialog = new Finn.Dialogs.xEditLinkDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.Populate(file.Name, file.Filepath);
+        await dialog.ShowDialog(window);
+
+        if (!dialog.Confirmed) return;
+
+        file.Name     = dialog.ResultName!;
+        file.Filepath = dialog.ResultUrl!;
         _ctx.MarkDirty();
     }
 
