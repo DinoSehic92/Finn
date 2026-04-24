@@ -39,7 +39,7 @@
 		</Style>
 	</UserControl.Styles>
 
-	<Grid Name="MainPreviewGrid" RowDefinitions="*,45" ColumnDefinitions="*,Auto" Margin="0">
+	<Grid Name="MainPreviewGrid" RowDefinitions="*,44" ColumnDefinitions="*,Auto" Margin="0">
 		<Grid Name="PreviewGrid" ClipToBounds="True" ColumnDefinitions="*" RowDefinitions="*"
 	  Grid.Row="0" Grid.Column="0"
 	  Background="{Binding PreviewVM.PreviewBackground}">
@@ -116,54 +116,63 @@
 
 			<!-- Mode banner: Dual File (only for user-initiated, not diff side-by-side) -->
 			<Border Name="DualFileBanner" Classes="shadow" IsVisible="{Binding PreviewVM.IsUserDualFileMode}" IsHitTestVisible="True"
-					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"
-					Padding="10,5">
-				<Border.Background>
-					<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
-				</Border.Background>
-				<Border Background="{DynamicResource TextControlBackground}" Margin="-10,-5" Padding="10,5">
+					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0">
+				<Border Classes="clip-inner" Padding="10,6">
 				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
 					<ic:SymbolIcon Symbol="BookAdd" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
 					<TextBlock Text="Dual File — use View Left / Right to set files" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
-					<Button Content="✕" FontSize="11" Padding="4,1" MinWidth="0" MinHeight="0"
-							ToolTip.Tip="Exit Dual File mode" Click="OnCloseDualFileMode"
-							Background="Transparent" BorderThickness="0"/>
+					<Button Padding="6,3" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Exit Dual File mode (Esc)" Click="OnCloseDualFileMode"
+							Background="{DynamicResource AppControlSurfaceBrush}"
+							BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}"
+							CornerRadius="4">
+						<StackPanel Orientation="Horizontal" Spacing="5">
+							<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
+							<TextBlock Text="Exit" FontSize="11" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
 				</StackPanel>
 				</Border>
 			</Border>
 
 			<!-- Mode banner: Version Preview -->
 			<Border Name="VersionBanner" Classes="shadow" IsVisible="{Binding PreviewVM.IsViewingVersion}" IsHitTestVisible="True"
-					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"
-					Padding="10,5">
-				<Border.Background>
-					<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
-				</Border.Background>
-				<Border Background="{DynamicResource TextControlBackground}" Margin="-10,-5" Padding="10,5">
+					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0">
+				<Border Classes="clip-inner" Padding="10,6">
 				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
 					<ic:SymbolIcon Symbol="History" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
 					<TextBlock Text="Viewing version" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
-					<Button Content="Return to original" FontSize="11" Padding="6,2" MinWidth="0" MinHeight="0"
-							ToolTip.Tip="Return to original file" Click="OnReturnToOriginal"
-							Background="Transparent" BorderThickness="0"/>
+					<Button Padding="6,3" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Return to original file (Esc)" Click="OnReturnToOriginal"
+							Background="{DynamicResource AppControlSurfaceBrush}"
+							BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}"
+							CornerRadius="4">
+						<StackPanel Orientation="Horizontal" Spacing="5">
+							<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
+							<TextBlock Text="Return" FontSize="11" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
 				</StackPanel>
 				</Border>
 			</Border>
 
 			<!-- Mode banner: Diff Comparison -->
 			<Border Name="DiffModeBanner" Classes="shadow" IsVisible="{Binding PreviewVM.DiffOverlayActive}" IsHitTestVisible="True"
-					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0"
-					Padding="10,5">
-				<Border.Background>
-					<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
-				</Border.Background>
-				<Border Background="{DynamicResource TextControlBackground}" Margin="-10,-5" Padding="10,5">
+					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0">
+				<Border Classes="clip-inner" Padding="10,6">
 				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
 					<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
 					<TextBlock Text="{Binding PreviewVM.DiffSummary}" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
-					<Button Content="✕" FontSize="11" Padding="4,1" MinWidth="0" MinHeight="0"
-							ToolTip.Tip="Close diff comparison" Click="OnCloseDiffMode"
-							Background="Transparent" BorderThickness="0"/>
+					<Button Padding="6,3" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Close diff comparison (Esc)" Click="OnCloseDiffMode"
+							Background="{DynamicResource AppControlSurfaceBrush}"
+							BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}"
+							CornerRadius="4">
+						<StackPanel Orientation="Horizontal" Spacing="5">
+							<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
+							<TextBlock Text="Exit" FontSize="11" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
 				</StackPanel>
 				</Border>
 			</Border>
@@ -766,7 +775,7 @@
 			<Border Classes="shadow" Grid.Column="1" Background="{DynamicResource AppPanelSurfaceBrush}" Padding="5,2">
 				<StackPanel FlowDirection="LeftToRight" Orientation="Horizontal" Spacing="3" HorizontalAlignment="Center" Margin="10 0 10 0" DataContext="{Binding PreviewVM}">
 
-					<Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -8 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
+					<Slider Name="ScrollSlider" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -11 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
                             TickFrequency="1" Maximum="{Binding Pagecount}" Value="{Binding RequestPage1, Mode=OneWay, Converter={StaticResource AddOneConverter}}"/>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -844,7 +853,7 @@
 						<ic:SymbolIcon Symbol="ArrowClockwise" IconVariant="Regular" FontSize="16" IsVisible="{Binding FileWorkerBusy}"/>
 					</StackPanel>
 			
-					<Slider Name="ScrollSliderSecondary" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -10 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
+					<Slider Name="ScrollSliderSecondary" FlowDirection="LeftToRight" Width="200" Height="35" Margin="0 -11 0 0" Minimum="1" IsSnapToTickEnabled="True" VerticalAlignment="Top"
 						TickFrequency="1" Maximum="{Binding SecondaryPagecount}" IsVisible="{Binding ShowSecondaryControls}" Value="{Binding RequestPage2, Mode=OneWay, Converter={StaticResource AddOneConverter}}"/>
 			
 					<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" IsVisible="{Binding ShowSecondaryControls}">

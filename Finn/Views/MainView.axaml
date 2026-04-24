@@ -515,14 +515,14 @@
 					<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2" FlyoutPresenterClasses="compact">
 						<!-- compact vertical flyout with same-size buttons as toolbar -->
 						<StackPanel Orientation="Vertical" Width="38" Margin="1" Spacing="1">
-							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="rounded-default" Click="OnOpenWhiteboard" Padding="0">
+							<Button ToolTip.Tip="Whiteboard" Width="35" Height="30" Classes="ghost" Click="OnOpenWhiteboard" Padding="0">
 								<ic:SymbolIcon Symbol="Pen" FontSize="18"/>
 							</Button>
-							<Button ToolTip.Tip="Reinforcement" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenReinforcementCalculator}" CommandParameter="{Binding $parent[Window]}" Padding="0">
+							<Button ToolTip.Tip="Reinforcement" Width="35" Height="30" Classes="ghost" Command="{Binding OpenReinforcementCalculator}" CommandParameter="{Binding $parent[Window]}" Padding="0">
 								<ic:SymbolIcon Symbol="Calculator" FontSize="18"/>
 							</Button>
 							<!-- Keyboard shortcuts help -->
-							<Button ToolTip.Tip="Keyboard Shortcuts" Height="30" MinHeight="0" Width="35" Padding="0">
+							<Button ToolTip.Tip="Keyboard Shortcuts" Height="30" MinHeight="0" Classes="ghost" Width="35" Padding="0">
 								<ic:SymbolIcon Symbol="Keyboard" IconVariant="Regular" FontSize="18"/>
 								<Button.Flyout>
 									<Flyout Placement="Bottom" ShowMode="Transient" HorizontalOffset="0" VerticalOffset="2">
@@ -545,7 +545,7 @@
 									</Flyout>
 								</Button.Flyout>
 							</Button>
-							<Button ToolTip.Tip="Info" Width="35" Height="30" Classes="rounded-default" Command="{Binding OpenInfoDia}" CommandParameter="{Binding $parent[Window]}" Padding="0">
+							<Button ToolTip.Tip="Info" Width="35" Height="30" Classes="ghost" Command="{Binding OpenInfoDia}" CommandParameter="{Binding $parent[Window]}" Padding="0">
 								<ic:SymbolIcon Symbol="Info" FontSize="18"/>
 							</Button>
 						</StackPanel>
@@ -663,6 +663,7 @@
 								<StackPanel Orientation="Horizontal" Margin="5" Spacing="3" HorizontalAlignment="Center">
 									<ic:SymbolIcon Symbol="Star"		IsVisible="{Binding Favorite}"				IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="GroupList"	IsVisible="{Binding IsGroup}"				IconVariant="Regular" FontSize="14"/>
+									<ic:SymbolIcon Symbol="LinkMultiple"	IsVisible="{Binding IsDesignatedParent}"	IconVariant="Regular" FontSize="14" Opacity="0.6" ToolTip.Tip="Designated parent — visible in Attach to…"/>
 									<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"		IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"			IconVariant="Regular" FontSize="14"/>
 									<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"				IconVariant="Regular" FontSize="14"/>
@@ -963,9 +964,14 @@
 								<MenuItem.Icon><ic:SymbolIcon Symbol="Attach"/></MenuItem.Icon>
 							</MenuItem>
 							<MenuItem Header="Detach" Click="OnDetachFiles" IsVisible="{Binding SelectedFileIsChild}">
-								<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowEject"/></MenuItem.Icon>
-							</MenuItem>
-							<MenuItem Header="Rename Group" Click="OnRenameGroup" IsVisible="{Binding SelectedFileIsGroup}">
+									<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowEject"/></MenuItem.Icon>
+								</MenuItem>
+								<MenuItem Header="Mark as Parent" Click="OnToggleDesignatedParent"
+											  Name="ToggleDesignatedParentMenuItem"
+											  IsVisible="{Binding SelectedFileIsTopLevel}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="LinkMultiple" IconVariant="Regular"/></MenuItem.Icon>
+									</MenuItem>
+								<MenuItem Header="Rename Group" Click="OnRenameGroup" IsVisible="{Binding SelectedFileIsGroup}">
 									<MenuItem.Icon><ic:SymbolIcon Symbol="Rename"/></MenuItem.Icon>
 								</MenuItem>
 							<MenuItem Header="Dissolve Group" Click="OnDissolveGroup" IsVisible="{Binding SelectedFileIsGroup}">
@@ -1391,11 +1397,11 @@
 			</Panel>
 
 			<!-- Collections toolbar -->
-			<Grid Grid.Row="1" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,5,0" IsVisible="{Binding UI.TrayCollections}">
+			<Grid Grid.Row="1" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,10,0" IsVisible="{Binding UI.TrayCollections}">
 				<Border Classes="shadow" Grid.Column="0">
 					<TextBox Name="CollectionInput" PlaceholderText="Add Collection"/>
 				</Border>
-			  <Button Grid.Column="1" Width="28" Padding="2" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="15"/></Button>
+			    <Button Grid.Column="1" Width="28" Padding="2" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="15"/></Button>
 				<Button Grid.Column="2" Width="28" Padding="2" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="15"/></Button>
 				<Button Grid.Column="3" Width="28" Padding="2" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="15"/></Button>
 			</Grid>
@@ -1472,7 +1478,7 @@
 						<Binding Path="UI.SuperuserMode"/>
 					</MultiBinding>
 				</Grid.IsVisible>
-			  <Grid Grid.Row="0" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,5,0" >
+			  <Grid Grid.Row="0" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,10,0" >
 					<Border Grid.Column="0" Classes="shadow">
 						<TextBox Name="BookmarkInput" PlaceholderText="Add Bookmark"/>
 					</Border>

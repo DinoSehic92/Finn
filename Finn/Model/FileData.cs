@@ -124,6 +124,7 @@ namespace Finn.Model
         private string _parentNamn = string.Empty;
         private bool _isCached;
         private bool _isGroup;
+        private bool _isDesignatedParent;
 
         /// <summary>
         /// Name of the parent file this is attached to (serialized).
@@ -156,9 +157,30 @@ namespace Finn.Model
 
         /// <summary>
         /// True when this file is a top-level hierarchy node that can own children.
+        /// Includes files explicitly marked as a parent slot via <see cref="IsDesignatedParent"/>.
         /// </summary>
         [JsonIgnore]
-        public bool IsParent => !IsChild && (IsGroup || HasChildren);
+        public bool IsParent => !IsChild && (IsGroup || HasChildren || IsDesignatedParent);
+
+        /// <summary>
+        /// When true this file is explicitly marked as a parent slot and will appear
+        /// in the "Attach to…" list even before any children have been added.
+        /// Serialized so the designation survives save/load.
+        /// Cleared automatically when the file is itself attached as a child.
+        /// </summary>
+        public bool IsDesignatedParent
+        {
+            get => _isDesignatedParent;
+            set
+            {
+                if (SetProperty(ref _isDesignatedParent, value))
+                {
+                    OnPropertyChanged(nameof(IsParent));
+                    OnPropertyChanged(nameof(HasHierarchyMarker));
+                    OnPropertyChanged(nameof(IsRegularFile));
+                }
+            }
+        }
 
         /// <summary>
         /// True when this file is a top-level item, regardless of whether it is a group.
@@ -247,10 +269,14 @@ namespace Finn.Model
             if (parent.IsGroup)
                 Filtyp = parent.Filtyp;
 
+            // A child cannot also be a designated parent slot — clear the flag.
+            _isDesignatedParent = false;
+
             OnPropertyChanged(nameof(IsAppendedFile));
             OnPropertyChanged(nameof(IsChild));
             OnPropertyChanged(nameof(IsTopLevel));
             OnPropertyChanged(nameof(IsRegularFile));
+            OnPropertyChanged(nameof(IsDesignatedParent));
             OnPropertyChanged(nameof(HasHierarchyMarker));
             RefreshParentRelationshipState();
         }

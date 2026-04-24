@@ -121,6 +121,26 @@ namespace Finn.ViewModels
             SignalTreeViewUpdate();
         }
 
+        /// <summary>
+        /// Toggles the <see cref="FileData.IsDesignatedParent"/> flag on the given file.
+        /// After toggling, the AvailableParents cache is invalidated so the file
+        /// appears in (or disappears from) the "Attach to…" submenu immediately.
+        /// </summary>
+        public void ToggleDesignatedParent(FileData file)
+        {
+            if (file == null || file.IsChild || file.IsGroup) return;
+
+            file.IsDesignatedParent = !file.IsDesignatedParent;
+
+            InvalidateAvailableParentsCache();
+            OnPropertyChanged(nameof(AvailableParents));
+            OnPropertyChanged(nameof(AvailableGroups));
+            OnPropertyChanged(nameof(HasAvailableParents));
+            OnPropertyChanged(nameof(HasAvailableGroups));
+            OnPropertyChanged(nameof(SelectedFileIsDesignatedParent));
+            MarkDirty();
+        }
+
         public FileData AddGroup(string name, string? categoryOverride = null)
         {
             name = EnsureUniqueName(name);

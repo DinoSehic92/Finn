@@ -994,6 +994,12 @@ public partial class MainView : UserControl
         // Force-refresh the submenu because context menus are detached
         // from the visual tree and may not pick up binding updates.
         MoveToGroupMenuItem.ItemsSource = _ctx.AvailableParents;
+
+        // Update the toggle label to reflect the current state of the selected file.
+        bool isDesignated = _ctx.CurrentFile?.IsDesignatedParent == true;
+        ToggleDesignatedParentMenuItem.Header = isDesignated ? "Unmark as Parent" : "Mark as Parent";
+        // Hide for groups — they are already always in the parent list.
+        ToggleDesignatedParentMenuItem.IsVisible = _ctx.SelectedFileIsTopLevel && !(_ctx.CurrentFile?.IsGroup == true);
     }
 
     private void ReselectFile(FileData? file)
@@ -1227,6 +1233,12 @@ public partial class MainView : UserControl
     private void OnDetachFiles(object? sender, RoutedEventArgs e)
     {
         _ctx.DetachFiles(_ctx.CurrentFiles.ToList());
+    }
+
+    private void OnToggleDesignatedParent(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsGroup || _ctx.CurrentFile.IsChild) return;
+        _ctx.ToggleDesignatedParent(_ctx.CurrentFile);
     }
 
     private void OnDissolveGroup(object? sender, RoutedEventArgs e)

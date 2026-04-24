@@ -206,6 +206,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(SelectedFileIsTopLevel));
                     OnPropertyChanged(nameof(SelectedFileIsChild));
                     OnPropertyChanged(nameof(SelectedFileIsGroup));
+                    OnPropertyChanged(nameof(SelectedFileIsDesignatedParent));
                     OnPropertyChanged(nameof(HasAvailableGroups));
                     OnPropertyChanged(nameof(CanMoveSelectedFiles));
                     OnPropertyChanged(nameof(SelectedFileIsLocal));
@@ -251,6 +252,14 @@ namespace Finn.ViewModels
             /// </summary>
             public bool SelectedFileIsGroup =>
                 CurrentFile != null && CurrentFile.IsGroup;
+
+            /// <summary>
+            /// True when the current selection is a regular top-level file that has been
+            /// explicitly marked as a parent slot via <see cref="FileData.IsDesignatedParent"/>.
+            /// Used to toggle the "Mark as Parent" / "Unmark as Parent" menu item.
+            /// </summary>
+            public bool SelectedFileIsDesignatedParent =>
+                CurrentFile?.IsDesignatedParent == true;
 
             /// <summary>
             /// True when there are parent targets in the project to move files into.

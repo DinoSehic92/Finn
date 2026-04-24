@@ -730,7 +730,7 @@ public partial class PreView : UserControl
     {
         if (pwr == null) return;
 
-        // Escape: close diff/dual-file mode (no modifier required).
+        // Escape: close diff/dual-file/version mode (no modifier required).
         // Annotation mode handles its own Escape in OnAnnotateKeyDown.
         if (e.Key == Key.Escape && !_annotateMode
             && !PropertyPanelCanvas.IsVisible && !CalibrationCanvas.IsVisible && !ColorInputCanvas.IsVisible)
@@ -745,6 +745,12 @@ public partial class PreView : UserControl
             {
                 // Use the same handler as the close button so all cleanup runs.
                 OnCloseDiffMode(this, new RoutedEventArgs());
+                e.Handled = true;
+                return;
+            }
+            if (pwr.IsViewingVersion)
+            {
+                OnReturnToOriginal(this, new RoutedEventArgs());
                 e.Handled = true;
                 return;
             }
