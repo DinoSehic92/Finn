@@ -504,71 +504,29 @@ namespace Finn.ViewModels
         public static IReadOnlyList<string> DarkModeTintOptions { get; } =
         [
             "None",
-            // Cool
-            "Blueprint",
             "Midnight",
+            "Blueprint",
             "Cobalt",
-            "Steel",
-            "Indigo",
-            "Violet",
-            "Lavender",
-            "Cyan",
-            "Teal",
-            "Arctic",
-            // Warm
-            "Sepia",
-            "Amber",
-            "Mocha",
-            "Copper",
-            "Parchment",
-            // Nature
-            "Emerald",
-            "Forest",
-            "Sage",
-            "Pine",
-            // Red / Pink
-            "Rose",
-            "Burgundy",
-            "Mauve",
-            "Crimson",
-            // Neutral
             "Slate",
+            "Forest",
+            "Sepia",
+            "Mocha",
             "Plum",
+            "Rose",
         ];
 
         private static Color TintColorForKey(string key) => key switch
         {
-            // Cool
-            "Blueprint"  => Color.FromRgb(8,  14, 28),
-            "Midnight"   => Color.FromRgb(5,  8,  22),
-            "Cobalt"     => Color.FromRgb(10, 16, 30),
-            "Steel"      => Color.FromRgb(15, 18, 25),
-            "Indigo"     => Color.FromRgb(12, 8,  30),
-            "Violet"     => Color.FromRgb(18, 8,  28),
-            "Lavender"   => Color.FromRgb(16, 12, 24),
-            "Cyan"       => Color.FromRgb(8,  22, 28),
-            "Teal"       => Color.FromRgb(8,  24, 22),
-            "Arctic"     => Color.FromRgb(10, 20, 25),
-            // Warm
-            "Sepia"      => Color.FromRgb(22, 15, 8),
-            "Amber"      => Color.FromRgb(25, 18, 6),
-            "Mocha"      => Color.FromRgb(25, 18, 12),
-            "Copper"     => Color.FromRgb(28, 14, 8),
-            "Parchment"  => Color.FromRgb(28, 24, 16),
-            // Nature
-            "Emerald"    => Color.FromRgb(8,  25, 12),
-            "Forest"     => Color.FromRgb(6,  22, 10),
-            "Sage"       => Color.FromRgb(14, 22, 16),
-            "Pine"       => Color.FromRgb(8,  28, 18),
-            // Red / Pink
-            "Rose"       => Color.FromRgb(25, 8,  14),
-            "Burgundy"   => Color.FromRgb(28, 8,  12),
-            "Mauve"      => Color.FromRgb(22, 12, 20),
-            "Crimson"    => Color.FromRgb(28, 6,  10),
-            // Neutral
-            "Slate"      => Color.FromRgb(14, 16, 20),
-            "Plum"       => Color.FromRgb(22, 10, 25),
-            _            => Colors.Black, // no tint
+            "Midnight"   => Color.FromRgb(5,  7,  18), // Deep blue-black
+            "Blueprint"  => Color.FromRgb(6,  12, 22), // Classic dark architecture blue
+            "Cobalt"     => Color.FromRgb(12, 16, 24), // Softer grayish blue
+            "Slate"      => Color.FromRgb(14, 15, 17), // Neutral cool gray
+            "Forest"     => Color.FromRgb(6,  18, 10), // Deep pine green
+            "Sepia"      => Color.FromRgb(20, 14, 8),  // Classic warm dark brown
+            "Mocha"      => Color.FromRgb(18, 12, 10), // Slightly redder warm brown
+            "Plum"       => Color.FromRgb(16, 8,  18), // Deep purple
+            "Rose"       => Color.FromRgb(20, 8,  10), // Very dark muted crimson/rose
+            _            => Colors.Black, // "None" or fallback
         };
 
         private string darkModeTint = "None";
@@ -588,10 +546,10 @@ namespace Finn.ViewModels
             }
         }
 
-        private int darkModeTintIntensity = 15;
+        private int darkModeTintIntensity = 25;
         /// <summary>
         /// Strength of the Multiply pass that shifts colors toward the tint hue.
-        /// 0 = no effect, 50 = maximum shift. Default 15.
+        /// 0 = no effect, 50 = maximum shift. Default 25.
         /// </summary>
         public int DarkModeTintIntensity
         {
@@ -619,58 +577,28 @@ namespace Finn.ViewModels
         public static IReadOnlyList<string> LightPaperOptions { get; } =
         [
             "White",
-            // Light
             "Eggshell",
-            "Vanilla",
             "Ivory",
             "Cream",
-            "Buttermilk",
-            // Medium-light
             "Champagne",
             "Linen",
-            "Bisque",
             "Parchment",
-            "Bone",
-            // Medium
             "Sand",
-            "Wheat",
-            "Honey",
-            "Peach",
-            "Apricot",
-            // Medium-dark
-            "Tan",
-            "Khaki",
             "Amber",
-            "Mocha",
             "Sepia",
         ];
 
         private static Color LightPaperColorForKey(string key) => key switch
         {
-            // Light — barely tinted
-            "Eggshell"   => Color.FromRgb(252, 249, 242),
-            "Vanilla"    => Color.FromRgb(252, 248, 235),
-            "Ivory"      => Color.FromRgb(255, 250, 230),
-            "Cream"      => Color.FromRgb(255, 248, 225),
-            "Buttermilk" => Color.FromRgb(255, 246, 218),
-            // Medium-light — noticeable warmth
-            "Champagne"  => Color.FromRgb(250, 240, 210),
-            "Linen"      => Color.FromRgb(248, 235, 205),
-            "Bisque"     => Color.FromRgb(250, 235, 200),
-            "Parchment"  => Color.FromRgb(245, 232, 195),
-            "Bone"       => Color.FromRgb(242, 230, 200),
-            // Medium — clearly warm paper
-            "Sand"       => Color.FromRgb(240, 225, 190),
-            "Wheat"      => Color.FromRgb(238, 222, 182),
-            "Honey"      => Color.FromRgb(242, 222, 175),
-            "Peach"      => Color.FromRgb(245, 218, 185),
-            "Apricot"    => Color.FromRgb(245, 215, 175),
-            // Medium-dark — strong warm tint
-            "Tan"        => Color.FromRgb(232, 210, 170),
-            "Khaki"      => Color.FromRgb(228, 212, 172),
-            "Amber"      => Color.FromRgb(235, 208, 158),
-            "Mocha"      => Color.FromRgb(225, 205, 170),
-            "Sepia"      => Color.FromRgb(220, 200, 162),
+            "Eggshell"   => Color.FromRgb(252, 250, 246), // Extremely faint cool/neutral off-white
+            "Ivory"      => Color.FromRgb(255, 252, 240), // Very pale, slightly yellow
+            "Cream"      => Color.FromRgb(255, 248, 230), // Classic warm cream
+            "Champagne"  => Color.FromRgb(252, 242, 226), // Slightly deeper, softer warmth
+            "Linen"      => Color.FromRgb(248, 240, 228), // Muted, natural fibrous off-white
+            "Parchment"  => Color.FromRgb(246, 238, 218), // Yellow-greenish old paper tint
+            "Sand"       => Color.FromRgb(240, 230, 212), // Medium neutral muted warmth
+            "Amber"      => Color.FromRgb(245, 228, 200), // Distinctly warm/orange-leaning yellow
+            "Sepia"      => Color.FromRgb(235, 218, 192), // Heavily aged brownish-yellow
             _            => Colors.White,
         };
 

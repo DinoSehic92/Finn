@@ -157,7 +157,7 @@ public class UISettingsViewModel : ObservableObject
             ShowActionBar = true;
             PreviewDarkMode = false;
             PreviewDarkModeTint = "None";
-            PreviewTintIntensity = 15;
+            PreviewTintIntensity = 25;
             PreviewLightPaper = "White";
             TreeViewOpen = true;
             CalendarOpen = false;
@@ -216,7 +216,7 @@ public class UISettingsViewModel : ObservableObject
         private string previewDarkModeTint = "None";
         public string PreviewDarkModeTint { get => previewDarkModeTint; set { previewDarkModeTint = value ?? "None"; OnPropertyChanged(nameof(PreviewDarkModeTint)); } }
 
-        private int previewTintIntensity = 15;
+        private int previewTintIntensity = 25;
         public int PreviewTintIntensity { get => previewTintIntensity; set { previewTintIntensity = Math.Clamp(value, 0, 50); OnPropertyChanged(nameof(PreviewTintIntensity)); } }
 
         private string previewLightPaper = "White";
