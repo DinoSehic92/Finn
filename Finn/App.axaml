@@ -6,7 +6,7 @@
 	<Application.Resources>
 		<CornerRadius x:Key="AppCornerRadius">10</CornerRadius>
 		<BoxShadow x:Key="AppShadow">0 0 0 0 Transparent</BoxShadow>
-		<Thickness x:Key="AppBorderThickness">0</Thickness>
+		<Thickness x:Key="AppBorderThickness">1</Thickness>
        <Thickness x:Key="AppPopupBorderThickness">1</Thickness>
 		<SolidColorBrush x:Key="AppBackgroundBrush" Color="#1F2933"/>
 		<SolidColorBrush x:Key="AppShellSurfaceBrush" Color="#1F2933"/>
@@ -262,7 +262,7 @@
 		<!-- Ghost button: transparent background, subtle hover tint, no border -->
 		<Style Selector="Button.ghost">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="BorderBrush" Value="Transparent"/>
 		</Style>
 		<Style Selector="Button.ghost:pointerover">
@@ -310,7 +310,7 @@
 		<!-- Ghost toggle button: matches button.ghost, respects checked state -->
 		<Style Selector="ToggleButton.ghost">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="BorderBrush" Value="Transparent"/>
 		</Style>
 		<Style Selector="ToggleButton.ghost:pointerover">

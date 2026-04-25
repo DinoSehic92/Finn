@@ -361,7 +361,21 @@ public class UISettingsViewModel : ObservableObject
 
         private void SetBorderThickness()
         {
-            BorderThickness = ShowBorders ? new Thickness(1) : new Thickness(0);
+            BorderThickness = new Thickness(1);
+            if (App.Current?.Resources == null) return;
+            App.Current.Resources["AppBorderThickness"] = new Thickness(1);
+            if (ShowBorders)
+            {
+                App.Current.Resources["AppControlBorderBrush"] = new SolidColorBrush(Color.Parse("#516170"));
+                App.Current.Resources["AppPanelBorderBrush"]   = new SolidColorBrush(Color.Parse("#4B5B69"));
+                App.Current.Resources["AppStrongBorderBrush"]  = new SolidColorBrush(Color.Parse("#607182"));
+            }
+            else
+            {
+                App.Current.Resources["AppControlBorderBrush"] = new SolidColorBrush(Colors.Transparent);
+                App.Current.Resources["AppPanelBorderBrush"]   = new SolidColorBrush(Colors.Transparent);
+                App.Current.Resources["AppStrongBorderBrush"]  = new SolidColorBrush(Colors.Transparent);
+            }
         }
 
         private void SetCornerRadius()
@@ -842,7 +856,7 @@ public class UISettingsViewModel : ObservableObject
             // Re-apply custom keys that the swap cleared
             App.Current.Resources["AppCornerRadius"] = this.CornerRadius;
             App.Current.Resources["AppShadow"] = this.Shadow;
-            App.Current.Resources["AppBorderThickness"] = this.BorderThickness;
+            App.Current.Resources["AppBorderThickness"] = new Thickness(1);
 
             var foregroundBrush = new SolidColorBrush(text);
             var subtleForegroundBrush = new SolidColorBrush(Mix(text, background, isDark ? 0.48 : 0.62));
@@ -889,10 +903,10 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["AppRowCurrentBrush"] = rowCurrentSurfaceBrush;
             App.Current.Resources["AppDividerBrush"] = dividerBrush;
             App.Current.Resources["AppToolbarSeparatorBrush"] = dividerBrush;
-            App.Current.Resources["AppPanelBorderBrush"] = panelBorderBrush;
-            App.Current.Resources["AppControlBorderBrush"] = controlBorderBrush;
+            App.Current.Resources["AppPanelBorderBrush"]   = ShowBorders ? (object)panelBorderBrush   : new SolidColorBrush(Colors.Transparent);
+            App.Current.Resources["AppControlBorderBrush"]  = ShowBorders ? (object)controlBorderBrush : new SolidColorBrush(Colors.Transparent);
             App.Current.Resources["AppFlyoutBorderBrush"] = flyoutBorderBrush;
-            App.Current.Resources["AppStrongBorderBrush"] = strongBorderBrush;
+            App.Current.Resources["AppStrongBorderBrush"]   = ShowBorders ? (object)strongBorderBrush  : new SolidColorBrush(Colors.Transparent);
 
             App.Current.Resources["SystemControlForegroundBaseHighBrush"] = foregroundBrush;
             App.Current.Resources["SystemControlForegroundBaseMediumBrush"] = mediumForegroundBrush;
