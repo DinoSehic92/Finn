@@ -148,7 +148,6 @@ public class UISettingsViewModel : ObservableObject
             TrayVersions = false;
             TrayOtherFiles = false;
             TrayAnnotations = false;
-            ColorTagDot = true;
             TrayTodo = true;
 
             TreeViewWidth = Defaults.DefaultTreeViewWidth;
@@ -297,16 +296,6 @@ public class UISettingsViewModel : ObservableObject
 
         private bool showIcons;
         public bool ShowIcons { get => showIcons; set { showIcons = value; OnPropertyChanged(nameof(ShowIcons)); } }
-
-        private bool colorTagDot;
-        /// <summary>
-        /// When true, color tags are shown as a small colored dot instead of tinting the full row.
-        /// </summary>
-        public bool ColorTagDot { get => colorTagDot; set { colorTagDot = value; OnPropertyChanged(nameof(ColorTagDot)); OnPropertyChanged(nameof(ColorTagRow)); } }
-
-        /// <summary>Inverse of <see cref="ColorTagDot"/> for convenience bindings.</summary>
-        [System.Text.Json.Serialization.JsonIgnore]
-        public bool ColorTagRow => !colorTagDot;
 
         private bool trayNote;
         public bool TrayNote { get => trayNote; set { trayNote = value; OnPropertyChanged(nameof(TrayNote)); } }
@@ -682,8 +671,7 @@ public class UISettingsViewModel : ObservableObject
                 TrayAnnotations = this.TrayAnnotations,
                     TrayTodo = this.TrayTodo,
                     ShowIcons = this.ShowIcons,
-                ColorTagDot = this.ColorTagDot,
-                TreeViewOpen = this.TreeViewOpen,
+                    TreeViewOpen = this.TreeViewOpen,
                 CalendarOpen = this.CalendarOpen,
                 TimeSheetOpen = this.TimeSheetOpen,
                 ShowFolders = this.ShowFolders,
@@ -739,7 +727,6 @@ public class UISettingsViewModel : ObservableObject
                 this.TrayAnnotations = ui.TrayAnnotations;
                 this.TrayTodo = ui.TrayTodo;
                 this.ShowIcons = ui.ShowIcons;
-                this.ColorTagDot = ui.ColorTagDot;
 
                 this.TreeViewOpen = ui.TreeViewOpen;
                 this.CalendarOpen = ui.CalendarOpen;

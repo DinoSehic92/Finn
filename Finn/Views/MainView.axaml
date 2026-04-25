@@ -72,37 +72,7 @@
 		</ControlTheme>
 
 		<!-- Compact checkbox for use inside tight DataGrid rows -->
-		<ControlTheme x:Key="CompactCheckBox" TargetType="CheckBox">
-			<Setter Property="MinWidth" Value="0"/>
-			<Setter Property="MinHeight" Value="0"/>
-			<Setter Property="Padding" Value="0"/>
-			<Setter Property="Cursor" Value="Hand"/>
-			<Setter Property="Template">
-				<ControlTemplate>
-					<Border Name="Root" Width="14" Height="14" CornerRadius="2"
-							BorderThickness="1.5"
-							BorderBrush="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"
-							Background="Transparent"
-							HorizontalAlignment="Center" VerticalAlignment="Center">
-						<Border Name="Fill" Width="8" Height="8" CornerRadius="1"
-								IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
-								Background="{DynamicResource SystemControlForegroundAltHighBrush}"/>
-					</Border>
-				</ControlTemplate>
-			</Setter>
-			<Style Selector="^:checked /template/ Border#Root">
-				<Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-				<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
-			</Style>
-			<Style Selector="^:checked /template/ Border#Fill">
-				<Setter Property="IsVisible" Value="True"/>
-			</Style>
-			<Style Selector="^:pointerover /template/ Border#Root">
-				<Setter Property="Opacity" Value="0.8"/>
-			</Style>
-		</ControlTheme>
-
-	</UserControl.Resources>
+		</UserControl.Resources>
 
 	<UserControl.Styles>
        <!-- Compact flyout presenter for toolbox popup -->
@@ -327,15 +297,20 @@
 		<!-- Right-aligned row 1: Columns flyout + tray toggles -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" FlowDirection="RightToLeft">
            <Border Classes="shadow" Height="30">
-				<Button Name="Columns" Classes="dropdown-surface" Height="30" MinHeight="30" Width="140" Click="Border_PointerPressed">
-					<Grid ColumnDefinitions="25,*,20" Height="30">
-						<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
-						<Label Grid.Column="1" Content="Columns" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-						<ic:SymbolIcon Grid.Column="2" Symbol="DocumentHeaderArrowDown" IconVariant="Regular" FontSize="18"/>
+				<Button Name="Columns" Classes="dropdown-surface" Height="30" MinHeight="30" Width="138" Click="Border_PointerPressed">
+					<Grid ColumnDefinitions="22,*,1,16" Height="30" VerticalAlignment="Center" Margin="10,0" ColumnSpacing="8">
+						<ic:SymbolIcon Grid.Column="0" Symbol="DocumentHeaderArrowDown" IconVariant="Regular" FontSize="13" VerticalAlignment="Center" Opacity="0.9"/>
+						<TextBlock Grid.Column="1" Text="Columns" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+						<Border Grid.Column="2" Width="1" Height="14" VerticalAlignment="Center" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.55"/>
+						<ic:SymbolIcon Grid.Column="3" Symbol="ChevronDown" IconVariant="Regular" FontSize="10" VerticalAlignment="Center" Opacity="0.6"/>
 					</Grid>
 					<Button.Flyout>
-						<Flyout FlyoutPresenterClasses="wide-flyout" HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
-							<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="150" Margin="4,6,4,10" Spacing="2">
+						<Flyout HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
+							<StackPanel Orientation="Vertical"
+									FlowDirection="LeftToRight"
+									Width="116"
+									Margin="4,6,4,10"
+									Spacing="2">
 								<CheckBox Content="Name"          Height="28" IsChecked="{Binding CurrentProject.Meta_1, Mode=TwoWay}" IsVisible="False"/>
 								<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
 								<CheckBox Content="Uppdrag"       Height="28" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/>
@@ -353,8 +328,10 @@
 								<CheckBox Content="Revidering"    Height="28" IsChecked="{Binding CurrentProject.Meta_15, Mode=TwoWay}"/>
 								<CheckBox Content="Sökväg"        Height="28" IsChecked="{Binding CurrentProject.Meta_16, Mode=TwoWay}"/>
 								<Separator Height="1" Margin="0,4"/>
-								<Button Content="Set Default" HorizontalAlignment="Center" Width="120"
-										Classes="DialogAction" Command="{Binding CurrentProject.SetDefaultMeta}"/>
+								<Button Content="Set Default"
+										HorizontalAlignment="Stretch"
+										Classes="DialogAction"
+										Command="{Binding CurrentProject.SetDefaultMeta}"/>
 							</StackPanel>
 						</Flyout>
 					</Button.Flyout>
@@ -362,15 +339,20 @@
 			</Border>
 
                  <Border Classes="shadow" Height="30" IsVisible="{Binding UI.TrayViewOpen}">
-						<Button Classes="dropdown-surface" Height="30" MinHeight="30" Width="140">
-							<Grid ColumnDefinitions="25,*,20" Height="30">
-								<ic:SymbolIcon Grid.Column="0" Symbol="CaretDown" IconVariant="Regular" FontSize="18"/>
-								<Label Grid.Column="1" Content="Tray Panels" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-								<ic:SymbolIcon Grid.Column="2" Symbol="PanelRight" IconVariant="Regular" FontSize="18"/>
-							</Grid>
+					<Button Classes="dropdown-surface" Height="30" MinHeight="30" Width="138">
+						<Grid ColumnDefinitions="22,*,1,16" Height="30" VerticalAlignment="Center" Margin="10,0" ColumnSpacing="8">
+								<ic:SymbolIcon Grid.Column="0" Symbol="PanelRight" IconVariant="Regular" FontSize="13" VerticalAlignment="Center" Opacity="0.9"/>
+								<TextBlock Grid.Column="1" Text="Panels" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+								<Border Grid.Column="2" Width="1" Height="14" VerticalAlignment="Center" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.55"/>
+								<ic:SymbolIcon Grid.Column="3" Symbol="ChevronDown" IconVariant="Regular" FontSize="10" VerticalAlignment="Center" Opacity="0.6"/>
+								</Grid>
 							<Button.Flyout>
 								<Flyout HorizontalOffset="0" VerticalOffset="2" Placement="Bottom" ShowMode="Transient">
-									<StackPanel Orientation="Vertical" FlowDirection="LeftToRight" Width="120" Margin="0" Spacing="2">
+									<StackPanel Orientation="Vertical"
+											FlowDirection="LeftToRight"
+											Width="116"
+											Margin="4,6,4,10"
+											Spacing="2">
 										<CheckBox Classes="TrayToggle" Content="Notepad"      Height="28" IsChecked="{Binding UI.TrayNote, Mode=TwoWay}" ToolTip.Tip="Quick notes for the current project"/>
 										<CheckBox Classes="TrayToggle" Content="Collections"  Height="28" IsChecked="{Binding UI.TrayCollections, Mode=TwoWay}" ToolTip.Tip="Saved file collections and favorites"/>
 										<CheckBox Classes="TrayToggle" Content="Bookmarks"    Height="28" IsChecked="{Binding UI.TrayBookmarks, Mode=TwoWay}" ToolTip.Tip="Page bookmarks in the current PDF" IsVisible="{Binding UI.SuperuserMode}"/>
@@ -653,80 +635,74 @@
 					  CanUserSortColumns="False"
 					  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 
-                <DataGrid.Columns>
-                    <!-- Icons-only column: render Fluent SymbolIcons for each symbol name in IconSymbols -->
-                    <!-- Let the column size itself to the cells so it grows/shrinks with the visible icons -->
-                    <DataGridTemplateColumn Width="SizeToCells" CanUserResize="False" CanUserReorder="False" MinWidth="24" MaxWidth="120" IsVisible="{Binding UI.ShowIcons}">
-						<DataGridTemplateColumn.CellTemplate>
-							<DataTemplate>
-                                <!-- No outer margin so measured width matches content; small spacing between icons -->
-								<StackPanel Orientation="Horizontal" Margin="5" Spacing="3" HorizontalAlignment="Center">
-									<ic:SymbolIcon Symbol="Star"		IsVisible="{Binding Favorite}"				IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="GroupList"	IsVisible="{Binding IsGroup}"				IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="LinkMultiple"	IsVisible="{Binding IsDesignatedParent}"	IconVariant="Regular" FontSize="14" Opacity="0.6" ToolTip.Tip="Designated parent — visible in Attach to…"/>
-									<ic:SymbolIcon Symbol="Attach"		IsVisible="{Binding HasAppendedFiles}"		IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Bookmark"	IsVisible="{Binding HasBookmarks}"			IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Notebook"	IsVisible="{Binding HasNote}"				IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Image"		IsVisible="{Binding HasThumbnail}"			IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Collections"	IsVisible="{Binding IsPartOfCollection}"	IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="History"		IsVisible="{Binding HasVersions}"			IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="Pen"			IsVisible="{Binding HasAnnotations}"		IconVariant="Regular" FontSize="14"/>
-									<ic:SymbolIcon Symbol="ArrowSync"	IsVisible="{Binding IsCached}"				IconVariant="Regular" FontSize="14"/>
+				<DataGrid.Columns>
+
+					<!-- Name column — color dot always reserves space, chevron and indent next, icons trail -->
+						<DataGridTemplateColumn Width="Auto" MinWidth="120">
+							<DataGridTemplateColumn.Header>
+								<StackPanel Orientation="Horizontal" Spacing="5">
+									<ic:SymbolIcon Symbol="Document" FontSize="13" VerticalAlignment="Center"/>
+									<TextBlock Text="File" VerticalAlignment="Center"/>
 								</StackPanel>
-							</DataTemplate>
-						</DataGridTemplateColumn.CellTemplate>
-					</DataGridTemplateColumn>
-
-					<!-- Color dot column: shows a small colored circle when ColorTagDot mode is active -->
-						<DataGridTemplateColumn Width="Auto" CanUserResize="False" CanUserReorder="False" CanUserSort="False" MinWidth="28" MaxWidth="38" IsVisible="{Binding UI.ColorTagDot}">
-									<DataGridTemplateColumn.CellTemplate>
-										<DataTemplate x:DataType="model:FileData">
-											<Ellipse Width="10" Height="10" Margin="0" HorizontalAlignment="Center" VerticalAlignment="Center"
-											 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
-								</DataTemplate>
-							</DataGridTemplateColumn.CellTemplate>
-						</DataGridTemplateColumn>
-
-					<!-- Name column shown when icons are enabled (name no longer contains icons) -->
-
-						<!-- Name column with expand/collapse chevron for parent files and indent for appended -->
-						<DataGridTemplateColumn Header="Namn" Width="Auto" MinWidth="120">
+							</DataGridTemplateColumn.Header>
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate x:DataType="model:FileData">
-                               <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" VerticalAlignment="Stretch">
-                                  <Panel Grid.Column="0" Width="18" Margin="0,0,2,0" VerticalAlignment="Stretch"
-										   IsVisible="{Binding HasHierarchyMarker}">
-									  <Border Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch"
-												Margin="{Binding IsLastChild, Converter={x:Static converter:AppendedFileStyleConverter.SpineMargin}}"
-												IsVisible="{Binding IsAppendedFile}"
-												Background="{DynamicResource AppDividerBrush}"
-												Opacity="0.5"/>
-										<Button Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
-												Background="Transparent" BorderThickness="0" Cursor="Hand"
-                                                IsVisible="{Binding HasChildren}" Click="OnToggleGroupExpanded" DoubleTapped="OnToggleGroupExpandedDoubleTapped">
-											<ic:SymbolIcon Symbol="ChevronRight" FontSize="11" Opacity="0.5"
-													   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
-										</Button>
-									</Panel>
-                                    <Panel Grid.Column="1" Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"
-										   IsVisible="{Binding IsAppendedFile}"/>
-									<TextBlock Grid.Column="2" VerticalAlignment="Center"
+									<Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" VerticalAlignment="Stretch">
+										<!-- Color dot — always visible, transparent when no tag is set -->
+										<Ellipse Grid.Column="0" Width="10" Height="10" Margin="5,0,4,0"
+												 Fill="{Binding Färg, Converter={x:Static converter:ColorNameToBrushConverter.Instance}}"/>
+										<!-- Chevron / spine -->
+										<Panel Grid.Column="1" Width="18" Margin="0,0,2,0" VerticalAlignment="Stretch"
+											   IsVisible="{Binding HasHierarchyMarker}">
+											<Border Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+													Margin="{Binding IsLastChild, Converter={x:Static converter:AppendedFileStyleConverter.SpineMargin}}"
+													IsVisible="{Binding IsAppendedFile}"
+													Background="{DynamicResource AppDividerBrush}"
+													Opacity="0.5"/>
+											<Button Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0"
+													Background="Transparent" BorderThickness="0" Cursor="Hand"
+													IsVisible="{Binding HasChildren}" Click="OnToggleGroupExpanded" DoubleTapped="OnToggleGroupExpandedDoubleTapped">
+												<ic:SymbolIcon Symbol="ChevronRight" FontSize="11" Opacity="0.5"
+															   RenderTransform="{Binding IsExpanded, Converter={x:Static converter:AppendedFileStyleConverter.Chevron}}"/>
+											</Button>
+										</Panel>
+										<!-- Indent spacer for appended files -->
+										<Panel Grid.Column="2" Width="{Binding IsAppendedFile, Converter={x:Static converter:AppendedFileStyleConverter.Indent}}"
+											   IsVisible="{Binding IsAppendedFile}"/>
+										<!-- File name -->
+										<TextBlock Grid.Column="3" VerticalAlignment="Center"
 												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 												   FontWeight="{Binding IsGroup, Converter={x:Static converter:AppendedFileStyleConverter.FontWeight}}"
 												   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-												 Opacity="{Binding IsChild, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}">
-										<TextBlock.Inlines>
-											<MultiBinding Converter="{x:Static converter:SearchHighlightConverter.Instance}">
-												<Binding Path="Namn"/>
-												<Binding Path="SearchTerm"/>
-												<Binding Path="IsSearchMatch"/>
-											</MultiBinding>
-										</TextBlock.Inlines>
-									</TextBlock>
-								   <TextBlock Grid.Column="3" Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
-									   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-									   Opacity="0.45"/>
-								</Grid>
+												   Opacity="{Binding IsChild, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}">
+											<TextBlock.Inlines>
+												<MultiBinding Converter="{x:Static converter:SearchHighlightConverter.Instance}">
+													<Binding Path="Namn"/>
+													<Binding Path="SearchTerm"/>
+													<Binding Path="IsSearchMatch"/>
+												</MultiBinding>
+											</TextBlock.Inlines>
+										</TextBlock>
+										<!-- Child file count badge -->
+										<TextBlock Grid.Column="4" Text="{Binding ChildFileCountDisplay}" VerticalAlignment="Center" Margin="5,0,0,0"
+												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+												   Opacity="0.45"/>
+										<!-- Icons strip (trailing) -->
+										<StackPanel Grid.Column="5" Orientation="Horizontal" Margin="2,0,5,0" Spacing="3"
+													IsVisible="{Binding $parent[DataGrid].DataContext.UI.ShowIcons}">
+											<ic:SymbolIcon Symbol="Star"         IsVisible="{Binding Favorite}"              IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="GroupList"    IsVisible="{Binding IsGroup}"               IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="LinkMultiple" IsVisible="{Binding IsDesignatedParent}"    IconVariant="Regular" FontSize="14" Opacity="0.6" ToolTip.Tip="Designated parent — visible in Attach to…"/>
+											<ic:SymbolIcon Symbol="Attach"       IsVisible="{Binding HasAppendedFiles}"      IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="Bookmark"     IsVisible="{Binding HasBookmarks}"          IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="Notebook"     IsVisible="{Binding HasNote}"               IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="Image"        IsVisible="{Binding HasThumbnail}"          IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="Collections"  IsVisible="{Binding IsPartOfCollection}"    IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="History"      IsVisible="{Binding HasVersions}"           IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="Pen"          IsVisible="{Binding HasAnnotations}"        IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="ArrowSync"    IsVisible="{Binding IsCached}"              IconVariant="Regular" FontSize="14"/>
+										</StackPanel>
+									</Grid>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
@@ -1030,20 +1006,27 @@
 								  ItemsSource="{Binding CurrentProject.Folders}"
 								  SelectionMode="Extended" IsReadOnly="True">
 						<DataGrid.Columns>
+							<DataGridTextColumn Binding="{Binding Name}" Width="*" FontSize="{Binding UI.FontSize}">
+								<DataGridTextColumn.Header>
+									<StackPanel Orientation="Horizontal" Spacing="5">
+										<ic:SymbolIcon Symbol="Folder" FontSize="13" VerticalAlignment="Center"/>
+										<TextBlock Text="Folder" VerticalAlignment="Center"/>
+									</StackPanel>
+								</DataGridTextColumn.Header>
+							</DataGridTextColumn>
 							<DataGridTemplateColumn Header="Type" Width="110">
 								<DataGridTemplateColumn.CellTemplate>
 									<DataTemplate>
 										<StackPanel Orientation="Horizontal" Spacing="5" Margin="6,0" VerticalAlignment="Center" ToolTip.Tip="{Binding Description}">
 											<ic:SymbolIcon Symbol="{Binding Mode, Converter={StaticResource FolderModeIconConverter}}" FontSize="14"/>
-															<TextBlock Text="{Binding DisplayType}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}" VerticalAlignment="Center"/>
-														</StackPanel>
-													</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
-											<DataGridTextColumn Binding="{Binding Name}"               Header="Folder"            Width="*"   FontSize="{Binding UI.FontSize}"/>
-											<DataGridTextColumn Binding="{Binding DisplayTarget}"      Header="Target"            Width="2*"   FontSize="{Binding UI.FontSize}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-											<DataGridTextColumn Binding="{Binding DisplayFileCount}"    Header="Files"             Width="60"   FontSize="{Binding UI.FontSize}"/>
-											<DataGridTextColumn Binding="{Binding Path}"               Header="Path"              Width="5*"   FontSize="{Binding UI.FontSize}" FontStyle="Italic" IsVisible="false"/>
+											<TextBlock Text="{Binding DisplayType}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}" VerticalAlignment="Center"/>
+										</StackPanel>
+									</DataTemplate>
+								</DataGridTemplateColumn.CellTemplate>
+							</DataGridTemplateColumn>
+							<DataGridTextColumn Binding="{Binding DisplayTarget}"   Header="Target" Width="2*"  FontSize="{Binding UI.FontSize}" Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+							<DataGridTextColumn Binding="{Binding DisplayFileCount}" Header="Files"  Width="60"  FontSize="{Binding UI.FontSize}"/>
+							<DataGridTextColumn Binding="{Binding Path}"            Header="Path"   Width="5*"  FontSize="{Binding UI.FontSize}" FontStyle="Italic" IsVisible="false"/>
 						</DataGrid.Columns>
 						<DataGrid.ContextMenu>
 							<ContextMenu>
@@ -1414,8 +1397,21 @@
 					  SelectionMode="Single" AutoGenerateColumns="False" IsReadOnly="True"
 					  GridLinesVisibility="None" LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{ReflectionBinding}" Header="Collections" Width="*" MinWidth="120" FontSize="{Binding UI.FontSize}"/>
-				</DataGrid.Columns>
+						<DataGridTemplateColumn Width="*" MinWidth="120">
+							<DataGridTemplateColumn.Header>
+								<StackPanel Orientation="Horizontal" Spacing="5">
+									<ic:SymbolIcon Symbol="Album" FontSize="13" VerticalAlignment="Center"/>
+									<TextBlock Text="Collections" VerticalAlignment="Center"/>
+								</StackPanel>
+							</DataGridTemplateColumn.Header>
+							<DataGridTemplateColumn.CellTemplate>
+								<DataTemplate>
+									<TextBlock Text="{ReflectionBinding}" VerticalAlignment="Center" Margin="6,0"
+											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
+								</DataTemplate>
+							</DataGridTemplateColumn.CellTemplate>
+						</DataGridTemplateColumn>
+					</DataGrid.Columns>
 			</DataGrid>
 			</Border>
 			<controls:EmptyHint Name="CollectionsEmptyHint" Icon="Album"
@@ -1431,10 +1427,16 @@
 					  AutoGenerateColumns="False" IsReadOnly="True" LoadingRow="DataGrid_OnLoadingRow"
 					  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 				<DataGrid.Columns>
-					<DataGridTemplateColumn Header="Collection Content" Width="*" MinWidth="120">
+					<DataGridTemplateColumn Width="*" MinWidth="120">
+						<DataGridTemplateColumn.Header>
+							<StackPanel Orientation="Horizontal" Spacing="5">
+								<ic:SymbolIcon Symbol="DocumentCopy" FontSize="13" VerticalAlignment="Center"/>
+								<TextBlock Text="Collection Content" VerticalAlignment="Center"/>
+							</StackPanel>
+						</DataGridTemplateColumn.Header>
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate x:DataType="model:FileData">
-								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
+								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="6,0"
 										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 										   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
 										   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
@@ -1502,8 +1504,29 @@
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 					  LoadingRow="DataGrid_OnLoadingRow">
 				<DataGrid.Columns>
-					<DataGridTextColumn Binding="{Binding PageNr, Converter={StaticResource AddOneConverter}}" Header="Page"     Width="85" FontSize="{Binding UI.FontSize}"/>
-					<DataGridTextColumn Binding="{Binding PageName}"                                            Header="Bookmark" Width="*"  FontSize="{Binding UI.FontSize}"/>
+					<DataGridTemplateColumn Width="*">
+						<DataGridTemplateColumn.Header>
+							<StackPanel Orientation="Horizontal" Spacing="5">
+								<ic:SymbolIcon Symbol="Bookmark" FontSize="13" VerticalAlignment="Center"/>
+								<TextBlock Text="Bookmark" VerticalAlignment="Center"/>
+							</StackPanel>
+						</DataGridTemplateColumn.Header>
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate x:DataType="model:PageData">
+								<TextBlock Text="{Binding PageName}" VerticalAlignment="Center" Margin="6,0"
+										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+					<DataGridTemplateColumn Width="85">
+						<DataGridTemplateColumn.Header>Page</DataGridTemplateColumn.Header>
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate x:DataType="model:PageData">
+								<TextBlock Text="{Binding PageNr, Converter={StaticResource AddOneConverter}}" VerticalAlignment="Center" Margin="6,0"
+										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
 				</DataGrid.Columns>
 			</DataGrid>
 			</Border>
@@ -1532,10 +1555,16 @@
 					</ContextMenu>
 				</DataGrid.ContextMenu>
 				<DataGrid.Columns>
-					<DataGridTemplateColumn Header="Recent Files" Width="*">
+					<DataGridTemplateColumn Width="*">
+						<DataGridTemplateColumn.Header>
+							<StackPanel Orientation="Horizontal" Spacing="5">
+								<ic:SymbolIcon Symbol="History" FontSize="13" VerticalAlignment="Center"/>
+								<TextBlock Text="Recent Files" VerticalAlignment="Center"/>
+							</StackPanel>
+						</DataGridTemplateColumn.Header>
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate x:DataType="model:FileData">
-								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="4,0"
+								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="6,0"
 										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
 										   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
 										   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
@@ -1563,23 +1592,25 @@
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  DragDrop.AllowDrop="True" DoubleTapped="OnOtherFileDoubleTapped">
 					<DataGrid.Columns>
-						<DataGridTemplateColumn Width="28" MinWidth="28">
+						<DataGridTemplateColumn Width="*" MinWidth="80">
+							<DataGridTemplateColumn.Header>
+								<StackPanel Orientation="Horizontal" Spacing="5">
+									<ic:SymbolIcon Symbol="Attach" FontSize="13" VerticalAlignment="Center"/>
+									<TextBlock Text="Other Files" VerticalAlignment="Center"/>
+								</StackPanel>
+							</DataGridTemplateColumn.Header>
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate>
-									<Panel Width="16" Height="16" VerticalAlignment="Center" HorizontalAlignment="Center">
-										<Image Height="16" IsVisible="{Binding IsNotLink}"
-											   Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
-										<ic:SymbolIcon Symbol="Link" FontSize="14" IsVisible="{Binding IsLink}"
-													   Foreground="{DynamicResource SystemAccentColor}" VerticalAlignment="Center"/>
-									</Panel>
-								</DataTemplate>
-							</DataGridTemplateColumn.CellTemplate>
-						</DataGridTemplateColumn>
-						<DataGridTemplateColumn Header="Other Files" Width="*" MinWidth="80">
-							<DataGridTemplateColumn.CellTemplate>
-								<DataTemplate>
-									<TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="4,0"
-											   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
+									<StackPanel Orientation="Horizontal" Spacing="6" Margin="6,0">
+										<Panel Width="16" Height="16" VerticalAlignment="Center">
+											<Image Height="16" IsVisible="{Binding IsNotLink}"
+												   Source="{Binding IconBytes, Converter={StaticResource ByteArrayToBitmapConverter}}"/>
+											<ic:SymbolIcon Symbol="Link" FontSize="14" IsVisible="{Binding IsLink}"
+														   Foreground="{DynamicResource SystemAccentColor}" VerticalAlignment="Center"/>
+										</Panel>
+										<TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+												   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"/>
+									</StackPanel>
 								</DataTemplate>
 							</DataGridTemplateColumn.CellTemplate>
 						</DataGridTemplateColumn>
@@ -1633,10 +1664,16 @@
 											</Style>
 										</DataGrid.Styles>
 									<DataGrid.Columns>
-										<DataGridTemplateColumn Header="File Versions" Width="*">
+										<DataGridTemplateColumn Width="*">
+											<DataGridTemplateColumn.Header>
+												<StackPanel Orientation="Horizontal" Spacing="5">
+													<ic:SymbolIcon Symbol="History" FontSize="13" VerticalAlignment="Center"/>
+													<TextBlock Text="File Versions" VerticalAlignment="Center"/>
+												</StackPanel>
+											</DataGridTemplateColumn.Header>
 											<DataGridTemplateColumn.CellTemplate>
 												<DataTemplate x:DataType="model:FileVersionData">
-													<StackPanel Orientation="Horizontal" Spacing="6" Margin="6,0,0,0">
+													<StackPanel Orientation="Horizontal" Spacing="6" Margin="6,0">
 														<ic:SymbolIcon Symbol="CheckmarkCircle" FontSize="12"
 																	   Foreground="{DynamicResource SystemAccentColor}"
 																	   IsVisible="{Binding IsActive}"/>
@@ -1695,44 +1732,51 @@
 								</Grid>
 
 								<!-- Annotation Layers panel -->
-								<Grid Grid.Row="9" RowDefinitions="Auto,*">
-									<Grid.IsVisible>
-										<MultiBinding Converter="{x:Static BoolConverters.And}">
-											<Binding Path="UI.TrayAnnotations"/>
-											<Binding Path="UI.SuperuserMode"/>
-										</MultiBinding>
-									</Grid.IsVisible>
-									<StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="3">
-										<Button Width="30" ToolTip.Tip="Add Layer" Click="OnAnnotateNewLayer"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
-										<Button Width="30" ToolTip.Tip="Clear Layer" Click="OnClearSelectedLayer"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
-										<Button Width="30" ToolTip.Tip="Remove Layer" Click="OnRemoveSelectedLayer"><ic:SymbolIcon Symbol="Dismiss" FontSize="16"/></Button>
-									</StackPanel>
-									<Panel Grid.Row="1">
+									<Panel Grid.Row="9">
+										<Panel.IsVisible>
+											<MultiBinding Converter="{x:Static BoolConverters.And}">
+												<Binding Path="UI.TrayAnnotations"/>
+												<Binding Path="UI.SuperuserMode"/>
+											</MultiBinding>
+										</Panel.IsVisible>
 										<Border Classes="shadow">
 										<DataGrid Name="LayerList"
 												  SelectionMode="Single" SelectionChanged="OnLayerSelected"
 												  AutoGenerateColumns="False" IsReadOnly="True"
-												  GridLinesVisibility="None" RowHeight="22" HeadersVisibility="None">
+												  GridLinesVisibility="None">
+											<DataGrid.ContextMenu>
+												<ContextMenu Opening="OnLayerContextMenuOpening">
+													<MenuItem Header="Add Layer" Click="OnAnnotateNewLayer">
+														<MenuItem.Icon><ic:SymbolIcon Symbol="Add"/></MenuItem.Icon>
+													</MenuItem>
+													<Separator/>
+													<MenuItem Name="ClearLayerMenuItem" Header="Clear Layer" Click="OnClearSelectedLayer">
+														<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
+													</MenuItem>
+													<MenuItem Name="RemoveLayerMenuItem" Header="Remove Layer" Click="OnRemoveSelectedLayer">
+														<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss"/></MenuItem.Icon>
+													</MenuItem>
+												</ContextMenu>
+											</DataGrid.ContextMenu>
 											<DataGrid.Columns>
-												<DataGridTemplateColumn Width="28" CanUserResize="False">
+												<DataGridTemplateColumn Width="*">
+													<DataGridTemplateColumn.Header>
+														<StackPanel Orientation="Horizontal" Spacing="5">
+															<ic:SymbolIcon Symbol="Layer" FontSize="13" VerticalAlignment="Center"/>
+															<TextBlock Text="Annotation Layers" VerticalAlignment="Center"/>
+														</StackPanel>
+													</DataGridTemplateColumn.Header>
 													<DataGridTemplateColumn.CellTemplate>
 														<DataTemplate x:DataType="model:AnnotationLayer">
-															<CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
-																	  Width="18" Height="18" Padding="0" Margin="4,0,0,0"
-																	  Click="OnLayerVisibilityToggled"/>
-														</DataTemplate>
-													</DataGridTemplateColumn.CellTemplate>
-												</DataGridTemplateColumn>
-												<DataGridTemplateColumn Header="Layer" Width="*">
-													<DataGridTemplateColumn.CellTemplate>
-														<DataTemplate x:DataType="model:AnnotationLayer">
-															<StackPanel Orientation="Horizontal" Spacing="5" Margin="4,0">
+															<StackPanel Orientation="Horizontal" Spacing="7" Margin="6,0">
+																<CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
+																		  Click="OnLayerVisibilityToggled"/>
 																<Ellipse Width="8" Height="8" VerticalAlignment="Center">
 																	<Ellipse.Fill>
 																		<SolidColorBrush Color="{Binding Color}"/>
 																	</Ellipse.Fill>
 																</Ellipse>
-																<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" VerticalAlignment="Center"/>
+																<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}" VerticalAlignment="Center"/>
 															</StackPanel>
 														</DataTemplate>
 													</DataGridTemplateColumn.CellTemplate>
@@ -1748,10 +1792,9 @@
 											</DataGrid.Columns>
 										</DataGrid>
 										</Border>
-											<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
-														Title="No annotation layers" Subtitle="Click + to add a layer, then draw on the preview"/>
-										</Panel>
-										</Grid>
+										<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
+													Title="No annotation layers" Subtitle="Right-click to add a layer, then draw on the preview"/>
+									</Panel>
 
 										<!-- To-Do List -->
 									<Panel Grid.Row="10" IsVisible="{Binding UI.TrayTodo}">
@@ -1760,11 +1803,6 @@
 												  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
 												  AutoGenerateColumns="False" IsReadOnly="False"
 												  GridLinesVisibility="None" Padding="0">
-										<DataGrid.Styles>
-										<Style Selector="DataGridRow">
-											<Setter Property="MinHeight" Value="24"/>
-										</Style>
-									</DataGrid.Styles>
 										<DataGrid.ContextMenu>
 											<ContextMenu Opening="OnTodoContextMenuOpening">
 												<MenuItem Header="New Task" Click="OnAddTodo">
@@ -1815,41 +1853,43 @@
 											</ContextMenu>
 										</DataGrid.ContextMenu>
 										<DataGrid.Columns>
-											<DataGridTemplateColumn Width="Auto" CanUserResize="False" IsReadOnly="True">
+											<DataGridTemplateColumn Width="*">
+												<DataGridTemplateColumn.Header>
+													<StackPanel Orientation="Horizontal" Spacing="5">
+														<ic:SymbolIcon Symbol="Checkmark" FontSize="13" VerticalAlignment="Center"/>
+														<TextBlock Text="Tasks" VerticalAlignment="Center"/>
+													</StackPanel>
+												</DataGridTemplateColumn.Header>
 												<DataGridTemplateColumn.CellTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
-														<CheckBox IsChecked="{Binding IsDone, Mode=TwoWay}"
-																  Theme="{StaticResource CompactCheckBox}"
-																  Margin="{Binding IndentLevel, Converter={x:Static converter:TodoIndentConverter.Instance}}"
-																  Padding="5,0,0,0" VerticalAlignment="Center"/>
-													</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
-											<DataGridTemplateColumn Width="8" CanUserResize="False" IsReadOnly="True">
-												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:TodoItem">
-														<Border Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center"
-																Background="{Binding Color, Converter={x:Static converter:TodoColorConverter.Instance}}"/>
-													</DataTemplate>
-												</DataGridTemplateColumn.CellTemplate>
-											</DataGridTemplateColumn>
-											<DataGridTemplateColumn Header="Tasks" Width="*">
-												<DataGridTemplateColumn.CellTemplate>
-													<DataTemplate x:DataType="model:TodoItem">
-														<TextBlock Text="{Binding Text}" VerticalAlignment="Center" Margin="4,2"
-																   TextWrapping="Wrap"
-																   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																   TextDecorations="{Binding IsDone, Converter={x:Static converter:TodoStrikethroughConverter.Instance}}"
-																   Opacity="{Binding IsDone, Converter={x:Static converter:TodoOpacityConverter.Instance}}"/>
+														<StackPanel Orientation="Horizontal" Spacing="5" Margin="4,2">
+															<CheckBox IsChecked="{Binding IsDone, Mode=TwoWay}"
+																	  Margin="{Binding IndentLevel, Converter={x:Static converter:TodoIndentConverter.Instance}}"
+																	  VerticalAlignment="Center"/>
+															<Border Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center"
+																	Background="{Binding Color, Converter={x:Static converter:TodoColorConverter.Instance}}"/>
+															<TextBlock Text="{Binding Text}" VerticalAlignment="Center"
+																	   TextWrapping="Wrap"
+																	   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+																	   TextDecorations="{Binding IsDone, Converter={x:Static converter:TodoStrikethroughConverter.Instance}}"
+																	   Opacity="{Binding IsDone, Converter={x:Static converter:TodoOpacityConverter.Instance}}"/>
+														</StackPanel>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellTemplate>
 												<DataGridTemplateColumn.CellEditingTemplate>
 													<DataTemplate x:DataType="model:TodoItem">
-														<TextBox Text="{Binding Text, Mode=TwoWay}"
-																 TextWrapping="Wrap" AcceptsReturn="False"
-																 FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-																 VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-																 Margin="0" Padding="4,2" BorderThickness="0"/>
+														<Grid ColumnDefinitions="Auto,Auto,*" Margin="4,2">
+															<CheckBox Grid.Column="0" IsChecked="{Binding IsDone, Mode=TwoWay}"
+																	  Margin="{Binding IndentLevel, Converter={x:Static converter:TodoIndentConverter.Instance}}"
+																	  VerticalAlignment="Center"/>
+															<Border Grid.Column="1" Width="8" Height="8" CornerRadius="2" VerticalAlignment="Center" Margin="5,0"
+																	Background="{Binding Color, Converter={x:Static converter:TodoColorConverter.Instance}}"/>
+															<TextBox Grid.Column="2" Text="{Binding Text, Mode=TwoWay}"
+																	 TextWrapping="Wrap" AcceptsReturn="False"
+																	 FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
+																	 VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+																	 Margin="0" Padding="4,2" BorderThickness="0"/>
+														</Grid>
 													</DataTemplate>
 												</DataGridTemplateColumn.CellEditingTemplate>
 											</DataGridTemplateColumn>
@@ -1876,7 +1916,8 @@
 				<Grid RowDefinitions="26,Auto,*">
 				<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppHeaderSurfaceBrush}">
 						<StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
-						<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
+							<ic:SymbolIcon Symbol="FolderOpen" FontSize="13" Foreground="{DynamicResource AppHeaderForegroundBrush}" VerticalAlignment="Center"/>
+							<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
 									   Foreground="{DynamicResource AppHeaderForegroundBrush}"
 									   VerticalAlignment="Center"/>
 						</StackPanel>

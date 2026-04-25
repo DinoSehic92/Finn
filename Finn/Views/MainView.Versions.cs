@@ -201,6 +201,22 @@ public partial class MainView
             LayerList.ItemsSource = renderer.Layers;
         if (renderer.ActiveLayer != null)
             LayerList.SelectedItem = renderer.ActiveLayer;
+        UpdateLayersEmptyHint();
+    }
+
+    private void OnLayerContextMenuOpening(object? sender, CancelEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+        bool hasSelection = LayerList.SelectedItem is Model.AnnotationLayer;
+        bool canRemove = hasSelection && (AnnotationRenderer?.Layers.Count ?? 0) > 1;
+        foreach (var child in menu.Items)
+        {
+            if (child is MenuItem mi)
+            {
+                if (mi.Name == "ClearLayerMenuItem")  mi.IsVisible = hasSelection;
+                if (mi.Name == "RemoveLayerMenuItem") mi.IsVisible = canRemove;
+            }
+        }
     }
 
     private void OnAnnotateNewLayer(object? sender, RoutedEventArgs e)

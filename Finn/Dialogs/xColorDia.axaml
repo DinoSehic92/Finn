@@ -197,11 +197,8 @@
 					<Label Content="Borders"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ShowBorders}" HorizontalAlignment="Left"/>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Color Dots"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ColorTagDot}" HorizontalAlignment="Left"/>
-					</Grid>
-					<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Alt. Rows" ToolTip.Tip="Alternating background shading on grid rows for readability"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AlternatingRowShading}" HorizontalAlignment="Left"/>
-					</Grid>
+					<Label Content="Alt. Rows" ToolTip.Tip="Alternating background shading on grid rows for readability"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AlternatingRowShading}" HorizontalAlignment="Left"/>
+				</Grid>
 
 				<!-- View Toggles -->
 				<TextBlock Classes="SectionHeader" Text="View Toggles" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>

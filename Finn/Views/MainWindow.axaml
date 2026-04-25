@@ -17,63 +17,6 @@
 	<Window.Styles>
 
 
-		<!-- Color tag rows with consistent lower opacity for readability -->
-		<Style Selector="DataGridRow.Yellow">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#E5A820" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
-		<Style Selector="DataGridRow.Orange">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#E06830" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
-		<Style Selector="DataGridRow.Brown">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#9C6B3C" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
-		<Style Selector="DataGridRow.Green">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#3DA35F" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
-		<Style Selector="DataGridRow.Blue">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#3B82D9" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
-		<Style Selector="DataGridRow.Red">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#D64045" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
-		<Style Selector="DataGridRow.Magenta">
-			<Setter Property="Background">
-				<Setter.Value>
-					<SolidColorBrush Color="#9B5FC0" Opacity="0.35"/>
-				</Setter.Value>
-			</Setter>
-		</Style>
-
 		<Style Selector="DataGridRow.RedForeground">
 			<Setter Property="Foreground" Value="#FF6B6B"/>
 			<Setter Property="FontStyle" Value="Italic"/>

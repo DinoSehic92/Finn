@@ -28,41 +28,12 @@
                 <Style Selector="DataGridCell:current /template/ Grid#FocusVisual">
                     <Setter Property="IsVisible" Value="false"/>
                 </Style>
-                <Style Selector="CheckBox.compact">
-                    <Setter Property="MinWidth" Value="0"/>
-                    <Setter Property="MinHeight" Value="0"/>
-                    <Setter Property="Padding" Value="0"/>
-                    <Setter Property="Cursor" Value="Hand"/>
-                    <Setter Property="Template">
-                        <ControlTemplate TargetType="CheckBox">
-                            <Border Name="Root" Width="14" Height="14" CornerRadius="2"
-                                    BorderThickness="1.5"
-                                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumHighBrush}"
-                                    Background="Transparent"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <Border Name="Fill" Width="8" Height="8" CornerRadius="1"
-                                        IsVisible="False" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Background="White"/>
-                            </Border>
-                        </ControlTemplate>
-                    </Setter>
-                </Style>
-                <Style Selector="CheckBox.compact:checked /template/ Border#Root">
-                    <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-                    <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
-                </Style>
-                <Style Selector="CheckBox.compact:checked /template/ Border#Fill">
-                    <Setter Property="IsVisible" Value="True"/>
-                </Style>
-                <Style Selector="CheckBox.compact:pointerover /template/ Border#Root">
-                    <Setter Property="Opacity" Value="0.8"/>
-                </Style>
             </DataGrid.Styles>
             <DataGrid.Columns>
                 <DataGridTemplateColumn Header="Keep Local" Width="90" MinWidth="90" IsReadOnly="True">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="model:SharedDiffEntry">
-                            <CheckBox Classes="compact" IsChecked="{ReflectionBinding KeepLocal, Mode=TwoWay}"
+                            <CheckBox IsChecked="{ReflectionBinding KeepLocal, Mode=TwoWay}"
                                       IsVisible="{ReflectionBinding CanKeepLocal}"
                                       HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"
                                       ToolTip.Tip="Check to keep your local value instead of the server value."/>

@@ -327,10 +327,6 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.DarkMode):
                 _ctx.SyncPreviewRegionColor();
                 break;
-            case nameof(_ctx.UI.ColorTagDot):
-            case nameof(_ctx.UI.ColorTagRow):
-                UpdateRowColor();
-                break;
             case nameof(_ctx.UI.AutoCacheNetworkFiles):
                 _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
                 break;
@@ -650,8 +646,8 @@ public partial class MainView : UserControl
 
     private void UpdateLayersEmptyHint()
     {
-        var layers = _ctx.CurrentFile?.AnnotationLayers;
-        LayersEmptyHint.IsVisible = layers == null || layers.Count == 0;
+        var rendererLayers = AnnotationRenderer?.Layers;
+        LayersEmptyHint.IsVisible = rendererLayers == null || rendererLayers.Count == 0;
     }
 
     private void UpdateCollectionsEmptyHint()
@@ -1622,8 +1618,6 @@ public partial class MainView : UserControl
         // Close the action bar color picker flyout
         if (sender is Button)
             ColorTagButton.Flyout?.Hide();
-
-        UpdateRowColor();
     }
 
     private void EditType(object? sender, RoutedEventArgs e)
@@ -1645,7 +1639,6 @@ public partial class MainView : UserControl
     {
         _ctx.ClearAll();
         FileGrid.SelectedItem = null;
-        UpdateRowColor();
     }
 
     private void OnMoveFile(object? sender, RoutedEventArgs e)
@@ -1690,7 +1683,7 @@ public partial class MainView : UserControl
         if (_trackedRows.Add(row))
             row.DataContextChanged += OnRowDataContextChanged;
         BindRowToFileData(row, row.DataContext as FileData);
-        ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true);
+        ApplyRowClasses(row, IsMainFileGridRow(row));
     }
 
     private void OnRowDataContextChanged(object? sender, EventArgs e)
@@ -1698,7 +1691,7 @@ public partial class MainView : UserControl
         if (sender is DataGridRow row)
         {
             BindRowToFileData(row, row.DataContext as FileData);
-            ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true);
+            ApplyRowClasses(row, IsMainFileGridRow(row));
         }
     }
 
@@ -1718,7 +1711,7 @@ public partial class MainView : UserControl
                 or nameof(FileData.HasChildren) or nameof(FileData.IsExpanded)
                 or nameof(FileData.IsGroup) or nameof(FileData.IsAppendedFile)
                 or nameof(FileData.IsStyledAsAttached))
-                Dispatcher.UIThread.Post(() => ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true));
+                Dispatcher.UIThread.Post(() => ApplyRowClasses(row, IsMainFileGridRow(row)));
         };
         newData.PropertyChanged += handler;
         _rowBindings[row] = (newData, handler);
@@ -1738,7 +1731,7 @@ public partial class MainView : UserControl
     private void UpdateRowColor()
     {
         foreach (var row in _trackedRows)
-            ApplyRowClasses(row, IsMainFileGridRow(row), _ctx?.UI?.ColorTagDot == true);
+            ApplyRowClasses(row, IsMainFileGridRow(row));
     }
 
     private static readonly string[] AllColorClasses =
@@ -1746,7 +1739,7 @@ public partial class MainView : UserControl
 
     private bool IsMainFileGridRow(DataGridRow row) => row.FindAncestorOfType<DataGrid>() == FileGrid;
 
-    private void ApplyRowClasses(DataGridRow row, bool isMainFileGrid = false, bool dotMode = false)
+    private void ApplyRowClasses(DataGridRow row, bool isMainFileGrid = false)
     {
         if (row.DataContext is not FileData data)
         {
@@ -1764,9 +1757,8 @@ public partial class MainView : UserControl
 
         SetClass(row, "RedForeground", data.IsFileMissing && !isPlaceholder);
 
-        string? wantColor = (!dotMode && !string.IsNullOrEmpty(data.Färg)) ? data.Färg : null;
         foreach (var c in AllColorClasses)
-            SetClass(row, c, c == wantColor);
+            row.Classes.Remove(c);
 
         if (isMainFileGrid)
         {

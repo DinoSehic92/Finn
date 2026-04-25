@@ -67,7 +67,7 @@ namespace Finn.Converters
         public static readonly TodoIndentConverter Instance = new();
 
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-            => value is int level && level > 0 ? new Thickness(24 * level, 0, 0, 0) : new Thickness(0);
+            => value is int level ? new Thickness(8 + 24 * level, 0, 0, 0) : new Thickness(8);
 
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
             => throw new NotSupportedException();
