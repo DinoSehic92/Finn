@@ -49,6 +49,20 @@ public partial class MainView
         UpdateBookmarksEmptyHint();
     }
 
+    private void OnImportPdfBookmarks(object? sender, RoutedEventArgs e)
+    {
+        if (!(_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen)) return;
+
+        var renderer = AnnotationRenderer;
+        if (renderer == null) return;
+
+        var outlineItems = renderer.GetOutlineBookmarks();
+        if (outlineItems.Count == 0) return;
+
+        _ctx.Collections.ImportBookmarks(outlineItems);
+        UpdateBookmarksEmptyHint();
+    }
+
     #endregion
 
     #region Versions

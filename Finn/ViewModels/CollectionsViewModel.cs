@@ -116,6 +116,36 @@ namespace Finn.ViewModels
             _markDirty?.Invoke();
         }
 
+        /// <summary>
+        /// Imports a list of (page, title) pairs from the PDF outline into the user bookmark tray.
+        /// Entries whose page+title already exist as a bookmark are silently skipped.
+        /// Returns the number of bookmarks actually added.
+        /// </summary>
+        public int ImportBookmarks(IEnumerable<(int Page, string Title)> items)
+        {
+            if (PreviewVM.CurrentFile == null) return 0;
+
+            var existing = PreviewVM.CurrentFile.FavPages;
+            int added = 0;
+
+            foreach (var (page, title) in items)
+            {
+                bool duplicate = existing.Any(b => b.PageNr == page && b.PageName == title);
+                if (duplicate) continue;
+
+                existing.Add(new PageData { PageNr = page, PageName = title });
+                added++;
+            }
+
+            if (added > 0)
+            {
+                SortBookmarks();
+                _markDirty?.Invoke();
+            }
+
+            return added;
+        }
+
         private void SortBookmarks()
         {
             if (PreviewVM.CurrentFile == null) return;

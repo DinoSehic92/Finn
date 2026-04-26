@@ -1480,13 +1480,14 @@
 						<Binding Path="UI.SuperuserMode"/>
 					</MultiBinding>
 				</Grid.IsVisible>
-			  <Grid Grid.Row="0" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,10,0" >
+			  <Grid Grid.Row="0" ColumnDefinitions="*,28,28,28,28" ColumnSpacing="4" Margin="0,0,10,0" >
 					<Border Grid.Column="0" Classes="shadow">
 						<TextBox Name="BookmarkInput" PlaceholderText="Add Bookmark"/>
 					</Border>
-					<Button Grid.Column="1" Width="28" Padding="2" Click="OnAddBookmark"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="15"/></Button>
-				<Button Grid.Column="2" Width="28" Padding="2" Click="OnRemoveBookmark" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="15"/></Button>
-				<Button Grid.Column="3" Width="28" Padding="2" Click="OnRenameBookmark" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="15"/></Button>
+					<Button Grid.Column="1" Width="28" Padding="2" Click="OnAddBookmark"           ToolTip.Tip="Add">           <ic:SymbolIcon Symbol="Add"         FontSize="15"/></Button>
+				<Button Grid.Column="2" Width="28" Padding="2" Click="OnRemoveBookmark"        ToolTip.Tip="Delete">        <ic:SymbolIcon Symbol="Delete"      FontSize="15"/></Button>
+				<Button Grid.Column="3" Width="28" Padding="2" Click="OnRenameBookmark"        ToolTip.Tip="Rename">        <ic:SymbolIcon Symbol="Rename"      FontSize="15"/></Button>
+				<Button Grid.Column="4" Width="28" Padding="2" Click="OnImportPdfBookmarks"    ToolTip.Tip="Import bookmarks from PDF outline"><ic:SymbolIcon Symbol="BookmarkAdd" FontSize="15"/></Button>
 				</Grid>
 			</Grid>
 

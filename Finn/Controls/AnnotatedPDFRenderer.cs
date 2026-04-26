@@ -591,6 +591,38 @@ public class AnnotatedPDFRenderer : PDFRenderer
             AddLayer("Layer 1", Color.FromRgb(214, 64, 69));
     }
 
+    /// <summary>
+    /// Extracts the PDF's built-in outline (table of contents) and returns a flat list
+    /// of (page number, title) tuples. Nested items are flattened recursively.
+    /// Returns an empty list when no outline is present or no document is loaded.
+    /// </summary>
+    public List<(int Page, string Title)> GetOutlineBookmarks()
+    {
+        var result = new List<(int Page, string Title)>();
+        if (Document == null) return result;
+
+        try
+        {
+            var outline = Document.Outline;
+            if (outline == null) return result;
+            FlattenOutline(outline, result);
+        }
+        catch { /* outline unavailable */ }
+
+        return result;
+    }
+
+    private static void FlattenOutline(IEnumerable<MuPDFCore.MuPDFOutlineItem> items, List<(int Page, string Title)> result)
+    {
+        foreach (var item in items)
+        {
+            if (item.Page >= 0 && !string.IsNullOrWhiteSpace(item.Title))
+                result.Add((item.Page, item.Title));
+            if (item.Children != null)
+                FlattenOutline(item.Children, result);
+        }
+    }
+
     #endregion
 
     /// <summary>
