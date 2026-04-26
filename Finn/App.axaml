@@ -244,6 +244,7 @@
 
 		<Style Selector="Border.shadow > Button">
 			<Setter Property="Margin" Value="0"/>
+			<Setter Property="BorderThickness" Value="0"/>
 		</Style>
 
 		<Style Selector="Button:pointerover">

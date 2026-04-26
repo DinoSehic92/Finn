@@ -296,8 +296,7 @@
 
 		<!-- Right-aligned row 1: Columns flyout + tray toggles -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" FlowDirection="RightToLeft">
-           <Border Classes="shadow" Height="30">
-				<Button Name="Columns" Classes="dropdown-surface" Height="30" MinHeight="30" Width="138" Click="Border_PointerPressed">
+		   <Button Name="Columns" Classes="dropdown-surface panel-button" Height="30" Width="140" Margin="5,0" Click="Border_PointerPressed">
 					<Grid ColumnDefinitions="22,*,1,16" Height="30" VerticalAlignment="Center" Margin="10,0" ColumnSpacing="8">
 						<ic:SymbolIcon Grid.Column="0" Symbol="DocumentHeaderArrowDown" IconVariant="Regular" FontSize="13" VerticalAlignment="Center" Opacity="0.9"/>
 						<TextBlock Grid.Column="1" Text="Columns" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"/>
@@ -336,10 +335,8 @@
 						</Flyout>
 					</Button.Flyout>
 				</Button>
-			</Border>
 
-                 <Border Classes="shadow" Height="30" IsVisible="{Binding UI.TrayViewOpen}">
-					<Button Classes="dropdown-surface" Height="30" MinHeight="30" Width="138">
+					 <Button Classes="dropdown-surface panel-button" Height="30" Width="140" Margin="5,0" IsVisible="{Binding UI.TrayViewOpen}">
 						<Grid ColumnDefinitions="22,*,1,16" Height="30" VerticalAlignment="Center" Margin="10,0" ColumnSpacing="8">
 								<ic:SymbolIcon Grid.Column="0" Symbol="PanelRight" IconVariant="Regular" FontSize="13" VerticalAlignment="Center" Opacity="0.9"/>
 								<TextBlock Grid.Column="1" Text="Panels" FontSize="13" VerticalAlignment="Center" HorizontalAlignment="Left"/>
@@ -365,8 +362,7 @@
 								</Flyout>
 							</Button.Flyout>
 						</Button>
-					</Border>
-		</StackPanel>
+				</StackPanel>
 
 		<!-- Center search bar with optional action bar -->
 		<StackPanel Grid.Row="1" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="30,0,0,0" Spacing="6">
