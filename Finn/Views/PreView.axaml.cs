@@ -122,7 +122,10 @@ public partial class PreView : UserControl
         switch (e.PropertyName)
         {
             case "SearchMode":
-                SetSearchFocus();
+                if (pwr.SearchMode)
+                    SetSearchFocus();
+                else
+                    MuPDFRenderer.Focus();
                 break;
 
             case nameof(pwr.SearchBusy):

@@ -732,11 +732,26 @@ public partial class MainView : UserControl
     /// </summary>
     private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key is not (Key.Up or Key.Down or Key.Left or Key.Right)) return;
         if (_ctx == null || _pwr == null) return;
         if (_pwr?.AnnotationActive == true) return;
 
         bool previewOpen = _ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen;
+
+        // Global preview search shortcut: works even when focus is in the file grid
+        // or elsewhere outside the renderer, as long as the preview is open.
+        if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            // Only act if PreView's own tunnel handler hasn't already handled it.
+            // PreView sets e.Handled = true when the preview is focused and handles Ctrl+F itself.
+            if (!e.Handled && previewOpen && (_pwr.SearchMode || _pwr.CanSearch))
+            {
+                _pwr.SearchMode = !_pwr.SearchMode;
+                e.Handled = true;
+            }
+            return;
+        }
+
+        if (e.Key is not (Key.Up or Key.Down or Key.Left or Key.Right)) return;
 
         // Search-result navigation runs first and ignores e.Handled because
         // the TextBox (main search field / preview SearchRegex) marks Up/Down

@@ -13,6 +13,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 
 namespace Finn.ViewModels
 {
@@ -159,7 +160,10 @@ namespace Finn.ViewModels
                 File.Move(temp, target);
 
                 // Only set the property after the file is complete on disk.
-                file.ThumbnailSource = target;
+                // Marshal to the UI thread so bindings never see a background-
+                // thread PropertyChanged event.
+                Dispatcher.UIThread.InvokeAsync(() => file.ThumbnailSource = target)
+                    .GetTask().GetAwaiter().GetResult();
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)

@@ -33,15 +33,32 @@ namespace Finn.ViewModels
 
             private static string ResolveSavePath()
             {
-                const string defaultPath = @"C:\Finn";
                 if (OperatingSystem.IsWindows())
                 {
-                    Directory.CreateDirectory(defaultPath);
-                    return defaultPath;
+                    // Prefer C:\Finn for easy discoverability, but fall back to
+                    // %AppData%\Finn when C:\ is not writable (locked-down machines,
+                    // standard user accounts, etc.).
+                    const string preferredPath = @"C:\Finn";
+                    try
+                    {
+                        Directory.CreateDirectory(preferredPath);
+                        // Verify we can actually write there (CreateDirectory succeeds
+                        // even if the directory already exists but is read-only).
+                        string probe = Path.Combine(preferredPath, ".write_probe");
+                        File.WriteAllText(probe, string.Empty);
+                        File.Delete(probe);
+                        return preferredPath;
+                    }
+                    catch
+                    {
+                        // Fall through to AppData fallback.
+                    }
                 }
 
-                return Path.Combine(
+                string fallback = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Finn");
+                Directory.CreateDirectory(fallback);
+                return fallback;
             }
 
             public MainViewModel()

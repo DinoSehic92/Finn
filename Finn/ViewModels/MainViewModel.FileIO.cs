@@ -36,7 +36,7 @@ namespace Finn.ViewModels
                 if (files.Count > 0)
                 {
                     // Remember the loaded file path so comparisons target the correct file
-                    try { CurrentProjectsFilePath = files[0].Path.LocalPath; } catch { CurrentProjectsFilePath = null; }
+                    CurrentProjectsFilePath = files[0].Path.LocalPath;
 
                     await using var stream = await files[0].OpenReadAsync();
                     using var streamReader = new StreamReader(stream);
@@ -48,7 +48,7 @@ namespace Finn.ViewModels
             public async Task LoadFileAutoAsync()
             {
                 string path = Path.Combine(SavePath, "Projects.json");
-                try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
+                CurrentProjectsFilePath = path;
 
                 try
                 {
@@ -57,8 +57,9 @@ namespace Finn.ViewModels
                     DeserializeLoadFile(fileContent);
                     PreviewVM.StatusMessage = "Ready!";
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Utils.ErrorLogger.Log(ex, "LoadFileAutoAsync");
                     Storage = new ProjectStorage();
                     EnsureDefaultProject();
                     SetProjectlist();
@@ -120,7 +121,9 @@ namespace Finn.ViewModels
                     if (deserialized != null)
                         Storage = deserialized;
                 }
-                catch // If not, try read as v.1 save file (bare project list)
+                catch (Exception v2Ex) when (v2Ex is not OutOfMemoryException
+                                                        and not StackOverflowException)
+                // If not, try read as v.1 save file (bare project list)
                 {
                     try
                     {
@@ -132,7 +135,8 @@ namespace Finn.ViewModels
                                 projects.Where(x => x.Category != SEARCH_CATEGORY && x.Category != "Favorites"));
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OutOfMemoryException
+                                                    and not StackOverflowException)
                     {
                         Utils.ErrorLogger.Log(ex, "DeserializeLoadFile: failed to parse v1 and v2 format");
                     }
@@ -197,7 +201,9 @@ namespace Finn.ViewModels
                 SyncPreviewRegionColor();
                 // SyncPlainText does synchronous file I/O — run on background thread
                 // so it does not block the UI during startup.
-                Task.Run(() => Data.SyncPlainText());
+                Task.Run(() => Data.SyncPlainText())
+                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception?.InnerException ?? t.Exception, "SyncPlainText"),
+                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public async Task SaveFile(Avalonia.Visual window)
@@ -217,7 +223,7 @@ namespace Finn.ViewModels
                 if (file is not null)
                 {
                     // Remember the path the user chose for future comparisons
-                    try { CurrentProjectsFilePath = file.Path.LocalPath; } catch { CurrentProjectsFilePath = null; }
+                    CurrentProjectsFilePath = file.Path.LocalPath;
 
                     await using var stream = await file.OpenWriteAsync();
                     await JsonHelper.SerializeAsync(Storage, stream);
@@ -237,7 +243,7 @@ namespace Finn.ViewModels
 
                     string path = Path.Combine(SavePath, "Projects.json");
                     string tmpPath = path + ".tmp";
-                    try { CurrentProjectsFilePath = path; } catch { CurrentProjectsFilePath = null; }
+                    CurrentProjectsFilePath = path;
 
                     // Stream-serialize to a temp file first (no intermediate string)
                     await using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -277,7 +283,6 @@ namespace Finn.ViewModels
                     else
                         path = Path.Combine(SavePath, "Projects.json");
 
-                    Debug.WriteLine($"Comparing storage to file: '{path}'");
                     if (!File.Exists(path))
                     {
                         // No file on disk -> consider storage different (unsaved)
@@ -300,9 +305,11 @@ namespace Finn.ViewModels
 
                     return savedNorm != currentNorm;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // If comparison fails for any reason, assume changed so caller can decide to save.
+                    // If comparison fails (disk full, IO error, etc.), log it and
+                    // assume changed so the caller can decide whether to save.
+                    Utils.ErrorLogger.Log(ex, "IsStorageDifferentFromFile");
                     return true;
                 }
             }

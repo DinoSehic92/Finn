@@ -400,8 +400,11 @@ namespace Finn.Model
 
         private DateTime? lastPushedUtc;
         /// <summary>
-        /// UTC timestamp of the last successful push to the shared location.
-        /// Persisted to local Projects.json. Stripped from server files.
+        /// UTC timestamp of the last known server-file write that this local
+        /// project has incorporated as its sync baseline. This is updated after
+        /// successful pushes and also after imports/merges so conflict detection
+        /// and sync-state logic can compare later server writes against a stable
+        /// baseline. Persisted to local Projects.json. Stripped from server files.
         /// </summary>
         public DateTime? LastPushedUtc
         {

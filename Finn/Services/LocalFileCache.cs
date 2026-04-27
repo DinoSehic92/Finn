@@ -184,13 +184,9 @@ namespace Finn.Services
             finally
             {
                 keyLock.Release();
-                // Trim the per-key lock if no one else is waiting, to prevent
-                // unbounded dictionary growth over the session lifetime.
-                if (keyLock.CurrentCount == 1)
-                {
-                    if (_keyLocks.TryRemove(serverPath, out var removed) && removed != keyLock)
-                        _keyLocks.TryAdd(serverPath, removed); // race: another thread re-added, restore
-                }
+                // Keep per-key locks for the process lifetime. Trimming these
+                // locks opportunistically is difficult to make race-free and
+                // correctness matters more than reclaiming a small dictionary.
             }
         }
 

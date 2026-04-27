@@ -21,6 +21,12 @@ public class SharedDiffEntry : INotifyPropertyChanged
     public string? FileName { get; init; }
 
     /// <summary>
+    /// Stable per-file identity used internally for merge decisions when
+    /// multiple files share the same display name.
+    /// </summary>
+    public string? FileKey { get; init; }
+
+    /// <summary>
     /// When checked, the local value is preserved instead of being overwritten
     /// by the server value. Applies to both Merge and Replace modes.
     /// Only meaningful for "Modified" rows on files that exist on both sides.
@@ -32,7 +38,7 @@ public class SharedDiffEntry : INotifyPropertyChanged
     }
 
     /// <summary>Whether the KeepLocal checkbox should be shown for this row.</summary>
-    public bool CanKeepLocal => !string.IsNullOrEmpty(FileName) && Change == "Modified";
+    public bool CanKeepLocal => !string.IsNullOrEmpty(FileKey) && Change == "Modified";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 }

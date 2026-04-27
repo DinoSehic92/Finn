@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Finn.Model;
 using iText.IO.Font;
@@ -304,22 +305,44 @@ namespace Finn.ViewModels
 
             public async Task CheckFileAsync()
             {
-                ClearFileStatus();
+                if (CurrentProject == null) return;
 
-                int n = CurrentProject.StoredFiles.Count;
+                // Capture the file list on the UI thread before entering
+                // the background task, so we never iterate an ObservableCollection
+                // from a thread-pool thread (which can corrupt it or throw).
+                var files = CurrentProject.StoredFiles.ToList();
+
+                // Clear status on the UI thread.
+                await Dispatcher.UIThread.InvokeAsync(ClearFileStatus);
+
+                int n = files.Count;
                 int i = 0;
+                var results = new List<(FileData File, bool Missing, int Progress)>(files.Count);
 
-                foreach (FileData file in CurrentProject.StoredFiles)
+                foreach (FileData file in files)
                 {
                     i++;
-                    if (!file.IsGroup)
-                        file.IsFileMissing = !file.IsValidPdf();
-                    PreviewVM.Progress = (int)(100 * ((float)i / (float)n));
+                    bool missing = !file.IsGroup && !file.IsValidPdf();
+
+                    results.Add((
+                        file,
+                        missing,
+                        n == 0 ? 0 : (int)(100 * ((float)i / n))));
                 }
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    foreach (var result in results)
+                    {
+                        result.File.IsFileMissing = result.Missing;
+                        PreviewVM.Progress = result.Progress;
+                    }
+                });
             }
 
             public void ClearFileStatus()
             {
+                if (CurrentProject == null) return;
                 foreach (FileData file in CurrentProject.StoredFiles)
                     file.IsFileMissing = false;
             }
@@ -340,7 +363,11 @@ namespace Finn.ViewModels
                         Process.Start(psi);
                     }
                 }
-                catch (Exception e) { Debug.WriteLine(e); }
+                catch (Exception e)
+                {
+                    Utils.ErrorLogger.Log(e, "OpenFile");
+                    PreviewVM.StatusMessage = $"Could not open file: {e.Message}";
+                }
             }
 
             public void OpenFileDirect(string path)
@@ -354,7 +381,11 @@ namespace Finn.ViewModels
                     };
                     Process.Start(psi);
                 }
-                catch (Exception e) { Debug.WriteLine(e); }
+                catch (Exception e)
+                {
+                    Utils.ErrorLogger.Log(e, "OpenFileDirect");
+                    PreviewVM.StatusMessage = $"Could not open file: {e.Message}";
+                }
             }
 
             public void OpenMeta()
@@ -372,7 +403,11 @@ namespace Finn.ViewModels
                         Process.Start(psi);
                     }
                 }
-                catch { }
+                catch (Exception e)
+                {
+                    Utils.ErrorLogger.Log(e, "OpenMeta");
+                    PreviewVM.StatusMessage = $"Could not open notes file: {e.Message}";
+                }
             }
 
             public void OpenDwg()

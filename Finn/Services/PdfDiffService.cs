@@ -103,16 +103,17 @@ namespace Finn.Services
 
                 int pagesA = docA.Pages.Count;
                 int pagesB = docB.Pages.Count;
-                // In-memory rendered bitmaps — no disk I/O for source pages during diff.
-                SKBitmap?[] bitmapsA = new SKBitmap?[pagesA];
-                SKBitmap?[] bitmapsB = new SKBitmap?[pagesB];
-
                 int renderedCount = 0;
                 int totalRenderPages = pagesA + pagesB;
                 progress?.Report(0);
 
-                // Phase 1 (0–50 %): render both documents to in-memory SKBitmaps.
-                // ctxA/docA and ctxB/docB are fully independent so this is thread-safe.
+                // Phase 1 (0–50 %): compute lightweight perceptual hashes for both
+                // documents. Render each page only long enough to hash it, then
+                // dispose the bitmap immediately to avoid holding every page of
+                // both PDFs in memory at once.
+                ulong[] hashA = new ulong[pagesA];
+                ulong[] hashB = new ulong[pagesB];
+
                 Parallel.Invoke(
                     new ParallelOptions { CancellationToken = ct },
                     () =>
@@ -120,7 +121,8 @@ namespace Finn.Services
                         for (int i = 0; i < pagesA; i++)
                         {
                             ct.ThrowIfCancellationRequested();
-                            bitmapsA[i] = RenderPageToBitmap(docA, i);
+                            using var bitmap = RenderPageToBitmap(docA, i);
+                            hashA[i] = ComputePageHash(bitmap);
                             progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
                         }
                     },
@@ -129,7 +131,8 @@ namespace Finn.Services
                         for (int i = 0; i < pagesB; i++)
                         {
                             ct.ThrowIfCancellationRequested();
-                            bitmapsB[i] = RenderPageToBitmap(docB, i);
+                            using var bitmap = RenderPageToBitmap(docB, i);
+                            hashB[i] = ComputePageHash(bitmap);
                             progress?.Report(Interlocked.Increment(ref renderedCount) * 50 / Math.Max(1, totalRenderPages));
                         }
                     }
@@ -142,17 +145,19 @@ namespace Finn.Services
                 // version has pages inserted or removed — every page after the
                 // insertion shows as "different."  Instead, compute a quick
                 // perceptual hash per page and use LCS to find the best alignment.
-                var alignment = AlignPages(bitmapsA, bitmapsB, pagesA, pagesB);
+                var alignment = AlignPages(hashA, hashB, pagesA, pagesB);
                 var results = new DiffResultData[alignment.Count];
-                int diffedCount = 0;
 
-                Parallel.For(0, alignment.Count, new ParallelOptions { CancellationToken = ct }, idx =>
+                // Render aligned pages sequentially. This keeps peak memory low while
+                // avoiding concurrent Render() calls against the same MuPDFDocument,
+                // which is safer for native document lifetime/threading.
+                for (int idx = 0; idx < alignment.Count; idx++)
                 {
                     ct.ThrowIfCancellationRequested();
                     var (idxA, idxB) = alignment[idx];
 
-                    var bmpA = idxA >= 0 ? bitmapsA[idxA] : null;
-                    var bmpB = idxB >= 0 ? bitmapsB[idxB] : null;
+                    using var bmpA = idxA >= 0 ? RenderPageToBitmap(docA, idxA) : null;
+                    using var bmpB = idxB >= 0 ? RenderPageToBitmap(docB, idxB) : null;
                     string? fileA = null;
                     string? fileB = null;
                     string? fileD = null;
@@ -172,12 +177,10 @@ namespace Finn.Services
                         }
                         else if (hasDiff)
                         {
-                            // Generate B-side diff image with the alternate color.
                             fileDiffB = Path.Combine(tempDir, $"d_{idx}_b.png");
                             RecolorDiffImage(fileD, fileDiffB, DefaultHighlightB_R, DefaultHighlightB_G, DefaultHighlightB_B);
                         }
 
-                        // Save source PNGs for toggle/SBS views.
                         fileA = Path.Combine(tempDir, $"a_{idx}.png");
                         fileB = Path.Combine(tempDir, $"b_{idx}.png");
                         SaveBitmapAsPng(bmpA, fileA);
@@ -198,11 +201,6 @@ namespace Finn.Services
                         }
                     }
 
-                    // Build label for the diff page list.
-                    string label = (idxA >= 0 && idxB >= 0)
-                        ? (idxA == idxB ? "" : $" (A:{idxA + 1}↔B:{idxB + 1})")
-                        : (idxA >= 0 ? $" (only in A, p{idxA + 1})" : $" (only in B, p{idxB + 1})");
-
                     results[idx] = new DiffResultData
                     {
                         PageIndex = idx,
@@ -216,12 +214,8 @@ namespace Finn.Services
                         PageLabelB = idxB >= 0 ? idxB + 1 : null
                     };
 
-                    progress?.Report(50 + Interlocked.Increment(ref diffedCount) * 50 / Math.Max(1, alignment.Count));
-                });
-
-                // Dispose in-memory bitmaps now that diffs are computed and PNGs are saved.
-                foreach (var bmp in bitmapsA) bmp?.Dispose();
-                foreach (var bmp in bitmapsB) bmp?.Dispose();
+                    progress?.Report(50 + (idx + 1) * 50 / Math.Max(1, alignment.Count));
+                }
 
                 return (new List<DiffResultData>(results), tempDir);
             }
@@ -525,7 +519,7 @@ namespace Finn.Services
         /// shifted, the result is simply (0,0), (1,1), … — zero overhead.
         /// </summary>
         private static List<(int A, int B)> AlignPages(
-            SKBitmap?[] bitmapsA, SKBitmap?[] bitmapsB, int countA, int countB)
+            ulong[] hashA, ulong[] hashB, int countA, int countB)
         {
             // Fast path: same page count — skip alignment entirely.
             if (countA == countB)
@@ -534,14 +528,6 @@ namespace Finn.Services
                 for (int i = 0; i < countA; i++) simple.Add((i, i));
                 return simple;
             }
-
-            // Compute a perceptual hash for each page.
-            ulong[] hashA = new ulong[countA];
-            ulong[] hashB = new ulong[countB];
-            for (int i = 0; i < countA; i++)
-                hashA[i] = bitmapsA[i] != null ? ComputePageHash(bitmapsA[i]!) : 0;
-            for (int i = 0; i < countB; i++)
-                hashB[i] = bitmapsB[i] != null ? ComputePageHash(bitmapsB[i]!) : 0;
 
             // LCS on the hash sequences to find matching pages.
             int[,] dp = new int[countA + 1, countB + 1];

@@ -1,4 +1,5 @@
 using Finn.Model;
+using Finn.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -58,10 +59,6 @@ public sealed class SharedFileWatcherService : IDisposable
             if (!string.IsNullOrEmpty(dir))
                 activePaths.TryAdd(dir, dir);
         }
-        System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Refresh: {trackedFiles.Count} tracked files, {activePaths.Count} directories");
-        foreach (var f in trackedFiles)
-            System.Diagnostics.Debug.WriteLine($"[SharedWatcher]   tracked: {f}");
-
         lock (_lock)
         {
             var toRemove = new List<string>();
@@ -99,9 +96,8 @@ public sealed class SharedFileWatcherService : IDisposable
                     watcher.Error += OnWatcherError;
 
                     _watchers[dir] = watcher;
-                    System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Created FSW for: {dir}");
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SharedWatcher] FSW creation failed for {dir}: {ex.Message}"); }
+                catch (Exception ex) { Utils.ErrorLogger.Log(ex, $"SharedFileWatcherService: FSW creation failed for {dir}"); }
             }
 
             // Seed baseline timestamps for the polling fallback
@@ -115,7 +111,6 @@ public sealed class SharedFileWatcherService : IDisposable
                 {
                     try { _lastKnownWriteTimes[file] = File.GetLastWriteTimeUtc(file); }
                     catch { _lastKnownWriteTimes[file] = DateTime.MinValue; }
-                    System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Baseline seeded: {file} = {_lastKnownWriteTimes[file]:O}");
                 }
             }
         }
@@ -125,7 +120,6 @@ public sealed class SharedFileWatcherService : IDisposable
         if (trackedFiles.Count > 0)
         {
             _pollTimer = new Timer(_ => PollForChanges(), null, PollInterval, PollInterval);
-            System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Poll timer started ({PollInterval.TotalSeconds}s interval)");
         }
     }
 
@@ -147,7 +141,6 @@ public sealed class SharedFileWatcherService : IDisposable
 
     private void OnFileEvent(object sender, FileSystemEventArgs e)
     {
-        System.Diagnostics.Debug.WriteLine($"[SharedWatcher] FSW event: {e.ChangeType} {e.FullPath}");
         lock (_lock)
         {
             _changedFiles.Add(e.FullPath);
@@ -162,6 +155,10 @@ public sealed class SharedFileWatcherService : IDisposable
     {
         if (sender is FileSystemWatcher watcher)
         {
+            var error = e.GetException();
+            if (error != null)
+                ErrorLogger.Log(error, $"SharedFileWatcherService: watcher error in '{watcher.Path}'");
+
             try
             {
                 lock (_lock)
@@ -172,7 +169,10 @@ public sealed class SharedFileWatcherService : IDisposable
                 }
                 ResetDebounce();
             }
-            catch { /* directory may be unavailable — ignore gracefully */ }
+            catch (Exception ex)
+            {
+                ErrorLogger.Log(ex, $"SharedFileWatcherService: failed to enumerate changed files in '{watcher.Path}'");
+            }
         }
     }
 
@@ -196,16 +196,14 @@ public sealed class SharedFileWatcherService : IDisposable
                     if (!File.Exists(path)) continue;
                     var current = File.GetLastWriteTimeUtc(path);
                     var baseline = _lastKnownWriteTimes[path];
-                    System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Poll: {Path.GetFileName(path)} current={current:O} baseline={baseline:O} delta={current - baseline}");
                     if (current > baseline.AddSeconds(1))
                     {
                         _lastKnownWriteTimes[path] = current;
                         changed ??= [];
                         changed.Add(path);
-                        System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Poll detected change: {path}");
                     }
                 }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Poll error for {path}: {ex.Message}"); }
+                catch { /* file may be temporarily inaccessible — skip this poll cycle */ }
             }
         }
 
@@ -242,8 +240,6 @@ public sealed class SharedFileWatcherService : IDisposable
             snapshot = new HashSet<string>(_changedFiles, StringComparer.OrdinalIgnoreCase);
             _changedFiles.Clear();
         }
-        System.Diagnostics.Debug.WriteLine($"[SharedWatcher] FireChanged: {snapshot.Count} files — {string.Join(", ", snapshot.Select(Path.GetFileName))}");
-        System.Diagnostics.Debug.WriteLine($"[SharedWatcher] Subscribers: {ServerFileChanged?.GetInvocationList().Length ?? 0}");
         ServerFileChanged?.Invoke(snapshot);
     }
 

@@ -18,8 +18,9 @@ namespace Finn.ViewModels
     public partial class PreviewViewModel
     {
         /// <summary>
-        /// Removes stale FinnDiff_* directories from the system temp folder
-        /// that were left behind by a previous crash. Called once at startup.
+        /// Removes stale FinnDiff_* and FinnTextDiff_* directories from the
+        /// system temp folder that were left behind by a previous crash.
+        /// Called once at startup.
         /// </summary>
         public static void CleanupStaleDiffTempDirs(TimeSpan maxAge = default)
         {
@@ -28,7 +29,8 @@ namespace Finn.ViewModels
             {
                 var tempRoot = Path.GetTempPath();
                 var cutoff = DateTime.UtcNow - maxAge;
-                foreach (var dir in Directory.EnumerateDirectories(tempRoot, "FinnDiff_*"))
+                foreach (var dir in Directory.EnumerateDirectories(tempRoot, "FinnDiff_*")
+                                             .Concat(Directory.EnumerateDirectories(tempRoot, "FinnTextDiff_*")))
                 {
                     try
                     {

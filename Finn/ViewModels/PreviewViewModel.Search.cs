@@ -18,15 +18,18 @@ namespace Finn.ViewModels
             if (!fileAvailable || string.IsNullOrWhiteSpace(text) || disposed || MainPreviewFile == null)
                 return;
 
-            ClearSearch();
-            regex = new Regex(text, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            await Dispatcher.UIThread.InvokeAsync(ClearSearch).GetTask().ConfigureAwait(false);
+            // Treat the search box as plain-text search. Escaping the user input
+            // avoids invalid-regex crashes and matches user expectations for a
+            // standard document search field.
+            regex = new Regex(Regex.Escape(text), RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
             try
             {
                 searchCts.Cancel();
                 searchCts.Dispose();
             }
-            catch { }
+            catch (ObjectDisposedException) { }
             searchCts = new CancellationTokenSource();
 
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
@@ -45,7 +48,7 @@ namespace Finn.ViewModels
             searchDone = tcs;
             try
             {
-                SearchBusy = true;
+                await Dispatcher.UIThread.InvokeAsync(() => SearchBusy = true).GetTask().ConfigureAwait(false);
 
                 int localPageCount = Pagecount;
 
@@ -104,7 +107,9 @@ namespace Finn.ViewModels
                     if (MainPreviewFile != doc)
                         return;
 
+                    SearchPages.Clear();
                     SearchPagesText.Clear();
+                    SearchPageIndex = -1;
                     foreach (var (pageIndex, matchCount) in foundPagesLocal)
                     {
                         SearchPages.Add(pageIndex);
@@ -135,7 +140,7 @@ namespace Finn.ViewModels
             }
             finally
             {
-                SearchBusy = false;
+                await Dispatcher.UIThread.InvokeAsync(() => SearchBusy = false).GetTask().ConfigureAwait(false);
                 tcs.TrySetResult();
                 // Only navigate to the first search result if the search completed
                 // successfully. When cancelled (e.g. file switch), firing
@@ -193,6 +198,9 @@ namespace Finn.ViewModels
                 searchCts.Cancel();
                 if (done != null)
                     await done.Task.ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
             }
             catch (Exception ex)
             {

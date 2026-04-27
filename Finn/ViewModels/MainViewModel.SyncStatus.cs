@@ -18,10 +18,12 @@ namespace Finn.ViewModels
             private readonly object _folderSnapshotLock = new();
 
             /// <summary>
-            /// Set to true while we are actively writing the server file (push).
-            /// The shared-file watcher checks this to ignore self-triggered events.
+            /// Suppressed shared-file writes keyed by server path.  After a local
+            /// push we record the server file's observed write timestamp here so the
+            /// shared watcher can ignore exactly that self-originated change instead
+            /// of relying on a timer-based global suppression flag.
             /// </summary>
-            private volatile bool _suppressSharedWatcher;
+            private readonly Dictionary<string, DateTime> _suppressedSharedWrites = new(StringComparer.OrdinalIgnoreCase);
 
             /// <summary>
             /// Folders that have been flagged as needing a sync, across all projects.
@@ -564,7 +566,7 @@ namespace Finn.ViewModels
             /// </summary>
             private void OnSharedFileChanged(IReadOnlySet<string> changedFiles)
             {
-                System.Diagnostics.Debug.WriteLine($"[SharedSync] OnSharedFileChanged: {changedFiles.Count} files, suppress={_suppressSharedWatcher}");
+                System.Diagnostics.Debug.WriteLine($"[SharedSync] OnSharedFileChanged: {changedFiles.Count} files");
                 foreach (var f in changedFiles)
                     System.Diagnostics.Debug.WriteLine($"[SharedSync]   changed: {f}");
 
@@ -606,91 +608,108 @@ namespace Finn.ViewModels
                 });
             }
 
+            private void RegisterSuppressedSharedWrite(string sharedPath, DateTime writeTimeUtc)
+            {
+                if (string.IsNullOrWhiteSpace(sharedPath))
+                    return;
+
+                lock (_folderSnapshotLock)
+                    _suppressedSharedWrites[sharedPath] = writeTimeUtc;
+            }
+
             private bool ShouldSuppressSharedFileChange(ProjectData project)
             {
-                if (!_suppressSharedWatcher)
+                if (string.IsNullOrEmpty(project.SharedPath))
                     return false;
 
-                if (string.IsNullOrEmpty(project.SharedPath))
-                    return true;
-
-                if (!project.LastPushedUtc.HasValue)
-                    return true;
+                DateTime expectedWriteUtc;
+                lock (_folderSnapshotLock)
+                {
+                    if (!_suppressedSharedWrites.TryGetValue(project.SharedPath, out expectedWriteUtc))
+                        return false;
+                }
 
                 try
                 {
                     var serverModified = File.GetLastWriteTimeUtc(project.SharedPath);
 
-                    // Ignore only the file changes that still fall within our own
-                    // push window. Real external updates should have a newer write
-                    // time than the last local push baseline.
-                    return serverModified <= project.LastPushedUtc.Value.AddSeconds(5);
+                    // FileSystemWatcher timestamps can be coarse (e.g. 1-second
+                    // resolution on some shares/filesystems), so accept small drift
+                    // around the exact write time we just observed locally.
+                    bool suppress = serverModified <= expectedWriteUtc.AddSeconds(1);
+
+                    // Once a newer external write is observed, or our own write has
+                    // been consumed, drop the suppression entry so future events are
+                    // evaluated normally.
+                    if (suppress || serverModified > expectedWriteUtc.AddSeconds(1))
+                    {
+                        lock (_folderSnapshotLock)
+                            _suppressedSharedWrites.Remove(project.SharedPath);
+                    }
+
+                    return suppress;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // If we cannot read the timestamp, preserve the existing
-                    // suppression behavior so self-pushes remain quiet.
-                    return true;
+                    Utils.ErrorLogger.Log(ex, $"ShouldSuppressSharedFileChange({project.SharedPath})");
+                    lock (_folderSnapshotLock)
+                        _suppressedSharedWrites.Remove(project.SharedPath);
+                    return false;
                 }
             }
 
             /// <summary>
-            /// Computes the sync state of a shared project by comparing
-            /// <see cref="ProjectData.LastPushedUtc"/> against the server file timestamp.
+            /// Computes the sync state of a shared project by comparing the
+            /// current server file timestamp against <see cref="ProjectData.LastPushedUtc"/>,
+            /// which acts as the local sync baseline (not strictly only a local push time).
             /// Preserves <see cref="SharedSyncState.LocalAhead"/> by upgrading to
             /// <see cref="SharedSyncState.Conflicted"/> when the server also changed.
             /// Safe to call from any thread (only reads filesystem + project fields).
             /// </summary>
             public static void UpdateSharedSyncStatus(ProjectData project)
             {
+                ApplySharedSyncStatus(project, ComputeSharedSyncState(project));
+            }
+
+            private static void ApplySharedSyncStatus(ProjectData project, SharedSyncState newState)
+            {
+                if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                    project.SharedSyncStatus = newState;
+                else
+                    Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => project.SharedSyncStatus = newState)
+                        .GetTask().GetAwaiter().GetResult();
+            }
+
+            private static SharedSyncState ComputeSharedSyncState(ProjectData project)
+            {
                 if (string.IsNullOrEmpty(project.SharedPath))
-                {
-                    project.SharedSyncStatus = SharedSyncState.Unknown;
-                    return;
-                }
+                    return SharedSyncState.Unknown;
 
                 try
                 {
                     if (!File.Exists(project.SharedPath))
-                    {
-                        project.SharedSyncStatus = SharedSyncState.ServerMissing;
-                        return;
-                    }
+                        return SharedSyncState.ServerMissing;
 
                     if (project.LastPushedUtc == null)
-                    {
-                        // Never pushed — server file exists from someone else
-                        project.SharedSyncStatus = SharedSyncState.ServerAhead;
-                        return;
-                    }
+                        return SharedSyncState.ServerAhead;
 
                     var serverModified = File.GetLastWriteTimeUtc(project.SharedPath);
                     bool serverChanged = serverModified > project.LastPushedUtc.Value.AddSeconds(5);
 
-                    // Viewers can only pull, so they're either InSync or ServerAhead.
                     if (project.IsViewer)
-                    {
-                        project.SharedSyncStatus = serverChanged
-                            ? SharedSyncState.ServerAhead
-                            : SharedSyncState.InSync;
-                        return;
-                    }
+                        return serverChanged ? SharedSyncState.ServerAhead : SharedSyncState.InSync;
 
                     bool localDirty = project.SharedSyncStatus is SharedSyncState.LocalAhead
-                                                                or SharedSyncState.Conflicted;
+                                                               or SharedSyncState.Conflicted;
 
-                    if (serverChanged && localDirty)
-                        project.SharedSyncStatus = SharedSyncState.Conflicted;
-                    else if (serverChanged)
-                        project.SharedSyncStatus = SharedSyncState.ServerAhead;
-                    else if (localDirty)
-                        project.SharedSyncStatus = SharedSyncState.LocalAhead;
-                    else
-                        project.SharedSyncStatus = SharedSyncState.InSync;
+                    if (serverChanged && localDirty) return SharedSyncState.Conflicted;
+                    if (serverChanged)               return SharedSyncState.ServerAhead;
+                    if (localDirty)                  return SharedSyncState.LocalAhead;
+                    return SharedSyncState.InSync;
                 }
                 catch
                 {
-                    project.SharedSyncStatus = SharedSyncState.Unknown;
+                    return SharedSyncState.Unknown;
                 }
             }
 
@@ -706,11 +725,16 @@ namespace Finn.ViewModels
 
                 if (sharedProjects.Count == 0) return;
 
-                await Task.Run(() =>
+                var computedStates = await Task.Run(() =>
+                    sharedProjects
+                        .Select(project => (Project: project, State: ComputeSharedSyncState(project)))
+                        .ToList());
+
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    foreach (var project in sharedProjects)
-                        UpdateSharedSyncStatus(project);
-                });
+                    foreach (var item in computedStates)
+                        item.Project.SharedSyncStatus = item.State;
+                }).GetTask().ConfigureAwait(false);
 
                 // Notify on server-ahead or conflicted projects
                 var needAttention = sharedProjects

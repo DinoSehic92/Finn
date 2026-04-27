@@ -14,12 +14,33 @@ namespace Finn.ViewModels;
 internal static class SharedProjectMerge
 {
     /// <summary>
+    /// Builds a stable comparison key for shared merge operations.
+    /// Prefer persisted path-based identity; fall back to structure-aware
+    /// metadata for groups/placeholders that may not have a real file path.
+    /// </summary>
+    public static string GetFileKey(FileData file)
+    {
+        if (!string.IsNullOrWhiteSpace(file.Sökväg))
+            return "PATH|" + file.Sökväg.Trim().ToUpperInvariant();
+
+        if (!string.IsNullOrWhiteSpace(file.OriginalPath))
+            return "ORIGINAL|" + file.OriginalPath.Trim().ToUpperInvariant();
+
+        return string.Join("|",
+            "META",
+            file.Namn.Trim().ToUpperInvariant(),
+            (file.ParentNamn ?? string.Empty).Trim().ToUpperInvariant(),
+            (file.Filtyp ?? string.Empty).Trim().ToUpperInvariant(),
+            file.IsGroup ? "GROUP" : "FILE");
+    }
+
+    /// <summary>
     /// Decides whether a specific (file, category) should keep the local value.
     /// </summary>
     public static bool ShouldKeepLocal(HashSet<(string File, string Category)>? keepLocal,
-        string fileName, string category)
+        string fileKey, string category)
     {
-        return keepLocal != null && keepLocal.Contains((fileName, category));
+        return keepLocal != null && keepLocal.Contains((fileKey, category));
     }
 
     /// <summary>
@@ -89,7 +110,7 @@ internal static class SharedProjectMerge
             if (same) return false;
         }
 
-        local.AnnotationLayers = new ObservableCollection<AnnotationLayer>(server.AnnotationLayers);
+        local.AnnotationLayers = new ObservableCollection<AnnotationLayer>(server.AnnotationLayers.Select(Clone));
         foreach (var layer in local.AnnotationLayers)
             layer.RecalculateCounts();
         return true;
@@ -126,7 +147,7 @@ internal static class SharedProjectMerge
         }
 
         // Rebuild: server layers first, then viewer layers
-        var merged = new ObservableCollection<AnnotationLayer>(server.AnnotationLayers);
+        var merged = new ObservableCollection<AnnotationLayer>(server.AnnotationLayers.Select(Clone));
         foreach (var layer in merged)
             layer.RecalculateCounts();
 
@@ -158,7 +179,7 @@ internal static class SharedProjectMerge
             return false;
         }
 
-        local.FavPages = new ObservableCollection<PageData>(server.FavPages);
+        local.FavPages = new ObservableCollection<PageData>(server.FavPages.Select(Clone));
         return true;
     }
 
@@ -185,7 +206,7 @@ internal static class SharedProjectMerge
         else
             local.OtherFiles = new();
         foreach (var item in server.OtherFiles)
-            local.OtherFiles.Add(item);
+            local.OtherFiles.Add(Clone(item));
         return true;
     }
 
@@ -207,7 +228,109 @@ internal static class SharedProjectMerge
             return false;
         }
 
-        local.Versions = new ObservableCollection<FileVersionData>(server.Versions);
+        local.Versions = new ObservableCollection<FileVersionData>(server.Versions.Select(Clone));
         return true;
     }
+
+    private static AnnotationLayer Clone(AnnotationLayer source)
+    {
+        var clone = new AnnotationLayer
+        {
+            Name = source.Name,
+            IsVisible = source.IsVisible,
+            IsLocked = source.IsLocked,
+            Color = source.Color
+        };
+
+        clone.PageStrokes = source.PageStrokes.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Select(Clone).ToList());
+
+        clone.PageShapes = source.PageShapes.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Select(Clone).ToList());
+
+        clone.PageTexts = source.PageTexts.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Select(Clone).ToList());
+
+        clone.PageMeasurements = source.PageMeasurements.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Select(Clone).ToList());
+
+        clone.RecalculateCounts();
+        return clone;
+    }
+
+    private static Finn.Controls.InkStroke Clone(Finn.Controls.InkStroke source) => new()
+    {
+        Points = source.Points.ToList(),
+        Color = source.Color,
+        Width = source.Width,
+        Opacity = source.Opacity,
+        IsHighlighter = source.IsHighlighter,
+        IsPolyline = source.IsPolyline,
+        IsClosed = source.IsClosed,
+        DashPattern = source.DashPattern,
+        CornerRadius = source.CornerRadius
+    };
+
+    private static ShapeAnnotation Clone(ShapeAnnotation source) => new()
+    {
+        ShapeType = source.ShapeType,
+        Start = source.Start,
+        End = source.End,
+        Color = source.Color,
+        StrokeWidth = source.StrokeWidth,
+        Opacity = source.Opacity,
+        IsFilled = source.IsFilled,
+        DashPattern = source.DashPattern,
+        CornerRadius = source.CornerRadius
+    };
+
+    private static TextAnnotation Clone(TextAnnotation source) => new()
+    {
+        Position = source.Position,
+        Text = source.Text,
+        FontSize = source.FontSize,
+        Color = source.Color,
+        Opacity = source.Opacity,
+        FontFamily = source.FontFamily,
+        ArrowOrigin = source.ArrowOrigin,
+        MaxWidth = source.MaxWidth,
+        IsStickyNote = source.IsStickyNote,
+        IsLabel = source.IsLabel
+    };
+
+    private static MeasurementAnnotation Clone(MeasurementAnnotation source) => new()
+    {
+        Points = source.Points.ToList(),
+        Color = source.Color,
+        Scale = source.Scale
+    };
+
+    private static PageData Clone(PageData source) => new()
+    {
+        PageNr = source.PageNr,
+        PageName = source.PageName
+    };
+
+    private static OtherData Clone(OtherData source) => new()
+    {
+        IsLink = source.IsLink,
+        Name = source.Name,
+        Filepath = source.Filepath,
+        Type = source.Type,
+        IsFromFolder = source.IsFromFolder,
+        FromFolder = source.FromFolder,
+        SyncFolder = source.SyncFolder,
+        IconBytes = source.IconBytes?.ToArray() ?? Array.Empty<byte>()
+    };
+
+    private static FileVersionData Clone(FileVersionData source) => new()
+    {
+        Sökväg = source.Sökväg,
+        Label = source.Label,
+        AddedDate = source.AddedDate
+    };
 }

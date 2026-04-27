@@ -945,7 +945,7 @@ namespace Finn.ViewModels
             FileWorkerBusy = false;
             Progress = 0;
             StatusMessage = "Cancelled";
-            try { mainCts.Cancel(); } catch { }
+            try { mainCts.Cancel(); } catch (ObjectDisposedException) { }
             // Also cancel diff if it was the active operation
             _diffCts?.Cancel();
         }
@@ -1162,7 +1162,7 @@ namespace Finn.ViewModels
                 mainCts.Cancel();
                 mainCts.Dispose();
             }
-            catch { }
+            catch (ObjectDisposedException) { }
 
             mainCts = new CancellationTokenSource();
 
@@ -1177,7 +1177,7 @@ namespace Finn.ViewModels
                 searchCts.Cancel();
                 searchCts.Dispose();
             }
-            catch { }
+            catch (ObjectDisposedException) { }
             searchCts = new CancellationTokenSource();
             SearchBusy = false;
             ClearSearch();
@@ -1518,7 +1518,7 @@ namespace Finn.ViewModels
                 searchCts.Cancel();
                 searchCts.Dispose();
             }
-            catch { }
+            catch (ObjectDisposedException) { }
             searchCts = new CancellationTokenSource();
             SearchBusy = false;
             ClearSearch();
@@ -1629,7 +1629,7 @@ namespace Finn.ViewModels
                 secondaryCts.Cancel();
                 secondaryCts.Dispose();
             }
-            catch { }
+            catch (ObjectDisposedException) { }
             secondaryCts = new CancellationTokenSource();
 
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, secondaryCts.Token);

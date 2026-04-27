@@ -1,4 +1,5 @@
 using Finn.Model;
+using Finn.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -87,9 +88,9 @@ namespace Finn.Services
 
                         _watchers[path] = watcher;
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Path may have become invalid between check and watcher creation
+                        ErrorLogger.Log(ex, $"FolderWatcherService: failed to create watcher for '{path}'");
                     }
                 }
             }

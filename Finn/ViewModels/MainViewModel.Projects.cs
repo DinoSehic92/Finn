@@ -42,12 +42,21 @@ namespace Finn.ViewModels
 
         public void RemoveProject()
         {
-            Storage.StoredProjects.Remove(CurrentProject);
+            if (CurrentProject == null) return;
 
-            foreach (FileData file in CurrentProject.StoredFiles)
+            // Capture the project reference before removal so the loop below
+            // is not affected by any CurrentProject reassignment that happens
+            // inside SetDefaultSelection / SetProjectlist.
+            var removed = CurrentProject;
+            Storage.StoredProjects.Remove(removed);
+
+            foreach (FileData file in removed.StoredFiles)
             {
                 PreviewVM.RecentFiles.Remove(file);
             }
+
+            if (ReferenceEquals(currentProject, removed))
+                currentProject = null;
 
             SetProjectlist();
             SetDefaultSelection();
@@ -68,6 +77,9 @@ namespace Finn.ViewModels
                 }
             }
 
+            if (currentProject != null && !Storage.StoredProjects.Contains(currentProject))
+                currentProject = null;
+
             SetProjectlist();
             SetDefaultSelection();
             SortProjects();
@@ -76,7 +88,7 @@ namespace Finn.ViewModels
 
         public void RenameProject(string projectName)
         {
-            if (CurrentProject.IsShared) return;
+            if (CurrentProject == null || CurrentProject.IsShared) return;
 
             CurrentProject.Namn = projectName;
 
@@ -227,6 +239,7 @@ namespace Finn.ViewModels
 
         public void SetGroups(string group)
         {
+            if (CurrentProject == null) return;
             CurrentProject.Parent = group;
             MarkDirty();
         }
@@ -289,7 +302,7 @@ namespace Finn.ViewModels
         public void SortProjects()
         {
             var sorted = Storage.StoredProjects
-                .OrderBy(x => x.Category == "Library" ? 0 : x.Category == "Archive" ? 1 : 2)
+                .OrderBy(x => CategorySortOrder(x.Category))
                 .ThenBy(x => x.Namn)
                 .ToList();
 
@@ -306,9 +319,23 @@ namespace Finn.ViewModels
             SetProjectlist();
         }
 
+        /// <summary>
+        /// Returns a stable sort order for known project categories.
+        /// Unknown categories sort after "Project" rather than silently
+        /// sharing its bucket, making unrecognised values visible in the list.
+        /// </summary>
+        private static int CategorySortOrder(string? category) => category switch
+        {
+            "Library"  => 0,
+            "Archive"  => 1,
+            PROJECT_CATEGORY => 2,
+            _          => 3   // unknown / future categories sort last
+        };
+
         public void SetProject(string name)
         {
             ProjectData project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
+            if (project == null) return;
 
             // Clear any active search highlights before switching projects.
             ClearSearchMatchFlags();
@@ -387,6 +414,7 @@ namespace Finn.ViewModels
 
         public void SetProjecCategory(string name)
         {
+            if (CurrentProject == null) return;
             CurrentProject.Category = name;
 
             if (name != PROJECT_CATEGORY)
@@ -400,7 +428,18 @@ namespace Finn.ViewModels
 
         public void SetDefaultSelection()
         {
-            string defaultProject = Storage.StoredProjects.FirstOrDefault().Namn;
+            var firstProject = Storage.StoredProjects.FirstOrDefault();
+            if (firstProject == null)
+            {
+                currentProject = null;
+                type = ALL_TYPES;
+                UpdateFilter();
+                OnPropertyChanged(nameof(CurrentProject));
+                OnPropertyChanged(nameof(IsSearchResult));
+                OnPropertyChanged(nameof(Type));
+                return;
+            }
+            string defaultProject = firstProject.Namn;
 
             // Use backing fields to avoid cascading UpdateFilter calls.
             currentProject = GetProject(defaultProject);
@@ -981,22 +1020,30 @@ namespace Finn.ViewModels
             var entries = new List<SharedDiffEntry>();
 
             // --- Files ---
-            var localNames = new HashSet<string>(
-                local.StoredFiles.Select(f => f.Namn), StringComparer.OrdinalIgnoreCase);
-            var serverNames = new HashSet<string>(
-                server.StoredFiles.Select(f => f.Namn), StringComparer.OrdinalIgnoreCase);
+            var localFilesByKey = local.StoredFiles
+                .GroupBy(SharedProjectMerge.GetFileKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var serverFilesByKey = server.StoredFiles
+                .GroupBy(SharedProjectMerge.GetFileKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-            foreach (string name in serverNames.Except(localNames, StringComparer.OrdinalIgnoreCase))
-                entries.Add(new SharedDiffEntry { Change = "Server only", Category = "File", Detail = name });
-            foreach (string name in localNames.Except(serverNames, StringComparer.OrdinalIgnoreCase))
-                entries.Add(new SharedDiffEntry { Change = "Local only", Category = "File", Detail = name });
+            foreach (string key in serverFilesByKey.Keys.Except(localFilesByKey.Keys, StringComparer.OrdinalIgnoreCase))
+            {
+                var file = serverFilesByKey[key];
+                entries.Add(new SharedDiffEntry { Change = "Server only", Category = "File", Detail = file.Namn, FileName = file.Namn, FileKey = key });
+            }
+            foreach (string key in localFilesByKey.Keys.Except(serverFilesByKey.Keys, StringComparer.OrdinalIgnoreCase))
+            {
+                var file = localFilesByKey[key];
+                entries.Add(new SharedDiffEntry { Change = "Local only", Category = "File", Detail = file.Namn, FileName = file.Namn, FileKey = key });
+            }
 
             // Files present in both — check for metadata and content changes
-            foreach (string name in localNames.Intersect(serverNames, StringComparer.OrdinalIgnoreCase))
+            foreach (string key in localFilesByKey.Keys.Intersect(serverFilesByKey.Keys, StringComparer.OrdinalIgnoreCase))
             {
-                var lf = local.StoredFiles.FirstOrDefault(f => f.Namn.Equals(name, StringComparison.OrdinalIgnoreCase));
-                var sf = server.StoredFiles.FirstOrDefault(f => f.Namn.Equals(name, StringComparison.OrdinalIgnoreCase));
-                if (lf == null || sf == null) continue;
+                var lf = localFilesByKey[key];
+                var sf = serverFilesByKey[key];
+                string name = lf.Namn;
 
                 var changes = new List<string>();
                 if (lf.Sökväg != sf.Sökväg) changes.Add("path");
@@ -1016,20 +1063,20 @@ namespace Finn.ViewModels
                 if (lf.DefaultPage != sf.DefaultPage) changes.Add("default page");
 
                 if (changes.Count > 0)
-                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "File", Detail = $"{name} ({string.Join(", ", changes)})", FileName = name });
+                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "File", Detail = $"{name} ({string.Join(", ", changes)})", FileName = name, FileKey = key });
 
                 if (lf.Note != sf.Note)
                 {
                     string hint = string.IsNullOrEmpty(sf.Note) ? "server note is empty"
                         : string.IsNullOrEmpty(lf.Note) ? "server has note, local is empty"
                         : "notes differ";
-                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Note", Detail = $"{name} ({hint})", FileName = name });
+                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Note", Detail = $"{name} ({hint})", FileName = name, FileKey = key });
                 }
 
                 int localVer = lf.Versions.Count;
                 int serverVer = sf.Versions.Count;
                 if (localVer != serverVer)
-                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Versions", Detail = $"{name}: {localVer} → {serverVer}", FileName = name });
+                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Versions", Detail = $"{name}: {localVer} → {serverVer}", FileName = name, FileKey = key });
 
                 int localAnn = lf.AnnotationLayers.Sum(l => l.TotalCount);
                 int serverAnn = sf.AnnotationLayers.Sum(l => l.TotalCount);
@@ -1040,18 +1087,18 @@ namespace Finn.ViewModels
                     string detail = annContentDiffers
                         ? $"{name}: {localAnn} annotations (content changed)"
                         : $"{name}: {localAnn} → {serverAnn}";
-                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Annotations", Detail = detail, FileName = name });
+                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Annotations", Detail = detail, FileName = name, FileKey = key });
                 }
 
                 int localBm = lf.FavPages?.Count ?? 0;
                 int serverBm = sf.FavPages?.Count ?? 0;
                 if (localBm != serverBm)
-                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Bookmarks", Detail = $"{name}: {localBm} → {serverBm}", FileName = name });
+                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Bookmarks", Detail = $"{name}: {localBm} → {serverBm}", FileName = name, FileKey = key });
 
                 int localOther = lf.OtherFiles?.Count ?? 0;
                 int serverOther = sf.OtherFiles?.Count ?? 0;
                 if (localOther != serverOther)
-                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Other Files", Detail = $"{name}: {localOther} → {serverOther}", FileName = name });
+                    entries.Add(new SharedDiffEntry { Change = "Modified", Category = "Other Files", Detail = $"{name}: {localOther} → {serverOther}", FileName = name, FileKey = key });
             }
 
             // --- Folders ---
@@ -1169,11 +1216,12 @@ namespace Finn.ViewModels
 
                 var localFileMap = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
                 foreach (var f in CurrentProject.StoredFiles)
-                    localFileMap.TryAdd(f.Namn, f);
+                    localFileMap.TryAdd(SharedProjectMerge.GetFileKey(f), f);
 
                 foreach (var serverFile in server.StoredFiles)
                 {
-                    if (!localFileMap.TryGetValue(serverFile.Namn, out var localFile))
+                    string fileKey = SharedProjectMerge.GetFileKey(serverFile);
+                    if (!localFileMap.TryGetValue(fileKey, out var localFile))
                     {
                         serverFile.Uppdrag = CurrentProject.Namn;
                         foreach (var layer in serverFile.AnnotationLayers)
@@ -1190,26 +1238,26 @@ namespace Finn.ViewModels
 
                         // File metadata — server wins unless KeepLocal is checked
                         changed |= SharedProjectMerge.MergeFileMetadata(localFile, serverFile,
-                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "File"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, fileKey, "File"));
 
                         changed |= SharedProjectMerge.MergeNote(localFile, serverFile,
-                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Note"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, fileKey, "Note"));
 
                         // Viewers: preserve local annotation layers, add server layers alongside
                         if (isViewer)
                             changed |= SharedProjectMerge.MergeAnnotationsForViewer(localFile, serverFile);
                         else
                             changed |= SharedProjectMerge.MergeAnnotations(localFile, serverFile,
-                                SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Annotations"));
+                                SharedProjectMerge.ShouldKeepLocal(keepLocal, fileKey, "Annotations"));
 
                         changed |= SharedProjectMerge.MergeBookmarks(localFile, serverFile,
-                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Bookmarks"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, fileKey, "Bookmarks"));
 
                         changed |= SharedProjectMerge.MergeOtherFiles(localFile, serverFile,
-                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Other Files"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, fileKey, "Other Files"));
 
                         changed |= SharedProjectMerge.MergeVersions(localFile, serverFile,
-                            SharedProjectMerge.ShouldKeepLocal(keepLocal, name, "Versions"));
+                            SharedProjectMerge.ShouldKeepLocal(keepLocal, fileKey, "Versions"));
 
                         if (changed) mergedFiles++;
                     }
@@ -1220,12 +1268,12 @@ namespace Finn.ViewModels
                 int removedFiles = 0;
                 if (CurrentProject.IsViewer)
                 {
-                    var serverNameSet = new HashSet<string>(
-                        server.StoredFiles.Select(f => f.Namn), StringComparer.OrdinalIgnoreCase);
+                    var serverKeySet = new HashSet<string>(
+                        server.StoredFiles.Select(SharedProjectMerge.GetFileKey), StringComparer.OrdinalIgnoreCase);
 
                     for (int i = CurrentProject.StoredFiles.Count - 1; i >= 0; i--)
                     {
-                        if (!serverNameSet.Contains(CurrentProject.StoredFiles[i].Namn))
+                        if (!serverKeySet.Contains(SharedProjectMerge.GetFileKey(CurrentProject.StoredFiles[i])))
                         {
                             CurrentProject.StoredFiles.RemoveAt(i);
                             removedFiles++;
@@ -1359,8 +1407,6 @@ namespace Finn.ViewModels
 
                 string tmpPath = CurrentProject.SharedPath + ".tmp";
 
-                // Suppress watcher so our own write doesn't trigger a sync event
-                _suppressSharedWatcher = true;
                 try
                 {
                     File.WriteAllText(tmpPath, json);
@@ -1372,14 +1418,12 @@ namespace Finn.ViewModels
                     try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { }
                     throw;
                 }
-                finally
-                {
-                    // Delay clearing the flag so the debounced watcher event
-                    // fires while the flag is still set.
-                    Task.Delay(1500).ContinueWith(_ => _suppressSharedWatcher = false);
-                }
 
-                CurrentProject.LastPushedUtc = DateTime.UtcNow;
+                // Record the actual server write time and suppress exactly this
+                // self-originated change in the shared watcher.
+                DateTime pushedWriteUtc = File.GetLastWriteTimeUtc(CurrentProject.SharedPath);
+                RegisterSuppressedSharedWrite(CurrentProject.SharedPath, pushedWriteUtc);
+                CurrentProject.LastPushedUtc = pushedWriteUtc;
                 WriteSharedActivityLog(CurrentProject, "pushed");
                 MarkDirty();
                 // Set InSync after MarkDirty so it doesn't flip to LocalAhead
@@ -1430,7 +1474,11 @@ namespace Finn.ViewModels
                     return $"⚠ Server file was modified {timeDesc} by another user. Pushing will overwrite their changes.";
                 }
             }
-            catch { /* ignore — push will succeed or fail on its own */ }
+            catch (Exception ex)
+            {
+                Utils.ErrorLogger.Log(ex, $"CheckPushConflict({CurrentProject.SharedPath})");
+                return "⚠ Could not verify whether the server file changed. Pushing may overwrite newer server data.";
+            }
 
             return null;
         }
@@ -1535,7 +1583,8 @@ namespace Finn.ViewModels
                     : SharedRole.Owner;
 
                 // Mark as in-sync since we just imported the server content.
-                // Record the server file timestamp so CheckPushConflict has a baseline.
+                // Record the current server write time as the shared-sync baseline
+                // even though no local push has happened yet.
                 try { imported.LastPushedUtc = File.GetLastWriteTimeUtc(serverFilePath); } catch { }
                 imported.SharedSyncStatus = SharedSyncState.InSync;
 
@@ -1673,7 +1722,11 @@ namespace Finn.ViewModels
                     .Skip(10);
                 foreach (var old in oldBackups)
                 {
-                    try { File.Delete(old); } catch { }
+                    try { File.Delete(old); }
+                    catch (Exception ex)
+                    {
+                        Utils.ErrorLogger.Log(ex, $"BackupProjectBeforePull cleanup: {old}");
+                    }
                 }
             }
             catch (Exception ex)

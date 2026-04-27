@@ -15,13 +15,13 @@ public partial class xSharedPullDia : Window
     private ObservableCollection<SharedDiffEntry> _entries = [];
 
     /// <summary>
-    /// Lookup: (FileName, Category) pairs where KeepLocal was checked.
+    /// Lookup: (FileKey, Category) pairs where KeepLocal was checked.
     /// Merge will preserve local values for these entries instead of
     /// applying the server value.
     /// </summary>
     public HashSet<(string File, string Category)> KeepLocalEntries => new(
-        _entries.Where(e => e.KeepLocal && e.FileName != null)
-                .Select(e => (e.FileName!, e.Category)));
+        _entries.Where(e => e.KeepLocal && e.FileKey != null)
+                .Select(e => (e.FileKey!, e.Category)));
 
     public xSharedPullDia()
     {
