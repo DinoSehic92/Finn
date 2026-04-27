@@ -417,6 +417,7 @@ namespace Finn.ViewModels
                         requestPage2 = requestPage1; // pre-sync pages as a starting point
                         TwopageMode = true;
                         LinkedPageMode = false;
+                        Rotation = 0; // rotation is not supported in dual file mode
                     }
                     else
                     {
@@ -429,6 +430,7 @@ namespace Finn.ViewModels
                         Pagecount2 = 0;
                         TwopageMode = false; // triggers ToggleDualViewAsync ? reverts to single page layout
                         FireAndForget(DisposeSecondaryDocumentAsync(), nameof(DisposeSecondaryDocumentAsync));
+                        Rotation = CurrentFile?.Rotation ?? 0; // restore the primary file's persisted rotation
                     }
                 }
             }
@@ -1298,7 +1300,15 @@ namespace Finn.ViewModels
                 UnpinMainCachePath();
                 _mainPinnedCachePath = cachedLocally ? path : null;
 
-                var reqFile = RequestFile!;
+                var reqFile = RequestFile;
+                if (reqFile == null || IsStale(myGeneration))
+                {
+                    previewDoc.Dispose();
+                    previewContext.Dispose();
+                    previewDoc = null;
+                    previewContext = null;
+                    return;
+                }
                 int desired = Math.Clamp(reqFile.DefaultPage, 0,
                     Math.Max(0, previewDoc.Pages.Count - 1));
 
@@ -1352,7 +1362,7 @@ namespace Finn.ViewModels
                         requestPage1 = desired;
                         OnPropertyChanged(nameof(RequestPage1));
                         currentPage1 = -1;
-                        Rotation = 0;
+                        Rotation = reqFile.Rotation;
                         if (!string.IsNullOrEmpty(search))
                         {
                             SuppressSearchFocus = true;

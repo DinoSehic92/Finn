@@ -17,9 +17,12 @@
 	<Window.Styles>
 
 
-		<Style Selector="DataGridRow.RedForeground">
-			<Setter Property="Foreground" Value="#FF6B6B"/>
-			<Setter Property="FontStyle" Value="Italic"/>
+		<Style Selector="DataGridRow.MissingFile">
+			<Setter Property="Opacity" Value="0.5"/>
+		</Style>
+
+		<Style Selector="DataGridRow.MissingFile DataGridCell TextBlock">
+			<Setter Property="TextDecorations" Value="Strikethrough"/>
 		</Style>
 
 		<!-- Hide vertical separator lines in DataGrid column headers -->

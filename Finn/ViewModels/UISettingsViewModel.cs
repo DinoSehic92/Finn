@@ -925,6 +925,13 @@ public class UISettingsViewModel : ObservableObject
             App.Current.Resources["DataGridGridLinesBrush"] = dividerBrush;
             App.Current.Resources["SystemBaseMediumLowColor"] = strongBorder;
 
+            // Drop overlay brushes — derived from accent; must be re-registered after every
+            // resource dictionary swap because ApplyTheme replaces App.Current.Resources entirely.
+            var dropOverlayColor       = accent;
+            App.Current.Resources["AppDropOverlayBrush"]       = new SolidColorBrush(dropOverlayColor, 0.22);
+            App.Current.Resources["AppDropOverlaySubtleBrush"] = new SolidColorBrush(dropOverlayColor, 0.13);
+            App.Current.Resources["AppDropOverlayBorderBrush"] = new SolidColorBrush(dropOverlayColor);
+
             App.Current.RequestedThemeVariant = DarkMode ? ThemeVariant.Dark : ThemeVariant.Light;
         }
     }

@@ -1719,13 +1719,16 @@ public partial class MainView : UserControl
 
     private void OnUpdateColumns()
     {
-        var sizeToCell = new DataGridLength(1.0, DataGridLengthUnitType.SizeToCells);
-        int count = Math.Min(FileGrid.Columns.Count, 10);
-        for (int i = 0; i < count; i++)
-            FileGrid.Columns[i].Width = sizeToCell;
+        Dispatcher.UIThread.Post(() =>
+        {
+            var sizeToCell = new DataGridLength(1.0, DataGridLengthUnitType.SizeToCells);
+            int count = Math.Min(FileGrid.Columns.Count, 10);
+            for (int i = 0; i < count; i++)
+                FileGrid.Columns[i].Width = sizeToCell;
 
-        FileGrid.InvalidateMeasure();
-        FileGrid.InvalidateArrange();
+            FileGrid.InvalidateMeasure();
+            FileGrid.InvalidateArrange();
+        }, DispatcherPriority.Loaded);
     }
 
     private void UpdateRowColor()
@@ -1743,7 +1746,7 @@ public partial class MainView : UserControl
     {
         if (row.DataContext is not FileData data)
         {
-            row.Classes.Remove("RedForeground");
+            row.Classes.Remove("MissingFile");
             row.Classes.Remove("ParentRow");
             row.Classes.Remove("GroupRow");
             row.Classes.Remove("ChildRow");
@@ -1755,7 +1758,7 @@ public partial class MainView : UserControl
 
         bool isPlaceholder = data.Sökväg == string.Empty;
 
-        SetClass(row, "RedForeground", data.IsFileMissing && !isPlaceholder);
+        SetClass(row, "MissingFile", data.IsFileMissing && !isPlaceholder);
 
         foreach (var c in AllColorClasses)
             row.Classes.Remove(c);

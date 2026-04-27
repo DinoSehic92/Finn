@@ -794,11 +794,13 @@
 
 						<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.5"/>
 
-						<Button Classes="ghost" ToolTip.Tip="Rotate Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateLeft">
+						<Button Classes="ghost" ToolTip.Tip="Rotate Left" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateLeft"
+								IsVisible="{Binding !DualFileMode}">
 							<ic:SymbolIcon Symbol="RotateLeft" IconVariant="Regular" FontSize="16"/>
 						</Button>
 
-						<Button Classes="ghost" ToolTip.Tip="Rotate Right" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateRight">
+						<Button Classes="ghost" ToolTip.Tip="Rotate Right" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="RotateRight"
+								IsVisible="{Binding !DualFileMode}">
 							<ic:SymbolIcon Symbol="RotateRight" IconVariant="Regular" FontSize="16"/>
 						</Button>
 

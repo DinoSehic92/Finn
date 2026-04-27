@@ -432,6 +432,16 @@ namespace Finn.Model
             set => SetProperty(ref _defaultPage, value);
         }
 
+        private double _rotation;
+        /// <summary>
+        /// Persisted rotation in degrees (0, 90, 180, 270) applied when this file is previewed.
+        /// </summary>
+        public double Rotation
+        {
+            get => _rotation;
+            set => SetProperty(ref _rotation, value);
+        }
+
         /// <summary>
         /// Annotation layers for this file. Stored per-file so strokes survive
         /// file switches and never bleed between documents.

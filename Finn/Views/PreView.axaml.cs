@@ -931,7 +931,8 @@ public partial class PreView : UserControl
 
     private void RotateRight(object sender, RoutedEventArgs e)
     {
-        pwr.Rotation = pwr.Rotation + 90;
+        pwr.Rotation = ((pwr.Rotation + 90) % 360 + 360) % 360;
+        PersistRotation();
         MuPDFRenderer.InvalidateMeasure();
         MuPDFRenderer.InvalidateArrange();
         MuPDFRenderer.Contain();
@@ -939,10 +940,21 @@ public partial class PreView : UserControl
 
     private void RotateLeft(object sender, RoutedEventArgs e)
     {
-        pwr.Rotation = pwr.Rotation - 90;
+        pwr.Rotation = ((pwr.Rotation - 90) % 360 + 360) % 360;
+        PersistRotation();
         MuPDFRenderer.InvalidateMeasure();
         MuPDFRenderer.InvalidateArrange();
         MuPDFRenderer.Contain();
+    }
+
+    private void PersistRotation()
+    {
+        // Don't persist rotation for viewer-role shared projects (read-only)
+        if (ctx.CurrentFile == null) return;
+        if (ctx.CurrentProject?.IsViewer == true) return;
+
+        ctx.CurrentFile.Rotation = pwr.Rotation;
+        ctx.MarkDirty();
     }
 
     private void RotateNull()
