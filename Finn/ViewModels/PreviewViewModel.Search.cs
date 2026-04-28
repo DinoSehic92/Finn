@@ -18,7 +18,7 @@ namespace Finn.ViewModels
             if (!fileAvailable || string.IsNullOrWhiteSpace(text) || disposed || MainPreviewFile == null)
                 return;
 
-            await Dispatcher.UIThread.InvokeAsync(ClearSearch).GetTask().ConfigureAwait(false);
+            ClearSearch();
             // Treat the search box as plain-text search. Escaping the user input
             // avoids invalid-regex crashes and matches user expectations for a
             // standard document search field.
@@ -29,7 +29,7 @@ namespace Finn.ViewModels
                 searchCts.Cancel();
                 searchCts.Dispose();
             }
-            catch (ObjectDisposedException) { }
+            catch { }
             searchCts = new CancellationTokenSource();
 
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
@@ -48,7 +48,7 @@ namespace Finn.ViewModels
             searchDone = tcs;
             try
             {
-                await Dispatcher.UIThread.InvokeAsync(() => SearchBusy = true).GetTask().ConfigureAwait(false);
+                SearchBusy = true;
 
                 int localPageCount = Pagecount;
 
@@ -140,7 +140,7 @@ namespace Finn.ViewModels
             }
             finally
             {
-                await Dispatcher.UIThread.InvokeAsync(() => SearchBusy = false).GetTask().ConfigureAwait(false);
+                SearchBusy = false;
                 tcs.TrySetResult();
                 // Only navigate to the first search result if the search completed
                 // successfully. When cancelled (e.g. file switch), firing

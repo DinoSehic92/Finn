@@ -945,7 +945,7 @@ namespace Finn.ViewModels
             FileWorkerBusy = false;
             Progress = 0;
             StatusMessage = "Cancelled";
-            try { mainCts.Cancel(); } catch (ObjectDisposedException) { }
+            try { mainCts.Cancel(); } catch { }
             // Also cancel diff if it was the active operation
             _diffCts?.Cancel();
         }
@@ -1122,7 +1122,8 @@ namespace Finn.ViewModels
         #region File Operations
         public async Task SetFileAsync(string? search = null, CancellationToken cancellationToken = default, bool preserveDualFile = false)
         {
-            if (disposed || RequestFile?.Sökväg == null)
+            var requestedFile = RequestFile;
+            if (disposed || requestedFile?.Sökväg == null)
                 return;
 
             WhiteboardMode = false;
@@ -1162,11 +1163,11 @@ namespace Finn.ViewModels
                 mainCts.Cancel();
                 mainCts.Dispose();
             }
-            catch (ObjectDisposedException) { }
+            catch { }
 
             mainCts = new CancellationTokenSource();
 
-            // Cancel any running search BEFORE the debounce so search batches
+            // Cancel any running search BEFORE the debounce
             // stop blocking the UI thread immediately. When a search is started
             // by the user (not by SetFileAsync), its token is only linked to
             // searchCts — mainCts.Cancel() above won't reach it. Without this,
@@ -1177,7 +1178,7 @@ namespace Finn.ViewModels
                 searchCts.Cancel();
                 searchCts.Dispose();
             }
-            catch (ObjectDisposedException) { }
+            catch { }
             searchCts = new CancellationTokenSource();
             SearchBusy = false;
             ClearSearch();
@@ -1220,8 +1221,8 @@ namespace Finn.ViewModels
             {
                 if (IsStale(myGeneration)) return;
 
-                string path = RequestFile.Sökväg;
-                var reqFileRef = RequestFile;
+                string path = requestedFile.Sökväg;
+                var reqFileRef = requestedFile;
 
                 // Route through local cache when the file is explicitly cached
                 // or when AutoCacheNetworkFiles is on for a network path.
@@ -1231,7 +1232,7 @@ namespace Finn.ViewModels
                 bool wasStale = false;
                 string originalPath = path;
                 bool isNetworkPath = LocalFileCache.IsNetworkPath(path);
-                bool useCache = RequestFile.IsCached
+                bool useCache = requestedFile.IsCached
                     || (_autoCacheNetworkFiles && isNetworkPath);
 
                 if (useCache)
@@ -1300,7 +1301,7 @@ namespace Finn.ViewModels
                 UnpinMainCachePath();
                 _mainPinnedCachePath = cachedLocally ? path : null;
 
-                var reqFile = RequestFile;
+                var reqFile = requestedFile;
                 if (reqFile == null || IsStale(myGeneration))
                 {
                     previewDoc.Dispose();
@@ -1518,12 +1519,12 @@ namespace Finn.ViewModels
                 searchCts.Cancel();
                 searchCts.Dispose();
             }
-            catch (ObjectDisposedException) { }
+            catch { }
             searchCts = new CancellationTokenSource();
             SearchBusy = false;
             ClearSearch();
 
-            // Always reset UI-facing state, even when no document is loaded,
+            // Always reset UI-facing state
             // so stale page numbers and file references are never left visible.
             fileAvailable = false;
             Pagecount = 0;
@@ -1629,7 +1630,7 @@ namespace Finn.ViewModels
                 secondaryCts.Cancel();
                 secondaryCts.Dispose();
             }
-            catch (ObjectDisposedException) { }
+            catch { }
             secondaryCts = new CancellationTokenSource();
 
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, secondaryCts.Token);

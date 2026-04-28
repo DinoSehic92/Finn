@@ -161,9 +161,9 @@ namespace Finn.ViewModels
 
                 // Only set the property after the file is complete on disk.
                 // Marshal to the UI thread so bindings never see a background-
-                // thread PropertyChanged event.
-                Dispatcher.UIThread.InvokeAsync(() => file.ThumbnailSource = target)
-                    .GetTask().GetAwaiter().GetResult();
+                // thread PropertyChanged event. Post (fire-and-forget) is safe
+                // here — the file path is already written to disk at this point.
+                Dispatcher.UIThread.Post(() => file.ThumbnailSource = target);
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
