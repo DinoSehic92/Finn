@@ -472,6 +472,18 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
+        /// True when the search panel is showing annotated pages instead of
+        /// text search results or diff pages. Controls header text and hides
+        /// the search input.
+        /// </summary>
+        private bool _annotationPageListMode;
+        public bool AnnotationPageListMode
+        {
+            get => _annotationPageListMode;
+            set => SetProperty(ref _annotationPageListMode, value);
+        }
+
+        /// <summary>
         /// True when annotation mode may be activated. Blocked in Dual-File mode
         /// where there are two independent documents and annotation targets are
         /// ambiguous.

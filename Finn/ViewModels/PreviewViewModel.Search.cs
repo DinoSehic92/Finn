@@ -216,6 +216,103 @@ namespace Finn.ViewModels
             SearchPagesText.Clear();
             SearchPages.Clear();
             DiffPageListMode = false;
+            AnnotationPageListMode = false;
+        }
+
+        private static SortedSet<int> GetAnnotatedPages(IEnumerable<Finn.Model.AnnotationLayer> layers)
+        {
+            var annotatedPages = new SortedSet<int>();
+            foreach (var layer in layers)
+            {
+                foreach (var (page, strokes) in layer.PageStrokes)
+                    if (strokes.Count > 0)
+                        annotatedPages.Add(page);
+
+                foreach (var (page, shapes) in layer.PageShapes)
+                    if (shapes.Count > 0)
+                        annotatedPages.Add(page);
+
+                foreach (var (page, texts) in layer.PageTexts)
+                    if (texts.Count > 0)
+                        annotatedPages.Add(page);
+
+                foreach (var (page, measurements) in layer.PageMeasurements)
+                    if (measurements.Count > 0)
+                        annotatedPages.Add(page);
+            }
+
+            return annotatedPages;
+        }
+
+        /// <summary>
+        /// Populates the search panel with pages that have at least one annotation
+        /// across all visible layers, allowing the user to navigate between them.
+        /// Opens the search panel in "annotation page list" mode, bypassing the
+        /// CanSearch guard the same way diff mode does.
+        /// </summary>
+        public void PopulateAnnotationPageList(System.Collections.Generic.IEnumerable<Finn.Model.AnnotationLayer> layers)
+        {
+            var annotatedPages = GetAnnotatedPages(layers);
+
+            // Preserve the current preview page first so live refresh while drawing
+            // does not jump back to an older list selection. If the current page is
+            // not part of the annotated set, fall back to the selected list item.
+            int preservedPage = annotatedPages.Contains(RequestPage1)
+                ? RequestPage1
+                : (SearchPageIndex >= 0 && SearchPageIndex < SearchPages.Count
+                    ? SearchPages[SearchPageIndex]
+                    : -1);
+
+            int previousRequestedPage = RequestPage1;
+
+            SearchPages.Clear();
+            SearchPagesText.Clear();
+
+            if (annotatedPages.Count == 0)
+            {
+                SearchItems = 0;
+                searchPageIndex = -1;
+                OnPropertyChanged(nameof(SearchPageIndex));
+                AnnotationPageListMode = false;
+                SetProperty(ref searchMode, false, nameof(SearchMode));
+                return;
+            }
+
+            foreach (int page in annotatedPages)
+            {
+                SearchPages.Add(page);
+                SearchPagesText.Add($"Page {page + 1}");
+            }
+
+            SearchItems = SearchPages.Count;
+            AnnotationPageListMode = true;
+
+            // Restore the previously selected index if still valid, else go to first.
+            int restoredIndex = preservedPage >= 0 ? SearchPages.IndexOf(preservedPage) : -1;
+            searchPageIndex = restoredIndex >= 0 ? restoredIndex : 0;
+            OnPropertyChanged(nameof(SearchPageIndex));
+
+            int selectedPage = SearchPages[searchPageIndex];
+            if (previousRequestedPage != selectedPage)
+                RequestPage1 = selectedPage;
+
+            // Only open the panel if it wasn't already open.
+            if (!searchMode)
+                SetProperty(ref searchMode, true, nameof(SearchMode));
+        }
+
+        public void ToggleAnnotationPageList(System.Collections.Generic.IEnumerable<Finn.Model.AnnotationLayer> layers)
+        {
+            if (searchMode && _annotationPageListMode)
+            {
+                // Close the panel
+                ClearSearch();
+                SetProperty(ref searchMode, false, nameof(SearchMode));
+            }
+            else
+            {
+                PopulateAnnotationPageList(layers);
+            }
         }
         #endregion
     }

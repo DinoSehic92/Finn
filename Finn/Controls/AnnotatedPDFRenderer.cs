@@ -1017,11 +1017,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 ? ConstrainToSquare(_activeShape.Start, pdfPoint)
                 : ConstrainToFineAngle(_activeShape.Start, pdfPoint);
         }
-        else if (_activeShape.ShapeType is InlineAnnotationTool.Line or InlineAnnotationTool.Arrow)
-        {
-            pdfPoint = MagneticSnap(_activeShape.Start, pdfPoint);
-            pdfPoint = ComputeVertexSnap(_activeShape, pdfPoint);
-        }
         else
         {
             pdfPoint = ComputeVertexSnap(_activeShape, pdfPoint);
@@ -1411,8 +1406,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 target = ConstrainToAxis(_activeMeasurement.Points[0], pdfPoint);
             else
             {
-                target = MagneticSnap(_activeMeasurement.Points[0], pdfPoint);
-                target = ComputeVertexSnap(_activeMeasurement, target);
+                target = ComputeVertexSnap(_activeMeasurement, pdfPoint);
             }
             _activeMeasurement.Points[^1] = target;
         }

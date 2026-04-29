@@ -114,6 +114,10 @@ public partial class PreView : UserControl
             ctx.MarkDirty();
             UpdateAnnotationCountBadge();
             pwr.CurrentFile?.RefreshAnnotationStatus();
+
+            // Keep the annotation page list in sync while it is open.
+            if (pwr.AnnotationPageListMode)
+                pwr.PopulateAnnotationPageList(MuPDFRenderer.Layers);
         });
     }
 
@@ -123,7 +127,12 @@ public partial class PreView : UserControl
         {
             case "SearchMode":
                 if (pwr.SearchMode)
-                    SetSearchFocus();
+                {
+                    if (pwr.DiffPageListMode || pwr.AnnotationPageListMode)
+                        SetSearchFocusToResultList();
+                    else
+                        SetSearchFocus();
+                }
                 else
                     MuPDFRenderer.Focus();
                 break;
@@ -1074,6 +1083,9 @@ public partial class PreView : UserControl
     private void OnCancelFileLoad(object? sender, RoutedEventArgs e) => pwr?.CancelFileLoad();
 
     private void OnToggleDiffPageList(object? sender, RoutedEventArgs e) => pwr?.ToggleDiffPageList();
+
+    private void OnToggleAnnotationPageList(object? sender, RoutedEventArgs e)
+        => pwr?.ToggleAnnotationPageList(MuPDFRenderer.Layers);
 
     /// <summary>Re-run text diff after changing header/footer exclusion zones.</summary>
     private async void OnRerunTextDiffWithZones(object? sender, RoutedEventArgs e)

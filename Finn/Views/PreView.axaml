@@ -422,6 +422,11 @@
 									<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14"/>
 								</Button>
 								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+								<!-- Annotated pages list -->
+								<Button Name="AnnotationPagesBtn" ToolTip.Tip="Show annotated pages" Width="26" Height="26" Padding="0" Click="OnToggleAnnotationPageList" BorderThickness="0">
+									<ic:SymbolIcon Symbol="DocumentBulletList" IconVariant="Regular" FontSize="14"/>
+								</Button>
+								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
 								<!-- Export -->
 								<Button ToolTip.Tip="Copy (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Clipboard" IconVariant="Regular" FontSize="14"/>
@@ -714,8 +719,13 @@
 						<Grid RowDefinitions="Auto,36">
 
 							<!-- Text search input (hidden during diff page list mode) -->
-							<Border Grid.Row="0" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight"
-									IsVisible="{Binding !PreviewVM.DiffPageListMode}">
+							<Border Grid.Row="0" Width="170" HorizontalAlignment="Center" FlowDirection="LeftToRight">
+								<Border.IsVisible>
+									<MultiBinding Converter="{x:Static BoolConverters.And}">
+										<Binding Path="!PreviewVM.DiffPageListMode"/>
+										<Binding Path="!PreviewVM.AnnotationPageListMode"/>
+									</MultiBinding>
+								</Border.IsVisible>
 								<Grid ColumnDefinitions="*,30,30" Margin="-5 0 -5 0">
 									<Border Grid.Column="0" Classes="shadow">
 										<TextBox PlaceholderText="Search text..." Name="SearchRegex" KeyDown="OnStartSearhRegex"/>
@@ -734,6 +744,14 @@
 								<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
 									<ic:SymbolIcon Symbol="DocumentPageBreak" IconVariant="Regular" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 									<TextBlock Text="Changed Pages" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+								</StackPanel>
+							</Border>
+
+							<!-- Annotation page list header (shown during annotation page list mode) -->
+							<Border Grid.Row="0" IsVisible="{Binding PreviewVM.AnnotationPageListMode}" Padding="8,4">
+								<StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+									<ic:SymbolIcon Symbol="DrawText" IconVariant="Regular" FontSize="14" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
+									<TextBlock Text="Annotated Pages" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
 								</StackPanel>
 							</Border>
 

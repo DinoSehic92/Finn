@@ -504,6 +504,13 @@ public partial class PreView
     private void DeactivateAnnotateMode()
     {
         if (!_annotateMode) return;
+
+        if (pwr.AnnotationPageListMode)
+        {
+            pwr.ClearSearch();
+            pwr.SearchMode = false;
+        }
+
         _annotateMode = false;
         pwr.AnnotationActive = false;
         AnnotateToggle.IsChecked = false;
