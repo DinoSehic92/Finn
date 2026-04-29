@@ -25,6 +25,7 @@ namespace Finn.Model
         }
 
         /// <summary>Convenience inverse of <see cref="IsLink"/> for XAML visibility bindings.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool IsNotLink => !isLink;
 
         /// <summary>
@@ -130,6 +131,7 @@ namespace Finn.Model
         /// <summary>
         /// Gets the Avalonia bitmap for the icon.
         /// </summary>
+        [System.Text.Json.Serialization.JsonIgnore]
         public Avalonia.Media.Imaging.Bitmap? Icon => GetAvaloniaBitmap();
 
 
@@ -152,21 +154,14 @@ namespace Finn.Model
         }
 
 
-        private Avalonia.Media.Imaging.Bitmap GetAvaloniaBitmap()
+        private Avalonia.Media.Imaging.Bitmap? GetAvaloniaBitmap()
         {
-            if (IconBytes != null)
-            {
-                using (MemoryStream memory = new MemoryStream(IconBytes))
-                {
-                    memory.Position = 0;
-                    return new Avalonia.Media.Imaging.Bitmap(memory);
-
-                }
-            }
-            else
-            {
+            if (iconBytes == null || iconBytes.Length == 0 || IsLink)
                 return null;
-            }
+
+            using var memory = new MemoryStream(iconBytes);
+            memory.Position = 0;
+            return new Avalonia.Media.Imaging.Bitmap(memory);
         }
 
 

@@ -1585,7 +1585,7 @@
 				</Panel.IsVisible>
 				<Border Classes="shadow">
 				<DataGrid Name="OtherFilesGrid"
-						  ItemsSource="{Binding OtherFilesOwner.OtherFiles, Mode=OneWay}" SelectionMode="Single"
+							  ItemsSource="{Binding OtherFilesOwner.OtherFiles, Mode=OneWay}" SelectionMode="Extended"
 						  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
 						  DragDrop.AllowDrop="True" DoubleTapped="OnOtherFileDoubleTapped">
 					<DataGrid.Columns>

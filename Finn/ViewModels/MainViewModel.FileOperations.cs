@@ -605,6 +605,25 @@ namespace Finn.ViewModels
                 }
             }
 
+            public void RemoveOtherFiles(IEnumerable<OtherData> files)
+            {
+                var owner = OtherFilesOwner;
+                if (owner == null) return;
+
+                var pendingSyncFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in files)
+                {
+                    if (file.IsFromFolder && !string.IsNullOrEmpty(file.SyncFolder))
+                        pendingSyncFolders.Add(file.SyncFolder!);
+                    owner.OtherFiles.Remove(file);
+                }
+                SortOtherFiles();
+                MarkDirty();
+
+                if (pendingSyncFolders.Count > 0)
+                    FlagSyncFoldersAsPending(pendingSyncFolders);
+            }
+
             private void SortOtherFiles()
             {
                 var owner = OtherFilesOwner;

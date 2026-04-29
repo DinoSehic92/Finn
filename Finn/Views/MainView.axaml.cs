@@ -1068,11 +1068,14 @@ public partial class MainView : UserControl
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)
     {
         var window = ParentWindow;
+        var selected = OtherFilesGrid.SelectedItems.OfType<OtherData>().ToList();
+        if (selected.Count == 0) return;
+
         await _ctx.ConfirmDeleteDia(window);
 
-        if (_ctx.Confirmed && OtherFilesGrid.SelectedItem is OtherData file)
+        if (_ctx.Confirmed)
         {
-            _ctx.RemoveOtherFile(file);
+            _ctx.RemoveOtherFiles(selected);
             UpdateOtherFilesEmptyState();
         }
     }
