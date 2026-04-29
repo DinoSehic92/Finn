@@ -79,11 +79,14 @@ namespace Finn.ViewModels
         /// <summary>Opacity override for the node's content row (used to de-emphasise filetype children).</summary>
         public double NodeOpacity { get; init; } = 1.0;
 
-        // Avalonia TextBlock.Foreground expects a Brush. Expose a brush property
-        // so the view can bind directly to it (avoids needing a converter in XAML).
-        // If Foreground is null, return null so the view can fall back to a theme resource
-        // (use TargetNullValue in XAML to bind to the system foreground brush).
+        // Returns null when no custom colour is set so the TextBlock.TreeNodeHeader
+        // style (which sets AppForegroundBrush via DynamicResource) takes effect.
+        // When the user sets a project colour, returns a solid brush for that colour.
+        // Note: the XAML binding uses TargetNullValue bound to nothing — the style
+        // default is relied upon for the null case.
         public IBrush? ForegroundBrush => Foreground.HasValue ? new SolidColorBrush(Foreground.Value) : null;
+
+        public bool HasCustomForeground => Foreground.HasValue;
         public List<TreeNodeData> Children { get; init; } = [];
 
         public event PropertyChangedEventHandler? PropertyChanged;

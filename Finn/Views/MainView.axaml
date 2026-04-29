@@ -1948,6 +1948,12 @@
 							<Style Selector="TreeViewItem:selected TextBlock.TreeNodeHeader">
 								<Setter Property="FontWeight" Value="SemiBold"/>
 							</Style>
+							<Style Selector="TextBlock.TreeNodeHeader">
+								<Setter Property="Foreground" Value="{DynamicResource AppForegroundBrush}"/>
+							</Style>
+							<Style Selector="TextBlock.TreeNodeHeader.CustomColor">
+								<Setter Property="Foreground" Value="{Binding $self.Tag}"/>
+							</Style>
 							<Style Selector="TreeView /template/ ScrollViewer">
 								<Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
 							</Style>
@@ -1962,11 +1968,12 @@
 												<ic:SymbolIcon Symbol="{Binding IconSymbol}" FontSize="14"
 														   IsVisible="{Binding IconSymbol, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
 										   Foreground="{DynamicResource AppMutedForegroundBrush}"/>
-												<TextBlock Classes="TreeNodeHeader" Text="{Binding Header}"
-														   FontSize="{Binding FontSize}"
-														   FontWeight="{Binding FontWeight}"
-														   FontStyle="{Binding FontStyle}"
-											Foreground="{Binding ForegroundBrush, TargetNullValue={DynamicResource AppForegroundBrush}}"/>
+												<TextBlock Classes.CustomColor="{Binding HasCustomForeground}"
+															   Classes="TreeNodeHeader" Text="{Binding Header}"
+															   Tag="{Binding ForegroundBrush}"
+															   FontSize="{Binding FontSize}"
+															   FontWeight="{Binding FontWeight}"
+															   FontStyle="{Binding FontStyle}"/>
 												<Border
 													IsVisible="{Binding BadgeText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
 														CornerRadius="7"
