@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia.Desktop" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.2" />
     <!-- Pin patched version to resolve GHSA-xrw6-gwf8-vvr9 in transitive Tmds.DBus.Protocol -->
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
   </ItemGroup>
