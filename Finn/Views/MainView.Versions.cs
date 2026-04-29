@@ -179,6 +179,18 @@ public partial class MainView
         _ctx.LabelVersionFromFolderDate();
     }
 
+    private async void OnAddManualVersion(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentFile == null) return;
+        var window = ParentWindow;
+        var (confirmed, path, label) = await _ctx.ShowManualVersionDialogAsync(window);
+        if (confirmed && path != null)
+        {
+            _ctx.AddManualVersion(path, label);
+            UpdateVersionsEmptyHint();
+        }
+    }
+
     #endregion
 
     #region Annotation Layers

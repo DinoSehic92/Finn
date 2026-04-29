@@ -174,6 +174,14 @@ namespace Finn.ViewModels
                 return window.Confirmed;
             }
 
+            public async Task<(bool confirmed, string? path, string label)> ShowManualVersionDialogAsync(Window mainWindow)
+            {
+                var window = new xManualVersionDia();
+                ConfigureWindow(window, mainWindow);
+                await window.ShowDialog(mainWindow);
+                return (window.Confirmed, window.SelectedFilePath, window.SelectedLabel);
+            }
+
             public async Task<bool> ShowDeliveryImportDialogAsync(Window mainWindow, List<DeliveryFolderEntry> entries)
             {
                 var window = new xDeliveryImportDia();

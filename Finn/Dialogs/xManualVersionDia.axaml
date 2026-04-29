@@ -1,0 +1,61 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Width="460" Height="430"
+        MinWidth="400" MinHeight="370"
+        xmlns:ic="using:FluentIcons.Avalonia"
+        xmlns:model="clr-namespace:Finn.Model"
+        x:Class="Finn.Dialogs.xManualVersionDia"
+        Title=""
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        CanResize="True"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
+        xmlns:controls="clr-namespace:Finn.Controls"
+        x:DataType="vm:MainViewModel">
+
+<Grid RowDefinitions="30,Auto,*,Auto,Auto" Margin="0">
+<Panel Grid.Row="0" IsHitTestVisible="False"/>
+
+<controls:DialogHeader Grid.Row="1" Icon="History" Title="Add Version" Subtitle="Drop a file below to add it as a version of the selected entry."/>
+
+<Border Grid.Row="2"
+Name="DropZone"
+Margin="16,8,16,8"
+CornerRadius="8"
+BorderThickness="2"
+BorderBrush="{DynamicResource SystemAccentColor}"
+Background="Transparent"
+DragDrop.AllowDrop="True">
+<Grid>
+<StackPanel Name="DropHint" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="8" IsVisible="True">
+<ic:SymbolIcon Symbol="ArrowDownload" FontSize="36" Opacity="0.4" HorizontalAlignment="Center"/>
+<TextBlock Text="Drop file here" Opacity="0.5" HorizontalAlignment="Center"/>
+</StackPanel>
+<StackPanel Name="FileInfoPanel" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="6" IsVisible="False">
+<ic:SymbolIcon Symbol="DocumentCheckmark" FontSize="32" HorizontalAlignment="Center"/>
+<TextBlock Name="DroppedFileName" Text="" FontWeight="SemiBold" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="380" TextAlignment="Center"/>
+<TextBlock Name="DroppedFilePath" Text="" Opacity="0.5" FontSize="11" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="380" TextAlignment="Center"/>
+</StackPanel>
+</Grid>
+</Border>
+
+<Grid Grid.Row="3" ColumnDefinitions="Auto,*" Margin="16,0,16,8" RowDefinitions="Auto,Auto">
+<TextBlock Grid.Row="0" Grid.Column="0" Text="Version Label:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+<ComboBox Name="LabelCombo"
+  Grid.Row="0" Grid.Column="1"
+  ItemsSource="{x:Static model:FileVersionData.VersionLabels}"
+  IsEditable="True"
+  HorizontalAlignment="Stretch"/>
+<TextBlock Name="AutoDetectHint" Grid.Row="1" Grid.Column="1" Text="" FontSize="11" Opacity="0.6" Margin="0,2,0,0"/>
+</Grid>
+
+<StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,4,0,16">
+<Button Name="AcceptButton" HotKey="Enter" Width="90" Classes="accent" Content="Add" Click="OnAccept" IsEnabled="False"/>
+<Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
+</StackPanel>
+</Grid>
+
+</Window>

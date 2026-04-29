@@ -1717,6 +1717,9 @@
 											<MenuItem.Icon><ic:SymbolIcon Symbol="CalendarSearch"/></MenuItem.Icon>
 										</MenuItem>
 										<Separator/>
+										<MenuItem Header="Add Version…" Click="OnAddManualVersion">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Add"/></MenuItem.Icon>
+										</MenuItem>
 										<MenuItem Header="Remove" Click="OnRemoveVersion">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
 										</MenuItem>

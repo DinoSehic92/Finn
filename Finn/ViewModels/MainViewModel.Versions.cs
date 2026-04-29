@@ -142,5 +142,12 @@ namespace Finn.ViewModels
                 MarkDirty();
             }
         }
+
+        public void AddManualVersion(string filePath, string label)
+        {
+            if (CurrentFile == null) return;
+            CurrentFile.AddVersion(filePath, label);
+            MarkDirty();
+        }
     }
 }
