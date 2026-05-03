@@ -1913,8 +1913,12 @@
 		<Grid Grid.Row="2" Grid.Column="0" IsVisible="{Binding UI.TreeViewOpen}" Width="{Binding UI.TreeViewWidth}" Classes="AnimatedPanel">
             <Border Classes="shadow" Background="{DynamicResource AppPanelSurfaceBrush}">
 				<Border Classes="clip-inner" CornerRadius="{DynamicResource AppCornerRadius}" ClipToBounds="True">
-				<Grid RowDefinitions="26,Auto,*">
-				<Grid Grid.Row="0" ColumnDefinitions="*,Auto" Background="{DynamicResource AppHeaderSurfaceBrush}">
+				<Grid RowDefinitions="26,*">
+					<Border Grid.Row="0"
+							Background="{DynamicResource AppHeaderSurfaceBrush}"
+							BorderBrush="{DynamicResource AppStrongBorderBrush}"
+							BorderThickness="0,0,0,1">
+					<Grid ColumnDefinitions="*,Auto">
 						<StackPanel Orientation="Horizontal" Spacing="6" Margin="8,0,0,0" VerticalAlignment="Center">
 							<ic:SymbolIcon Symbol="FolderOpen" FontSize="13" Foreground="{DynamicResource AppHeaderForegroundBrush}" VerticalAlignment="Center"/>
 							<TextBlock Text="Projects" FontSize="12" FontWeight="SemiBold"
@@ -1930,10 +1934,8 @@
 							<ic:SymbolIcon Symbol="FolderAdd" FontSize="16"/>
 						</Button>
 					</Grid>
-					<Border Grid.Row="1" Height="1"
-							Background="{DynamicResource AppStrongBorderBrush}"
-							Opacity="1.0" HorizontalAlignment="Stretch"/>
-					<TreeView Grid.Row="2" Name="MainTree" Loaded="SetupTreeview" SelectionChanged="OnTreeviewSelected"
+					</Border>
+					<TreeView Grid.Row="1" Name="MainTree"
 											  ItemsSource="{Binding TreeNodes}"
 							  SelectedItem="{Binding SelectedTreeNode, Mode=TwoWay}">
 						<TreeView.Styles>

@@ -3,8 +3,7 @@
 		xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 		xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
 		mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="690"
-		Width="540" MinWidth="540" MaxWidth="540"
-		SizeToContent="Height"
+		SizeToContent="WidthAndHeight"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xColorDia"
 		Title=""
@@ -33,10 +32,10 @@
 		<!-- Centered header matching other dialogs -->
 		<controls:DialogHeader Grid.Row="1" Icon="Settings" Title="UI Settings"/>
 
-		<!-- Two-column content -->
-		<Grid Grid.Row="2" ColumnDefinitions="*,Auto,*" Margin="20,0,20,0">
+		<!-- Three-column content -->
+		<Grid Grid.Row="2" ColumnDefinitions="*,Auto,*,Auto,*" Margin="16,0,16,0">
 
-			<!-- ═══════ Left Column: Colors + Fonts ═══════ -->
+			<!-- ═══════ Column 1: Colors ═══════ -->
 			<StackPanel Grid.Column="0" Orientation="Vertical" Spacing="0" Name="ColorPickerPanel">
 
 				<!-- Dark Theme -->
@@ -58,21 +57,21 @@
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Accent"/><ColorPicker Grid.Column="1" Color="{Binding UI.Color2}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerDark"/>
 				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Text"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.DarkTextColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
 						<ColorPicker Color="{Binding UI.DarkTextColor}" Width="80" HorizontalAlignment="Left" Name="TextColorPickerDark"/>
 					</StackPanel>
 				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Panel"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.DarkPanelColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
 						<ColorPicker Color="{Binding UI.DarkPanelColor}" Width="80" HorizontalAlignment="Left" Name="PanelColorPickerDark"/>
 					</StackPanel>
 				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Border"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.DarkBorderColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
@@ -99,21 +98,21 @@
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
 					<Label Content="Accent"/><ColorPicker Grid.Column="1" Color="{Binding UI.Color4}" Width="80" HorizontalAlignment="Left" Name="AccentColorPickerLight"/>
 				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Text"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.LightTextColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
 						<ColorPicker Color="{Binding UI.LightTextColor}" Width="80" HorizontalAlignment="Left" Name="TextColorPickerLight"/>
 					</StackPanel>
 				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Panel"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.LightPanelColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
 						<ColorPicker Color="{Binding UI.LightPanelColor}" Width="80" HorizontalAlignment="Left" Name="PanelColorPickerLight"/>
 					</StackPanel>
 				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*">
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Border"/>
 					<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
 						<ToggleSwitch IsChecked="{Binding UI.LightBorderColorEnabled}" OnContent="" OffContent="" Width="42" Padding="0" HorizontalAlignment="Left"/>
@@ -121,60 +120,13 @@
 					</StackPanel>
 				</Grid>
 
-				<!-- Fonts -->
-					<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" IsVisible="{Binding UI.SuperuserMode}">
-						<TextBlock Classes="SectionHeader" Text="Fonts"/>
-						<Button Click="ResetFonts" BorderBrush="Transparent" Height="24" Width="24" MinHeight="0" MinWidth="0" Padding="0" Margin="0,8,0,0">
-							<ic:SymbolIcon Symbol="ArrowReset" FontSize="15"/>
-						</Button>
-					</StackPanel>
-					<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Font"/>
-						<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
-							<ComboBox Name="FontCombo" Width="120" SelectedValue="{Binding UI.Font}" VerticalAlignment="Center"/>
-						</Border>
-					</Grid>
-					<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Size"/>
-						<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
-							<ComboBox Name="FontSizeCombo" Width="120" SelectedValue="{Binding UI.FontSize}" VerticalAlignment="Center"/>
-						</Border>
-					</Grid>
-
-				<!-- Layout -->
-				<TextBlock Classes="SectionHeader" Text="Layout" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-					<Label Content="Tree Width"/><Slider Grid.Column="1" Minimum="250" Maximum="350" Value="{Binding UI.TreeViewWidth}" IsSnapToTickEnabled="True" TickFrequency="10" Width="120" HorizontalAlignment="Left"/>
-				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-					<Label Content="Tray Width"/><Slider Grid.Column="1" Minimum="300" Maximum="400" Value="{Binding UI.TrayWidth}" IsSnapToTickEnabled="True" TickFrequency="10" Width="120" HorizontalAlignment="Left"/>
-				</Grid>
-
-				<!-- PDF Preview -->
-				<TextBlock Classes="SectionHeader" Text="PDF Preview" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-					<Label Content="Tint"/>
-					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
-						<ComboBox Name="DarkTintCombo" Width="120" ItemsSource="{x:Static vm:PreviewViewModel.DarkModeTintOptions}" SelectedValue="{Binding UI.PreviewDarkModeTint}" VerticalAlignment="Center"/>
-					</Border>
-				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Tint Intensity"/><Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding UI.PreviewTintIntensity}" IsSnapToTickEnabled="True" TickFrequency="1" Width="120" HorizontalAlignment="Left"/>
-				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-					<Label Content="Paper"/>
-					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
-						<ComboBox Name="LightPaperCombo" Width="120" ItemsSource="{x:Static vm:PreviewViewModel.LightPaperOptions}" SelectedValue="{Binding UI.PreviewLightPaper}" VerticalAlignment="Center"/>
-					</Border>
-				</Grid>
-
 			</StackPanel>
 
-			<!-- Vertical separator -->
+			<!-- Vertical separator 1 -->
 			<Border Grid.Column="1" Width="1" Background="{DynamicResource AppDividerBrush}" Opacity="0.5" Margin="14,6,14,6"/>
 
-			<!-- ═══════ Right Column: Toggles + Layout ═══════ -->
-			<StackPanel Grid.Column="2" Orientation="Vertical" Spacing="0">
+			<!-- ═══════ Column 2: Appearance + Fonts + Layout ═══════ -->
+			<StackPanel Grid.Column="2" Orientation="Vertical" Spacing="0" MinWidth="220">
 
 				<!-- Mode -->
 				<TextBlock Classes="SectionHeader" Text="Mode" HorizontalAlignment="Center"/>
@@ -200,6 +152,43 @@
 					<Label Content="Alt. Rows" ToolTip.Tip="Alternating background shading on grid rows for readability"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AlternatingRowShading}" HorizontalAlignment="Left"/>
 				</Grid>
 
+				<!-- Fonts -->
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" IsVisible="{Binding UI.SuperuserMode}">
+					<TextBlock Classes="SectionHeader" Text="Fonts"/>
+					<Button Click="ResetFonts" Classes="ghost" Height="24" Width="24" MinHeight="0" MinWidth="0" Padding="0" Margin="0,8,0,0">
+						<ic:SymbolIcon Symbol="ArrowReset" FontSize="15"/>
+					</Button>
+				</StackPanel>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Font"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="FontCombo" Width="120" SelectedValue="{Binding UI.Font}" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Size"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="FontSizeCombo" Width="120" SelectedValue="{Binding UI.FontSize}" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
+
+				<!-- Layout -->
+				<TextBlock Classes="SectionHeader" Text="Layout" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Tree Width"/><Slider Grid.Column="1" Minimum="250" Maximum="350" Value="{Binding UI.TreeViewWidth}" IsSnapToTickEnabled="True" TickFrequency="10" Width="120" HorizontalAlignment="Left"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Tray Width"/><Slider Grid.Column="1" Minimum="300" Maximum="400" Value="{Binding UI.TrayWidth}" IsSnapToTickEnabled="True" TickFrequency="10" Width="120" HorizontalAlignment="Left"/>
+				</Grid>
+
+			</StackPanel>
+
+			<!-- Vertical separator 2 -->
+			<Border Grid.Column="3" Width="1" Background="{DynamicResource AppDividerBrush}" Opacity="0.5" Margin="14,6,14,6" IsVisible="{Binding UI.SuperuserMode}"/>
+
+			<!-- ═══════ Column 3: View Toggles + PDF Preview + Folder Sync ═══════ -->
+			<StackPanel Grid.Column="4" Orientation="Vertical" Spacing="0" IsVisible="{Binding UI.SuperuserMode}">
+
 				<!-- View Toggles -->
 				<TextBlock Classes="SectionHeader" Text="View Toggles" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
@@ -221,20 +210,36 @@
 					<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
-					</Grid>
+					<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Tint"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="DarkTintCombo" Width="120" ItemsSource="{x:Static vm:PreviewViewModel.DarkModeTintOptions}" SelectedValue="{Binding UI.PreviewDarkModeTint}" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Tint Intensity"/><Slider Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding UI.PreviewTintIntensity}" IsSnapToTickEnabled="True" TickFrequency="1" Width="120" HorizontalAlignment="Left"/>
+				</Grid>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Paper"/>
+					<Border Grid.Column="1" Classes="shadow" Margin="0" MinHeight="0" HorizontalAlignment="Left">
+						<ComboBox Name="LightPaperCombo" Width="120" ItemsSource="{x:Static vm:PreviewViewModel.LightPaperOptions}" SelectedValue="{Binding UI.PreviewLightPaper}" VerticalAlignment="Center"/>
+					</Border>
+				</Grid>
 
-					<!-- Folder Sync -->
-					<TextBlock Classes="SectionHeader" Text="Folder Sync" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>
-					<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
-						<Label Content="Auto Watch" ToolTip.Tip="Monitor sync folders for changes and check for differences at startup."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.FolderWatchEnabled}" HorizontalAlignment="Left"/>
-					</Grid>
+				<!-- Folder Sync -->
+				<TextBlock Classes="SectionHeader" Text="Folder Sync" HorizontalAlignment="Center" IsVisible="{Binding UI.SuperuserMode}"/>
+				<Grid Classes="SettingRow" ColumnDefinitions="90,*" IsVisible="{Binding UI.SuperuserMode}">
+					<Label Content="Auto Watch" ToolTip.Tip="Monitor sync folders for changes and check for differences at startup."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.FolderWatchEnabled}" HorizontalAlignment="Left"/>
+				</Grid>
+
 			</StackPanel>
 
 		</Grid>
 
 		<!-- Footer buttons pinned at bottom -->
-		<StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,14">
+		<StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,16,0,16">
 			<Button Classes="accent" Width="80" Content="Save" Click="OnSave" Background="{DynamicResource TextControlBackground}"/>
            <Button Classes="normal" Width="80" Content="Cancel" Click="OnClose"/>
 		</StackPanel>

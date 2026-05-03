@@ -1577,6 +1577,10 @@ namespace Finn.ViewModels
                 imported.SharedPath = serverFilePath;
                 imported.LastPushedUtc = null;
 
+                // Clear the parent group — the importer's local storage may not have
+                // the same group, which would silently drop the project from the tree.
+                imported.Parent = null;
+
                 // Determine role: one-way shares make the importer a viewer
                 imported.SharedRole = imported.OneWayShare
                     ? SharedRole.Viewer

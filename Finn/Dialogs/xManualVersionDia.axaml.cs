@@ -19,10 +19,25 @@ public partial class xManualVersionDia : Window
     {
         InitializeComponent();
 
+        DropZone.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
+        DropZone.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
         DropZone.AddHandler(DragDrop.DropEvent, OnDrop);
         DropZone.AddHandler(DragDrop.DragOverEvent, OnDragOver);
 
         LabelCombo.SelectedItem = "NEW";
+    }
+
+    private void OnDragEnter(object? sender, DragEventArgs e)
+    {
+        var items = e.DataTransfer.TryGetFiles();
+        bool hasFile = items?.OfType<IStorageFile>().Any() == true;
+        if (hasFile)
+            DropZone.Classes.Add("DragOver");
+    }
+
+    private void OnDragLeave(object? sender, DragEventArgs e)
+    {
+        DropZone.Classes.Remove("DragOver");
     }
 
     private void OnDragOver(object? sender, DragEventArgs e)
@@ -36,6 +51,8 @@ public partial class xManualVersionDia : Window
 
     private void OnDrop(object? sender, DragEventArgs e)
     {
+        DropZone.Classes.Remove("DragOver");
+
         var items = e.DataTransfer.TryGetFiles();
         if (items == null) return;
 

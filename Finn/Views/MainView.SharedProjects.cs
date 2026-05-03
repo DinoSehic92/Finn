@@ -22,6 +22,7 @@ public partial class MainView
 #region Shared Projects
 
     private TreeNodeData? _lastRightClickedNode;
+    private bool _nodeContextRequestedThisCycle;
 
     /// <summary>
     /// Fires when the user right-clicks a tree node's StackPanel, before the context menu opens.
@@ -32,6 +33,7 @@ public partial class MainView
         if (sender is Control control && control.DataContext is TreeNodeData node)
         {
             _lastRightClickedNode = node;
+            _nodeContextRequestedThisCycle = true;
             if (node.Tag == "All Types")
             {
                 var project = _ctx.Storage.StoredProjects.FirstOrDefault(p => p.Namn == node.Header);
@@ -43,7 +45,10 @@ public partial class MainView
             }
         }
         else
+        {
             _lastRightClickedNode = null;
+            _nodeContextRequestedThisCycle = false;
+        }
     }
 
     private void OnTreeNewProjectButton(object? sender, RoutedEventArgs e)
@@ -55,6 +60,12 @@ public partial class MainView
     {
         if (sender is not ContextMenu menu) return;
 
+        // If OnTreeNodeContextRequested wasn't called this cycle the right-click landed outside
+        // a node's content border (e.g. the indentation padding or empty space).
+        // Fall back to the TreeView's current SelectedItem so the menu reflects the highlighted node.
+        if (!_nodeContextRequestedThisCycle)
+            _lastRightClickedNode = MainTree.SelectedItem as TreeNodeData;
+        _nodeContextRequestedThisCycle = false; // reset for next time
         string tag = _lastRightClickedNode?.Tag ?? string.Empty;
         bool isProjectNode  = tag == "All Types";
         bool isGroupNode    = tag == "Group";
@@ -66,6 +77,7 @@ public partial class MainView
 
         bool showProjectActions = isProjectNode;
         bool showShareActions   = isSuperuser && isProjectNode;
+        bool showShareMenu      = isSuperuser; // Share menu visible to superusers regardless of node type
 
         foreach (var child in menu.Items)
         {
@@ -75,7 +87,7 @@ public partial class MainView
                     sep.IsVisible = sep.Name switch
                     {
                         "GroupSeparator"  => isAnyGroup,
-                        "SharedSeparator" => showShareActions,
+                        "SharedSeparator" => showShareMenu,
                         "RemoveSeparator" => showProjectActions,
                         _                 => true
                     };
@@ -89,7 +101,7 @@ public partial class MainView
                         "RemoveGroupMenuItem"        => isAnyGroup,
                         "EditProjectMenuItem"        => showProjectActions,
                         "ExportProjectMenuItem"      => showProjectActions,
-                        "ShareMenuItem"              => showShareActions,
+                        "ShareMenuItem"              => showShareMenu,
                         "RemoveProjectMenuItem"      => showProjectActions,
                         _                            => true
                     };
@@ -102,8 +114,10 @@ public partial class MainView
                             {
                                 shareItem.IsVisible = shareItem.Name switch
                                 {
+                                    // Always available to superusers — doesn't need a project selected
+                                    "ImportSharedMenuItem"  => isSuperuser,
+                                    // Require a project node
                                     "MakeSharedMenuItem"    => showShareActions && !isShared,
-                                    "ImportSharedMenuItem"  => showShareActions && !isShared,
                                     "PushMenuItem"          => showShareActions && isShared && !isViewer,
                                     "PullMenuItem"          => showShareActions && isShared,
                                     "UnshareMenuItem"       => showShareActions && isShared,
