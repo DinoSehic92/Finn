@@ -102,6 +102,8 @@ public partial class MainView : UserControl
 
         VersionsGrid.AddHandler(DataGrid.DoubleTappedEvent, OnVersionDoubleTapped);
         VersionsGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectVersion);
+
+        MainTree.SelectionChanged += OnTreeviewSelected;
     }
 
     // Removed file-open debugger / benchmark command and handler
