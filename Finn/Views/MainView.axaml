@@ -2028,23 +2028,26 @@
 								<MenuItem x:Name="ShareMenuItem" Header="Share">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
 										<MenuItem Name="MakeSharedMenuItem" Header="Make Shared…" Click="OnMakeProjectShared">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowDown"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
-										</MenuItem>
-										<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
-										</MenuItem>
+												<MenuItem.Icon><ic:SymbolIcon Symbol="People"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="ImportSharedMenuItem" Header="Import Shared…" Click="OnImportSharedProject">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="CloudArrowDown"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="PushMenuItem" Header="Push to Server" Click="OnPushProject">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUpload"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="PullMenuItem" Header="Pull from Server" Click="OnPullProject">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDownload"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="ShareSettingsMenuItem" Header="Sharing Settings…" Click="OnShareSettings">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="PeopleSettings"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="UnshareMenuItem" Header="Make Local" Click="OnUnshareProject">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="PersonDelete"/></MenuItem.Icon>
+											</MenuItem>
+											<MenuItem Name="RestoreBackupMenuItem" Header="Restore Backup…" Click="OnRestoreBackup">
+												<MenuItem.Icon><ic:SymbolIcon Symbol="History"/></MenuItem.Icon>
+											</MenuItem>
 									</MenuItem>
 									<MenuItem Name="ExportProjectMenuItem" Header="Export" Click="OnExportProjectZip">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowDown"/></MenuItem.Icon>

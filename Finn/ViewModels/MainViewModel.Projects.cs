@@ -1008,6 +1008,21 @@ namespace Finn.ViewModels
 
             CurrentProject.SharedPath = serverPath;
             CurrentProject.SharedSyncStatus = SharedSyncState.LocalAhead;
+            CurrentProject.IsOriginalOwner = true;
+            MarkDirty();
+        }
+
+        /// <summary>
+        /// Updates the sharing mode for the current project (original owner only).
+        /// If switching to one-way, any co-owner importers become viewers on their
+        /// next pull. If switching to collaborative, they regain push access.
+        /// Marks dirty so the new flag is saved but does NOT push to the server —
+        /// the change only takes effect for other users after the next push.
+        /// </summary>
+        public void SetSharingMode(bool oneWay)
+        {
+            if (CurrentProject == null || !CurrentProject.IsOriginalOwner) return;
+            CurrentProject.OneWayShare = oneWay;
             MarkDirty();
         }
 
@@ -1385,7 +1400,7 @@ namespace Finn.ViewModels
         /// Serializes the current project to its <see cref="ProjectData.SharedPath"/>
         /// after applying the push filter from the dialog.
         /// </summary>
-        public bool PushProjectFiltered(Dialogs.xSharedPushDia options)
+        public bool PushProjectFiltered()
         {
             if (CurrentProject?.SharedPath == null) return false;
             if (CurrentProject.IsViewer)
@@ -1393,9 +1408,6 @@ namespace Finn.ViewModels
                 PreviewVM.StatusMessage = "Viewers cannot push to a one-way shared project.";
                 return false;
             }
-
-            // Persist the one-way sharing flag on the project
-            CurrentProject.OneWayShare = options.OneWayShare;
 
             try
             {
@@ -1501,7 +1513,7 @@ namespace Finn.ViewModels
         }
 
         /// <summary>Local-only properties that must not appear in the server file.</summary>
-        private static readonly HashSet<string> LocalOnlyProperties = ["SharedPath", "LastPushedUtc", "LastPulledUtc", "SharedRole"];
+        private static readonly HashSet<string> LocalOnlyProperties = ["SharedPath", "LastPushedUtc", "LastPulledUtc", "SharedRole", "IsOriginalOwner"];
 
         private static void WriteFiltered(Utf8JsonWriter writer, JsonElement element, int depth = 0)
         {
@@ -1581,6 +1593,8 @@ namespace Finn.ViewModels
                 // the same group, which would silently drop the project from the tree.
                 imported.Parent = null;
 
+                // Imported projects are never the original owner regardless of role.
+                imported.IsOriginalOwner = false;
                 // Determine role: one-way shares make the importer a viewer
                 imported.SharedRole = imported.OneWayShare
                     ? SharedRole.Viewer

@@ -121,14 +121,16 @@ public partial class MainView
                                 shareItem.IsVisible = shareItem.Name switch
                                 {
                                     // Import doesn't need a project selected — always available to superusers.
-                                    "ImportSharedMenuItem"  => isSuperuser,
+                                    "ImportSharedMenuItem"   => isSuperuser,
                                     // All other share actions require a project node.
-                                    "MakeSharedMenuItem"    => showShareActions && !isShared,
-                                    "PushMenuItem"          => showShareActions && isShared && !isViewer,
-                                    "PullMenuItem"          => showShareActions && isShared,
-                                    "UnshareMenuItem"       => showShareActions && isShared,
-                                    "RestoreBackupMenuItem" => showShareActions && isShared,
-                                    _                       => true
+                                    "MakeSharedMenuItem"     => showShareActions && !isShared,
+                                    "PushMenuItem"           => showShareActions && isShared && !isViewer,
+                                    "PullMenuItem"           => showShareActions && isShared,
+                                    // Sharing settings only for the original owner of a shared project.
+                                    "ShareSettingsMenuItem"  => showShareActions && isShared && (_contextMenuProject?.IsOriginalOwner == true),
+                                    "UnshareMenuItem"        => showShareActions && isShared,
+                                    "RestoreBackupMenuItem"  => showShareActions && isShared,
+                                    _                        => true
                                 };
                             }
                         }
@@ -160,23 +162,34 @@ public partial class MainView
         // Link the project to the shared path first
         _ctx.MakeProjectShared(serverFolder);
 
-        // Show push options dialog for the initial push
-        var dialog = new Finn.Dialogs.xSharedPushDia();
-        dialog.DataContext = _ctx;
-        dialog.FontFamily = window.FontFamily;
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        dialog.SetOneWayShare(_ctx.CurrentProject.OneWayShare);
+        // Let the owner choose the sharing mode before the first push
+        var settingsDia = new Finn.Dialogs.xShareSettingsDia();
+        _ctx.ConfigureWindow(settingsDia, window);
+        settingsDia.SetCurrentMode(_ctx.CurrentProject.OneWayShare);
+        await settingsDia.ShowDialog(window);
 
-        await dialog.ShowDialog(window);
-
-        if (dialog.Confirmed)
+        if (!settingsDia.Confirmed)
         {
-            _ctx.PushProjectFiltered(dialog);
+            // User cancelled — undo the shared link
+            _ctx.UnshareProject();
+            return;
+        }
+
+        _ctx.SetSharingMode(settingsDia.OneWayShare);
+
+        // Now show the push confirmation
+        var pushDia = new Finn.Dialogs.xSharedPushDia();
+        _ctx.ConfigureWindow(pushDia, window);
+        await pushDia.ShowDialog(window);
+
+        if (pushDia.Confirmed)
+        {
+            _ctx.PushProjectFiltered();
             _ctx.BuildTreeData();
         }
         else
         {
-            // User cancelled — undo the shared link
+            // User cancelled push — undo the shared link
             _ctx.UnshareProject();
         }
     }
@@ -210,10 +223,7 @@ public partial class MainView
         if (window == null) return;
 
         var dialog = new Finn.Dialogs.xSharedPushDia();
-        dialog.DataContext = _ctx;
-        dialog.FontFamily = window.FontFamily;
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        dialog.SetOneWayShare(_ctx.CurrentProject.OneWayShare);
+        _ctx.ConfigureWindow(dialog, window);
 
         // Check for server-side changes since last push
         string? conflict = _ctx.CheckPushConflict();
@@ -227,7 +237,27 @@ public partial class MainView
         await dialog.ShowDialog(window);
 
         if (dialog.Confirmed)
-            _ctx.PushProjectFiltered(dialog);
+            _ctx.PushProjectFiltered();
+    }
+
+    private async void OnShareSettings(object? sender, RoutedEventArgs e)
+    {
+        if (_ctx.CurrentProject == null || !_ctx.CurrentProject.IsOriginalOwner) return;
+
+        var window = ParentWindow;
+        if (window == null) return;
+
+        var dialog = new Finn.Dialogs.xShareSettingsDia();
+        _ctx.ConfigureWindow(dialog, window);
+        dialog.SetCurrentMode(_ctx.CurrentProject.OneWayShare);
+        await dialog.ShowDialog(window);
+
+        if (!dialog.Confirmed) return;
+
+        _ctx.SetSharingMode(dialog.OneWayShare);
+
+        string modeLabel = dialog.OneWayShare ? "one-way" : "collaborative";
+        _ctx.PreviewVM.StatusMessage = $"Sharing mode set to {modeLabel}. Push to apply for other users.";
     }
 
     private async void OnPullProject(object? sender, RoutedEventArgs e)

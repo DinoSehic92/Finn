@@ -4,23 +4,29 @@ using Avalonia.Interactivity;
 
 namespace Finn.Dialogs;
 
-public partial class xSharedPushDia : Window
+public partial class xShareSettingsDia : Window
 {
     public bool Confirmed { get; private set; }
+    public bool OneWayShare { get; private set; }
 
-    public xSharedPushDia()
+    public xShareSettingsDia()
     {
         InitializeComponent();
         KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
     }
 
-    public void SetWarning(string warning)
+    /// <summary>
+    /// Seeds the radio buttons from the project current sharing mode.
+    /// </summary>
+    public void SetCurrentMode(bool oneWay)
     {
-        WarningText.Text = warning;
+        OneWayRadio.IsChecked = oneWay;
+        CollabRadio.IsChecked = !oneWay;
     }
 
     private void OnAccept(object? sender, RoutedEventArgs e)
     {
+        OneWayShare = OneWayRadio.IsChecked == true;
         Confirmed = true;
         Close();
     }

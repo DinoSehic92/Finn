@@ -1,0 +1,41 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="340"
+        MinWidth="380" MinHeight="340"
+        MaxWidth="380" MaxHeight="340"
+        x:Class="Finn.Dialogs.xShareSettingsDia"
+        Title=""
+        xmlns:vm="clr-namespace:Finn.ViewModels"
+        xmlns:controls="clr-namespace:Finn.Controls"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
+        x:DataType="vm:MainViewModel">
+    <Grid RowDefinitions="30,*" Margin="0">
+        <Panel Grid.Row="0" IsHitTestVisible="False"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0,20,0">
+            <controls:DialogHeader Icon="PeopleSettings" Title="Sharing Settings" Subtitle="Configure how other users interact with this project."/>
+            <StackPanel Orientation="Vertical" Spacing="10" Margin="4,4,4,0">
+                <RadioButton Name="OneWayRadio" GroupName="SharingMode" IsChecked="True">
+                    <StackPanel Orientation="Vertical" Spacing="2">
+                        <TextBlock Text="One-way (read-only)" FontWeight="SemiBold"/>
+                        <TextBlock Text="Other users can pull updates but cannot push changes back." FontSize="11" Opacity="0.7" TextWrapping="Wrap" MaxWidth="270"/>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton Name="CollabRadio" GroupName="SharingMode">
+                    <StackPanel Orientation="Vertical" Spacing="2">
+                        <TextBlock Text="Collaborative" FontWeight="SemiBold"/>
+                        <TextBlock Text="Other users can both pull and push changes." FontSize="11" Opacity="0.7" TextWrapping="Wrap" MaxWidth="270"/>
+                    </StackPanel>
+                </RadioButton>
+                <TextBlock Text="Changes take effect for other users after your next push." FontSize="11" Opacity="0.55" TextWrapping="Wrap" MaxWidth="300" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,0">
+                <Button Name="AcceptButton" HotKey="Enter" Width="90" Classes="accent" Content="Save" Click="OnAccept"/>
+                <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

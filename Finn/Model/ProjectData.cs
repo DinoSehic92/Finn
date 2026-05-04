@@ -495,6 +495,18 @@ namespace Finn.Model
         [System.Text.Json.Serialization.JsonIgnore]
         public bool IsViewer => SharedRole == SharedRole.Viewer;
 
+        private bool _isOriginalOwner;
+        /// <summary>
+        /// True when this machine created the shared project (i.e. called MakeProjectShared).
+        /// Only the original owner may change the sharing mode (one-way vs collaborative).
+        /// Local-only — persisted in local Projects.json but stripped from the server file.
+        /// </summary>
+        public bool IsOriginalOwner
+        {
+            get => _isOriginalOwner;
+            set { _isOriginalOwner = value; RaisePropertyChanged(nameof(IsOriginalOwner)); }
+        }
+
         private void RaisePropertyChanged(string propName)
         {
             OnPropertyChanged(propName);

@@ -47,7 +47,7 @@
         </DataGrid>
         <StackPanel Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Center" Spacing="4" Margin="0,8,0,16">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                <Button Name="MergeButton" Width="90" Classes="accent" Content="Merge" Click="OnMerge" ToolTip.Tip="Apply server values, keep local-only content"/>
+                <Button Name="MergeButton" Width="110" Classes="accent" Content="Merge" Click="OnMerge" ToolTip.Tip="Apply server values, keep local-only content"/>
                 <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
             </StackPanel>
             <TextBlock Text="Server values are applied. Check rows to keep your local version instead." FontSize="10.5" Opacity="0.5" HorizontalAlignment="Center"/>

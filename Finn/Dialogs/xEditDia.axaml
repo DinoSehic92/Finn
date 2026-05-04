@@ -48,7 +48,7 @@
 				</Border>
 				<StackPanel Grid.Row="4" Grid.Column="1"  Orientation="Horizontal" Margin="5,0,0,0">
 					<ColorPicker Color="{Binding CurrentProject.Foreground}" Width="80" HorizontalAlignment="Left" Name="ColorPickerForeground"/>
-					<Button Click="ResetColor" VerticalContentAlignment="Center" BorderBrush="Transparent">
+					<Button Click="ResetColor" Classes="ghost" VerticalContentAlignment="Center" BorderBrush="Transparent">
 						<ic:SymbolIcon Symbol="ArrowReset" IconVariant="Regular" FontSize="18"/>
 					</Button>
 				</StackPanel>
