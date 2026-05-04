@@ -469,7 +469,7 @@
 			<Border Name="DiffToolbar" Classes="shadow" IsVisible="{Binding PreviewVM.ShowDiffToolbar}" IsHitTestVisible="True"
 					HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,6"
 					Padding="6,3">
-				<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-6,-3" Padding="6,3" BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}" CornerRadius="4">
+				<Border Classes="clip-inner" Padding="6,3">
 				<StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
 					<!-- Mode buttons — radio-style (OneWay + Click ensures one is always selected) -->
 					<ToggleButton Classes="ghost" ToolTip.Tip="A/B Toggle — swap between original and revised" Height="30" Width="30" Padding="0" IsChecked="{Binding PreviewVM.IsToggleMode, Mode=OneWay}" Click="OnDiffModeToggle">

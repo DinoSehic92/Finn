@@ -251,13 +251,13 @@ namespace Finn.ViewModels
 
                 // Snapshot the folder list on the UI thread.
                 // Don't call IsValid() here — it does Directory.Exists.
-                var pairs = new List<(string ProjectName, FolderData Folder)>();
+                var pairs = new List<(string ProjectName, FolderData Folder, int AppCount)>();
                 foreach (var project in Storage.StoredProjects)
                 {
                     foreach (var folder in project.Folders)
                     {
                         if (!string.IsNullOrEmpty(folder.Path))
-                            pairs.Add((project.Namn, folder));
+                            pairs.Add((project.Namn, folder, CountAppFiles(folder, project)));
                     }
                 }
 
@@ -265,7 +265,7 @@ namespace Finn.ViewModels
                 var outOfSync = await Task.Run(() =>
                 {
                     var results = new List<(string ProjectName, FolderData Folder, string Summary)>();
-                    foreach (var (projectName, folder) in pairs)
+                    foreach (var (projectName, folder, appCount) in pairs)
                     {
                         try
                         {
@@ -274,6 +274,18 @@ namespace Finn.ViewModels
 
                             if (folder.SyncedFileCount <= 0)
                                 continue; // Never synced
+
+                            // App-count check: detects files removed from app tracking
+                            // even when the disk hasn't changed (no timestamp/count shift).
+                            int baseline = folder.Mode == SyncFolderMode.VersionDelivery
+                                ? folder.TrackedVersionCount
+                                : folder.SyncedFileCount;
+                            if (appCount >= 0 && appCount < baseline)
+                            {
+                                int diff = appCount - baseline;
+                                results.Add((projectName, folder, $"{diff} file(s) removed from app"));
+                                continue;
+                            }
 
                             // Fast path: root-dir timestamp.
                             // Catches all changes for TopDirectoryOnly folders
@@ -287,11 +299,11 @@ namespace Finn.ViewModels
                             if (diskCount == folder.SyncedFileCount)
                                 continue; // Same count — in sync
 
-                            int diff = diskCount - folder.SyncedFileCount;
-                            string summary = diff switch
+                            int diskDiff = diskCount - folder.SyncedFileCount;
+                            string summary = diskDiff switch
                             {
-                                > 0 => $"+{diff} new file(s)",
-                                < 0 => $"{diff} file(s)",
+                                > 0 => $"+{diskDiff} new file(s)",
+                                < 0 => $"{diskDiff} file(s)",
                                 _ => "Files changed"
                             };
                             results.Add((projectName, folder, summary));
@@ -314,10 +326,10 @@ namespace Finn.ViewModels
             /// </summary>
             public async Task CheckAllFoldersAsync()
             {
-                // Snapshot project/folder pairs on the UI thread.
+                // Snapshot project/folder pairs and app-side counts on the UI thread.
                 // Don't call IsValid() here — it does Directory.Exists
                 // which blocks on network shares.
-                var pairs = new List<(string ProjectName, FolderData Folder)>();
+                var pairs = new List<(string ProjectName, FolderData Folder, int AppCount)>();
                 foreach (var project in Storage.StoredProjects)
                 {
                     foreach (var folder in project.Folders)
@@ -325,7 +337,7 @@ namespace Finn.ViewModels
                         if (string.IsNullOrEmpty(folder.Path))
                             continue;
 
-                        pairs.Add((project.Namn, folder));
+                        pairs.Add((project.Namn, folder, CountAppFiles(folder, project)));
                     }
                 }
 
@@ -348,7 +360,7 @@ namespace Finn.ViewModels
                 var outOfSync = await Task.Run(() =>
                 {
                     var results = new List<(string ProjectName, FolderData Folder, string Summary)>();
-                    foreach (var (projectName, folder) in pairs)
+                    foreach (var (projectName, folder, appCount) in pairs)
                     {
                         try
                         {
@@ -360,6 +372,23 @@ namespace Finn.ViewModels
                             }
 
                             bool hasBaseline = folder.SyncedFileCount > 0;
+
+                            // App-count check: detects files removed from app tracking
+                            // even when the disk hasn't changed (no timestamp/count shift).
+                            if (hasBaseline && appCount >= 0)
+                            {
+                                int baseline = folder.Mode == SyncFolderMode.VersionDelivery
+                                    ? folder.TrackedVersionCount
+                                    : folder.SyncedFileCount;
+                                if (appCount < baseline)
+                                {
+                                    int diff = appCount - baseline;
+                                    results.Add((projectName, folder, $"{diff} file(s) removed from app"));
+                                    checked_++;
+                                    ((IProgress<int>)progress).Report(checked_);
+                                    continue;
+                                }
+                            }
 
                             // Fast path: one root-dir timestamp read.
                             // For TopDirectoryOnly this catches all changes.
@@ -504,6 +533,44 @@ namespace Finn.ViewModels
 
                 if (folder.Mode == SyncFolderMode.VersionDelivery)
                     folder.TrackedVersionCount = CountVersionsUnderPath(folder.Path);
+            }
+
+            /// <summary>
+            /// Counts the number of files currently tracked in the app for the given
+            /// folder, using the same folder-path match that was recorded at import
+            /// time. This allows detecting files removed from app tracking even when
+            /// the disk hasn't changed (so a disk count comparison would miss it).
+            /// </summary>
+            private int CountAppFiles(FolderData folder, Model.ProjectData project)
+            {
+                string folderPath = folder.Path;
+                return folder.Mode switch
+                {
+                    SyncFolderMode.ProjectFiles =>
+                        project.StoredFiles.Count(f =>
+                            f.IsFromFolder
+                            && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase)),
+
+                    SyncFolderMode.AttachedFiles =>
+                        project.StoredFiles.Count(f =>
+                            f.IsAppendedFile && f.IsFromFolder
+                            && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase)),
+
+                    SyncFolderMode.OtherFiles =>
+                        project.StoredFiles
+                            .SelectMany(f => f.OtherFiles)
+                            .Count(o => o.IsFromFolder
+                                && string.Equals(o.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase)),
+
+                    SyncFolderMode.VersionDelivery =>
+                        project.StoredFiles
+                            .SelectMany(f => f.Versions)
+                            .Count(v => v.Sökväg.StartsWith(
+                                folderPath.EndsWith(Path.DirectorySeparatorChar) ? folderPath : folderPath + Path.DirectorySeparatorChar,
+                                StringComparison.OrdinalIgnoreCase)),
+
+                    _ => -1
+                };
             }
 
             private void OnFolderWatcherChanged(IReadOnlySet<string> changedPaths)

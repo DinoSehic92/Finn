@@ -257,11 +257,12 @@ namespace Finn.ViewModels
                 CurrentFile?.IsTopLevel == true;
 
             /// <summary>
-            /// True when the current selection is a child file (inside a group or attached).
+            /// True when the current selection is a child file (inside a group or attached)
+            /// AND is not managed by an AttachedFiles sync folder (those cannot be individually detached).
             /// Shows the "Detach" context menu item.
             /// </summary>
             public bool SelectedFileIsChild =>
-                CurrentFile?.IsChild == true;
+                CurrentFile?.IsChild == true && !IsAttachedFolderFile(CurrentFile);
 
             /// <summary>
             /// True when the current selection is a group header.

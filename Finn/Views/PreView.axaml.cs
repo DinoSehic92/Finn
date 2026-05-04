@@ -1191,6 +1191,18 @@ public partial class PreView : UserControl
         var choiceB = pwr.DiffChoiceB!;
         var sourceFile = pwr.DiffSourceFile;
 
+        // Guard: both paths must exist on disk before attempting any diff
+        if (string.IsNullOrEmpty(choiceA?.Path) || !File.Exists(choiceA.Path))
+        {
+            pwr.StatusMessage = "Source file (A) not found";
+            return;
+        }
+        if (string.IsNullOrEmpty(choiceB?.Path) || !File.Exists(choiceB.Path))
+        {
+            pwr.StatusMessage = "Source file (B) not found";
+            return;
+        }
+
         // Remove previous diff annotation layers before closing views.
         // Without this, stale layers can linger on the renderers when
         // re-running a diff without explicitly closing first.

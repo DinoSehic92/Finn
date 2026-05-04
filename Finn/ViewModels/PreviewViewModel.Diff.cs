@@ -107,6 +107,7 @@ namespace Finn.ViewModels
                 {
                     OnPropertyChanged(nameof(ShowDiffToolbar));
                     OnPropertyChanged(nameof(ShowDiffToggle));
+                    OnPropertyChanged(nameof(ShowLinkedPageButton));
                     OnPropertyChanged(nameof(IsUserDualFileMode));
                     OnPropertyChanged(nameof(CanToggleLayout));
                     OnPropertyChanged(nameof(CanSearch));
@@ -472,10 +473,11 @@ namespace Finn.ViewModels
             if (secondaryRenderer != null)
                 secondaryRenderer.IsVisible = false;
 
-            if (twopageMode || dualFileMode)
+            if (twopageMode || dualFileMode || !linkedPageMode)
             {
                 twopageMode = false;
                 dualFileMode = false;
+                linkedPageMode = true;
                 NotifyModeChanged();
             }
 
@@ -826,6 +828,7 @@ namespace Finn.ViewModels
                     : file.Sökväg;
                 if (!string.IsNullOrEmpty(origPath)
                     && origPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                    && File.Exists(origPath)
                     && addedPaths.Add(origPath))
                     choices.Add(new DiffPathChoice("Original", origPath));
 
@@ -835,6 +838,7 @@ namespace Finn.ViewModels
                     {
                         if (!string.IsNullOrEmpty(v.Sökväg)
                             && v.Sökväg.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                            && File.Exists(v.Sökväg)
                             && addedPaths.Add(v.Sökväg))
                             choices.Add(new DiffPathChoice(
                                 string.IsNullOrEmpty(v.Label) ? Path.GetFileNameWithoutExtension(v.Sökväg) : v.Label,
@@ -849,6 +853,7 @@ namespace Finn.ViewModels
                 {
                     if (!string.IsNullOrEmpty(appended.Sökväg)
                         && appended.Sökväg.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                        && File.Exists(appended.Sökväg)
                         && addedPaths.Add(appended.Sökväg))
                         choices.Add(new DiffPathChoice(
                             string.IsNullOrEmpty(appended.Namn) ? Path.GetFileNameWithoutExtension(appended.Sökväg) : appended.Namn,

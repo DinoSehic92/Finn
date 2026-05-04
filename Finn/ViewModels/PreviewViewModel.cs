@@ -214,12 +214,23 @@ namespace Finn.ViewModels
             get => currentFile;
             set
             {
+                var old = currentFile;
                 if (SetProperty(ref currentFile, value))
                 {
+                    if (old != null)
+                        old.PropertyChanged -= OnCurrentFilePropertyChanged;
+                    if (value != null)
+                        value.PropertyChanged += OnCurrentFilePropertyChanged;
                     OnPropertyChanged(nameof(CanCompareVersions));
                     OnPropertyChanged(nameof(ShowForceServerRead));
                 }
             }
+        }
+
+        private void OnCurrentFilePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(FileData.HasVersions))
+                OnPropertyChanged(nameof(CanCompareVersions));
         }
 
         /// <summary>

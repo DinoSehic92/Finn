@@ -31,12 +31,27 @@ namespace Finn.ViewModels
 
         private string? GetDetachedChildType() => Type != ALL_TYPES ? Type : null;
 
+        /// <summary>
+        /// Returns true when <paramref name="file"/> is managed by an
+        /// <see cref="SyncFolderMode.AttachedFiles"/> folder. Such files must
+        /// stay together and cannot be independently detached or reparented.
+        /// </summary>
+        private bool IsAttachedFolderFile(FileData file) =>
+            file.IsAppendedFile
+            && file.IsFromFolder
+            && !string.IsNullOrEmpty(file.SyncFolder)
+            && CurrentProject.Folders.Any(f =>
+                f.Mode == SyncFolderMode.AttachedFiles
+                && string.Equals(f.Path, file.SyncFolder, StringComparison.OrdinalIgnoreCase));
+
         private bool CanMoveToParent(FileData target, FileData file)
         {
             if (target.IsChild) return false;
             if (file == target) return false;
             if (!file.IsRegularFile) return false;
             if (file.HasChildren) return false;
+            // Files managed by an AttachedFiles sync folder must stay together
+            if (IsAttachedFolderFile(file)) return false;
             // Prevent circular parentage: target must not be a descendant of file
             if (IsDescendantOf(target, file)) return false;
 
@@ -203,6 +218,10 @@ namespace Finn.ViewModels
 
             foreach (var file in files.ToList())
             {
+                // Files from an AttachedFiles sync folder must stay together —
+                // detaching individual files would break the folder's tracking.
+                if (IsAttachedFolderFile(file)) continue;
+
                 // Preserve the file's own category; only fall back to the
                 // active filter when the file has no category of its own.
                 string? detachedType = string.IsNullOrEmpty(file.Filtyp)

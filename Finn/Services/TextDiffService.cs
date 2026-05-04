@@ -107,6 +107,10 @@ namespace Finn.Services
             int headerHeight = 0,
             int footerHeight = 0)
         {
+            if (string.IsNullOrEmpty(pathA) || !System.IO.File.Exists(pathA))
+                throw new System.IO.FileNotFoundException("Text diff source file not found.", pathA);
+            if (string.IsNullOrEmpty(pathB) || !System.IO.File.Exists(pathB))
+                throw new System.IO.FileNotFoundException("Text diff source file not found.", pathB);
             return await Task.Run(() => Compare(pathA, pathB, progress, ct, headerHeight, footerHeight), ct);
         }
 

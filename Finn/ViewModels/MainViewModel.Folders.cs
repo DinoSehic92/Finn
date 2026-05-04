@@ -156,6 +156,7 @@ namespace Finn.ViewModels
                 try
                 {
                     int fileCountBefore = CurrentProject.StoredFiles.Count;
+                    int otherCountBefore = CurrentProject.StoredFiles.Sum(f => f.OtherFiles.Count);
                     var syncedPaths = new List<string>();
 
                     for (int i = 0; i < folders.Count; i++)
@@ -172,15 +173,21 @@ namespace Finn.ViewModels
                     PreviewVM.BackgroundTaskActive = false;
 
                     int delta = CurrentProject.StoredFiles.Count - fileCountBefore;
-                    if (delta > 0)
-                        PreviewVM.StatusMessage = $"Sync complete — {delta} file(s) added";
-                    else if (delta < 0)
-                        PreviewVM.StatusMessage = $"Sync complete — {-delta} file(s) removed";
+                    int otherDelta = CurrentProject.StoredFiles.Sum(f => f.OtherFiles.Count) - otherCountBefore;
+                    int totalDelta = delta + otherDelta;
+
+                    if (totalDelta > 0)
+                        PreviewVM.StatusMessage = $"Sync complete — {totalDelta} file(s) added";
+                    else if (totalDelta < 0)
+                        PreviewVM.StatusMessage = $"Sync complete — {-totalDelta} file(s) removed";
                     else
                         PreviewVM.StatusMessage = "All folders up to date";
 
                     if (syncedPaths.Count > 0)
+                    {
                         ClearSyncEntriesByPath(syncedPaths);
+                        MarkDirty();
+                    }
 
                     UpdateFilter();
                 }
@@ -285,7 +292,15 @@ namespace Finn.ViewModels
                             diskFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
 
                         var removals = oldSynced.Where(o => !diskPaths.Contains(o.Sökväg)).ToList();
-                        var additions = diskFiles.Where(f => !oldByPath.ContainsKey(f.Sökväg)).ToList();
+
+                        // Exclude paths already tracked anywhere in the project (e.g. files
+                        // that were detached from this folder but kept as top-level entries).
+                        var allTrackedPaths = new HashSet<string>(
+                            CurrentProject.StoredFiles.Select(x => x.Sökväg),
+                            StringComparer.OrdinalIgnoreCase);
+                        var additions = diskFiles
+                            .Where(f => !oldByPath.ContainsKey(f.Sökväg) && !allTrackedPaths.Contains(f.Sökväg))
+                            .ToList();
 
                         if (removals.Count == 0 && additions.Count == 0)
                         {
@@ -310,7 +325,11 @@ namespace Finn.ViewModels
                             if (removeDia.Confirmed)
                             {
                                 foreach (var r in removals)
+                                {
+                                    r.PartOfCollections.Clear();
+                                    r.ClearParent();
                                     CurrentProject.StoredFiles.Remove(r);
+                                }
                             }
                             else
                             {
@@ -321,7 +340,11 @@ namespace Finn.ViewModels
                         {
                             // No window — silently remove
                             foreach (var r in removals)
+                            {
+                                r.PartOfCollections.Clear();
+                                r.ClearParent();
                                 CurrentProject.StoredFiles.Remove(r);
+                            }
                         }
 
                         // Show import dialog when new files appeared on disk
@@ -605,10 +628,8 @@ namespace Finn.ViewModels
                         foreach (var entry in versionCandidates)
                             entry.ExistingFile.AddVersion(entry.NewFilePath, entry.SelectedLabel);
                     }
-                    else
-                    {
-                        return false;
-                    }
+                    // Declining the version import is treated as "skip, not cancel" —
+                    // the folder is still considered synced so it clears from the pending list.
                 }
 
                 return true;
