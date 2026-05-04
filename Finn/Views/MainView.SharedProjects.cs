@@ -22,32 +22,30 @@ public partial class MainView
 #region Shared Projects
 
     private TreeNodeData? _lastRightClickedNode;
-    private bool _nodeContextRequestedThisCycle;
+    /// <summary>
+    /// The project resolved from the right-clicked node, used only for context-menu display.
+    /// Never assigned to CurrentProject; keeps right-click purely read-only.
+    /// </summary>
+    private ProjectData? _contextMenuProject;
 
     /// <summary>
     /// Fires when the user right-clicks a tree node's StackPanel, before the context menu opens.
-    /// Captures the node so OnTreeContextMenuOpening can use it.
+    /// Captures the node and resolves the associated project (if any) for menu rendering.
+    /// Does NOT change CurrentProject — navigation is a separate, deliberate user action.
     /// </summary>
     private void OnTreeNodeContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         if (sender is Control control && control.DataContext is TreeNodeData node)
         {
             _lastRightClickedNode = node;
-            _nodeContextRequestedThisCycle = true;
-            if (node.Tag == "All Types")
-            {
-                var project = _ctx.Storage.StoredProjects.FirstOrDefault(p => p.Namn == node.Header);
-                if (project != null)
-                {
-                    _ctx.CurrentProject = project;
-                    _ctx.SelectedTreeNode = node;
-                }
-            }
+            _contextMenuProject = node.Tag == "All Types"
+                ? _ctx.Storage.StoredProjects.FirstOrDefault(p => p.Namn == node.Header)
+                : null;
         }
         else
         {
             _lastRightClickedNode = null;
-            _nodeContextRequestedThisCycle = false;
+            _contextMenuProject = null;
         }
     }
 
@@ -60,24 +58,32 @@ public partial class MainView
     {
         if (sender is not ContextMenu menu) return;
 
-        // If OnTreeNodeContextRequested wasn't called this cycle the right-click landed outside
-        // a node's content border (e.g. the indentation padding or empty space).
-        // Fall back to the TreeView's current SelectedItem so the menu reflects the highlighted node.
-        if (!_nodeContextRequestedThisCycle)
+        // If OnTreeNodeContextRequested wasn't called (right-click landed on indentation/empty space),
+        // fall back to the tree's selected item so the menu still reflects the highlighted node.
+        if (_lastRightClickedNode == null)
+        {
             _lastRightClickedNode = MainTree.SelectedItem as TreeNodeData;
-        _nodeContextRequestedThisCycle = false; // reset for next time
+            _contextMenuProject = _lastRightClickedNode?.Tag == "All Types"
+                ? _ctx.Storage.StoredProjects.FirstOrDefault(p => p.Namn == _lastRightClickedNode.Header)
+                : null;
+        }
+
         string tag = _lastRightClickedNode?.Tag ?? string.Empty;
         bool isProjectNode  = tag == "All Types";
         bool isGroupNode    = tag == "Group";
         bool isSubgroupNode = tag == "Subgroup";
         bool isAnyGroup     = isGroupNode || isSubgroupNode;
-        bool isShared       = _ctx.CurrentProject?.IsShared == true;
-        bool isViewer       = _ctx.CurrentProject?.IsViewer == true;
+        // Read share state from the right-clicked project, NOT CurrentProject.
+        bool isShared       = _contextMenuProject?.IsShared == true;
+        bool isViewer       = _contextMenuProject?.IsViewer == true;
         bool isSuperuser    = _ctx.UI.SuperuserMode;
 
         bool showProjectActions = isProjectNode;
         bool showShareActions   = isSuperuser && isProjectNode;
-        bool showShareMenu      = isSuperuser; // Share menu visible to superusers regardless of node type
+
+        // Reset captured node so next open starts fresh.
+        _lastRightClickedNode = null;
+        _contextMenuProject   = null;
 
         foreach (var child in menu.Items)
         {
@@ -87,7 +93,7 @@ public partial class MainView
                     sep.IsVisible = sep.Name switch
                     {
                         "GroupSeparator"  => isAnyGroup,
-                        "SharedSeparator" => showShareMenu,
+                        "SharedSeparator" => showShareActions,
                         "RemoveSeparator" => showProjectActions,
                         _                 => true
                     };
@@ -101,7 +107,7 @@ public partial class MainView
                         "RemoveGroupMenuItem"        => isAnyGroup,
                         "EditProjectMenuItem"        => showProjectActions,
                         "ExportProjectMenuItem"      => showProjectActions,
-                        "ShareMenuItem"              => showShareMenu,
+                        "ShareMenuItem"              => showShareActions || isSuperuser && !isProjectNode && !isAnyGroup,
                         "RemoveProjectMenuItem"      => showProjectActions,
                         _                            => true
                     };
@@ -114,9 +120,9 @@ public partial class MainView
                             {
                                 shareItem.IsVisible = shareItem.Name switch
                                 {
-                                    // Always available to superusers — doesn't need a project selected
+                                    // Import doesn't need a project selected — always available to superusers.
                                     "ImportSharedMenuItem"  => isSuperuser,
-                                    // Require a project node
+                                    // All other share actions require a project node.
                                     "MakeSharedMenuItem"    => showShareActions && !isShared,
                                     "PushMenuItem"          => showShareActions && isShared && !isViewer,
                                     "PullMenuItem"          => showShareActions && isShared,
