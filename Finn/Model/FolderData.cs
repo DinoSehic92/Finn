@@ -69,8 +69,10 @@ namespace Finn.Model
 
         private int syncedFileCount;
         /// <summary>
-        /// Number of files on disk for baseline comparison (out-of-sync detection).
-        /// For non-version folders this also serves as the display count.
+        /// Number of files on disk recorded at the last sync.
+        /// Kept for backward-compat deserialisation and as a fast pre-check
+        /// for the filesystem watcher. Prefer <see cref="SyncedPaths"/> for
+        /// change detection when it is populated.
         /// </summary>
         public int SyncedFileCount
         {
@@ -82,6 +84,7 @@ namespace Finn.Model
         /// <summary>
         /// Number of actually imported versions for version delivery folders.
         /// Only meaningful when <see cref="Mode"/> is <see cref="SyncFolderMode.VersionDelivery"/>.
+        /// Kept for backward-compat deserialisation.
         /// </summary>
         public int TrackedVersionCount
         {
@@ -90,11 +93,30 @@ namespace Finn.Model
         }
 
         /// <summary>
+        /// App-state paths recorded at the last successful sync.
+        /// For <see cref="SyncFolderMode.ProjectFiles"/> and
+        /// <see cref="SyncFolderMode.AttachedFiles"/> these are file paths
+        /// (<see cref="FileData.Sökväg"/>). For
+        /// <see cref="SyncFolderMode.OtherFiles"/> they are the attachment
+        /// file paths (<see cref="OtherData.Filepath"/>). For
+        /// <see cref="SyncFolderMode.VersionDelivery"/> they are version paths
+        /// (<see cref="FileVersionData.Sökväg"/>).
+        /// When this list is non-empty it is the authoritative baseline;
+        /// change detection compares current app state against it directly
+        /// instead of using the count-based heuristic.
+        /// </summary>
+        public List<string> SyncedPaths { get; set; } = [];
+
+        /// <summary>
         /// The file count displayed in the folder grid.
-        /// Version folders show the tracked version count; other folders show the disk count.
+        /// Prefers <see cref="SyncedPaths"/> when populated;
+        /// otherwise falls back to the legacy count fields.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
-        public int DisplayFileCount => Mode == SyncFolderMode.VersionDelivery ? trackedVersionCount : syncedFileCount;
+        public int DisplayFileCount =>
+            SyncedPaths.Count > 0
+                ? SyncedPaths.Count
+                : Mode == SyncFolderMode.VersionDelivery ? trackedVersionCount : syncedFileCount;
 
         /// <summary>
         /// UTC timestamp recorded after the last successful sync.

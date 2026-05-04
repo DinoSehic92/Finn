@@ -241,72 +241,125 @@ namespace Finn.ViewModels
 
             /// <summary>
             /// Performs a lightweight comparison of every sync folder's tracked
-            /// file count and timestamp against the stored baseline. Runs disk
-            /// I/O on a background thread so the UI stays responsive.
+            /// file paths against the stored baseline. Runs disk I/O on a
+            /// background thread so the UI stays responsive.
             /// Populates <see cref="PendingSyncFolders"/> for the toolbar indicator.
             /// </summary>
             public async Task CheckFolderSyncOnStartupAsync()
             {
                 if (!UI.FolderWatchEnabled) return;
 
-                // Snapshot the folder list on the UI thread.
-                // Don't call IsValid() here — it does Directory.Exists.
-                var pairs = new List<(string ProjectName, FolderData Folder, int AppCount)>();
+                // Snapshot folder list on the UI thread: baseline paths, current app paths,
+                // and legacy counts. The background thread must only do disk I/O.
+                var pairs = new List<(
+                    string ProjectName,
+                    FolderData Folder,
+                    HashSet<string>? BaselinePaths,
+                    HashSet<string>? CurrentAppPaths,
+                    int LegacyAppCount)>();
+
                 foreach (var project in Storage.StoredProjects)
                 {
                     foreach (var folder in project.Folders)
                     {
-                        if (!string.IsNullOrEmpty(folder.Path))
-                            pairs.Add((project.Namn, folder, CountAppFiles(folder, project)));
+                        if (string.IsNullOrEmpty(folder.Path))
+                            continue;
+
+                        HashSet<string>? baselinePaths = folder.SyncedPaths.Count > 0
+                            ? new HashSet<string>(folder.SyncedPaths, StringComparer.OrdinalIgnoreCase)
+                            : null;
+
+                        HashSet<string>? currentAppPaths = baselinePaths != null
+                            ? new HashSet<string>(CollectSyncedPaths(folder, project), StringComparer.OrdinalIgnoreCase)
+                            : null;
+
+                        int legacyCount = baselinePaths == null
+                            ? CountAppFiles(folder, project)
+                            : -1;
+
+                        pairs.Add((project.Namn, folder, baselinePaths, currentAppPaths, legacyCount));
                     }
                 }
 
-                // Run checks off the UI thread
+                // Run disk checks off the UI thread
                 var outOfSync = await Task.Run(() =>
                 {
                     var results = new List<(string ProjectName, FolderData Folder, string Summary)>();
-                    foreach (var (projectName, folder, appCount) in pairs)
+                    foreach (var (projectName, folder, baselinePaths, currentAppPaths, legacyAppCount) in pairs)
                     {
                         try
                         {
                             if (!folder.ExistsOnDisk())
                                 continue;
 
-                            if (folder.SyncedFileCount <= 0)
-                                continue; // Never synced
-
-                            // App-count check: detects files removed from app tracking
-                            // even when the disk hasn't changed (no timestamp/count shift).
-                            int baseline = folder.Mode == SyncFolderMode.VersionDelivery
-                                ? folder.TrackedVersionCount
-                                : folder.SyncedFileCount;
-                            if (appCount >= 0 && appCount < baseline)
+                            if (baselinePaths != null && currentAppPaths != null)
                             {
-                                int diff = appCount - baseline;
-                                results.Add((projectName, folder, $"{diff} file(s) removed from app"));
-                                continue;
+                                // 1. App-side check: has the user removed files from the app
+                                //    since the last sync? (disk untouched, so count check would miss this)
+                                bool appChanged = currentAppPaths.Count != baselinePaths.Count
+                                    || currentAppPaths.Any(p => !baselinePaths.Contains(p));
+
+                                if (appChanged)
+                                {
+                                    int diff = currentAppPaths.Count - baselinePaths.Count;
+                                    string appSummary = diff < 0
+                                        ? $"{-diff} file(s) removed from app"
+                                        : "Files changed in app";
+                                    results.Add((projectName, folder, appSummary));
+                                    continue;
+                                }
+
+                                // 2. Disk-side check: fast timestamp pre-check, then count.
+                                if (folder.LastSyncedUtc is { } ts
+                                    && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
+                                    continue; // Disk untouched — in sync
+
+                                int diskCount = CountDiskFiles(folder);
+                                if (diskCount == baselinePaths.Count)
+                                    continue; // Count still matches baseline — in sync
+
+                                int diskDiff = diskCount - baselinePaths.Count;
+                                string diskSummary = diskDiff switch
+                                {
+                                    > 0 => $"+{diskDiff} new file(s) on disk",
+                                    < 0 => $"{-diskDiff} file(s) removed from disk",
+                                    _   => "Files changed"
+                                };
+                                results.Add((projectName, folder, diskSummary));
                             }
-
-                            // Fast path: root-dir timestamp.
-                            // Catches all changes for TopDirectoryOnly folders
-                            // and new delivery subfolders for VersionDelivery.
-                            if (folder.LastSyncedUtc is { } ts
-                                && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
-                                continue; // Nothing changed
-
-                            // Count files (the authoritative check).
-                            int diskCount = CountDiskFiles(folder);
-                            if (diskCount == folder.SyncedFileCount)
-                                continue; // Same count — in sync
-
-                            int diskDiff = diskCount - folder.SyncedFileCount;
-                            string summary = diskDiff switch
+                            else
                             {
-                                > 0 => $"+{diskDiff} new file(s)",
-                                < 0 => $"{diskDiff} file(s)",
-                                _ => "Files changed"
-                            };
-                            results.Add((projectName, folder, summary));
+                                // Legacy path: no stored path set — fall back to count comparison.
+                                if (folder.SyncedFileCount <= 0)
+                                    continue; // Never synced
+
+                                int baseline = folder.Mode == SyncFolderMode.VersionDelivery
+                                    ? folder.TrackedVersionCount
+                                    : folder.SyncedFileCount;
+                                if (legacyAppCount >= 0 && legacyAppCount < baseline)
+                                {
+                                    int diff = legacyAppCount - baseline;
+                                    results.Add((projectName, folder, $"{diff} file(s) removed from app"));
+                                    continue;
+                                }
+
+                                if (folder.LastSyncedUtc is { } ts
+                                    && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
+                                    continue;
+
+                                int diskCount = CountDiskFiles(folder);
+                                if (diskCount == folder.SyncedFileCount)
+                                    continue;
+
+                                int diskDiff = diskCount - folder.SyncedFileCount;
+                                string summary = diskDiff switch
+                                {
+                                    > 0 => $"+{diskDiff} new file(s)",
+                                    < 0 => $"{diskDiff} file(s)",
+                                    _ => "Files changed"
+                                };
+                                results.Add((projectName, folder, summary));
+                            }
                         }
                         catch { /* inaccessible folder — skip */ }
                     }
@@ -320,16 +373,25 @@ namespace Finn.ViewModels
 
             /// <summary>
             /// Manually re-checks every sync folder across all projects.
-            /// Compares file count and directory timestamp against the stored
-            /// baseline. Heals stale baselines for folders that are in sync.
+            /// Compares current app-tracked paths and disk state against the stored
+            /// baseline when available; falls back to file-count comparison for
+            /// folders synced before the path-set baseline was introduced.
+            /// Heals stale baselines for in-sync folders.
             /// Runs disk I/O on a background thread and updates the UI when done.
             /// </summary>
             public async Task CheckAllFoldersAsync()
             {
-                // Snapshot project/folder pairs and app-side counts on the UI thread.
-                // Don't call IsValid() here — it does Directory.Exists
-                // which blocks on network shares.
-                var pairs = new List<(string ProjectName, FolderData Folder, int AppCount)>();
+                // Snapshot project/folder pairs on the UI thread.
+                // Collect baseline path sets and current app paths now so the
+                // background thread only does disk I/O and not app-state reads.
+                var pairs = new List<(
+                    string ProjectName,
+                    FolderData Folder,
+                    Model.ProjectData Project,
+                    HashSet<string>? BaselinePaths,
+                    HashSet<string>? CurrentAppPaths,
+                    int LegacyAppCount)>();
+
                 foreach (var project in Storage.StoredProjects)
                 {
                     foreach (var folder in project.Folders)
@@ -337,18 +399,26 @@ namespace Finn.ViewModels
                         if (string.IsNullOrEmpty(folder.Path))
                             continue;
 
-                        pairs.Add((project.Namn, folder, CountAppFiles(folder, project)));
+                        HashSet<string>? baselinePaths = folder.SyncedPaths.Count > 0
+                            ? new HashSet<string>(folder.SyncedPaths, StringComparer.OrdinalIgnoreCase)
+                            : null;
+
+                        HashSet<string>? currentAppPaths = baselinePaths != null
+                            ? new HashSet<string>(CollectSyncedPaths(folder, project), StringComparer.OrdinalIgnoreCase)
+                            : null;
+
+                        int legacyCount = baselinePaths == null ? CountAppFiles(folder, project) : -1;
+
+                        pairs.Add((project.Namn, folder, project, baselinePaths, currentAppPaths, legacyCount));
                     }
                 }
 
                 if (pairs.Count == 0) return;
 
-                // Show progress via the existing background-task indicator
                 PreviewVM.BackgroundTaskActive = true;
                 PreviewVM.BackgroundTaskMessage = $"Checking 0/{pairs.Count} folders…";
                 PreviewVM.BackgroundTaskProgress = 0;
 
-                // Run disk I/O on a background thread.
                 bool baselineUpdated = false;
                 int checked_ = 0;
                 var progress = new Progress<int>(i =>
@@ -357,10 +427,13 @@ namespace Finn.ViewModels
                     PreviewVM.BackgroundTaskProgress = (int)(100.0 * i / pairs.Count);
                 });
 
+                // Collect healed baselines to apply back on the UI thread.
+                var healedBaselines = new List<(FolderData Folder, Model.ProjectData Project)>();
+
                 var outOfSync = await Task.Run(() =>
                 {
                     var results = new List<(string ProjectName, FolderData Folder, string Summary)>();
-                    foreach (var (projectName, folder, appCount) in pairs)
+                    foreach (var (projectName, folder, project, baselinePaths, currentAppPaths, legacyAppCount) in pairs)
                     {
                         try
                         {
@@ -371,59 +444,100 @@ namespace Finn.ViewModels
                                 continue;
                             }
 
-                            bool hasBaseline = folder.SyncedFileCount > 0;
-
-                            // App-count check: detects files removed from app tracking
-                            // even when the disk hasn't changed (no timestamp/count shift).
-                            if (hasBaseline && appCount >= 0)
+                            if (baselinePaths != null && currentAppPaths != null)
                             {
-                                int baseline = folder.Mode == SyncFolderMode.VersionDelivery
-                                    ? folder.TrackedVersionCount
-                                    : folder.SyncedFileCount;
-                                if (appCount < baseline)
+                                // 1. App-side check: detect files removed from the app since the last sync.
+                                bool appChanged = currentAppPaths.Count != baselinePaths.Count
+                                    || currentAppPaths.Any(p => !baselinePaths.Contains(p));
+
+                                if (appChanged)
                                 {
-                                    int diff = appCount - baseline;
-                                    results.Add((projectName, folder, $"{diff} file(s) removed from app"));
+                                    int diff = currentAppPaths.Count - baselinePaths.Count;
+                                    string appSummary = diff < 0
+                                        ? $"{-diff} file(s) removed from app"
+                                        : "Files changed in app";
+                                    results.Add((projectName, folder, appSummary));
                                     checked_++;
                                     ((IProgress<int>)progress).Report(checked_);
                                     continue;
                                 }
-                            }
 
-                            // Fast path: one root-dir timestamp read.
-                            // For TopDirectoryOnly this catches all changes.
-                            // For AllDirectories (version folders) this catches
-                            // new delivery subfolders being added, which is the
-                            // primary change vector. Changes inside existing
-                            // subfolders are handled by the FileSystemWatcher.
-                            if (hasBaseline
-                                && folder.LastSyncedUtc is { } ts
-                                && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
-                            {
-                                // Root directory unchanged — skip.
-                            }
-                            else
-                            {
+                                // 2. Disk-side check: timestamp pre-check then count.
+                                bool timestampClean = folder.LastSyncedUtc is { } ts
+                                    && Directory.GetLastWriteTimeUtc(folder.Path) <= ts;
+
                                 int diskCount = CountDiskFiles(folder);
 
-                                if (hasBaseline && diskCount != folder.SyncedFileCount)
+                                if (timestampClean && diskCount == baselinePaths.Count)
                                 {
-                                    int diff = diskCount - folder.SyncedFileCount;
+                                    // Everything matches — no change needed.
+                                }
+                                else if (diskCount != baselinePaths.Count)
+                                {
+                                    int diff = diskCount - baselinePaths.Count;
                                     string summary = diff switch
                                     {
-                                        > 0 => $"+{diff} new file(s)",
-                                        < 0 => $"{diff} file(s)",
-                                        _ => "Files changed"
+                                        > 0 => $"+{diff} new file(s) on disk",
+                                        < 0 => $"{-diff} file(s) removed from disk",
+                                        _   => "Files changed"
                                     };
                                     results.Add((projectName, folder, summary));
                                 }
-                                else if (folder.SyncedFileCount != diskCount
-                                         || folder.LastSyncedUtc == null)
+                                else
                                 {
-                                    // Heal baseline
-                                    folder.SyncedFileCount = diskCount;
-                                    folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
+                                    // Timestamp changed but disk count matches — heal timestamp.
+                                    healedBaselines.Add((folder, project));
                                     baselineUpdated = true;
+                                }
+                            }
+                            else
+                            {
+                                // Legacy: no path set — fall back to count heuristic.
+                                bool hasBaseline = folder.SyncedFileCount > 0;
+
+                                if (hasBaseline && legacyAppCount >= 0)
+                                {
+                                    int baseline = folder.Mode == SyncFolderMode.VersionDelivery
+                                        ? folder.TrackedVersionCount
+                                        : folder.SyncedFileCount;
+                                    if (legacyAppCount < baseline)
+                                    {
+                                        int diff = legacyAppCount - baseline;
+                                        results.Add((projectName, folder, $"{diff} file(s) removed from app"));
+                                        checked_++;
+                                        ((IProgress<int>)progress).Report(checked_);
+                                        continue;
+                                    }
+                                }
+
+                                if (hasBaseline
+                                    && folder.LastSyncedUtc is { } ts
+                                    && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
+                                {
+                                    // Root directory unchanged.
+                                }
+                                else
+                                {
+                                    int diskCount = CountDiskFiles(folder);
+
+                                    if (hasBaseline && diskCount != folder.SyncedFileCount)
+                                    {
+                                        int diff = diskCount - folder.SyncedFileCount;
+                                        string summary = diff switch
+                                        {
+                                            > 0 => $"+{diff} new file(s)",
+                                            < 0 => $"{diff} file(s)",
+                                            _ => "Files changed"
+                                        };
+                                        results.Add((projectName, folder, summary));
+                                    }
+                                    else if (folder.SyncedFileCount != diskCount || folder.LastSyncedUtc == null)
+                                    {
+                                        // Heal legacy baseline counts + timestamp.
+                                        folder.SyncedFileCount = diskCount;
+                                        folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
+                                        baselineUpdated = true;
+                                    }
                                 }
                             }
                         }
@@ -435,18 +549,23 @@ namespace Finn.ViewModels
                     return results;
                 });
 
+                // Apply healed baselines for path-set folders (must be on UI thread
+                // because CollectSyncedPaths reads app collections).
+                foreach (var (folder, project) in healedBaselines)
+                {
+                    folder.SyncedPaths = CollectSyncedPaths(folder, project);
+                    folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
+                }
+
                 // Rebuild PendingSyncFolders from scratch so stale entries are removed
                 PendingSyncFolders.Clear();
                 foreach (var (projectName, folder, summary) in outOfSync)
-                {
                     PendingSyncFolders.Add(SyncStatusEntry.FromFolder(folder, projectName, summary));
-                }
                 RaiseSyncStatusChanged();
 
                 if (baselineUpdated)
                     MarkDirty();
 
-                // Show result briefly, then hide
                 PreviewVM.BackgroundTaskMessage = outOfSync.Count == 0
                     ? $"All {pairs.Count} folders up to date"
                     : $"Found {outOfSync.Count} folder(s) with changes";
@@ -498,8 +617,9 @@ namespace Finn.ViewModels
             }
 
             /// <summary>
-            /// Counts the actual files on disk for the given folder.
-            /// Uses the same file-type filter as the sync logic for each mode.
+            /// Counts the actual files on disk for the given folder, applying the
+            /// same exclusion filter used during import so the count is directly
+            /// comparable to the tracked path set.
             /// Returns <c>-1</c> when the folder no longer exists so callers
             /// can distinguish "missing" from "empty".
             /// </summary>
@@ -508,31 +628,45 @@ namespace Finn.ViewModels
                 if (!folder.ExistsOnDisk()) return -1;
 
                 var (pattern, search) = GetFileFilter(folder);
-                return Directory.EnumerateFiles(folder.Path, pattern, search).Count();
+                bool isVersionFolder = folder.Mode == SyncFolderMode.VersionDelivery;
+
+                return Directory.EnumerateFiles(folder.Path, pattern, search)
+                    .Count(p => isVersionFolder
+                        ? !folder.IsExcludedPath(p)
+                        : !folder.IsExcluded(System.IO.Path.GetFileNameWithoutExtension(p)));
             }
 
             /// <summary>
-            /// Records the current disk state as the sync baseline so that
-            /// <see cref="IsFolderOutOfSync"/> won't produce false positives.
-            /// Stores the file count and the directory's own write timestamp.
-            /// For version folders, also records the tracked version count for display.
-            /// Runs the file count on a background thread to avoid blocking the UI.
+            /// Records the current app state as the sync baseline so that
+            /// <see cref="CheckFolderSyncOnStartupAsync"/> and <see cref="CheckAllFoldersAsync"/>
+            /// won't produce false positives. Stores the set of tracked paths (app state),
+            /// the disk file count (for watcher fast-checks), and the directory's last-write timestamp.
+            /// Runs all disk I/O on a background thread to avoid blocking the UI.
             /// </summary>
             private async Task RecordSyncBaselineAsync(FolderData folder)
             {
                 if (!folder.ExistsOnDisk())
                 {
+                    folder.SyncedPaths = [];
                     folder.SyncedFileCount = -1;
                     folder.LastSyncedUtc = DateTime.UtcNow;
                     return;
                 }
 
-                int count = await Task.Run(() => CountDiskFiles(folder));
-                folder.SyncedFileCount = count;
-                folder.LastSyncedUtc = Directory.GetLastWriteTimeUtc(folder.Path);
+                // Collect app-state paths on the UI thread, then do all disk I/O off it.
+                var project = CurrentProject;
+                var appPaths = CollectSyncedPaths(folder, project);
 
+                var (diskCount, dirWriteUtc) = await Task.Run(() =>
+                    (CountDiskFiles(folder), Directory.GetLastWriteTimeUtc(folder.Path)));
+
+                folder.SyncedPaths = appPaths;
+                folder.SyncedFileCount = diskCount;
+                folder.LastSyncedUtc = dirWriteUtc;
+
+                // Keep legacy count fields consistent for older data consumers / display fallback.
                 if (folder.Mode == SyncFolderMode.VersionDelivery)
-                    folder.TrackedVersionCount = CountVersionsUnderPath(folder.Path);
+                    folder.TrackedVersionCount = appPaths.Count;
             }
 
             /// <summary>
@@ -570,6 +704,54 @@ namespace Finn.ViewModels
                                 StringComparison.OrdinalIgnoreCase)),
 
                     _ => -1
+                };
+            }
+
+            /// <summary>
+            /// Collects the current app-tracked paths for <paramref name="folder"/>
+            /// so they can be stored as the sync baseline. The semantics are the
+            /// same as <see cref="CountAppFiles"/> but returns the individual paths
+            /// instead of a count, enabling exact set-based change detection.
+            /// </summary>
+            private static List<string> CollectSyncedPaths(FolderData folder, Model.ProjectData project)
+            {
+                string folderPath = folder.Path;
+                return folder.Mode switch
+                {
+                    SyncFolderMode.ProjectFiles =>
+                        project.StoredFiles
+                            .Where(f => f.IsFromFolder
+                                && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
+                            .Select(f => f.Sökväg)
+                            .ToList(),
+
+                    SyncFolderMode.AttachedFiles =>
+                        project.StoredFiles
+                            .Where(f => f.IsAppendedFile && f.IsFromFolder
+                                && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
+                            .Select(f => f.Sökväg)
+                            .ToList(),
+
+                    SyncFolderMode.OtherFiles =>
+                        project.StoredFiles
+                            .SelectMany(f => f.OtherFiles)
+                            .Where(o => o.IsFromFolder
+                                && string.Equals(o.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
+                            .Select(o => o.Filepath)
+                            .ToList(),
+
+                    SyncFolderMode.VersionDelivery =>
+                        project.StoredFiles
+                            .SelectMany(f => f.Versions)
+                            .Where(v => v.Sökväg.StartsWith(
+                                folderPath.EndsWith(Path.DirectorySeparatorChar)
+                                    ? folderPath
+                                    : folderPath + Path.DirectorySeparatorChar,
+                                StringComparison.OrdinalIgnoreCase))
+                            .Select(v => v.Sökväg)
+                            .ToList(),
+
+                    _ => []
                 };
             }
 
