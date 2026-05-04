@@ -20,6 +20,8 @@ public partial class xPlaceholderDia : Window
         Opened += (_, _) => NewFileName.Focus();
     }
 
+    public void SetTitle(string title) => DiaHeader.Title = title;
+
     private void OnAddPlaceholder(object sender, RoutedEventArgs e)
     {
         if (NewFileName.Text != null)

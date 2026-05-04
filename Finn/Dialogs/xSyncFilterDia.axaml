@@ -19,10 +19,10 @@
     <Grid RowDefinitions="30,Auto,*,Auto" Margin="0">
         <Panel Grid.Row="0" IsHitTestVisible="False"/>
 
-        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
-            <controls:DialogHeader Icon="Filter" Margin="0,10,0,4"/>
-            <TextBlock Name="HeaderText" Text="Synced Files" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,2"/>
-            <TextBlock Name="SubHeaderText" Text="Uncheck files to exclude them from sync." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="440" Margin="0,0,0,8"/>
+        <StackPanel Grid.Row="1" Orientation="Vertical" HorizontalAlignment="Center" Spacing="2" Margin="0,0,0,8">
+            <controls:DialogHeader Icon="Filter"/>
+            <TextBlock Name="HeaderText" Text="Synced Files" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Name="SubHeaderText" Text="Uncheck files to exclude them from sync." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="440"/>
         </StackPanel>
 
         <DataGrid Name="FilterGrid" Grid.Row="2"
@@ -50,9 +50,9 @@
             </DataGrid.Columns>
         </DataGrid>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,12,0,16">
-            <Button Name="AcceptButton" HotKey="Enter" Width="90" Classes="accent" Content="Apply" Click="OnAccept"/>
-            <Button Name="CancelButton" HotKey="Escape" Width="90" Classes="normal" Content="Cancel" Click="OnCancel"/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">
+            <Button Name="AcceptButton" HotKey="Enter" Width="80" Classes="accent" Content="Apply" Click="OnAccept"/>
+            <Button Name="CancelButton" HotKey="Escape" Width="80" Classes="normal" Content="Cancel" Click="OnCancel"/>
         </StackPanel>
     </Grid>
 

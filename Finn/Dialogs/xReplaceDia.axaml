@@ -11,6 +11,7 @@
         x:Class="Finn.Dialogs.xReplaceDia"
         Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
+		xmlns:controls="clr-namespace:Finn.Controls"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
@@ -18,15 +19,8 @@
 
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
-			<StackPanel Grid.Row="1" Width="400" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
-            <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6" Margin="0,10,0,8">
-                <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
-                    <ContentControl>
-                        <ic:SymbolIcon Symbol="ArrowSwap" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </ContentControl>
-                </Border>
-                <TextBlock Text="Replace File" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-            </StackPanel>
+			<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+				<controls:DialogHeader Icon="ArrowSwap" Title="Replace File"/>
 
 				<TextBox Name="PathInput" PlaceholderText="File path" Width="380"/>
 
@@ -39,9 +33,9 @@
 					</StackPanel>
 				</Border>
 
-				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,4,0,0">
-					<Button Name="AcceptButton" HotKey="Enter" Classes="accent" Content="Accept" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnAccept"/>
-					<Button Name="CancelButton" HotKey="Escape" Classes="normal" Content="Cancel" Width="70" Background="{DynamicResource TextControlBackground}" Click="OnClose"/>
+				<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">
+					<Button Name="AcceptButton" HotKey="Enter" Classes="accent" Content="Accept" Width="80" Click="OnAccept"/>
+					<Button Name="CancelButton" HotKey="Escape" Classes="normal" Content="Cancel" Width="80" Click="OnClose"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>

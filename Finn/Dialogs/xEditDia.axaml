@@ -58,12 +58,12 @@
 				<TextBlock Name="SharedSyncText" FontSize="10" Opacity="0.6" HorizontalAlignment="Center"/>
 			</StackPanel>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0" Spacing="8">
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,16" Spacing="8">
 				<Button Name="IntegrityCheckButton" Width="30" Height="30" Padding="0" Classes="normal" Click="OnRunIntegrityCheck" ToolTip.Tip="Run integrity check">
 					<ic:SymbolIcon Symbol="ShieldCheckmark" FontSize="16"/>
 				</Button>
-				<Button Name="RenameAccept" Classes="accent" HotKey="Enter" Content="Accept" Width="70" Background="{DynamicResource SystemAccentColor}" Click="OnEditProject"/>
-                <Button Name="EditCancel" Content="Cancel" Width="70" Classes="normal" Click="OnCancel"/>
+				<Button Name="RenameAccept" Classes="accent" HotKey="Enter" Content="Accept" Width="80" Click="OnEditProject"/>
+				<Button Name="EditCancel" Content="Cancel" Width="80" Classes="normal" Click="OnCancel"/>
 			</StackPanel>
 		</StackPanel>
 	</Grid>

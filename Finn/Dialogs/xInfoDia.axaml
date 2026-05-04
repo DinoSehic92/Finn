@@ -10,6 +10,7 @@
 		x:Class="Finn.Dialogs.xInfoDia"
 		Title=""
 		xmlns:vm="clr-namespace:Finn.ViewModels"
+		xmlns:controls="clr-namespace:Finn.Controls"
 		CanResize="False"
 		WindowStartupLocation="CenterScreen"
 		ExtendClientAreaToDecorationsHint="True" ExtendClientAreaTitleBarHeightHint="30"
@@ -18,15 +19,8 @@
 
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
-        <StackPanel Grid.Row="1" Width="420" Orientation="Vertical" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,18,0,18">
-			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="6" Margin="0,6,0,0">
-				<Border Width="44" Height="44" CornerRadius="22" Background="{DynamicResource SystemAccentColor}" HorizontalAlignment="Center">
-					<ContentControl>
-						<ic:SymbolIcon Symbol="Question" FontSize="22" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-					</ContentControl>
-				</Border>
-				<TextBlock Text="File Info" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
-			</StackPanel>
+		<StackPanel Grid.Row="1" Width="420" Orientation="Vertical" Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,18">
+			<controls:DialogHeader Icon="Question" Title="File Info"/>
 
             <Grid Name="InfoGrid" HorizontalAlignment="Center" ColumnDefinitions="120,300" RowDefinitions="40,40,40,40,40" Margin="0,6,0,0">
 				<Label Grid.Row="0" Grid.Column="0" Content="Name" VerticalAlignment="Center" HorizontalAlignment="Left"/>
@@ -42,8 +36,8 @@
 				<Label Name="SizeLabel" Grid.Row="4" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left"/>
 			</Grid>
 
-			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
-              <Button Name="InfoClose" Content="Close" Classes="accent" Width="70" Click="OnClose"/>
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,16">
+			  <Button Name="InfoClose" Content="Close" Classes="accent" Width="80" Click="OnClose"/>
 			</StackPanel>
 		</StackPanel>
 		</Grid>

@@ -32,9 +32,9 @@
                 <CheckBox Name="IncludeOtherFilesCheckBox" Content="Include other files" IsChecked="True"/>
             </StackPanel>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,12" Spacing="8">
-                <Button Name="AcceptButton" HotKey="Enter" Width="76" Classes="accent" Content="Export" Click="OnAccept"/>
-                <Button Name="CancelButton" HotKey="Escape" Width="76" Classes="normal" Content="Cancel" Click="OnCancel"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,16" Spacing="8">
+                <Button Name="AcceptButton" HotKey="Enter" Width="80" Classes="accent" Content="Export" Click="OnAccept"/>
+                <Button Name="CancelButton" HotKey="Escape" Width="80" Classes="normal" Content="Cancel" Click="OnCancel"/>
             </StackPanel>
         </StackPanel>
     </Grid>

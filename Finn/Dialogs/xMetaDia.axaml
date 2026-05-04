@@ -64,9 +64,9 @@
                 <Border Classes="shadow" Grid.Row="13" Grid.Column="2" Width="460"><TextBox Name="RevInp" Width="460" VerticalAlignment="Center"/></Border>
                 <Border Classes="shadow" Grid.Row="14" Grid.Column="2" Width="460"><TextBox Name="PathInp" Width="460" VerticalAlignment="Center"/></Border>
             </Grid>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0" Spacing="8">
-                <Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="70" Classes="accent" Click="OnEditProject"/>
-                <Button Name="MetaCancel" Content="Cancel" Width="70" Classes="normal" Click="OnCancel"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,16" Spacing="8">
+                <Button Name="RenameAccept" HotKey="Enter" Content="Accept" Width="80" Classes="accent" Click="OnEditProject"/>
+                <Button Name="MetaCancel" Content="Cancel" Width="80" Classes="normal" Click="OnCancel"/>
             </StackPanel>
         </StackPanel>
     </Grid>

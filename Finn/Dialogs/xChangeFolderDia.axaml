@@ -19,10 +19,10 @@
 	<Grid RowDefinitions="30,*" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 		<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0">
-			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
-				<controls:DialogHeader Icon="FolderArrowRight" Margin="0,10,0,4"/>
-				<TextBlock Name="HeaderText" Text="Change Folder Directory" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,2"/>
-				<TextBlock Name="SubHeaderText" Text="Select a new directory for this sync folder." FontSize="12" Opacity="0.7" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2" Margin="0,0,0,4">
+				<controls:DialogHeader Icon="FolderArrowRight"/>
+				<TextBlock Name="HeaderText" Text="Change Folder Directory" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+				<TextBlock Name="SubHeaderText" Text="Select a new directory for this sync folder." FontSize="12" Opacity="0.7" HorizontalAlignment="Center"/>
 			</StackPanel>
 
 			<Grid ColumnDefinitions="*,Auto" Width="420">
@@ -32,9 +32,9 @@
 				</Button>
 			</Grid>
 
-			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,10,0,0">
-				<Button Classes="accent" Content="Accept" Width="90" HotKey="Enter" Click="OnAccept"/>
-				<Button Classes="normal" Content="Cancel" Width="90" HotKey="Escape" Click="OnCancel"/>
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">
+				<Button Classes="accent" Content="Accept" Width="80" HotKey="Enter" Click="OnAccept"/>
+				<Button Classes="normal" Content="Cancel" Width="80" HotKey="Escape" Click="OnCancel"/>
 			</StackPanel>
 		</StackPanel>
 	</Grid>

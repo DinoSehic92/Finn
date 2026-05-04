@@ -1172,7 +1172,7 @@ public partial class MainView : UserControl
         var window = ParentWindow;
         var dialog = new Finn.Dialogs.xPlaceholderDia();
         _ctx.ConfigureWindow(dialog, window);
-        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "New Group";
+        dialog.SetTitle("New Group");
         dialog.NewFileName.Watermark = "Group name";
         await dialog.ShowDialog(window);
 
@@ -1213,7 +1213,7 @@ public partial class MainView : UserControl
         var window = ParentWindow;
         var dialog = new Finn.Dialogs.xPlaceholderDia();
         _ctx.ConfigureWindow(dialog, window);
-        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Rename Group";
+        dialog.SetTitle("Rename Group");
         dialog.NewFileName.Watermark = "New group name";
         dialog.NewFileName.Text = group.Namn;
         await dialog.ShowDialog(window);
@@ -1308,7 +1308,7 @@ public partial class MainView : UserControl
         var window = ParentWindow;
         var dialog = new Finn.Dialogs.xPlaceholderDia();
         _ctx.ConfigureWindow(dialog, window);
-        dialog.FindControl<Avalonia.Controls.TextBlock>("HeaderText")!.Text = "Rename Group";
+        dialog.SetTitle("Rename Group");
         dialog.NewFileName.Watermark = "New name";
         dialog.NewFileName.Text = group.Name;
         await dialog.ShowDialog(window);

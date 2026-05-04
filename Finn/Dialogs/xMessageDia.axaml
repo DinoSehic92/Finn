@@ -21,9 +21,9 @@
 			<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0">
 				<controls:DialogHeader Icon="WarningShield" Title="Message"/>
 				<Label Name="MessageLabel" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-					<Button Name="CloseButton" HotKey="Enter" Classes="accent" Content="Accept" Width="70" Click="OnClose"/>
-                   <Button Name="MessageCancel" Content="Cancel" Width="70" Classes="normal" Click="OnClose"/>
+			 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">
+					<Button Name="CloseButton" HotKey="Enter" Classes="accent" Content="Accept" Width="80" Click="OnClose"/>
+				   <Button Name="MessageCancel" Content="Cancel" Width="80" Classes="normal" Click="OnClose"/>
 				</StackPanel>
 			</StackPanel>
 		</Grid>
