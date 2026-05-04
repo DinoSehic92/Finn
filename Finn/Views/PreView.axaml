@@ -17,6 +17,16 @@
 		<converter:GridDefConverter x:Key="GridDefConverter"/>
 	</UserControl.Resources>
 
+	<UserControl.KeyBindings>
+		<KeyBinding Gesture="Ctrl+F"       Command="{Binding PreviewVM.ToggleSearchModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+G"       Command="{Binding PreviewVM.ToggleDarkModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+D"       Command="{Binding PreviewVM.ToggleTwoPageModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+L"       Command="{Binding PreviewVM.ToggleLinkedPageModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding PreviewVM.ToggleDiffOriginalCommand}"/>
+		<KeyBinding Gesture="Left"         Command="{Binding PreviewVM.PrevPageCommand}"/>
+		<KeyBinding Gesture="Right"        Command="{Binding PreviewVM.NextPageCommand}"/>
+	</UserControl.KeyBindings>
+
 	<UserControl.Styles>
 		<Style Selector="Slider#OpacitySlider /template/ Thumb">
 			<Setter Property="Width" Value="12"/>

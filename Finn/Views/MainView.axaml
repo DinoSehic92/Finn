@@ -18,6 +18,17 @@
 		<vm:MainViewModel />
 	</Design.DataContext>
 
+	<UserControl.KeyBindings>
+		<!-- App-wide shortcuts: active whenever focus is anywhere inside MainView.
+			 Duplicated in PreView.axaml so they also work in the standalone preview window. -->
+		<KeyBinding Gesture="Ctrl+F"       Command="{Binding PreviewVM.ToggleSearchModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+G"       Command="{Binding PreviewVM.ToggleDarkModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+D"       Command="{Binding PreviewVM.ToggleTwoPageModeCommand}"/>
+		<KeyBinding Gesture="Ctrl+Shift+T" Command="{Binding PreviewVM.ToggleDiffOriginalCommand}"/>
+		<KeyBinding Gesture="Left"         Command="{Binding PreviewVM.PrevPageCommand}"/>
+		<KeyBinding Gesture="Right"        Command="{Binding PreviewVM.NextPageCommand}"/>
+	</UserControl.KeyBindings>
+
 	<UserControl.Resources>
 		<converter:AddOneConverter x:Key="AddOneConverter" />
 		<converter:BitmapConverter x:Key="BitmapConverter" />

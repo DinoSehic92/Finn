@@ -34,6 +34,9 @@ public partial class PreView : UserControl
 
         // Centralized keyboard shortcuts — replaces per-button HotKey attributes
         // so every shortcut respects CanExecute guards and mode state.
+        // Ctrl+F/G/D/L/Left/Right are declared as KeyBindings in PreView.axaml.
+        // Escape and annotation shortcuts stay here because they require priority
+        // chains and mode guards that KeyBindings cannot express.
         this.AddHandler(KeyDownEvent, OnPreviewShortcutKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
 
         this.AddHandler(LoadedEvent, InitSetup);
@@ -776,51 +779,8 @@ public partial class PreView : UserControl
 
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
 
-        // Annotation mode has its own Ctrl+ shortcuts (Z, Y, C, V, D, S, A).
-        // Let the annotation handler take full priority.
-        if (_annotateMode) return;
-
-        // Don't intercept while a text input overlay is visible
-        if (PropertyPanelCanvas.IsVisible || CalibrationCanvas.IsVisible || ColorInputCanvas.IsVisible)
-            return;
-
-        bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-
-        switch (e.Key)
-        {
-            case Key.G when !shift:
-                pwr.DarkMode = !pwr.DarkMode;
-                e.Handled = true;
-                MuPDFRenderer.Focus();
-                break;
-
-            case Key.D when !shift:
-                if (pwr.CanToggleLayout && !pwr.DualFileMode)
-                    pwr.TwopageMode = !pwr.TwopageMode;
-                e.Handled = true;
-                MuPDFRenderer.Focus();
-                break;
-
-            case Key.L when !shift:
-                if (pwr.ShowLinkedPageButton)
-                    pwr.LinkedPageMode = !pwr.LinkedPageMode;
-                e.Handled = true;
-                MuPDFRenderer.Focus();
-                break;
-
-            case Key.F when !shift:
-                // Allow closing search even when CanSearch is false
-                if (pwr.SearchMode || pwr.CanSearch)
-                    pwr.SearchMode = !pwr.SearchMode;
-                e.Handled = true;
-                break;
-
-            case Key.T when shift:
-                if (pwr.ShowDiffToggle)
-                    pwr.DiffShowingOriginal = !pwr.DiffShowingOriginal;
-                e.Handled = true;
-                break;
-        }
+        // All remaining Ctrl+ shortcuts are handled by KeyBindings in PreView.axaml.
+        // The annotation handler (OnAnnotateKeyDown) takes priority via Tunnel routing.
     }
 
     private async void OnSeachRegex(object? sender, RoutedEventArgs? e)

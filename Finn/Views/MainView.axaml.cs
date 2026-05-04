@@ -73,12 +73,6 @@ public partial class MainView : UserControl
         FileGrid.AddHandler(PointerMovedEvent, OnFileGridPointerMoved, RoutingStrategies.Tunnel);
         FileGrid.AddHandler(PointerReleasedEvent, OnFileGridPointerReleased, RoutingStrategies.Tunnel);
 
-        // Global arrow-key navigation: Up/Down = file selection, Left/Right = page.
-        // Uses Bubble so annotation Tunnel handlers (nudging) get first priority.
-        // handledEventsToo: TextBox marks Up/Down as handled — we still need them
-        // for search-result navigation when the search tray is active.
-        this.AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Bubble, handledEventsToo: true);
-
         // Drag-and-drop visual hints
         MainGrid.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
         MainGrid.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
@@ -720,82 +714,6 @@ public partial class MainView : UserControl
         _ctx.BuildTreeData();
         OnUpdateColumns();
         UpdateEmptyState();
-    }
-
-    #endregion
-
-    #region Global Arrow-Key Navigation
-
-    /// <summary>
-    /// Handles arrow keys via Bubble routing so annotation Tunnel handlers
-    /// (nudging) fire first.  Up/Down = file selection, Left/Right = page change.
-    /// Skipped when the event was already handled, when focus is in a text input,
-    /// or when annotation mode is active.
-    /// </summary>
-    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (_ctx == null || _pwr == null) return;
-        if (_pwr?.AnnotationActive == true) return;
-
-        bool previewOpen = _ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen;
-
-        // Global preview search shortcut: works even when focus is in the file grid
-        // or elsewhere outside the renderer, as long as the preview is open.
-        if (e.Key == Key.F && e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-        {
-            // Only act if PreView's own tunnel handler hasn't already handled it.
-            // PreView sets e.Handled = true when the preview is focused and handles Ctrl+F itself.
-            if (!e.Handled && previewOpen && (_pwr.SearchMode || _pwr.CanSearch))
-            {
-                _pwr.SearchMode = !_pwr.SearchMode;
-                e.Handled = true;
-            }
-            return;
-        }
-
-        if (e.Key is not (Key.Up or Key.Down or Key.Left or Key.Right)) return;
-
-        // Search-result navigation runs first and ignores e.Handled because
-        // the TextBox (main search field / preview SearchRegex) marks Up/Down
-        // as handled during its own Bubble processing.
-        if (e.Key is Key.Up or Key.Down
-            && previewOpen && _pwr is { SearchMode: true, SearchItems: > 0 })
-        {
-            if (e.Key == Key.Up) _pwr.PrevSearchPage();
-            else _pwr.NextSearchPage();
-            e.Handled = true;
-            return;
-        }
-
-        // Everything below respects prior handling
-        if (e.Handled) return;
-
-        // Don't intercept when typing in a TextBox or adjusting a Slider.
-        var top = (TopLevel)ParentWindow;
-        {
-            var focused = top.FocusManager?.GetFocusedElement();
-            if (focused is TextBox or Slider) return;
-        }
-
-        if (e.Key is Key.Left or Key.Right && previewOpen && _pwr != null && _pwr.Pagecount > 0)
-        {
-            if (e.Key == Key.Left) _pwr.PrevPage(false);
-            else _pwr.NextPage(false);
-            e.Handled = true;
-            return;
-        }
-
-        if (e.Key is Key.Up or Key.Down)
-        {
-            if (FileGrid.ItemsSource is not System.Collections.IList items || items.Count == 0) return;
-            int current = FileGrid.SelectedItem != null ? items.IndexOf(FileGrid.SelectedItem) : -1;
-            int next = e.Key == Key.Up ? current - 1 : current + 1;
-            if (next < 0 || next >= items.Count) return;
-
-            FileGrid.SelectedItem = items[next];
-            FileGrid.ScrollIntoView(items[next], null);
-            e.Handled = true;
-        }
     }
 
     #endregion

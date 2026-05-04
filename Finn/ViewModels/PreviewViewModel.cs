@@ -18,6 +18,8 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using System.Diagnostics;
+using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
 
 namespace Finn.ViewModels
 {
@@ -757,6 +759,38 @@ namespace Finn.ViewModels
         #region Renderer Properties
         private PDFRenderer? mainRenderer;
         private PDFRenderer? secondaryRenderer;
+        #endregion
+
+        #region Commands
+
+        private ICommand? _toggleSearchModeCommand;
+        public ICommand ToggleSearchModeCommand => _toggleSearchModeCommand
+            ??= new RelayCommand(() => SearchMode = !SearchMode, () => !AnnotationActive && (SearchMode || CanSearch));
+
+        private ICommand? _toggleDarkModeCommand;
+        public ICommand ToggleDarkModeCommand => _toggleDarkModeCommand
+            ??= new RelayCommand(() => DarkMode = !DarkMode, () => !AnnotationActive);
+
+        private ICommand? _toggleTwoPageModeCommand;
+        public ICommand ToggleTwoPageModeCommand => _toggleTwoPageModeCommand
+            ??= new RelayCommand(() => TwopageMode = !TwopageMode, () => CanToggleLayout && !DualFileMode);
+
+        private ICommand? _toggleLinkedPageModeCommand;
+        public ICommand ToggleLinkedPageModeCommand => _toggleLinkedPageModeCommand
+            ??= new RelayCommand(() => LinkedPageMode = !LinkedPageMode, () => !AnnotationActive && ShowLinkedPageButton);
+
+        private ICommand? _toggleDiffOriginalCommand;
+        public ICommand ToggleDiffOriginalCommand => _toggleDiffOriginalCommand
+            ??= new RelayCommand(() => DiffShowingOriginal = !DiffShowingOriginal, () => !AnnotationActive && ShowDiffToggle);
+
+        private ICommand? _prevPageCommand;
+        public ICommand PrevPageCommand => _prevPageCommand
+            ??= new RelayCommand(() => PrevPage(false), () => Pagecount > 0);
+
+        private ICommand? _nextPageCommand;
+        public ICommand NextPageCommand => _nextPageCommand
+            ??= new RelayCommand(() => NextPage(false), () => Pagecount > 0);
+
         #endregion
 
         #region Search Properties
