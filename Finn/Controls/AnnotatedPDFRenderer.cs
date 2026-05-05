@@ -1131,8 +1131,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public double TextMaxWidth { get; set; } = 150;
 
     /// <summary>
-    /// Measures the text annotation content and auto-expands <see cref="TextAnnotation.MaxWidth"/>
-    /// if the text exceeds the current width, preventing unnecessary line wrapping.
+    /// Measures the text annotation content and shrinks <see cref="TextAnnotation.MaxWidth"/>
+    /// to the minimum needed to fit the longest explicit line, so there is no excess whitespace
+    /// to the right of the text. Never expands beyond the current MaxWidth so word-wrapping
+    /// set at placement time is always preserved.
     /// </summary>
     internal void AutoSizeTextWidth(TextAnnotation t)
     {
@@ -1153,7 +1155,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         const double padding = 4;
         double needed = maxLineWidth + padding;
-        if (needed > t.MaxWidth)
+
+        // Only shrink — never expand beyond the intended wrap boundary.
+        if (needed < t.MaxWidth)
             t.MaxWidth = needed;
     }
 

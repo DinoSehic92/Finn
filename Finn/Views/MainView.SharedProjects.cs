@@ -35,17 +35,16 @@ public partial class MainView
     /// </summary>
     private void OnTreeNodeContextRequested(object? sender, ContextRequestedEventArgs e)
     {
+        // Clear state from any previous right-click before capturing the new one.
+        _lastRightClickedNode = null;
+        _contextMenuProject   = null;
+
         if (sender is Control control && control.DataContext is TreeNodeData node)
         {
             _lastRightClickedNode = node;
             _contextMenuProject = node.Tag == "All Types"
                 ? _ctx.Storage.StoredProjects.FirstOrDefault(p => p.Namn == node.Header)
                 : null;
-        }
-        else
-        {
-            _lastRightClickedNode = null;
-            _contextMenuProject = null;
         }
     }
 
@@ -80,10 +79,6 @@ public partial class MainView
 
         bool showProjectActions = isProjectNode;
         bool showShareActions   = isSuperuser && isProjectNode;
-
-        // Reset captured node so next open starts fresh.
-        _lastRightClickedNode = null;
-        _contextMenuProject   = null;
 
         foreach (var child in menu.Items)
         {

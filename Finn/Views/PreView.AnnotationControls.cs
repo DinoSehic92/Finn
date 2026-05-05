@@ -546,7 +546,17 @@ public partial class PreView
         if (closePolyBtn != null) closePolyBtn.IsVisible = false;
         PropertyTextRow.IsVisible = true;
         PropertyTextBox.Text = "";
-        PropertyTextBox.Width = double.NaN; // stretch to panel width
+
+        // Give the TextBox a finite width matching the annotation's intended render width
+        // (TextMaxWidth in PDF units → screen pixels). Without this the TextBox has no
+        // width constraint inside the Canvas and TextWrapping="Wrap" never activates.
+        var da = MuPDFRenderer.DisplayArea;
+        var bounds = MuPDFRenderer.Bounds;
+        if (da.Width > 0 && bounds.Width > 0)
+            PropertyTextBox.Width = Math.Clamp(MuPDFRenderer.TextMaxWidth / da.Width * bounds.Width, 120, 400);
+        else
+            PropertyTextBox.Width = 220;
+
         PropertyPanelCanvas.IsVisible = true;
         PropertyTextBox.Focus();
     }
@@ -564,10 +574,8 @@ public partial class PreView
             double annotY = (existing.Position.Y - da.Y) / da.Height * bounds.Height;
             screenPos = new Point(annotX, annotY);
             // Match text input width to annotation's MaxWidth for WYSIWYG editing
-            if (existing.MaxWidth > 0)
-                PropertyTextBox.Width = Math.Clamp(existing.MaxWidth / da.Width * bounds.Width, 120, 600);
-            else
-                PropertyTextBox.Width = double.NaN; // stretch to panel width
+            double pdfWidth = existing.MaxWidth > 0 ? existing.MaxWidth : MuPDFRenderer.TextMaxWidth;
+            PropertyTextBox.Width = Math.Clamp(pdfWidth / da.Width * bounds.Width, 120, 400);
         }
         // Show the property panel with text editing for the annotation
         ShowPropertyPanel(existing, screenPos);
@@ -581,6 +589,10 @@ public partial class PreView
             {
                 var snap = MuPDFRenderer.CapturePropertySnapshot(_editingTextAnnotation);
                 _editingTextAnnotation.Text = PropertyTextBox.Text;
+                // Reset to the default wrap width before auto-sizing so that
+                // editing with more text can wrap correctly, and editing with
+                // less text still shrinks the box to fit.
+                _editingTextAnnotation.MaxWidth = MuPDFRenderer.TextMaxWidth;
                 MuPDFRenderer.AutoSizeTextWidth(_editingTextAnnotation);
                 if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
             }
