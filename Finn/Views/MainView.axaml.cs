@@ -189,7 +189,9 @@ public partial class MainView : UserControl
                 if (_ctx.UI.FolderWatchEnabled)
                     _ = _ctx.CheckFolderSyncOnStartupAsync();
                 // Check shared project sync status (async — network I/O)
-                _ = _ctx.CheckSharedSyncOnStartupAsync();
+                // Skipped when the user disabled it in Settings to avoid slow startup on sluggish network shares.
+                if (_ctx.UI.SharedSyncCheckOnStartup)
+                    _ = _ctx.CheckSharedSyncOnStartupAsync();
 
                 // Auto-show analog clock when window is tall enough
                 this.SizeChanged += OnMainViewSizeChanged;

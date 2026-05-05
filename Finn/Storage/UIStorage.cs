@@ -58,6 +58,7 @@ namespace Finn.Storage
         public int TrayWidth { get; set; }
         public bool ReadBytesMode { get; set; }
         public bool FolderWatchEnabled { get; set; }
+        public bool SharedSyncCheckOnStartup { get; set; } = true;
         public bool AlternatingRowShading { get; set; }
         public bool SuperuserMode { get; set; }
         // Note: PreviewEmbeddedOpen intentionally omitted (kept transient in MainViewModel)

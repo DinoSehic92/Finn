@@ -31,9 +31,6 @@ public class UISettingsViewModel : ObservableObject
         // Slate Ember — blue-slate shell, ink panel, controlled copper accent
         new ThemePreset("Slate Ember", Color.Parse("#40474D"), Color.Parse("#BE7551"), Color.Parse("#23272B"), Color.Parse("#E7E1DA"), Color.Parse("#384048"), true,  false, true),
 
-        // Harbor Night — sea-smoke shell with tweaked coastal accent
-        new ThemePreset("Harbor Night", Color.Parse("#3D4748"), Color.Parse("#7CA8A1"), Color.Parse("#212829"), Color.Parse("#DEE8E5"), Color.Parse("#323C3C"), true,  true,  false),
-
         // Ink & Cream — cool navy structure with muted crimson highlights
         new ThemePreset("Ink & Cream", Color.Parse("#3F4650"), Color.Parse("#BA3B46"), Color.Parse("#1F242A"), Color.Parse("#F1E8D8"), Color.Parse("#353D46"), true,  false, true),
 
@@ -52,11 +49,17 @@ public class UISettingsViewModel : ObservableObject
         // Saffron Coal — charcoal shell, roasted black panel, and rich saffron accent with gallery-like warmth
         new ThemePreset("Saffron Coal", Color.Parse("#4A4540"), Color.Parse("#D8A44E"), Color.Parse("#201D1A"), Color.Parse("#F0E8DE"), Color.Parse("#39342F"), true, false, true),
 
-        // Moonlit Brass — midnight slate shell, soot-dark panel, and pale brass accent with a refined editorial feel
-        new ThemePreset("Moonlit Brass", Color.Parse("#484B52"), Color.Parse("#C8B078"), Color.Parse("#212327"), Color.Parse("#F0ECE2"), Color.Parse("#383B40"), true, false, true),
-
         // Petrol Crown — regal petrol shell, near-black panel, and aged-gold accent designed to feel bold and premium
         new ThemePreset("Petrol Crown", Color.Parse("#3F5356"), Color.Parse("#C7A35B"), Color.Parse("#1A2122"), Color.Parse("#EFE9DD"), Color.Parse("#304144"), true, false, true),
+
+        // Obsidian Rust — midnight blue-grey shell, crushed slate panel, and oxidised orange accent 
+        new ThemePreset("Obsidian Rust", Color.Parse("#38424B"), Color.Parse("#D46F4D"), Color.Parse("#171B20"), Color.Parse("#E9EDF2"), Color.Parse("#2B333B"), true, false, true),
+
+        // Pine & Copper — desaturated spruce shell, deep woodland panel, and a soft polished copper accent
+        new ThemePreset("Pine & Copper", Color.Parse("#3E4D45"), Color.Parse("#C88B64"), Color.Parse("#19211D"), Color.Parse("#E6ECE9"), Color.Parse("#303C36"), true, false, true),
+
+        // Carbon Coral — flat carbon shell, almost-black panel, and striking soft-coral accent
+        new ThemePreset("Carbon Coral", Color.Parse("#424345"), Color.Parse("#E27B66"), Color.Parse("#1A1A1B"), Color.Parse("#EBEBEB"), Color.Parse("#333435"), true, false, true),
     };
 
     // ── light presets ────────────────────────────────────────────────────────
@@ -335,6 +338,13 @@ public class UISettingsViewModel : ObservableObject
         /// a startup check detects files that changed while the app was closed.
         /// </summary>
         public bool FolderWatchEnabled { get => folderWatchEnabled; set { folderWatchEnabled = value; OnPropertyChanged(nameof(FolderWatchEnabled)); } }
+
+        private bool sharedSyncCheckOnStartup = true;
+        /// <summary>
+        /// When true, shared project sync status is checked against the server on startup.
+        /// Disable to avoid slow startup when server paths are on slow network shares.
+        /// </summary>
+        public bool SharedSyncCheckOnStartup { get => sharedSyncCheckOnStartup; set { sharedSyncCheckOnStartup = value; OnPropertyChanged(nameof(SharedSyncCheckOnStartup)); } }
 
         private bool alternatingRowShading;
         /// <summary>
@@ -700,6 +710,7 @@ public class UISettingsViewModel : ObservableObject
                 TrayWidth = this.TrayWidth,
                 ReadBytesMode = this.ReadBytesMode,
                 FolderWatchEnabled = this.FolderWatchEnabled,
+                SharedSyncCheckOnStartup = this.SharedSyncCheckOnStartup,
                 AlternatingRowShading = this.AlternatingRowShading,
                 SuperuserMode = this.SuperuserMode,
                 DarkTextColor   = this.DarkTextColorEnabled   ? this.DarkTextColor.ToString()   : string.Empty,
@@ -761,6 +772,7 @@ public class UISettingsViewModel : ObservableObject
                     this.TrayWidth = ui.TrayWidth;
                 this.ReadBytesMode = ui.ReadBytesMode;
                 this.FolderWatchEnabled = ui.FolderWatchEnabled;
+                this.SharedSyncCheckOnStartup = ui.SharedSyncCheckOnStartup;
                 this.AlternatingRowShading = ui.AlternatingRowShading;
                 this.SuperuserMode = ui.SuperuserMode;
 

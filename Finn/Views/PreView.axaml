@@ -99,28 +99,25 @@
 					</ctrl:AnnotatedPDFRenderer>
 
 					<!-- Loading overlay shown while previewer is busy -->
-					<Border Grid.ColumnSpan="3" Classes="shadow" IsVisible="{Binding PreviewVM.FileWorkerBusy}"
-							HorizontalAlignment="Center" VerticalAlignment="Center"
-							Padding="24,16" IsHitTestVisible="True">
-						<Border.Background>
-							<SolidColorBrush Color="{DynamicResource SystemRegionColor}"/>
-						</Border.Background>
-						<Border Background="{DynamicResource TextControlBackground}" Margin="-24,-16" Padding="24,16">
-							<StackPanel HorizontalAlignment="Center" Spacing="8">
-								<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-									<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="16" Opacity="0.7"/>
-									<TextBlock Text="{Binding PreviewVM.StatusMessage}" FontSize="13" VerticalAlignment="Center"/>
+						<Border Grid.ColumnSpan="3" Classes="shadow" IsVisible="{Binding PreviewVM.FileWorkerBusy}"
+								HorizontalAlignment="Center" VerticalAlignment="Center"
+								IsHitTestVisible="True">
+							<Border Classes="clip-inner" Padding="24,16">
+								<StackPanel HorizontalAlignment="Center" Spacing="8">
+									<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+										<ic:SymbolIcon Symbol="ArrowClockwise" FontSize="16" Opacity="0.7"/>
+										<TextBlock Text="{Binding PreviewVM.StatusMessage}" FontSize="13" VerticalAlignment="Center"/>
+									</StackPanel>
+									<!-- Indeterminate when Progress is 0 (file open); determinate when caching -->
+									<ProgressBar Width="200" Height="4" Minimum="0" Maximum="100"
+												 Value="{Binding PreviewVM.Progress}"
+												 IsIndeterminate="{Binding PreviewVM.IsProgressIndeterminate}"/>
+									<Button Content="Cancel" Click="OnCancelFileLoad" Padding="16,3" HorizontalAlignment="Center"
+											Background="Transparent" FontSize="12"
+											BorderThickness="1" CornerRadius="{DynamicResource AppCornerRadius}"/>
 								</StackPanel>
-								<!-- Indeterminate when Progress is 0 (file open); determinate when caching -->
-								<ProgressBar Width="200" Height="4" Minimum="0" Maximum="100"
-											 Value="{Binding PreviewVM.Progress}"
-											 IsIndeterminate="{Binding PreviewVM.IsProgressIndeterminate}"/>
-								<Button Content="Cancel" Click="OnCancelFileLoad" Padding="16,3" HorizontalAlignment="Center"
-										Background="Transparent" FontSize="12"
-										BorderThickness="1" CornerRadius="3"/>
-							</StackPanel>
+							</Border>
 						</Border>
-					</Border>
 				</Grid>
 			</LayoutTransformControl>
 

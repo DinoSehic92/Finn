@@ -310,6 +310,13 @@ namespace Finn.ViewModels
                                 }
 
                                 // 2. Disk-side check: fast timestamp pre-check, then count.
+                                // VersionDelivery is skipped here: CountDiskFiles counts all PDFs
+                                // in the folder, but SyncedPaths only tracks imported ones —
+                                // unmatched PDFs would cause a permanent false positive.
+                                // The app-side check above is sufficient for version folders.
+                                if (folder.Mode == SyncFolderMode.VersionDelivery)
+                                    continue;
+
                                 if (folder.LastSyncedUtc is { } ts
                                     && Directory.GetLastWriteTimeUtc(folder.Path) <= ts)
                                     continue; // Disk untouched — in sync
@@ -330,15 +337,14 @@ namespace Finn.ViewModels
                             else
                             {
                                 // Legacy path: no stored path set — fall back to count comparison.
-                                if (folder.SyncedFileCount <= 0)
-                                    continue; // Never synced
+                                // VersionDelivery folders without a path baseline are skipped:
+                                // CountDiskFiles counts all PDFs, not just imported ones.
+                                if (folder.SyncedFileCount <= 0 || folder.Mode == SyncFolderMode.VersionDelivery)
+                                    continue; // Never synced or version folder without reliable baseline
 
-                                int baseline = folder.Mode == SyncFolderMode.VersionDelivery
-                                    ? folder.TrackedVersionCount
-                                    : folder.SyncedFileCount;
-                                if (legacyAppCount >= 0 && legacyAppCount < baseline)
+                                if (legacyAppCount >= 0 && legacyAppCount < folder.SyncedFileCount)
                                 {
-                                    int diff = legacyAppCount - baseline;
+                                    int diff = legacyAppCount - folder.SyncedFileCount;
                                     results.Add((projectName, folder, $"{diff} file(s) removed from app"));
                                     continue;
                                 }
@@ -463,6 +469,12 @@ namespace Finn.ViewModels
                                 }
 
                                 // 2. Disk-side check: timestamp pre-check then count.
+                                // VersionDelivery is skipped: CountDiskFiles counts all PDFs
+                                // in the folder, but SyncedPaths only tracks imported ones —
+                                // unmatched PDFs would cause a permanent false positive.
+                                if (folder.Mode != SyncFolderMode.VersionDelivery)
+                                {
+
                                 bool timestampClean = folder.LastSyncedUtc is { } ts
                                     && Directory.GetLastWriteTimeUtc(folder.Path) <= ts;
 
@@ -489,6 +501,7 @@ namespace Finn.ViewModels
                                     healedBaselines.Add((folder, project));
                                     baselineUpdated = true;
                                 }
+                                } // end if (folder.Mode != SyncFolderMode.VersionDelivery)
                             }
                             else
                             {
