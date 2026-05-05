@@ -24,6 +24,7 @@ public partial class xMetaDia : Window
     private void SetupMetadata(object sender, RoutedEventArgs e)
     {
         MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (ctx.CurrentFile == null) return;
 
         string val1 = ctx.CurrentFile.Namn;
         if (ctx.CurrentFiles.Where(x => x.Namn == val1).Count() == ctx.CurrentFiles.Count())

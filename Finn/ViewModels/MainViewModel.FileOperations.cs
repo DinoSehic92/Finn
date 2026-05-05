@@ -254,14 +254,18 @@ namespace Finn.ViewModels
             {
                 if (CurrentFiles == null) return;
                 var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Namn));
-                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text);
+                _ = TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text)
+                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyFilenameToClipboard"),
+                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public void CopyFilepathToClipboard(Avalonia.Visual window)
             {
                 if (CurrentFiles == null) return;
                 var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Sökväg));
-                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text);
+                _ = TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text)
+                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyFilepathToClipboard"),
+                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public void CopyListviewToClipboard(Avalonia.Visual window)
@@ -289,7 +293,9 @@ namespace Finn.ViewModels
 
                     sb.AppendLine();
                 }
-                TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(sb.ToString());
+                _ = TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(sb.ToString())
+                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyListviewToClipboard"),
+                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public void CheckSingleFile()
@@ -688,31 +694,48 @@ namespace Finn.ViewModels
                 UpdateFileLinks(oldName, newName, file.Sökväg);
             }
 
-            public void RenameOriginal(string newName)
+            public (bool Success, string Message) RenameOriginal(string newName)
             {
-                if (CurrentFile?.IsTopLevel == true)
+                if (CurrentFile == null)
+                    return (false, "No file is selected.");
+
+                if (string.IsNullOrWhiteSpace(newName))
+                    return (false, "Please enter a file name.");
+
+                if (!CurrentFile.IsLocal())
+                    return (false, "Only available for files stored on C:\\");
+
+                if (CurrentFile.IsTopLevel)
                     newName = EnsureUniqueName(newName, CurrentFile);
 
                 string oldName = CurrentFile.Namn;
                 string oldPath = CurrentFile.Sökväg;
 
-                if (oldName != newName && newName.Length > 0 && CurrentFile.IsLocal())
-                {
-                    string newPath = CurrentFile.Sökväg.Replace(oldName, newName);
-                    try
-                    {
-                        System.IO.File.Move(oldPath, newPath);
-                    }
-                    catch
-                    {
-                        return;
-                    }
+                if (string.Equals(oldName, newName, StringComparison.Ordinal))
+                    return (true, string.Empty);
 
-                    CurrentFile.Sökväg = newPath;
-                    CurrentFile.Namn = newName;
-                    UpdateFileLinks(oldName, newName, newPath);
-                    MarkDirty();
+                string extension = System.IO.Path.GetExtension(oldPath);
+                string? directory = System.IO.Path.GetDirectoryName(oldPath);
+                if (string.IsNullOrEmpty(directory))
+                    return (false, "Could not determine the file directory for rename.");
+
+                string newPath = System.IO.Path.Combine(directory, newName + extension);
+
+                try
+                {
+                    System.IO.File.Move(oldPath, newPath);
                 }
+                catch (Exception ex)
+                {
+                    Utils.ErrorLogger.Log(ex, nameof(RenameOriginal));
+                    return (false, $"Could not rename file. {ex.Message}");
+                }
+
+                CurrentFile.Sökväg = newPath;
+                CurrentFile.Namn = newName;
+                UpdateFileLinks(oldName, newName, newPath);
+                MarkDirty();
+                return (true, string.Empty);
             }
 
             public void ReplaceFilePath(string newPath, bool fileExists)
@@ -739,48 +762,66 @@ namespace Finn.ViewModels
                     RefreshHierarchyState();
                     NotifyCurrentSelectionStructureChanged();
                 }
+
+                // Clear any stale sync-folder metadata. A file with a newly
+                // assigned path is no longer managed by the sync system.
+                if (CurrentFile.IsFromFolder)
+                {
+                    CurrentFile.IsFromFolder = false;
+                    CurrentFile.SyncFolder = null;
+                }
+
                 MarkDirty();
             }
 
 
             public void MoveSelectedFiles(ProjectData project)
             {
-                if (project != null)
+                if (project == null) return;
+
+                foreach (FileData file in CurrentFiles.ToList())
                 {
-                    foreach (FileData file in CurrentFiles.ToList())
+                    // Skip appended files — they move with their parent
+                    if (file.IsChild) continue;
+
+                    // Groups and synced files are not allowed to move between projects.
+                    // CanMoveSelectedFiles already enforces this, but guard here as well
+                    // so a direct call can't bypass the check.
+                    if (file.IsGroup || file.IsFromFolder) continue;
+
+                    var children = CurrentProject.GetChildren(file);
+
+                    // If any child is from a sync folder, skip the whole parent —
+                    // moving it would silently orphan the source folder's baseline.
+                    if (children.Any(c => c.IsFromFolder)) continue;
+
+                    if (!project.StoredFiles.Contains(file))
                     {
-                        // Skip appended files — they move with their parent
-                        if (file.IsChild) continue;
-
-                        if (!project.StoredFiles.Contains(file))
+                        // Move children along with the parent
+                        foreach (var child in children)
                         {
-                            // Move children along with the parent
-                            var children = CurrentProject.GetChildren(file);
-                            foreach (var child in children)
-                            {
-                                CurrentProject.StoredFiles.Remove(child);
-                                child.Filtyp = NEW_TYPE;
-                                child.Uppdrag = project.Namn;
-                                project.StoredFiles.Add(child);
-                            }
-
-                            CurrentProject.StoredFiles.Remove(file);
-                            file.Filtyp = NEW_TYPE;
-                            file.Uppdrag = project.Namn;
-                            project.StoredFiles.Add(file);
+                            CurrentProject.StoredFiles.Remove(child);
+                            child.Filtyp = NEW_TYPE;
+                            child.Uppdrag = project.Namn;
+                            project.StoredFiles.Add(child);
                         }
-                    }
 
-                    CurrentProject.WireParentReferences();
-                    project.WireParentReferences();
-                    CurrentProject.RefreshHasChildren();
-                    CurrentProject.SetFiletypeList();
-                    project.RefreshHasChildren();
-                    project.SetFiletypeList();
-                    UpdateFilter();
-                    SignalTreeViewUpdate();
-                    MarkDirty();
+                        CurrentProject.StoredFiles.Remove(file);
+                        file.Filtyp = NEW_TYPE;
+                        file.Uppdrag = project.Namn;
+                        project.StoredFiles.Add(file);
+                    }
                 }
+
+                CurrentProject.WireParentReferences();
+                project.WireParentReferences();
+                CurrentProject.RefreshHasChildren();
+                CurrentProject.SetFiletypeList();
+                project.RefreshHasChildren();
+                project.SetFiletypeList();
+                UpdateFilter();
+                SignalTreeViewUpdate();
+                MarkDirty();
             }
 
 
@@ -792,7 +833,8 @@ namespace Finn.ViewModels
                 }
 
                 string date = DateTime.Today.ToString("yyyy-MM-dd");
-                string folder = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
+                string? folder = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
+                if (string.IsNullOrEmpty(folder)) return;
                 string outputPath = folder + "\\" + text + " " + date;
 
                 System.IO.Directory.CreateDirectory(outputPath);

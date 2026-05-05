@@ -18,9 +18,9 @@
 		x:DataType="vm:MainViewModel">
 		<Grid RowDefinitions="30,*" ColumnDefinitions="*" VerticalAlignment="Top" Margin="0">
 			<Panel Grid.Row="0" IsHitTestVisible="False"/>
-			<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0">
+			<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
 				<controls:DialogHeader Icon="WarningShield" Title="Message"/>
-				<Label Name="MessageLabel" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+				<TextBlock Name="MessageLabel" VerticalAlignment="Center" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"/>
 			 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,8,0,16">
 					<Button Name="CloseButton" HotKey="Enter" Classes="accent" Content="Accept" Width="80" Click="OnClose"/>
 				   <Button Name="MessageCancel" Content="Cancel" Width="80" Classes="normal" Click="OnClose"/>

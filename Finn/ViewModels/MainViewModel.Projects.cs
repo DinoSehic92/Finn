@@ -84,6 +84,8 @@ namespace Finn.ViewModels
             SetDefaultSelection();
             SortProjects();
             Collections.SetCollectionContent();
+            RefreshFolderWatchers();
+            MarkDirty();
         }
 
         public void RenameProject(string projectName)
@@ -344,6 +346,7 @@ namespace Finn.ViewModels
             // Previously SelectProjectAsync + Type setter each triggered UpdateFilter,
             // doubling the work every time a project was switched.
             currentProject = project;
+            InvalidateAvailableParentsCache();
 
             if (!CurrentProject.Filetypes.Contains(type))
                 type = ALL_TYPES;
@@ -357,7 +360,7 @@ namespace Finn.ViewModels
 
         public void SelectProject(string name)
         {
-            string currentProjectName = CurrentProject.Namn;
+            string? currentProjectName = CurrentProject?.Namn;
             if (currentProjectName != name)
             {
                 SetProject(name);
@@ -387,7 +390,10 @@ namespace Finn.ViewModels
             {
                 var project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == projectName);
                 if (project != null)
+                {
                     currentProject = project;
+                    InvalidateAvailableParentsCache();
+                }
             }
 
             if (!CurrentProject.Filetypes.Contains(typeName))
@@ -548,10 +554,21 @@ namespace Finn.ViewModels
                     "Notes:"
                 };
 
-                var childrenByParent = project.StoredFiles
-                    .Where(file => !string.IsNullOrWhiteSpace(file.ParentNamn))
-                    .GroupBy(file => file.ParentNamn, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+                // Group children by their resolved parent reference (not by display name)
+                // to avoid misrouting when two parents share the same Namn.
+                var childrenByParent = new Dictionary<FileData, List<FileData>>(
+                    EqualityComparer<FileData>.Create(
+                        (a, b) => ReferenceEquals(a, b),
+                        obj => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj)));
+                foreach (var file in project.StoredFiles.Where(f => f.ParentFile != null))
+                {
+                    if (!childrenByParent.TryGetValue(file.ParentFile!, out var siblings))
+                    {
+                        siblings = new List<FileData>();
+                        childrenByParent[file.ParentFile!] = siblings;
+                    }
+                    siblings.Add(file);
+                }
 
                 var rootFiles = project.StoredFiles.Where(file => !file.IsChild).ToList();
                 int totalWork = CountExportWork(rootFiles, childrenByParent, options) + 1;
@@ -588,7 +605,7 @@ namespace Finn.ViewModels
             }
         }
 
-        private int CountExportWork(IEnumerable<FileData> files, IReadOnlyDictionary<string, List<FileData>> childrenByParent, ExportProjectOptions options)
+        private int CountExportWork(IEnumerable<FileData> files, IReadOnlyDictionary<FileData, List<FileData>> childrenByParent, ExportProjectOptions options)
         {
             int total = 0;
 
@@ -598,7 +615,7 @@ namespace Finn.ViewModels
             return total;
         }
 
-        private int CountExportWork(FileData file, IReadOnlyDictionary<string, List<FileData>> childrenByParent, ExportProjectOptions options, bool isRoot, bool branchIsGroup)
+        private int CountExportWork(FileData file, IReadOnlyDictionary<FileData, List<FileData>> childrenByParent, ExportProjectOptions options, bool isRoot, bool branchIsGroup)
         {
             if (!ShouldIncludeNode(file, isRoot, branchIsGroup, options))
                 return 0;
@@ -608,7 +625,7 @@ namespace Finn.ViewModels
             if (options.IncludeOtherFiles)
                 total += file.OtherFiles?.Count ?? 0;
 
-            if (childrenByParent.TryGetValue(file.Namn, out var children))
+            if (childrenByParent.TryGetValue(file, out var children))
             {
                 foreach (var child in children)
                     total += CountExportWork(child, childrenByParent, options, isRoot: false, branchIsGroup: branchIsGroup || file.IsGroup);
@@ -639,7 +656,7 @@ namespace Finn.ViewModels
             }
         }
 
-        private void ExportFileTree(FileData file, string destinationDirectory, IReadOnlyDictionary<string, List<FileData>> childrenByParent, HashSet<string> usedNames, List<string> exportReport, ExportProgressContext progress, ExportProjectOptions options, CancellationToken token, bool isRoot, bool branchIsGroup)
+        private void ExportFileTree(FileData file, string destinationDirectory, IReadOnlyDictionary<FileData, List<FileData>> childrenByParent, HashSet<string> usedNames, List<string> exportReport, ExportProgressContext progress, ExportProjectOptions options, CancellationToken token, bool isRoot, bool branchIsGroup)
         {
             token.ThrowIfCancellationRequested();
 
@@ -648,7 +665,7 @@ namespace Finn.ViewModels
 
             string baseName = string.IsNullOrWhiteSpace(file.Namn) ? Path.GetFileNameWithoutExtension(file.Sökväg) : file.Namn;
             string safeName = GetUniquePathSegment(destinationDirectory, SanitizePathSegment(baseName), usedNames);
-            bool hasChildren = childrenByParent.TryGetValue(file.Namn, out var children) && children.Count > 0;
+            bool hasChildren = childrenByParent.TryGetValue(file, out var children) && children.Count > 0;
             bool hasOtherFiles = file.OtherFiles?.Count > 0;
             bool shouldCreateFolder = file.IsGroup || hasChildren || hasOtherFiles;
 

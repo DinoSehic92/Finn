@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -21,13 +22,25 @@ public partial class xRenameDia : Window
         NewNameInput.Text = name;
     }
 
-    private void AcceptRename(object sender, RoutedEventArgs e)
+    private async void AcceptRename(object sender, RoutedEventArgs e)
     {
-        if (NewNameInput.Text != null && NewNameInput.Text.Length > 0)
+        MainViewModel ctx = (MainViewModel)this.DataContext;
+        var result = ctx.RenameOriginal(NewNameInput.Text?.ToString() ?? string.Empty);
+        if (!result.Success)
         {
-            MainViewModel ctx = (MainViewModel)this.DataContext;
-            ctx.RenameOriginal(NewNameInput.Text.ToString());
-            ctx.SaveFileAuto();
+            await ctx.OpenMessageDia(this, result.Message);
+            return;
+        }
+
+        try
+        {
+            await ctx.SaveFileAuto();
+        }
+        catch (Exception ex)
+        {
+            Utils.ErrorLogger.Log(ex, nameof(AcceptRename));
+            await ctx.OpenMessageDia(this, $"Could not save changes after rename. {ex.Message}");
+            return;
         }
 
         this.Close();

@@ -186,7 +186,7 @@ namespace Finn.ViewModels
             public ProjectData CurrentProject
             {
                 get { return currentProject; }
-                set { currentProject = value; OnPropertyChanged(nameof(CurrentProject)); OnPropertyChanged(nameof(IsSearchResult)); ScheduleFilterUpdate(); }
+                set { currentProject = value; InvalidateAvailableParentsCache(); OnPropertyChanged(nameof(CurrentProject)); OnPropertyChanged(nameof(IsSearchResult)); ScheduleFilterUpdate(); }
             }
 
             private string type = null;
@@ -302,12 +302,20 @@ namespace Finn.ViewModels
 
             /// <summary>
             /// True when the selected files can be moved to another project.
-            /// Synced files (from a sync folder) cannot be moved because it would
-            /// break the folder's tracked file count.
+            /// Blocked when any selected file is:
+            /// - a child (appended) file
+            /// - from a sync folder (would break baseline tracking in the source project)
+            /// - a group (groups are project-scoped; their children would lose sync folder tracking)
+            /// - a designated parent or regular parent that has synced children
+            ///   (the children would move silently and orphan the source folder's baseline)
             /// </summary>
             public bool CanMoveSelectedFiles =>
                 CurrentFiles != null && CurrentFiles.Count > 0
-                && CurrentFiles.All(f => f.IsTopLevel && !f.IsFromFolder);
+                && CurrentFiles.All(f =>
+                    f.IsTopLevel
+                    && !f.IsFromFolder
+                    && !f.IsGroup
+                    && !HasSyncedChildren(f));
 
             /// <summary>
             /// True when the selected file is local (path starts with C:).

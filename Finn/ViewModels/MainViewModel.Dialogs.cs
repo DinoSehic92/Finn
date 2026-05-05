@@ -105,6 +105,7 @@ namespace Finn.ViewModels
 
             public void OpenTagDia(Window mainWindow)
             {
+                if (CurrentFile == null) return;
                 var window = new xTagDia();
                 ConfigureWindow(window, mainWindow);
                 window.TagMenuInput.Text = CurrentFile.Tagg;
@@ -115,6 +116,7 @@ namespace Finn.ViewModels
 
             public void TryOpenRenameDia(Window mainWindow)
             {
+                if (CurrentFile == null) return;
                 if (!CurrentFile.IsLocal())
                 {
                     OpenMessageDia(mainWindow);
@@ -127,6 +129,7 @@ namespace Finn.ViewModels
 
             public void OpenRenameDia(Window mainWindow)
             {
+                if (CurrentFile == null) return;
                 var window = new xRenameDia();
                 ConfigureWindow(window, mainWindow);
                 window.SetCurrentName(CurrentFile.Namn);
@@ -155,6 +158,14 @@ namespace Finn.ViewModels
                 var window = new xMessageDia();
                 ConfigureWindow(window, mainWindow);
                 window.SetMessage("Only available for files stored on C:\\");
+                await window.ShowDialog(mainWindow);
+            }
+
+            public async Task OpenMessageDia(Window mainWindow, string message)
+            {
+                var window = new xMessageDia();
+                ConfigureWindow(window, mainWindow);
+                window.SetMessage(message);
                 await window.ShowDialog(mainWindow);
             }
 

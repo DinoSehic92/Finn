@@ -18,12 +18,8 @@
 
 	<Grid RowDefinitions="30,*" Margin="0">
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
-		<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="20,0">
-			<StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2" Margin="0,0,0,4">
-				<controls:DialogHeader Icon="FolderArrowRight"/>
-				<TextBlock Name="HeaderText" Text="Change Folder Directory" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-				<TextBlock Name="SubHeaderText" Text="Select a new directory for this sync folder." FontSize="12" Opacity="0.7" HorizontalAlignment="Center"/>
-			</StackPanel>
+		<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
+			<controls:DialogHeader Name="FolderHeader" Icon="FolderArrowRight" Title="Change Folder Directory" Subtitle="Select a new directory for this sync folder."/>
 
 			<Grid ColumnDefinitions="*,Auto" Width="420">
 				<TextBox Name="PathBox" Grid.Column="0" IsReadOnly="True" FontSize="13" PlaceholderText="No folder selected"/>

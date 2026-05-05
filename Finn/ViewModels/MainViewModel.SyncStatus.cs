@@ -851,19 +851,24 @@ namespace Finn.ViewModels
                 System.Diagnostics.Debug.WriteLine($"[SharedSync] Affected projects: {affected.Count}");
                 if (affected.Count == 0) return;
 
-                foreach (var project in affected)
-                {
-                    UpdateSharedSyncStatus(project);
-                    System.Diagnostics.Debug.WriteLine($"[SharedSync] After UpdateStatus: '{project.Namn}' → {project.SharedSyncStatus} (LastPushed={project.LastPushedUtc:O})");
-                }
+                // Compute new states on this background thread (pure filesystem reads).
+                // Apply them on the UI thread together with the status-message/tree update
+                // to avoid blocking a thread-pool callback on the UI dispatcher.
+                var computed = affected
+                    .Select(p => (Project: p, State: ComputeSharedSyncState(p)))
+                    .ToList();
+
+                foreach (var (project, state) in computed)
+                    System.Diagnostics.Debug.WriteLine($"[SharedSync] Computed: '{project.Namn}' → {state} (LastPushed={project.LastPushedUtc:O})");
 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    foreach (var project in affected)
+                    foreach (var (project, state) in computed)
                     {
-                        if (project.SharedSyncStatus == SharedSyncState.ServerAhead)
+                        project.SharedSyncStatus = state;
+                        if (state == SharedSyncState.ServerAhead)
                             PreviewVM.StatusMessage = $"\"{project.Namn}\" has updates on the server";
-                        else if (project.SharedSyncStatus == SharedSyncState.Conflicted)
+                        else if (state == SharedSyncState.Conflicted)
                             PreviewVM.StatusMessage = $"\"{project.Namn}\" has server updates and local changes — pull recommended";
                     }
                     BuildTreeData();
@@ -938,8 +943,7 @@ namespace Finn.ViewModels
                 if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
                     project.SharedSyncStatus = newState;
                 else
-                    Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => project.SharedSyncStatus = newState)
-                        .GetTask().GetAwaiter().GetResult();
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => project.SharedSyncStatus = newState);
             }
 
             private static SharedSyncState ComputeSharedSyncState(ProjectData project)

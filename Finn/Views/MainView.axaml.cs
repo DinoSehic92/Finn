@@ -657,7 +657,11 @@ public partial class MainView : UserControl
 
     private void UpdateBookmarksEmptyHint()
     {
-        var favPages = _ctx.PreviewVM?.CurrentFile?.FavPages;
+        // Use MainViewModel.CurrentFile (synchronous selection) rather than
+        // PreviewVM.CurrentFile, which is set asynchronously after the preview
+        // loads and may still point to the previously selected file when this
+        // method is called immediately after a selection change.
+        var favPages = _ctx.CurrentFile?.FavPages;
         BookmarksEmptyHint.IsVisible = favPages == null || favPages.Count == 0;
     }
 
@@ -739,7 +743,11 @@ public partial class MainView : UserControl
         // View Left/Right context menu items in Dual-File mode.
         if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
-        await _ctx.RequestPreviewAsync(file, searchText);
+        try
+        {
+            await _ctx.RequestPreviewAsync(file, searchText);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(RequestPreview)); }
     }
 
     #endregion
@@ -834,37 +842,45 @@ public partial class MainView : UserControl
 
     private async void OnAddOtherLink(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.OtherFilesOwner == null) return;
+        try
+        {
+            if (_ctx.OtherFilesOwner == null) return;
 
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xEditLinkDia();
-        _ctx.ConfigureWindow(dialog, window);
-        await dialog.ShowDialog(window);
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xEditLinkDia();
+            _ctx.ConfigureWindow(dialog, window);
+            await dialog.ShowDialog(window);
 
-        if (!dialog.Confirmed) return;
+            if (!dialog.Confirmed) return;
 
-        var entry = new OtherData();
-        entry.SetLink(dialog.ResultUrl!);
-        entry.Name = dialog.ResultName!;
-        _ctx.OtherFilesOwner.OtherFiles.Add(entry);
-        _ctx.MarkDirty();
+            var entry = new OtherData();
+            entry.SetLink(dialog.ResultUrl!);
+            entry.Name = dialog.ResultName!;
+            _ctx.OtherFilesOwner.OtherFiles.Add(entry);
+            _ctx.MarkDirty();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnAddOtherLink)); }
     }
 
     private async void OnEditOtherLink(object? sender, RoutedEventArgs e)
     {
-        if (OtherFilesGrid.SelectedItem is not OtherData file || !file.IsLink) return;
+        try
+        {
+            if (OtherFilesGrid.SelectedItem is not OtherData file || !file.IsLink) return;
 
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xEditLinkDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.Populate(file.Name, file.Filepath);
-        await dialog.ShowDialog(window);
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xEditLinkDia();
+            _ctx.ConfigureWindow(dialog, window);
+            dialog.Populate(file.Name, file.Filepath);
+            await dialog.ShowDialog(window);
 
-        if (!dialog.Confirmed) return;
+            if (!dialog.Confirmed) return;
 
-        file.Name     = dialog.ResultName!;
-        file.Filepath = dialog.ResultUrl!;
-        _ctx.MarkDirty();
+            file.Name     = dialog.ResultName!;
+            file.Filepath = dialog.ResultUrl!;
+            _ctx.MarkDirty();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnEditOtherLink)); }
     }
 
     private void OnOpenOtherFolder(object? sender, RoutedEventArgs e)
@@ -875,43 +891,67 @@ public partial class MainView : UserControl
 
     private async void OnAddFiles(object? sender, RoutedEventArgs e)
     {
-        await _ctx.AddFile(this);
-        _ctx.BuildTreeData();
+        try
+        {
+            await _ctx.AddFile(this);
+            _ctx.BuildTreeData();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnAddFiles)); }
     }
 
     private async void OnLoadFile(object? sender, RoutedEventArgs e)
     {
-        await _ctx.LoadFile(this);
-        _ctx.BuildTreeData();
-        UpdateFont();
+        try
+        {
+            await _ctx.LoadFile(this);
+            _ctx.BuildTreeData();
+            UpdateFont();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnLoadFile)); }
     }
 
-    private async void OnSaveFile(object? sender, RoutedEventArgs e) => await _ctx.SaveFile(this);
+    private async void OnSaveFile(object? sender, RoutedEventArgs e)
+    {
+        try { await _ctx.SaveFile(this); }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnSaveFile)); }
+    }
     private async void OnSaveFileAuto(object? sender, RoutedEventArgs e)
     {
-        await _ctx.SaveFileAuto();
-        _ctx.RefreshFolderWatchers();
+        try
+        {
+            await _ctx.SaveFileAuto();
+            _ctx.RefreshFolderWatchers();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnSaveFileAuto)); }
     }
 
     private async void OnRunIntegrityCheck(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        await _ctx.ShowIntegrityReportAsync(window);
+        try
+        {
+            var window = ParentWindow;
+            await _ctx.ShowIntegrityReportAsync(window);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRunIntegrityCheck)); }
     }
 
     private async void OnExportProjectZip(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        var dialog = new xExportOptionsDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
+        try
+        {
+            var window = ParentWindow;
+            var dialog = new xExportOptionsDia();
+            _ctx.ConfigureWindow(dialog, window);
+            dialog.RequestedThemeVariant = window.ActualThemeVariant;
 
-        await dialog.ShowDialog(window);
+            await dialog.ShowDialog(window);
 
-        if (!dialog.Confirmed)
-            return;
+            if (!dialog.Confirmed)
+                return;
 
-        await _ctx.CreateZipFromProjectAsync(dialog.Options);
+            await _ctx.CreateZipFromProjectAsync(dialog.Options);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnExportProjectZip)); }
     }
 
     /// <summary>
@@ -960,117 +1000,133 @@ public partial class MainView : UserControl
 
     private async void OnRemoveFiles(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        await _ctx.ConfirmDeleteDia(window);
-
-        if (_ctx.Confirmed)
+        try
         {
-            // Capture the parent before removal clears references
-            var parentToSelect = _ctx.CurrentFile?.IsAppendedFile == true
-                ? _ctx.CurrentFile.ParentFile
-                : null;
+            var window = ParentWindow;
+            await _ctx.ConfirmDeleteDia(window);
 
-            // Suppress the grid's SelectionChanged handler so UpdateFilter's
-            // collection reset doesn't wipe CurrentFiles before we re-select.
-            // Also suppress tree selection so BuildTreeData doesn't navigate
-            // to the parent's category and change the current type filter.
-            using (SuppressSelection(suppressTree: true))
+            if (_ctx.Confirmed)
             {
-                _ctx.RemoveSelectedFiles();
-                _ctx.UpdateFilter();
-                _ctx.BuildTreeData();
-            }
+                // Capture the parent before removal clears references
+                var parentToSelect = _ctx.CurrentFile?.IsAppendedFile == true
+                    ? _ctx.CurrentFile.ParentFile
+                    : null;
 
-            // Re-select the parent in the grid (when removing an appended file)
-            // or select the first remaining file (to avoid stale CurrentFile references)
-            ReselectFile(parentToSelect);
+                // Suppress the grid's SelectionChanged handler so UpdateFilter's
+                // collection reset doesn't wipe CurrentFiles before we re-select.
+                // Also suppress tree selection so BuildTreeData doesn't navigate
+                // to the parent's category and change the current type filter.
+                using (SuppressSelection(suppressTree: true))
+                {
+                    _ctx.RemoveSelectedFiles();
+                    _ctx.UpdateFilter();
+                    _ctx.BuildTreeData();
+                }
+
+                // Re-select the parent in the grid (when removing an appended file)
+                // or select the first remaining file (to avoid stale CurrentFile references)
+                ReselectFile(parentToSelect);
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRemoveFiles)); }
     }
 
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        var selected = OtherFilesGrid.SelectedItems.OfType<OtherData>().ToList();
-        if (selected.Count == 0) return;
-
-        await _ctx.ConfirmDeleteDia(window);
-
-        if (_ctx.Confirmed)
+        try
         {
-            _ctx.RemoveOtherFiles(selected);
-            UpdateOtherFilesEmptyState();
+            var window = ParentWindow;
+            var selected = OtherFilesGrid.SelectedItems.OfType<OtherData>().ToList();
+            if (selected.Count == 0) return;
+
+            await _ctx.ConfirmDeleteDia(window);
+
+            if (_ctx.Confirmed)
+            {
+                _ctx.RemoveOtherFiles(selected);
+                UpdateOtherFilesEmptyState();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRemoveOtherFile)); }
     }
 
     private async void OnRemoveProject(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.Storage.StoredProjects.Count <= 1) return;
-
-        // Warn specifically about shared projects
-        if (_ctx.CurrentProject?.IsShared == true)
+        try
         {
-            var window = ParentWindow;
-            var msgDialog = new Finn.Dialogs.xMessageDia();
-            _ctx.ConfigureWindow(msgDialog, window);
-            msgDialog.SetMessage("This project is shared. Removing it will disconnect from the server file.");
-            await msgDialog.ShowDialog(window);
-        }
+            if (_ctx.Storage.StoredProjects.Count <= 1) return;
 
-        var mainWindow = ParentWindow;
-        await _ctx.ConfirmDeleteDia(mainWindow);
+            // Warn specifically about shared projects
+            if (_ctx.CurrentProject?.IsShared == true)
+            {
+                var window = ParentWindow;
+                var msgDialog = new Finn.Dialogs.xMessageDia();
+                _ctx.ConfigureWindow(msgDialog, window);
+                msgDialog.SetMessage("This project is shared. Removing it will disconnect from the server file.");
+                await msgDialog.ShowDialog(window);
+            }
 
-        if (_ctx.Confirmed)
-        {
-            _ctx.RemoveProject();
-            _ctx.MarkDirty();
-            _ctx.BuildTreeData();
+            var mainWindow = ParentWindow;
+            await _ctx.ConfirmDeleteDia(mainWindow);
+
+            if (_ctx.Confirmed)
+            {
+                _ctx.RemoveProject();
+                _ctx.MarkDirty();
+                _ctx.BuildTreeData();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRemoveProject)); }
     }
 
     
 
     private async void OnAttachFiles(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsChild) return;
-
-        var parentName = _ctx.CurrentFile.Namn;
-        var existing = _ctx.CurrentProject.GetChildren(_ctx.CurrentFile)
-            .OrderBy(f => f.Namn);
-
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xAttachDia
+        try
         {
-            DataContext = _ctx,
-            FontFamily = window.FontFamily,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
-        dialog.RequestedThemeVariant = window.ActualThemeVariant;
-        var allProjectPaths = _ctx.CurrentProject.StoredFiles.Select(f => f.Sökväg);
-        dialog.SetParentFile(parentName, existing, allProjectPaths);
-        await dialog.ShowDialog(window);
+            if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsChild) return;
 
-        if (!dialog.Confirmed) return;
+            var parentName = _ctx.CurrentFile.Namn;
+            var existing = _ctx.CurrentProject.GetChildren(_ctx.CurrentFile)
+                .OrderBy(f => f.Namn);
 
-        // Suppress the grid's SelectionChanged handler so that
-        // UpdateFilter calls inside AddAppendedFile don't clear
-        // CurrentFile via a collection-Reset selection loss.
-        using (SuppressSelection())
-        {
-            foreach (string path in dialog.AcceptedFiles)
-                _ctx.AddAppendedFile(path);
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xAttachDia
+            {
+                DataContext = _ctx,
+                FontFamily = window.FontFamily,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            dialog.RequestedThemeVariant = window.ActualThemeVariant;
+            var allProjectPaths = _ctx.CurrentProject.StoredFiles.Select(f => f.Sökväg);
+            dialog.SetParentFile(parentName, existing, allProjectPaths);
+            await dialog.ShowDialog(window);
 
-            foreach (string folderPath in dialog.AcceptedFolders)
-                await _ctx.AddAttachedFolderAsync(folderPath);
+            if (!dialog.Confirmed) return;
+
+            // Suppress the grid's SelectionChanged handler so that
+            // UpdateFilter calls inside AddAppendedFile don't clear
+            // CurrentFile via a collection-Reset selection loss.
+            using (SuppressSelection())
+            {
+                foreach (string path in dialog.AcceptedFiles)
+                    _ctx.AddAppendedFile(path);
+
+                foreach (string folderPath in dialog.AcceptedFolders)
+                    await _ctx.AddAttachedFolderAsync(folderPath);
+            }
+
+            _ctx.RefreshFolderWatchers();
+
+            // Ensure the parent is expanded so newly attached children are visible
+            if (_ctx.CurrentFile is { HasChildren: true, IsExpanded: false })
+                _ctx.CurrentFile.IsExpanded = true;
+
+            _ctx.UpdateFilter();
+            UpdateFolderEmptyState();
         }
-
-        _ctx.RefreshFolderWatchers();
-
-        // Ensure the parent is expanded so newly attached children are visible
-        if (_ctx.CurrentFile is { HasChildren: true, IsExpanded: false })
-            _ctx.CurrentFile.IsExpanded = true;
-
-        _ctx.UpdateFilter();
-        UpdateFolderEmptyState();
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnAttachFiles)); }
     }
 
     private void OnToggleGroupExpanded(object? sender, RoutedEventArgs e)
@@ -1089,69 +1145,81 @@ public partial class MainView : UserControl
 
     private async void OnNewGroup(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xPlaceholderDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.SetTitle("New Group");
-        dialog.NewFileName.Watermark = "Group name";
-        await dialog.ShowDialog(window);
-
-        string? name = dialog.ResultName;
-        if (!string.IsNullOrWhiteSpace(name))
+        try
         {
-            // Only auto-move when multiple files are explicitly selected.
-            // A single selection is usually just the user browsing, not
-            // an intentional "group these files" action.
-            var selectedFiles = _ctx.CurrentFiles?.Where(f => f.IsRegularFile).ToList() ?? [];
-            bool autoMove = selectedFiles.Count > 1;
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xPlaceholderDia();
+            _ctx.ConfigureWindow(dialog, window);
+            dialog.SetTitle("New Group");
+            dialog.NewFileName.Watermark = "Group name";
+            await dialog.ShowDialog(window);
 
-            // If all selected files share the same category, inherit it
-            string? sharedCategory = null;
-            if (selectedFiles.Count > 0)
+            string? name = dialog.ResultName;
+            if (!string.IsNullOrWhiteSpace(name))
             {
-                var distinct = selectedFiles.Select(f => f.Filtyp).Distinct().ToList();
-                if (distinct.Count == 1)
-                    sharedCategory = distinct[0];
-            }
+                // Only auto-move when multiple files are explicitly selected.
+                // A single selection is usually just the user browsing, not
+                // an intentional "group these files" action.
+                var selectedFiles = _ctx.CurrentFiles?.Where(f => f.IsRegularFile).ToList() ?? [];
+                bool autoMove = selectedFiles.Count > 1;
 
-            // Suppress selection events so SyncExpansionToSelection doesn't
-            // collapse the group between AddGroup and MoveFilesToParent.
-            using (SuppressSelection())
-            {
-                var group = _ctx.AddGroup(name, sharedCategory);
+                // If all selected files share the same category, inherit it
+                string? sharedCategory = null;
+                if (selectedFiles.Count > 0)
+                {
+                    var distinct = selectedFiles.Select(f => f.Filtyp).Distinct().ToList();
+                    if (distinct.Count == 1)
+                        sharedCategory = distinct[0];
+                }
 
-                if (autoMove)
-                    _ctx.MoveFilesToParent(group, selectedFiles);
+                // Suppress selection events so SyncExpansionToSelection doesn't
+                // collapse the group between AddGroup and MoveFilesToParent.
+                using (SuppressSelection())
+                {
+                    var group = _ctx.AddGroup(name, sharedCategory);
+
+                    if (autoMove)
+                        _ctx.MoveFilesToParent(group, selectedFiles);
+                }
             }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnNewGroup)); }
     }
 
     private async void OnRenameGroup(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.CurrentFile is not { IsGroup: true } group) return;
+        try
+        {
+            if (_ctx.CurrentFile is not { IsGroup: true } group) return;
 
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xPlaceholderDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.SetTitle("Rename Group");
-        dialog.NewFileName.Watermark = "New group name";
-        dialog.NewFileName.Text = group.Namn;
-        await dialog.ShowDialog(window);
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xPlaceholderDia();
+            _ctx.ConfigureWindow(dialog, window);
+            dialog.SetTitle("Rename Group");
+            dialog.NewFileName.Watermark = "New group name";
+            dialog.NewFileName.Text = group.Namn;
+            await dialog.ShowDialog(window);
 
-        string? newName = dialog.ResultName;
-        if (!string.IsNullOrWhiteSpace(newName))
-            _ctx.RenameGroup(group, newName);
+            string? newName = dialog.ResultName;
+            if (!string.IsNullOrWhiteSpace(newName))
+                _ctx.RenameGroup(group, newName);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRenameGroup)); }
     }
 
     private async void OnConvertToGroup(object? sender, RoutedEventArgs e)
     {
-        if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsGroup || _ctx.CurrentFile.IsAppendedFile) return;
+        try
+        {
+            if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsGroup || _ctx.CurrentFile.IsAppendedFile) return;
 
-        var window = ParentWindow;
-        await _ctx.ConfirmDeleteDia(window);
+            var window = ParentWindow;
+            await _ctx.ConfirmDeleteDia(window);
 
-        if (_ctx.Confirmed)
-            _ctx.ConvertToGroup(_ctx.CurrentFile);
+            if (_ctx.Confirmed)
+                _ctx.ConvertToGroup(_ctx.CurrentFile);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnConvertToGroup)); }
     }
 
     private void OnMoveToGroup(object? sender, RoutedEventArgs e)
@@ -1185,76 +1253,92 @@ public partial class MainView : UserControl
 
     private async void OnTreeNewGroup(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xNewGroupDia();
-        _ctx.ConfigureWindow(dialog, window);
-        await dialog.ShowDialog(window);
-
-        if (!string.IsNullOrWhiteSpace(dialog.ResultName))
+        try
         {
-            _ctx.AddProjectGroup(dialog.ResultName, dialog.ResultCategory, dialog.ResultParentGroup);
-            _ctx.BuildTreeData();
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xNewGroupDia();
+            _ctx.ConfigureWindow(dialog, window);
+            await dialog.ShowDialog(window);
+
+            if (!string.IsNullOrWhiteSpace(dialog.ResultName))
+            {
+                _ctx.AddProjectGroup(dialog.ResultName, dialog.ResultCategory, dialog.ResultParentGroup);
+                _ctx.BuildTreeData();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnTreeNewGroup)); }
     }
 
     private async void OnTreeNewSubgroup(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xNewGroupDia();
-        _ctx.ConfigureWindow(dialog, window);
-
-        // Pre-select the right-clicked group so it opens as the parent
-        string? parentGroupName = _lastRightClickedNode?.GroupName;
-        if (!string.IsNullOrEmpty(parentGroupName))
-            dialog.PreSelectGroup(parentGroupName);
-
-        await dialog.ShowDialog(window);
-
-        if (!string.IsNullOrWhiteSpace(dialog.ResultName))
+        try
         {
-            _ctx.AddProjectGroup(dialog.ResultName, dialog.ResultCategory, dialog.ResultParentGroup);
-            _ctx.BuildTreeData();
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xNewGroupDia();
+            _ctx.ConfigureWindow(dialog, window);
+
+            // Pre-select the right-clicked group so it opens as the parent
+            string? parentGroupName = _lastRightClickedNode?.GroupName;
+            if (!string.IsNullOrEmpty(parentGroupName))
+                dialog.PreSelectGroup(parentGroupName);
+
+            await dialog.ShowDialog(window);
+
+            if (!string.IsNullOrWhiteSpace(dialog.ResultName))
+            {
+                _ctx.AddProjectGroup(dialog.ResultName, dialog.ResultCategory, dialog.ResultParentGroup);
+                _ctx.BuildTreeData();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnTreeNewSubgroup)); }
     }
 
     private async void OnTreeRenameGroup(object? sender, RoutedEventArgs e)
     {
-        string? groupName = _lastRightClickedNode?.GroupName;
-        if (string.IsNullOrEmpty(groupName)) return;
-
-        var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
-        if (group == null) return;
-
-        var window = ParentWindow;
-        var dialog = new Finn.Dialogs.xPlaceholderDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.SetTitle("Rename Group");
-        dialog.NewFileName.Watermark = "New name";
-        dialog.NewFileName.Text = group.Name;
-        await dialog.ShowDialog(window);
-
-        string? newName = dialog.ResultName;
-        if (!string.IsNullOrWhiteSpace(newName))
+        try
         {
-            _ctx.RenameProjectGroup(group, newName);
-            _ctx.BuildTreeData();
+            string? groupName = _lastRightClickedNode?.GroupName;
+            if (string.IsNullOrEmpty(groupName)) return;
+
+            var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
+            if (group == null) return;
+
+            var window = ParentWindow;
+            var dialog = new Finn.Dialogs.xPlaceholderDia();
+            _ctx.ConfigureWindow(dialog, window);
+            dialog.SetTitle("Rename Group");
+            dialog.NewFileName.Watermark = "New name";
+            dialog.NewFileName.Text = group.Name;
+            await dialog.ShowDialog(window);
+
+            string? newName = dialog.ResultName;
+            if (!string.IsNullOrWhiteSpace(newName))
+            {
+                _ctx.RenameProjectGroup(group, newName);
+                _ctx.BuildTreeData();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnTreeRenameGroup)); }
     }
 
     private async void OnTreeRemoveGroup(object? sender, RoutedEventArgs e)
     {
-        string? groupName = _lastRightClickedNode?.GroupName;
-        if (string.IsNullOrEmpty(groupName)) return;
+        try
+        {
+            string? groupName = _lastRightClickedNode?.GroupName;
+            if (string.IsNullOrEmpty(groupName)) return;
 
-        var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
-        if (group == null) return;
+            var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
+            if (group == null) return;
 
-        var window = ParentWindow;
-        await _ctx.ConfirmDeleteDia(window);
-        if (!_ctx.Confirmed) return;
+            var window = ParentWindow;
+            await _ctx.ConfirmDeleteDia(window);
+            if (!_ctx.Confirmed) return;
 
-        _ctx.RemoveProjectGroup(group);
-        _ctx.BuildTreeData();
+            _ctx.RemoveProjectGroup(group);
+            _ctx.BuildTreeData();
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnTreeRemoveGroup)); }
     }
 
     private void OnTreeMoveProjectToGroup(object? sender, RoutedEventArgs e)
@@ -1299,11 +1383,19 @@ public partial class MainView : UserControl
 
     private void OnOpenFolderPath(object? sender, RoutedEventArgs e)
     {
-        var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
-        foreach (var folder in folders)
+        try
         {
-            if (!string.IsNullOrEmpty(folder.Path))
-                _ctx.OpenFileDirect(folder.Path);
+            var folders = FolderGrid.SelectedItems.OfType<FolderData>().ToList();
+            foreach (var folder in folders)
+            {
+                if (!string.IsNullOrEmpty(folder.Path))
+                    _ctx.OpenFileDirect(folder.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Utils.ErrorLogger.Log(ex, nameof(OnOpenFolderPath));
+            _ = _ctx.OpenMessageDia(ParentWindow, $"Could not open the selected folder path. {ex.Message}");
         }
     }
 
@@ -1315,62 +1407,86 @@ public partial class MainView : UserControl
 
     private async void OnSyncSelectedFolders(object? sender, RoutedEventArgs e)
     {
-        var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
-        if (folders.Count == 0) return;
+        try
+        {
+            var folders = FolderGrid.SelectedItems.OfType<FolderData>().ToList();
+            if (folders.Count == 0) return;
 
-        var window = ParentWindow;
-        await _ctx.SyncFoldersAsync(folders, window);
+            var window = ParentWindow;
+            await _ctx.SyncFoldersAsync(folders, window);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnSyncSelectedFolders)); }
     }
 
     private async void OnSyncAllFolders(object? sender, RoutedEventArgs e)
     {
-        var window = ParentWindow;
-        await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
+        try
+        {
+            var window = ParentWindow;
+            await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnSyncAllFolders)); }
     }
 
     private async void OnRemoveFolder(object? sender, RoutedEventArgs e)
     {
-        var folders = FolderGrid.SelectedItems.Cast<FolderData>().ToList();
-        if (folders.Count == 0) return;
-
-        var window = ParentWindow;
-        await _ctx.ConfirmDeleteDia(window);
-
-        if (_ctx.Confirmed)
+        try
         {
-            _ctx.RemoveFolders(folders);
-            _ctx.MarkDirty();
-            UpdateFolderEmptyState();
+            var folders = FolderGrid.SelectedItems.OfType<FolderData>().ToList();
+            if (folders.Count == 0) return;
+
+            var window = ParentWindow;
+            await _ctx.ConfirmDeleteDia(window);
+
+            if (_ctx.Confirmed)
+            {
+                _ctx.RemoveFolders(folders);
+                _ctx.MarkDirty();
+                UpdateFolderEmptyState();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRemoveFolder)); }
     }
 
     private async void OnManageSyncFilter(object? sender, RoutedEventArgs e)
     {
-        if (FolderGrid.SelectedItem is not FolderData folder) return;
-        var window = ParentWindow;
-        await _ctx.ShowSyncFilterDialogAsync(folder, window);
+        try
+        {
+            if (FolderGrid.SelectedItem is not FolderData folder) return;
+            var window = ParentWindow;
+            await _ctx.ShowSyncFilterDialogAsync(folder, window);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnManageSyncFilter)); }
     }
 
     private async void OnChangeFolderDirectory(object? sender, RoutedEventArgs e)
     {
-        if (FolderGrid.SelectedItem is not FolderData folder) return;
-        var window = ParentWindow;
-
-        var dialog = new Finn.Dialogs.xChangeFolderDia();
-        _ctx.ConfigureWindow(dialog, window);
-        dialog.SetCurrentPath(folder.Name, folder.Path);
-
-        await dialog.ShowDialog(window);
-
-        if (dialog.Confirmed && !string.Equals(folder.Path, dialog.SelectedPath, StringComparison.OrdinalIgnoreCase))
+        try
         {
-            string oldPath = folder.Path;
-            _ctx.RelocateFolderPaths(folder, oldPath, dialog.SelectedPath);
-            folder.Path = dialog.SelectedPath;
-            folder.Name = System.IO.Path.GetFileName(dialog.SelectedPath);
-            _ctx.MarkDirty();
-            _ctx.RefreshFolderWatchers();
+            if (FolderGrid.SelectedItem is not FolderData folder) return;
+            var window = ParentWindow;
+
+            var dialog = new Finn.Dialogs.xChangeFolderDia();
+            _ctx.ConfigureWindow(dialog, window);
+            dialog.SetCurrentPath(folder.Name, folder.Path);
+
+            await dialog.ShowDialog(window);
+
+            if (dialog.Confirmed && !string.Equals(folder.Path, dialog.SelectedPath, StringComparison.OrdinalIgnoreCase))
+            {
+                string oldPath = folder.Path;
+                _ctx.RelocateFolderPaths(folder, oldPath, dialog.SelectedPath);
+                folder.Path = dialog.SelectedPath;
+                // Path.GetFileName returns empty string for root paths (e.g. "C:\");
+                // fall back to the full path so the folder always has a visible name.
+                folder.Name = System.IO.Path.GetFileName(dialog.SelectedPath.TrimEnd(
+                    System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar))
+                    is { Length: > 0 } n ? n : dialog.SelectedPath;
+                _ctx.MarkDirty();
+                _ctx.RefreshFolderWatchers();
+            }
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnChangeFolderDirectory)); }
     }
 
     private void OnFolderTypesInfo(object? sender, RoutedEventArgs e)
@@ -1516,11 +1632,15 @@ public partial class MainView : UserControl
 
     private async void OnRecentCopyPath(object? sender, RoutedEventArgs e)
     {
-        var file = RecentGrid.SelectedItem as FileData;
-        if (file == null) return;
-        var topLevel = (TopLevel)ParentWindow;
-        if (topLevel?.Clipboard is { } clipboard)
-            await clipboard.SetTextAsync(file.Sökväg);
+        try
+        {
+            var file = RecentGrid.SelectedItem as FileData;
+            if (file == null) return;
+            var topLevel = (TopLevel)ParentWindow;
+            if (topLevel?.Clipboard is { } clipboard)
+                await clipboard.SetTextAsync(file.Sökväg);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRecentCopyPath)); }
     }
 
     /// <summary>
@@ -1592,18 +1712,26 @@ public partial class MainView : UserControl
 
     private async void OnViewLeft(object? sender, RoutedEventArgs e)
     {
-        if (!_pwr.DualFileMode) return;
-        var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
-        if (file != null)
-            await _ctx.RequestPreviewLeftAsync(file);
+        try
+        {
+            if (!_pwr.DualFileMode) return;
+            var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
+            if (file != null)
+                await _ctx.RequestPreviewLeftAsync(file);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnViewLeft)); }
     }
 
     private async void OnViewRight(object? sender, RoutedEventArgs e)
     {
-        if (!_pwr.DualFileMode) return;
-        var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
-        if (file != null)
-            await _ctx.RequestPreview2Async(file);
+        try
+        {
+            if (!_pwr.DualFileMode) return;
+            var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
+            if (file != null)
+                await _ctx.RequestPreview2Async(file);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnViewRight)); }
     }
 
     #endregion

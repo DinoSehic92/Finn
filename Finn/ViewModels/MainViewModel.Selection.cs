@@ -44,6 +44,15 @@ namespace Finn.ViewModels
                 f.Mode == SyncFolderMode.AttachedFiles
                 && string.Equals(f.Path, file.SyncFolder, StringComparison.OrdinalIgnoreCase));
 
+        /// <summary>
+        /// Returns true when <paramref name="file"/> has any appended children
+        /// that originate from a sync folder. Used to block moving a parent
+        /// file to another project when doing so would silently drag along
+        /// synced children, breaking the source folder's baseline.
+        /// </summary>
+        private bool HasSyncedChildren(FileData file) =>
+            CurrentProject.GetChildren(file).Any(c => c.IsFromFolder);
+
         private bool CanMoveToParent(FileData target, FileData file)
         {
             if (target.IsChild) return false;
@@ -259,6 +268,10 @@ namespace Finn.ViewModels
         public void ConvertToGroup(FileData file)
         {
             if (file == null || file.IsGroup || file.IsAppendedFile) return;
+            // Synced files cannot be converted to groups: the group header would
+            // have no file path while still carrying IsFromFolder/SyncFolder,
+            // which would corrupt the source folder's baseline tracking.
+            if (file.IsFromFolder) return;
 
             file.IsGroup = true;
             file.Sökväg = string.Empty;
@@ -301,11 +314,38 @@ namespace Finn.ViewModels
         {
             if (group == null || !group.IsGroup) return;
 
-            // Pass null so children keep their existing Filtyp
-            DetachChildren(group, detachedType: null);
+            var children = CurrentProject.GetChildren(group).ToList();
+
+            // Synced children (from an AttachedFiles folder) must not be released
+            // as free-standing top-level files — they belong to the folder's set
+            // and detaching them individually would orphan them.
+            // Remove them along with the group header instead.
+            var syncedChildren = children.Where(c => c.IsFromFolder).ToList();
+            var freeChildren  = children.Where(c => !c.IsFromFolder).ToList();
+
+            // Detach ordinary children — they become top-level files
+            foreach (var child in freeChildren)
+                DetachChild(child, detachedType: null);
+
+            // Remove synced children entirely; the source folder will re-import
+            // them on the next sync if they still exist on disk.
+            foreach (var child in syncedChildren)
+            {
+                child.PartOfCollections.Clear();
+                CurrentProject.StoredFiles.Remove(child);
+                PreviewVM.RecentFiles.Remove(child);
+            }
 
             CurrentProject.StoredFiles.Remove(group);
             PreviewVM.RecentFiles.Remove(group);
+
+            // Flag affected sync folders so the user sees them as pending re-sync.
+            var affectedFolders = syncedChildren
+                .Where(c => !string.IsNullOrEmpty(c.SyncFolder))
+                .Select(c => c.SyncFolder)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (affectedFolders.Count > 0)
+                FlagSyncFoldersAsPending(affectedFolders);
 
             RefreshHierarchyState(refreshCollections: true);
             MarkDirty();

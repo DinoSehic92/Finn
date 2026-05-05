@@ -17,7 +17,7 @@ public partial class xMessageDia : Window
 
     public void SetMessage(string message)
     {
-        MessageLabel.Content = message;
+        MessageLabel.Text = message;
     }
 
     private void OnClose(object sender, RoutedEventArgs e)
