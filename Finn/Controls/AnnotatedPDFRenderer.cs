@@ -117,7 +117,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private IPen? _cachedCrosshairPen;
     private Color _cachedCursorColor;
 
-    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize }
+    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange }
     private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> _redoStack = new();
 
@@ -874,6 +874,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (_activePolyline != null && _activePolyline.Points.Count >= 2 && ActiveLayer != null)
         {
+            // Area-measure polylines are always closed shapes.
+            if (_activePolyline.IsAreaMeasure && _activePolyline.Points.Count >= 3)
+                close = true;
             if (close && _activePolyline.Points.Count >= 3)
             {
                 // Just mark as closed — the geometry builder uses EndFigure(true) which
@@ -912,21 +915,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (!polyline.IsPolyline || polyline.Points.Count < 3) return;
         if (polyline.IsClosed)
         {
-            // Open: remove the duplicated closing point if last == first
+            // Open: remove any legacy duplicate closing point (last == first) that may
+            // have been stored before the no-duplicate-point policy was introduced.
             var first = polyline.Points[0];
             var last = polyline.Points[^1];
             if (Math.Abs(first.X - last.X) < 0.5 && Math.Abs(first.Y - last.Y) < 0.5
-                && polyline.Points.Count > 3)
+                && polyline.Points.Count > 2)
                 polyline.Points.RemoveAt(polyline.Points.Count - 1);
             polyline.IsClosed = false;
         }
         else
         {
-            // Close: add first point as last
-            var first = polyline.Points[0];
-            var last = polyline.Points[^1];
-            if (Math.Abs(first.X - last.X) > 0.5 || Math.Abs(first.Y - last.Y) > 0.5)
-                polyline.Points.Add(first);
+            // Close: just mark as closed. The geometry builder uses EndFigure(true) which draws
+            // the closing segment automatically. Adding the first point would create a duplicate
+            // node that appears when vertices are moved.
             polyline.IsClosed = true;
         }
         polyline.InvalidatePen();
@@ -1827,6 +1829,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _redoStack.Clear();
     }
 
+    /// <summary>
+    /// Pushes a single grouped undo entry covering property changes to multiple annotations.
+    /// Call with snapshots captured BEFORE the changes are applied.
+    /// </summary>
+    public void PushGroupPropertyUndo(List<object> snapshots)
+    {
+        if (snapshots.Count == 0) return;
+        _undoStack.Push((UndoType.GroupPropertyChange, _currentPage, snapshots, ActiveLayer));
+        _redoStack.Clear();
+    }
+
     /// <summary>Record for z-order undo: stores the item and its index before the move.</summary>
     private record ZOrderSnapshot(object Item, int OldIndex);
 
@@ -1926,11 +1939,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (ActiveLayer == null) return (rawDx, rawDy);
 
         var db = GetAnnotationBounds(dragging);
+        bool isDot = dragging is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
 
-        // Grid snap: snap the top-left corner of the moved item to the grid
+        // Grid snap: snap center for dots, top-left corner for everything else.
         if (SnapToGrid && GridSpacing > 0)
         {
             double g = GridSpacing;
+            if (isDot)
+            {
+                double cx = db.Left + db.Width / 2 + rawDx;
+                double cy = db.Top + db.Height / 2 + rawDy;
+                double snappedCx = Math.Round(cx / g) * g;
+                double snappedCy = Math.Round(cy / g) * g;
+                _snapGuideX = snappedCx;
+                _snapGuideY = snappedCy;
+                return (rawDx + (snappedCx - cx), rawDy + (snappedCy - cy));
+            }
             double newL = db.Left + rawDx;
             double newT = db.Top + rawDy;
             double snappedL = Math.Round(newL / g) * g;
@@ -1942,8 +1966,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
             return (dx, dy);
         }
 
-        double dL = db.Left + rawDx, dR = db.Right + rawDx, dCx = (db.Left + db.Right) / 2 + rawDx;
-        double dT = db.Top + rawDy, dB = db.Bottom + rawDy, dCy = (db.Top + db.Bottom) / 2 + rawDy;
+        // For dots, only snap on the center point (not corners).
+        double dL, dR, dCx, dT, dB, dCy;
+        if (isDot)
+        {
+            dCx = (db.Left + db.Right) / 2 + rawDx;
+            dCy = (db.Top + db.Bottom) / 2 + rawDy;
+            dL = dCx; dR = dCx; dT = dCy; dB = dCy;
+        }
+        else
+        {
+            dL = db.Left + rawDx; dR = db.Right + rawDx; dCx = (db.Left + db.Right) / 2 + rawDx;
+            dT = db.Top + rawDy; dB = db.Bottom + rawDy; dCy = (db.Top + db.Bottom) / 2 + rawDy;
+        }
 
         double bestDx = rawDx, bestDy = rawDy;
         double bestSnapDistX = threshold, bestSnapDistY = threshold;
@@ -2093,29 +2128,49 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double rawDx, double rawDy, ref double bestDx, ref double bestDy,
         ref double bestSnapDistX, ref double bestSnapDistY)
     {
+        // For polylines, snap to every individual vertex rather than the bounding box.
+        if (target is InkStroke { IsPolyline: true } poly && poly.Points.Count > 0)
+        {
+            Span<double> dxVals = [dL, dCx, dR];
+            Span<double> dyVals = [dT, dCy, dB];
+            foreach (var pt in poly.Points)
+            {
+                for (int di = 0; di < 3; di++)
+                {
+                    double distX = Math.Abs(dxVals[di] - pt.X);
+                    if (distX < bestSnapDistX)
+                    { bestSnapDistX = distX; bestDx = rawDx + (pt.X - dxVals[di]); _snapGuideX = pt.X; }
+                    double distY = Math.Abs(dyVals[di] - pt.Y);
+                    if (distY < bestSnapDistY)
+                    { bestSnapDistY = distY; bestDy = rawDy + (pt.Y - dyVals[di]); _snapGuideY = pt.Y; }
+                }
+            }
+            return;
+        }
+
         var tb = GetAnnotationBounds(target);
         var tc = GetAnnotationCenter(target);
         double tL = tb.Left, tR = tb.Right, tCx = tc.X;
         double tT = tb.Top, tB = tb.Bottom, tCy = tc.Y;
 
         // Inline 3×3 iteration to avoid allocating new[] arrays each call
-        Span<double> dxVals = [dL, dCx, dR];
+        Span<double> dxVs = [dL, dCx, dR];
         Span<double> txVals = [tL, tCx, tR];
         for (int di = 0; di < 3; di++)
             for (int ti = 0; ti < 3; ti++)
             {
-                double dist = Math.Abs(dxVals[di] - txVals[ti]);
+                double dist = Math.Abs(dxVs[di] - txVals[ti]);
                 if (dist < bestSnapDistX)
-                { bestSnapDistX = dist; bestDx = rawDx + (txVals[ti] - dxVals[di]); _snapGuideX = txVals[ti]; }
+                { bestSnapDistX = dist; bestDx = rawDx + (txVals[ti] - dxVs[di]); _snapGuideX = txVals[ti]; }
             }
-        Span<double> dyVals = [dT, dCy, dB];
+        Span<double> dyVs = [dT, dCy, dB];
         Span<double> tyVals = [tT, tCy, tB];
         for (int di = 0; di < 3; di++)
             for (int ti = 0; ti < 3; ti++)
             {
-                double dist = Math.Abs(dyVals[di] - tyVals[ti]);
+                double dist = Math.Abs(dyVs[di] - tyVals[ti]);
                 if (dist < bestSnapDistY)
-                { bestSnapDistY = dist; bestDy = rawDy + (tyVals[ti] - dyVals[di]); _snapGuideY = tyVals[ti]; }
+                { bestSnapDistY = dist; bestDy = rawDy + (tyVals[ti] - dyVs[di]); _snapGuideY = tyVals[ti]; }
             }
     }
 
@@ -2186,6 +2241,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 t.FontSize = Math.Max(4, t.FontSize * Math.Max(sx, sy));
                 if (t.MaxWidth > 0)
                     t.MaxWidth = Math.Max(20, t.MaxWidth * sx);
+                break;
+            case ShapeAnnotation s when s.ShapeType == InlineAnnotationTool.Dot:
+                // Dots are fixed-size point objects — translate the center but don't scale.
+                s.Start = Scale(s.Start, anchor, sx, sy);
+                s.End = s.Start;
+                s.InvalidatePen();
                 break;
             case ShapeAnnotation s:
                 s.Start = Scale(s.Start, anchor, sx, sy);
@@ -2804,6 +2865,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     removed = true;
                 }
                 break;
+            case UndoType.GroupPropertyChange:
+                if (data is List<object> groupSnaps)
+                {
+                    var redoSnaps = new List<object>(groupSnaps.Count);
+                    foreach (var sn in groupSnaps)
+                    {
+                        if (sn is PropertySnapshot ps)
+                        {
+                            var redo = CapturePropertySnapshot(ps.Item);
+                            if (redo != null) redoSnaps.Add(redo);
+                            RestorePropertySnapshot(ps);
+                        }
+                    }
+                    item = redoSnaps;
+                    removed = true;
+                }
+                break;
         }
 
         if (removed)
@@ -3030,6 +3108,26 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     foreach (var s in redoStates)
                         RestoreGroupResizeSnapshot(s);
                     _undoStack.Push((UndoType.GroupResize, page, undoStates, entryLayer));
+                    layer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.GroupPropertyChange:
+                if (item is List<object> redoGroupSnaps)
+                {
+                    var undoGroupSnaps = new List<object>(redoGroupSnaps.Count);
+                    foreach (var sn in redoGroupSnaps)
+                    {
+                        if (sn is PropertySnapshot ps)
+                        {
+                            var undoSnap = CapturePropertySnapshot(ps.Item);
+                            if (undoSnap != null) undoGroupSnaps.Add(undoSnap);
+                            RestorePropertySnapshot(ps);
+                        }
+                    }
+                    _undoStack.Push((UndoType.GroupPropertyChange, page, undoGroupSnaps, entryLayer));
                     layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -3620,6 +3718,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     case ShapeAnnotation shape:
                     {
+                        // Dots are point objects — show only a selection ring, no bounding box.
+                        if (shape.ShapeType == InlineAnnotationTool.Dot)
+                        {
+                            var sc = PdfToScreen(shape.Start, ox, oy, scaleX, scaleY);
+                            double dotR = shape.StrokeWidth * penScale + padSize;
+                            context.DrawEllipse(null, selectPen, sc, dotR, dotR);
+                            break;
+                        }
                         var s = PdfToScreen(shape.Start, ox, oy, scaleX, scaleY);
                         var e = PdfToScreen(shape.End, ox, oy, scaleX, scaleY);
                         bounds = new Rect(
@@ -3673,7 +3779,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             var arrowScreen = PdfToScreen(ao, ox, oy, scaleX, scaleY);
                             context.DrawEllipse(s_vertexBrush, vertexPen, arrowScreen, vtxSize, vtxSize);
                         }
-                        if (highlightItem is ShapeAnnotation selShape)
+                        if (highlightItem is ShapeAnnotation selShape
+                            && selShape.ShapeType != InlineAnnotationTool.Dot)
                         {
                             var ss = PdfToScreen(selShape.Start, ox, oy, scaleX, scaleY);
                             var se = PdfToScreen(selShape.End, ox, oy, scaleX, scaleY);
@@ -4067,8 +4174,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case InlineAnnotationTool.Dot:
             {
                 // Dot radius is based on StrokeWidth (diameter = StrokeWidth * 2 screen units)
+                // Dots are always rendered as solid filled circles — no outline/dash pen.
                 double r = shape.StrokeWidth * penScale;
-                context.DrawEllipse(shape.GetOrCreateDotBrush(), pen, screenStart, r, r);
+                context.DrawEllipse(shape.GetOrCreateDotBrush(), null, screenStart, r, r);
                 break;
             }
         }
@@ -4102,7 +4210,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             ctx.EndFigure(true);
         }
 
-        context.DrawGeometry(pen.Brush, pen, arrowGeometry);
+        // Always draw the arrowhead with a solid pen regardless of the line body's dash pattern.
+        var solidPen = new Pen(pen.Brush, pen.Thickness, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
+        context.DrawGeometry(pen.Brush, solidPen, arrowGeometry);
     }
 
     /// <summary>Draws a small filled circle at the tail (origin) of an arrow.</summary>

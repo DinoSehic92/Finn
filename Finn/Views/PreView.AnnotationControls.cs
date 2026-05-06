@@ -37,9 +37,11 @@ public partial class PreView
     private void ApplyColorToSelection(Color color)
     {
         if (_selectedAnnotations.Count == 0) return;
+        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
             var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            if (snap != null) snaps.Add(snap);
             switch (selItem)
             {
                 case InkStroke s: s.Color = color; s.InvalidatePen(); break;
@@ -47,8 +49,8 @@ public partial class PreView
                 case TextAnnotation t: t.Color = color; break;
                 case MeasurementAnnotation m: m.Color = color; break;
             }
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
         }
+        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
     }
@@ -72,21 +74,23 @@ public partial class PreView
             _normalStrokeWidth = w;
 
             // Apply to currently selected annotations
+            var snaps = new List<object>();
             foreach (var selItem in _selectedAnnotations)
             {
                 if (selItem is InkStroke ink)
                 {
                     var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    if (snap != null) snaps.Add(snap);
                     ink.Width = w; ink.InvalidatePen();
-                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
                 }
                 else if (selItem is ShapeAnnotation sh)
                 {
                     var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    if (snap != null) snaps.Add(snap);
                     sh.StrokeWidth = w; sh.InvalidatePen();
-                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
                 }
             }
+            if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
             if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
 
             SetActiveWidthButton(btn);
@@ -102,21 +106,24 @@ public partial class PreView
             MuPDFRenderer.StrokeDashPattern = pattern;
 
             // Apply to currently selected annotations
+            // Apply to currently selected annotations
+            var snaps = new List<object>();
             foreach (var selItem in _selectedAnnotations)
             {
                 if (selItem is InkStroke ink)
                 {
                     var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    if (snap != null) snaps.Add(snap);
                     ink.DashPattern = pattern; ink.InvalidatePen();
-                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
                 }
                 else if (selItem is ShapeAnnotation sh)
                 {
                     var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    if (snap != null) snaps.Add(snap);
                     sh.DashPattern = pattern; sh.InvalidatePen();
-                    if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
                 }
             }
+            if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
             if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
 
             SetActiveDashButton(btn);
@@ -853,6 +860,8 @@ public partial class PreView
         Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, MuPDFRenderer.Bounds.Height - 100));
 
         bool hasStroke = item is InkStroke or ShapeAnnotation;
+        bool isDot = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
+        bool hasDash = hasStroke && !isDot;
         bool hasFill = (item is ShapeAnnotation sf
             && sf.ShapeType is InlineAnnotationTool.Rectangle
                             or InlineAnnotationTool.Ellipse
@@ -864,8 +873,12 @@ public partial class PreView
         bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, Points.Count: >= 3 };
 
         PropertyStrokeRow.IsVisible = hasStroke;
+        var dashRow = this.FindControl<StackPanel>("PropertyDashRow");
+        if (dashRow != null) dashRow.IsVisible = hasDash;
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
+        var opacityRow = this.FindControl<StackPanel>("PropertyOpacityRow");
+        if (opacityRow != null) opacityRow.IsVisible = item is not TextAnnotation;
         var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
         if (closePolyBtn != null) closePolyBtn.IsVisible = isPolyline;
 
@@ -942,16 +955,18 @@ public partial class PreView
     {
         if (_propertyPanelTarget == null) return;
         if (sender is not Button btn || btn.Tag is not string widthStr || !double.TryParse(widthStr, out double w)) return;
+        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
             var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            if (snap != null) snaps.Add(snap);
             switch (selItem)
             {
                 case InkStroke ink: ink.Width = w; ink.InvalidatePen(); break;
                 case ShapeAnnotation sh: sh.StrokeWidth = w; sh.InvalidatePen(); break;
             }
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
         }
+        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.StrokeWidth = w;
         _normalStrokeWidth = w;
         SetActiveWidthButton(FindToolbarButtonByTag(widthStr));
@@ -964,16 +979,18 @@ public partial class PreView
         if (_propertyPanelTarget == null) return;
         if (sender is not Button btn || btn.Tag is not string patternName
             || !Enum.TryParse<LineDashPattern>(patternName, out var pattern)) return;
+        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
             var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            if (snap != null) snaps.Add(snap);
             switch (selItem)
             {
                 case InkStroke ink: ink.DashPattern = pattern; ink.InvalidatePen(); break;
                 case ShapeAnnotation sh: sh.DashPattern = pattern; sh.InvalidatePen(); break;
             }
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
         }
+        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.StrokeDashPattern = pattern;
         SetActiveDashButton(FindToolbarButtonByTag(patternName));
         MuPDFRenderer.InvalidateVisual();
@@ -1031,17 +1048,19 @@ public partial class PreView
     {
         if (_propertyPanelTarget == null || PropertyOpacitySlider == null) return;
         double val = PropertyOpacitySlider.Value;
+        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
             var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+            if (snap != null) snaps.Add(snap);
             switch (selItem)
             {
                 case InkStroke s: s.Opacity = val; s.InvalidatePen(); break;
                 case ShapeAnnotation sh: sh.Opacity = val; sh.InvalidatePen(); break;
                 case TextAnnotation t: t.Opacity = val; break;
             }
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
         }
+        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.StrokeOpacity = val;
         if (OpacitySlider != null) OpacitySlider.Value = val;
         MuPDFRenderer.InvalidateVisual();

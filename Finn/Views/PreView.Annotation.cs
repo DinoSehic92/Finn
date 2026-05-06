@@ -227,7 +227,7 @@ public partial class PreView
         double radiusSq = radius * radius;
         switch (item)
         {
-            case ShapeAnnotation shape:
+            case ShapeAnnotation shape when shape.ShapeType != InlineAnnotationTool.Dot:
             {
                 double distS = DistanceSq(pdfPoint, shape.Start);
                 double distE = DistanceSq(pdfPoint, shape.End);

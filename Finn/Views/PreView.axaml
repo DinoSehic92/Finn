@@ -628,19 +628,21 @@
 							<Button Classes="ghost" ToolTip.Tip="Thick" Width="20" Height="20" Padding="0" Tag="4" Click="OnPropertyWidth" BorderThickness="0">
 									<Ellipse Width="9" Height="9" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
-								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-							<Button Classes="ghost" ToolTip.Tip="Solid" Width="24" Height="20" Padding="0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-									<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
-								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Dashed" Width="24" Height="20" Padding="0" Tag="Dashed" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-									<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,3" VerticalAlignment="Center"/>
-								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Dotted" Width="24" Height="20" Padding="0" Tag="Dotted" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-									<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="1,2" VerticalAlignment="Center"/>
-								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Dash-Dot" Width="24" Height="20" Padding="0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-									<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
-								</Button>
+									<StackPanel Name="PropertyDashRow" Orientation="Horizontal" Spacing="1">
+									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
+								<Button Classes="ghost" ToolTip.Tip="Solid" Width="24" Height="20" Padding="0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+										</Button>
+								<Button Classes="ghost" ToolTip.Tip="Dashed" Width="24" Height="20" Padding="0" Tag="Dashed" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,3" VerticalAlignment="Center"/>
+										</Button>
+								<Button Classes="ghost" ToolTip.Tip="Dotted" Width="24" Height="20" Padding="0" Tag="Dotted" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="1,2" VerticalAlignment="Center"/>
+										</Button>
+								<Button Classes="ghost" ToolTip.Tip="Dash-Dot" Width="24" Height="20" Padding="0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
+										</Button>
+									</StackPanel>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 							<Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle Fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">
 									<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>
@@ -660,7 +662,7 @@
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="4"/>
 								</Button>
 								</StackPanel>
-								<StackPanel Orientation="Horizontal" Spacing="4">
+								<StackPanel Name="PropertyOpacityRow" Orientation="Horizontal" Spacing="4">
 									<TextBlock Text="Opacity" FontSize="9" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
 									<Slider Name="PropertyOpacitySlider" Minimum="0.1" Maximum="1" Value="1" Width="80"
 										VerticalAlignment="Top" Padding="0" Height="35" Margin="0,-10,0,0"/>
