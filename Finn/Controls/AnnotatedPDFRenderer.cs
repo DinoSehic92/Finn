@@ -817,7 +817,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // ── Polyline (multi-click straight-line segments) ─────────────────
 
-    public void BeginPolyline(Point pdfPoint)
+    public void BeginPolyline(Point pdfPoint, bool asAreaMeasure = false)
     {
         if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
@@ -829,7 +829,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Opacity = StrokeOpacity,
             IsPolyline = true,
             DashPattern = StrokeDashPattern,
-            CornerRadius = ShapeCornerRadius
+            CornerRadius = ShapeCornerRadius,
+            IsAreaMeasure = asAreaMeasure,
+            AreaScale = MeasurementScale
         };
         _activePolyline.Points.Add(pdfPoint);
         _polylinePreviewEnd = pdfPoint;
@@ -3232,7 +3234,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
             if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
             {
                 foreach (var stroke in strokes)
+                {
                     RenderStroke(context, stroke, da, boundsSize, scaleX, scaleY, penScale);
+                    if (stroke.IsAreaMeasure && stroke.IsClosed && stroke.Points.Count >= 3)
+                        CollectAreaLabel(stroke, da, boundsSize, penScale, textItems);
+                }
             }
             if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
             {
@@ -3290,6 +3296,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
                 context.DrawLine(_cachedPreviewPen, lastPt, previewPt);
             }
+            // Live area label while drawing
+            if (_activePolyline.IsAreaMeasure && _activePolyline.Points.Count >= 3)
+                CollectAreaLabel(_activePolyline, da, boundsSize, penScale, textItems);
         }
 
         // Draw the active shape being dragged (dashed preview)
@@ -4350,6 +4359,59 @@ public class AnnotatedPDFRenderer : PDFRenderer
             HasBackground: true, HasBorder: false, IsTextAnnotation: false));
     }
 
+    /// <summary>Computes the signed area (PDF-space pt²) of a polygon using the shoelace formula.</summary>
+    private static double ComputePolygonAreaPt2(List<Point> pts)
+    {
+        int n = pts.Count;
+        if (n < 3) return 0;
+        double area = 0;
+        for (int i = 0; i < n; i++)
+        {
+            var a = pts[i];
+            var b = pts[(i + 1) % n];
+            area += a.X * b.Y - b.X * a.Y;
+        }
+        return Math.Abs(area) * 0.5;
+    }
+
+    /// <summary>Renders an area label at the centroid of a closed area-measure polyline.</summary>
+    private void CollectAreaLabel(InkStroke stroke, Rect da, Size boundsSize,
+                                  double penScale, List<TextOverlayDrawOp.TextItem> items)
+    {
+        var pts = stroke.Points;
+        if (pts.Count < 3) return;
+
+        // Centroid
+        double cx = 0, cy = 0;
+        foreach (var p in pts) { cx += p.X; cy += p.Y; }
+        cx /= pts.Count; cy /= pts.Count;
+        var screenPos = PdfToScreen(new Point(cx, cy), da, boundsSize);
+
+        // Area in PDF pt² → mm² via scale²
+        double areaPt2 = ComputePolygonAreaPt2(pts);
+        double scaleMmPerPt = stroke.AreaScale;   // mm/pt
+        double areaMm2 = areaPt2 * scaleMmPerPt * scaleMmPerPt;
+        string label = FormatArea(areaMm2);
+
+        float fontSize = (float)(10 * penScale);
+        var color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B);
+        items.Add(new TextOverlayDrawOp.TextItem(
+            (float)screenPos.X, (float)screenPos.Y, label, fontSize, color,
+            HasBackground: true, HasBorder: false, IsTextAnnotation: false));
+    }
+
+    private static string FormatArea(double mm2)
+    {
+        if (mm2 >= 1_000_000)
+            return $"{mm2 / 1_000_000:F2} m²";
+        if (mm2 >= 10_000)
+            return $"{mm2 / 10_000:F2} dm²";
+        if (mm2 >= 100)
+            return $"{mm2 / 100:F2} cm²";
+        return $"{mm2:F1} mm²";
+    }
+
+
     /// <summary>Collect a hover popup for a non-sticky text annotation (shown on hover like sticky notes).</summary>
     private void CollectTextHoverPopup(TextAnnotation t, Rect da, Size boundsSize,
                                        double penScale, List<TextOverlayDrawOp.TextItem> items)
@@ -4822,6 +4884,10 @@ public class InkStroke
     public bool IsPolyline { get; set; }
     /// <summary>When true, the polyline forms a closed shape (last point connects back to first).</summary>
     public bool IsClosed { get; set; }
+    /// <summary>When true, this closed polyline is an area-measurement annotation and shows an area label.</summary>
+    public bool IsAreaMeasure { get; set; }
+    /// <summary>Measurement scale (mm/pt) captured at the time the area was drawn, matching the distance-measure scale.</summary>
+    public double AreaScale { get; set; } = 25.4 / 72.0;
     /// <summary>Dash pattern applied to the stroke.</summary>
     public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
     /// <summary>

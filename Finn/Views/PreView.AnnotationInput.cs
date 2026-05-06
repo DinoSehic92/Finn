@@ -449,6 +449,22 @@ public partial class PreView
                 break;
             }
 
+            case InlineAnnotationTool.MeasureArea:
+            {
+                bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+                if (MuPDFRenderer.HasActivePolyline)
+                {
+                    if (e.ClickCount >= 2)
+                        MuPDFRenderer.EndPolyline(close: true);  // double-click closes and commits
+                    else
+                        MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
+                }
+                else
+                    MuPDFRenderer.BeginPolyline(pdfPoint.Value, asAreaMeasure: true);
+                e.Pointer.Capture(null);
+                break;
+            }
+
             case InlineAnnotationTool.Dot:
                 MuPDFRenderer.PlaceDot(pdfPoint.Value);
                 e.Pointer.Capture(null);

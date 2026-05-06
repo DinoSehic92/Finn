@@ -22,6 +22,7 @@ public enum InlineAnnotationTool
     ArrowText,
     StickyNote,
     MeasureDistance,
+    MeasureArea,
     RevisionCloud,
     Eraser,
     Dot

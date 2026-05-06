@@ -741,6 +741,7 @@ public partial class PreView
                 Key.D0 => InlineAnnotationTool.Eraser,
                 Key.V => InlineAnnotationTool.Select,
                 Key.P => InlineAnnotationTool.Polyline,
+                Key.A => InlineAnnotationTool.MeasureArea,
                 Key.D => InlineAnnotationTool.Dot,
                 _ => null
             };

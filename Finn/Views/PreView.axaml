@@ -252,6 +252,9 @@
 								<Button ToolTip.Tip="Measure (9)" Width="26" Height="26" Padding="0" Tag="MeasureDistance" Click="OnAnnotateToolSelect" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
 								</Button>
+								<Button ToolTip.Tip="Area Measure (A)" Width="26" Height="26" Padding="0" Tag="MeasureArea" Click="OnAnnotateToolSelect" BorderThickness="0">
+									<ic:SymbolIcon Symbol="SelectObject" IconVariant="Regular" FontSize="14"/>
+								</Button>
 								<Button ToolTip.Tip="Eraser (0)" Width="26" Height="26" Padding="0" Tag="Eraser" Click="OnAnnotateToolSelect" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Eraser" IconVariant="Regular" FontSize="14"/>
 								</Button>
