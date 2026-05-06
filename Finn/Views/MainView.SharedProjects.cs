@@ -102,6 +102,7 @@ public partial class MainView
                         "RemoveGroupMenuItem"        => isAnyGroup,
                         "EditProjectMenuItem"        => showProjectActions,
                         "ExportProjectMenuItem"      => showProjectActions,
+                        "TreeColorMenuItem"          => showProjectActions || isAnyGroup,
                         "ShareMenuItem"              => showShareActions || isSuperuser && !isProjectNode && !isAnyGroup,
                         "RemoveProjectMenuItem"      => showProjectActions,
                         _                            => true
@@ -323,4 +324,29 @@ public partial class MainView
     }
 
     #endregion
+
+    private void OnTreeEditColor(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (sender is not MenuItem { Tag: string colorName }) return;
+
+        string nodeTag = _lastRightClickedNode?.Tag ?? string.Empty;
+
+        if (nodeTag == "All Types" && _contextMenuProject != null)
+        {
+            _contextMenuProject.ColorTag = colorName;
+            _ctx.MarkDirty();
+            _ctx.UpdateTreeview();
+        }
+        else if (nodeTag is "Group" or "Subgroup")
+        {
+            string? groupName = _lastRightClickedNode?.GroupName;
+            var group = _ctx.Storage.ProjectGroups.FirstOrDefault(g => g.Name == groupName);
+            if (group != null)
+            {
+                group.ColorTag = colorName;
+                _ctx.MarkDirty();
+                _ctx.UpdateTreeview();
+            }
+        }
+    }
 }

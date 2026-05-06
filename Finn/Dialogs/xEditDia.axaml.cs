@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using Finn.Model;
 using Finn.ViewModels;
 using Finn.Views;
@@ -152,11 +151,6 @@ public partial class xEditDia : Window
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e) => this.Close();
-
-    private void ResetColor(object sender, RoutedEventArgs e)
-    {
-        ColorPickerForeground.Color = Color.Parse("#FFFFFFFF");
-    }
 
     private void CloseKey(object sender, KeyEventArgs e)
     {

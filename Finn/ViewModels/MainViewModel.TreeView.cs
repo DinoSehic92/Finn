@@ -8,7 +8,6 @@ namespace Finn.ViewModels
     // Partial class extension for tree view data building
     public partial class MainViewModel
     {
-        private static readonly Color DefaultForeground = Color.Parse("#FFFFFFFF");
         private static readonly string[] CategoryTypes = ["Archive", "Library", "Project"];
 
         private List<TreeNodeData> _treeNodes = [];
@@ -148,6 +147,7 @@ namespace Finn.ViewModels
                     FontWeight = FontWeight.SemiBold,
                     IsExpanded = true,
                     NodeOpacity = 0.88,
+                    ColorTag = !string.IsNullOrEmpty(sub.ColorTag) ? sub.ColorTag : null,
                     BadgeText = subChildren.Count > 0 ? subChildren.Count.ToString() : null,
                     Children = subChildren
                 });
@@ -163,6 +163,7 @@ namespace Finn.ViewModels
                 FontWeight = FontWeight.SemiBold,
                 IsExpanded = true,
                 NodeOpacity = 0.92,
+                ColorTag = !string.IsNullOrEmpty(group.ColorTag) ? group.ColorTag : null,
                 BadgeText = groupChildren.Count(c => c.Tag == "All Types") > 0 
                                 ? groupChildren.Count(c => c.Tag == "All Types").ToString() 
                                 : null,
@@ -254,7 +255,7 @@ namespace Finn.ViewModels
         {
             TreeNodeData? matched = null;
             var children = new List<TreeNodeData>();
-            Color? foreground = project.Foreground != DefaultForeground ? project.Foreground : null;
+            string? colorTag = !string.IsNullOrEmpty(project.ColorTag) ? project.ColorTag : null;
             bool isCurrent = project == CurrentProject;
             var topLevel = project.StoredFiles.Where(f => !f.IsAppendedFile);
 
@@ -270,7 +271,6 @@ namespace Finn.ViewModels
                     IconSymbol = GetFiletypeIcon(filetype),
                     FontSize = 13,
                     FontWeight = FontWeight.Light,
-                    Foreground = foreground,
                     NodeOpacity = 0.75
                 };
 
@@ -297,7 +297,7 @@ namespace Finn.ViewModels
                 ViewerTooltip = project.IsViewer ? "Read-only viewer" : null,
                 FontSize = 14,
                 IsExpanded = isCurrent,
-                Foreground = foreground,
+                ColorTag = colorTag,
                 Children = children
             };
 

@@ -1,7 +1,9 @@
 using Avalonia;
 using Avalonia.Media;
+using Finn.Converters;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 namespace Finn.ViewModels
@@ -68,7 +70,8 @@ namespace Finn.ViewModels
         public double FontSize { get; init; } = 14;
         public FontWeight FontWeight { get; init; } = FontWeight.Normal;
         public FontStyle FontStyle { get; init; } = FontStyle.Normal;
-        public Color? Foreground { get; init; }
+        /// <summary>Color tag name (e.g. "Blue", "Green") matching the file tag palette. Null or empty = no color.</summary>
+        public string? ColorTag { get; init; }
 
         /// <summary>Extra top margin; used to visually separate category-level nodes.</summary>
         public Thickness NodeMargin { get; init; } = new Thickness(0);
@@ -79,14 +82,11 @@ namespace Finn.ViewModels
         /// <summary>Opacity override for the node's content row (used to de-emphasise filetype children).</summary>
         public double NodeOpacity { get; init; } = 1.0;
 
-        // Returns null when no custom colour is set so the TextBlock.TreeNodeHeader
-        // style (which sets AppForegroundBrush via DynamicResource) takes effect.
-        // When the user sets a project colour, returns a solid brush for that colour.
-        // Note: the XAML binding uses TargetNullValue bound to nothing — the style
-        // default is relied upon for the null case.
-        public IBrush? ForegroundBrush => Foreground.HasValue ? new SolidColorBrush(Foreground.Value) : null;
+        public IBrush? ForegroundBrush => !string.IsNullOrEmpty(ColorTag)
+            ? ColorNameToBrushConverter.Instance.Convert(ColorTag, typeof(IBrush), null, CultureInfo.InvariantCulture) as IBrush
+            : null;
 
-        public bool HasCustomForeground => Foreground.HasValue;
+        public bool HasCustomForeground => !string.IsNullOrEmpty(ColorTag);
         public List<TreeNodeData> Children { get; init; } = [];
 
         public event PropertyChangedEventHandler? PropertyChanged;

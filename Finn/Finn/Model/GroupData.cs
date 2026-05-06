@@ -22,5 +22,8 @@ namespace Finn.Model
 
         /// <summary>Controls display order within the same level.</summary>
         public int SortOrder { get; set; }
+
+        /// <summary>Color tag name (e.g. "Blue", "Green") matching the file/project tag palette. Empty = no color.</summary>
+        public string ColorTag { get; set; } = string.Empty;
     }
 }

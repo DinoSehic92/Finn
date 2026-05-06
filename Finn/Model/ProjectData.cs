@@ -1,5 +1,4 @@
-﻿using Avalonia.Media;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using Finn.Utils;
 using System;
 using System.Collections.Generic;
@@ -120,14 +119,15 @@ namespace Finn.Model
             set { parent = value; RaisePropertyChanged(nameof(Parent)); }
         }
 
-        private Color foreground = Color.Parse("#FFFFFFFF");
+        private string colorTag = string.Empty;
         /// <summary>
-        /// Gets or sets the foreground color for the project.
+        /// Gets or sets the color tag name for the project (e.g. "Blue", "Green").
+        /// Empty string means no color is set. Matches the file tag color palette.
         /// </summary>
-        public Color Foreground
+        public string ColorTag
         {
-            get => foreground;
-            set { foreground = value; RaisePropertyChanged(nameof(Foreground)); }
+            get => colorTag;
+            set { colorTag = value ?? string.Empty; RaisePropertyChanged(nameof(ColorTag)); }
         }
 
         private string reviewFolder = string.Empty;
