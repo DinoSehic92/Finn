@@ -49,7 +49,7 @@ public class ShapeAnnotation
     public Point Start { get; set; }
     public Point End { get; set; }
     public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
-    public double StrokeWidth { get; set; } = 3;
+    public double StrokeWidth { get; set; } = 2;
     public double Opacity { get; set; } = 1.0;
     /// <summary>When true, the shape is rendered with a translucent fill in addition to the stroke.</summary>
     public bool IsFilled { get; set; }
@@ -114,7 +114,7 @@ public class ShapeAnnotation
     internal IBrush GetOrCreateFillBrush()
     {
         _cachedFillBrush ??= new SolidColorBrush(
-            Color.FromArgb(80, Color.R, Color.G, Color.B)).ToImmutable();
+            Color.FromArgb(45, Color.R, Color.G, Color.B)).ToImmutable();
         return _cachedFillBrush;
     }
 

@@ -439,7 +439,12 @@ public partial class PreView
                 if (MuPDFRenderer.HasActivePolyline)
                 {
                     if (e.ClickCount >= 2)
-                        MuPDFRenderer.EndPolyline();  // double-click finishes
+                    {
+                        // The first click of the double-click already added a point via ClickCount==1;
+                        // remove it so we don't get a duplicate node at the end.
+                        MuPDFRenderer.RemoveLastPolylinePoint();
+                        MuPDFRenderer.EndPolyline();
+                    }
                     else
                         MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
                 }
@@ -455,7 +460,10 @@ public partial class PreView
                 if (MuPDFRenderer.HasActivePolyline)
                 {
                     if (e.ClickCount >= 2)
-                        MuPDFRenderer.EndPolyline(close: true);  // double-click closes and commits
+                    {
+                        MuPDFRenderer.RemoveLastPolylinePoint();
+                        MuPDFRenderer.EndPolyline(close: true);
+                    }
                     else
                         MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
                 }

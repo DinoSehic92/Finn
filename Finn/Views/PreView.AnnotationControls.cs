@@ -464,6 +464,14 @@ public partial class PreView
             MuPDFRenderer.InvalidateVisual();
             MuPDFRenderer.NotifyAnnotationChanged();
         }
+        // Apply to selected closed polyline
+        else if (_selectedAnnotation is InkStroke { IsPolyline: true, IsClosed: true } poly)
+        {
+            poly.IsFilled = MuPDFRenderer.IsFilledMode;
+            poly.InvalidatePen();
+            MuPDFRenderer.InvalidateVisual();
+            MuPDFRenderer.NotifyAnnotationChanged();
+        }
 
         SyncFillToggleButton(MuPDFRenderer.IsFilledMode);
     }
@@ -845,10 +853,11 @@ public partial class PreView
         Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, MuPDFRenderer.Bounds.Height - 100));
 
         bool hasStroke = item is InkStroke or ShapeAnnotation;
-        bool hasFill = item is ShapeAnnotation sf
+        bool hasFill = (item is ShapeAnnotation sf
             && sf.ShapeType is InlineAnnotationTool.Rectangle
                             or InlineAnnotationTool.Ellipse
-                            or InlineAnnotationTool.RevisionCloud;
+                            or InlineAnnotationTool.RevisionCloud)
+            || item is InkStroke { IsPolyline: true, IsClosed: true };
         bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
             || item is InkStroke { IsPolyline: true };
         bool isText = item is TextAnnotation;
@@ -868,9 +877,11 @@ public partial class PreView
 
         if (hasFill)
         {
-            var sh = (ShapeAnnotation)item;
-            PropertyFillBtn.BorderThickness = sh.IsFilled ? new Thickness(2) : new Thickness(0);
-            PropertyFillBtn.BorderBrush = sh.IsFilled ? Brushes.White : null;
+            bool isFilled = item is ShapeAnnotation sha ? sha.IsFilled
+                           : item is InkStroke ink ? ink.IsFilled
+                           : false;
+            PropertyFillBtn.BorderThickness = isFilled ? new Thickness(2) : new Thickness(0);
+            PropertyFillBtn.BorderBrush = isFilled ? Brushes.White : null;
         }
 
         double opacity = item switch
@@ -971,15 +982,27 @@ public partial class PreView
 
     private void OnPropertyFill(object sender, RoutedEventArgs e)
     {
-        if (_propertyPanelTarget is not ShapeAnnotation sh) return;
-        var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
-        sh.IsFilled = !sh.IsFilled;
-        sh.InvalidatePen();
-        if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
-        PropertyFillBtn.BorderThickness = sh.IsFilled ? new Thickness(2) : new Thickness(0);
-        PropertyFillBtn.BorderBrush = sh.IsFilled ? Brushes.White : null;
-        MuPDFRenderer.IsFilledMode = sh.IsFilled;
-        SyncFillToggleButton(sh.IsFilled);
+        bool isFilled;
+        if (_propertyPanelTarget is ShapeAnnotation sh)
+        {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+            sh.IsFilled = !sh.IsFilled;
+            sh.InvalidatePen();
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+            isFilled = sh.IsFilled;
+            MuPDFRenderer.IsFilledMode = isFilled;
+            SyncFillToggleButton(isFilled);
+        }
+        else if (_propertyPanelTarget is InkStroke { IsPolyline: true, IsClosed: true } poly)
+        {
+            poly.IsFilled = !poly.IsFilled;
+            poly.InvalidatePen();
+            isFilled = poly.IsFilled;
+        }
+        else return;
+
+        PropertyFillBtn.BorderThickness = isFilled ? new Thickness(2) : new Thickness(0);
+        PropertyFillBtn.BorderBrush = isFilled ? Brushes.White : null;
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
     }

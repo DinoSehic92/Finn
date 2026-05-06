@@ -828,9 +828,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsPolyline = true,
-            DashPattern = StrokeDashPattern,
+            DashPattern = asAreaMeasure ? LineDashPattern.Dashed : StrokeDashPattern,
             CornerRadius = ShapeCornerRadius,
             IsAreaMeasure = asAreaMeasure,
+            IsFilled = asAreaMeasure,
             AreaScale = MeasurementScale
         };
         _activePolyline.Points.Add(pdfPoint);
@@ -860,20 +861,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
+    /// <summary>Removes the last committed point from the active polyline, used to discard
+    /// the spurious point added by the first click of a double-click finish.</summary>
+    public void RemoveLastPolylinePoint()
+    {
+        if (_activePolyline == null || _activePolyline.Points.Count <= 1) return;
+        _activePolyline.Points.RemoveAt(_activePolyline.Points.Count - 1);
+        _activePolyline.InvalidateGeometry();
+    }
+
     public void EndPolyline(bool close = false)
     {
         if (_activePolyline != null && _activePolyline.Points.Count >= 2 && ActiveLayer != null)
         {
             if (close && _activePolyline.Points.Count >= 3)
             {
+                // Just mark as closed — the geometry builder uses EndFigure(true) which
+                // draws the closing segment automatically. Adding first point to the list
+                // would create a duplicate node on top of Points[0].
                 _activePolyline.IsClosed = true;
-                // Snap last point to first if they're not already the same
-                var first = _activePolyline.Points[0];
-                var last = _activePolyline.Points[^1];
-                if (Math.Abs(first.X - last.X) > 0.5 || Math.Abs(first.Y - last.Y) > 0.5)
-                    _activePolyline.Points.Add(first);
-                else
-                    _activePolyline.Points[^1] = first;
+                // Area-measure strokes are always filled when closed.
+                if (_activePolyline.IsAreaMeasure)
+                    _activePolyline.IsFilled = true;
             }
             if (!ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes))
             {
@@ -1480,13 +1489,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double newScale = realDistanceMm / pdfDist;
         MeasurementScale = newScale;
 
-        // Apply the new scale to all existing measurements
+        // Apply the new scale to all existing measurements and area-measure strokes
         foreach (var layer in Layers)
         {
             foreach (var list in layer.PageMeasurements.Values)
             {
                 foreach (var m in list)
                     m.Scale = newScale;
+            }
+            foreach (var list in layer.PageStrokes.Values)
+            {
+                foreach (var s in list)
+                {
+                    if (s.IsAreaMeasure)
+                    {
+                        s.AreaScale = newScale;
+                        s.InvalidatePen(); // clears cached label geometry
+                    }
+                }
             }
         }
         InvalidateVisual();
@@ -2050,6 +2070,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void SnapVertexAgainst(object target, double vx, double vy,
         ref double snapX, ref double snapY, ref double bestDistX, ref double bestDistY)
     {
+        // For polylines, snap to every individual vertex point.
+        if (target is InkStroke ink && ink.IsPolyline && ink.Points.Count > 0)
+        {
+            foreach (var pt in ink.Points)
+            {
+                double dx = Math.Abs(vx - pt.X);
+                if (dx < bestDistX) { bestDistX = dx; snapX = pt.X; _snapGuideX = pt.X; }
+                double dy = Math.Abs(vy - pt.Y);
+                if (dy < bestDistY) { bestDistY = dy; snapY = pt.Y; _snapGuideY = pt.Y; }
+            }
+            return;
+        }
+
         var tb = GetAnnotationBounds(target);
         var tc = GetAnnotationCenter(target);
 
@@ -3854,7 +3887,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         // For closed polylines with fill, draw a translucent fill
         IBrush? fillBrush = null;
-        if (closed && overridePen == null)
+        if (closed && stroke.IsFilled && overridePen == null)
             fillBrush = stroke.GetOrCreateFillBrush();
         context.DrawGeometry(fillBrush, pen, geometry);
     }
@@ -3898,18 +3931,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             double dxOut0 = next0.X - curr0.X, dyOut0 = next0.Y - curr0.Y;
                             double lenOut0 = Math.Sqrt(dxOut0 * dxOut0 + dyOut0 * dyOut0);
                             figureStart = new Point(curr0.X - dxIn0 / lenIn0 * r0, curr0.Y - dyIn0 / lenIn0 * r0);
-                            ctx.BeginFigure(figureStart, false);
+                            ctx.BeginFigure(figureStart, closed);
                             var arcEnd0 = new Point(curr0.X + dxOut0 / lenOut0 * r0, curr0.Y + dyOut0 / lenOut0 * r0);
                             ctx.QuadraticBezierTo(curr0, arcEnd0);
                         }
                         else
                         {
-                            ctx.BeginFigure(curr0, false);
+                            ctx.BeginFigure(curr0, closed);
                         }
                     }
                     else
                     {
-                        ctx.BeginFigure(sp[0], false);
+                        ctx.BeginFigure(sp[0], closed);
                     }
 
                     // Interior vertices (or all vertices for closed)
@@ -3942,7 +3975,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
                 else
                 {
-                    ctx.BeginFigure(sp[0], false);
+                    ctx.BeginFigure(sp[0], closed);
                     for (int i = 1; i < n; i++)
                         ctx.LineTo(sp[i]);
                 }
@@ -4007,6 +4040,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case InlineAnnotationTool.Arrow:
                 context.DrawLine(pen, screenStart, screenEnd);
                 DrawArrowhead(context, pen, screenStart, screenEnd, penScale);
+                DrawTailDot(context, pen, screenStart, penScale);
                 break;
 
             case InlineAnnotationTool.Rectangle:
@@ -4072,8 +4106,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             ctx.EndFigure(true);
         }
 
-        // Fill the arrowhead with the same color as the pen
         context.DrawGeometry(pen.Brush, pen, arrowGeometry);
+    }
+
+    /// <summary>Draws a small filled circle at the tail (origin) of an arrow.</summary>
+    private static void DrawTailDot(DrawingContext context, IPen pen, Point origin, double penScale)
+    {
+        double r = Math.Max(2.0, pen.Thickness * 0.9);
+        context.DrawEllipse(pen.Brush, null, origin, r, r);
     }
 
     /// <summary>
@@ -4356,7 +4396,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var color = new SKColor(m.Color.R, m.Color.G, m.Color.B);
         items.Add(new TextOverlayDrawOp.TextItem(
             (float)labelPos.X, (float)labelPos.Y, m.GetLabel(), fontSize, color,
-            HasBackground: true, HasBorder: false, IsTextAnnotation: false));
+            HasBackground: true, HasBorder: false, IsTextAnnotation: false,
+            TintBackground: true));
     }
 
     /// <summary>Computes the signed area (PDF-space pt²) of a polygon using the shoelace formula.</summary>
@@ -4397,7 +4438,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B);
         items.Add(new TextOverlayDrawOp.TextItem(
             (float)screenPos.X, (float)screenPos.Y, label, fontSize, color,
-            HasBackground: true, HasBorder: false, IsTextAnnotation: false));
+            HasBackground: true, HasBorder: false, IsTextAnnotation: false,
+            TintBackground: true));
     }
 
     private static string FormatArea(double mm2)
@@ -4571,7 +4613,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                        bool HasBackground, bool HasBorder, bool IsTextAnnotation,
                                        string FontFamily = "",
                                        bool IsStickyNote = false, bool IsExpandedStickyNote = false,
-                                       float PopupFontSize = 0f, bool IsPopupOnly = false);
+                                       float PopupFontSize = 0f, bool IsPopupOnly = false,
+                                       bool TintBackground = false);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -4641,13 +4684,30 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     if (item.HasBackground && !item.IsTextAnnotation)
                     {
                         font.MeasureText(item.Text, out var textBounds);
-                        bgPaint.Color = new SKColor(255, 255, 255, 200);
+                        // Tinted backgrounds (measurement/area labels) get a faint wash of the annotation color
+                        if (item.TintBackground)
+                            bgPaint.Color = new SKColor(
+                                (byte)(200 + item.Color.Red   / 5),
+                                (byte)(200 + item.Color.Green / 5),
+                                (byte)(200 + item.Color.Blue  / 5),
+                                210);
+                        else
+                            bgPaint.Color = new SKColor(255, 255, 255, 200);
                         canvas.DrawRoundRect(
-                            item.X + textBounds.Left - 3,
-                            item.Y + textBounds.Top - 2,
-                            textBounds.Width + 6,
-                            textBounds.Height + 4,
+                            item.X + textBounds.Left - 4,
+                            item.Y + textBounds.Top - 3,
+                            textBounds.Width + 8,
+                            textBounds.Height + 6,
                             3, 3, bgPaint);
+                        // Matching faint border
+                        borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 60);
+                        borderPaint.StrokeWidth = 1f;
+                        canvas.DrawRoundRect(
+                            item.X + textBounds.Left - 4,
+                            item.Y + textBounds.Top - 3,
+                            textBounds.Width + 8,
+                            textBounds.Height + 6,
+                            3, 3, borderPaint);
                     }
 
                     canvas.DrawText(item.Text, item.X, item.Y, font, paint);
@@ -4884,6 +4944,8 @@ public class InkStroke
     public bool IsPolyline { get; set; }
     /// <summary>When true, the polyline forms a closed shape (last point connects back to first).</summary>
     public bool IsClosed { get; set; }
+    /// <summary>When true, the closed polyline is rendered with a translucent fill.</summary>
+    public bool IsFilled { get; set; }
     /// <summary>When true, this closed polyline is an area-measurement annotation and shows an area label.</summary>
     public bool IsAreaMeasure { get; set; }
     /// <summary>Measurement scale (mm/pt) captured at the time the area was drawn, matching the distance-measure scale.</summary>
@@ -4928,10 +4990,12 @@ public class InkStroke
 
     internal IBrush GetOrCreateFillBrush()
     {
+        byte alpha = IsAreaMeasure ? (byte)55 : (byte)30;
         _cachedFillBrush ??= new SolidColorBrush(
-            Color.FromArgb(40, Color.R, Color.G, Color.B)).ToImmutable();
+            Color.FromArgb(alpha, Color.R, Color.G, Color.B)).ToImmutable();
         return _cachedFillBrush;
     }
 
     public void InvalidatePen() { _cachedPen = null; _cachedFillBrush = null; CachedGeometry = null; }
+    public void InvalidateGeometry() { CachedGeometry = null; }
 }
