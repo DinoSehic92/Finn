@@ -665,6 +665,8 @@ public partial class PreView
                 System.Globalization.CultureInfo.InvariantCulture, out double realMm) && realMm > 0)
         {
             MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
+            if (MuPDFRenderer.HasInconsistentMeasurementScales())
+                MuPDFRenderer.NormalizeMeasurementScales();
         }
         CalibrationCanvas.IsVisible = false;
         MuPDFRenderer.Focus();
@@ -859,9 +861,16 @@ public partial class PreView
         Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 220));
         Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, MuPDFRenderer.Bounds.Height - 100));
 
-        bool hasStroke = item is InkStroke or ShapeAnnotation;
         bool isDot = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
-        bool hasDash = hasStroke && !isDot;
+        bool isText = item is TextAnnotation;
+        bool isMeasure = item is MeasurementAnnotation;
+        bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, Points.Count: >= 3 };
+        bool isAreaPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: true };
+        bool isGenericStroke = item is InkStroke { IsPolyline: false };
+        bool isShape = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow };
+
+        bool hasStroke = isDot || isPolyline || isAreaPolyline || isGenericStroke || isShape;
+        bool hasDash = (isPolyline || isAreaPolyline || isGenericStroke || isShape) && !isDot;
         bool hasFill = (item is ShapeAnnotation sf
             && sf.ShapeType is InlineAnnotationTool.Rectangle
                             or InlineAnnotationTool.Ellipse
@@ -869,8 +878,6 @@ public partial class PreView
             || item is InkStroke { IsPolyline: true, IsClosed: true };
         bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
             || item is InkStroke { IsPolyline: true, IsAreaMeasure: false };
-        bool isText = item is TextAnnotation;
-        bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, Points.Count: >= 3 };
 
         PropertyStrokeRow.IsVisible = hasStroke;
         var dashRow = this.FindControl<StackPanel>("PropertyDashRow");
@@ -878,11 +885,11 @@ public partial class PreView
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
         var opacityRow = this.FindControl<StackPanel>("PropertyOpacityRow");
-        if (opacityRow != null) opacityRow.IsVisible = item is not TextAnnotation;
+        if (opacityRow != null) opacityRow.IsVisible = !isText;
         var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
-        if (closePolyBtn != null) closePolyBtn.IsVisible = isPolyline;
+        if (closePolyBtn != null) closePolyBtn.IsVisible = isPolyline || isAreaPolyline;
 
-        if (isPolyline && closePolyBtn != null)
+        if ((isPolyline || isAreaPolyline) && closePolyBtn != null)
         {
             var poly = (InkStroke)item;
             ToolTip.SetTip(closePolyBtn, poly.IsClosed ? "Open Polyline" : "Close Polyline");

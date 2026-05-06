@@ -554,6 +554,7 @@
 						</Border>
 
 			<!-- Calibration input overlay -->
+
 			<Canvas Name="CalibrationCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 				<Border Name="CalibrationBorder" Classes="shadow" Padding="8">
 					<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="8" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="4">
@@ -670,7 +671,7 @@
 								<!-- Inline text editor (visible for text annotations and new text placement) -->
 								<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="2">
 								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,2" Opacity="0.5"/>
-									<TextBox Name="PropertyTextBox" MinWidth="220" MinHeight="50" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text..." HorizontalAlignment="Stretch"/>
+									<TextBox Name="PropertyTextBox" MinWidth="180" MinHeight="34" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text..." HorizontalAlignment="Stretch"/>
 								</StackPanel>
 								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,2" Opacity="0.5"/>
 								<StackPanel Name="PropertyActionsRow" Orientation="Horizontal" Spacing="1">
@@ -715,6 +716,22 @@
 									<Button Content="Cancel" Click="OnReviewExportCancel" Padding="8,2" Classes="body"/>
 								</StackPanel>
 							</StackPanel>
+							</Border>
+						</Border>
+					</Grid>
+
+					<!-- Annotation keyboard cheat-sheet overlay -->
+					<Grid Name="AnnotateShortcutsCanvas" IsVisible="False" IsHitTestVisible="True" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+						<Border Classes="shadow" Padding="8" HorizontalAlignment="Center" VerticalAlignment="Center" PointerPressed="OnAnnotateShortcutsBackgroundClick">
+							<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="10" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="6">
+								<StackPanel Spacing="4" MaxWidth="420">
+									<TextBlock Text="Annotation Shortcuts" FontSize="14" FontWeight="SemiBold"/>
+									<TextBlock Text="V Select · P Polyline · A Area · D Dot · 1-0 Tools" FontSize="12"/>
+									<TextBlock Text="Enter finish polyline · Esc cancel/exit · Shift axis constrain" FontSize="12"/>
+									<TextBlock Text="Ctrl+C / Ctrl+V copy-paste · Ctrl+D duplicate · Ctrl+A select all" FontSize="12"/>
+									<TextBlock Text="Arrows nudge (Shift = 10) · [ ] width · -/+ text size · G grid snap" FontSize="12"/>
+									<TextBlock Text="Press ? to toggle this help" FontSize="11" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+								</StackPanel>
 							</Border>
 						</Border>
 					</Grid>

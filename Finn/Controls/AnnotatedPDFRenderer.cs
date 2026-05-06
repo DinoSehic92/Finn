@@ -117,7 +117,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private IPen? _cachedCrosshairPen;
     private Color _cachedCursorColor;
 
-    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange }
+    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange, GroupMove }
     private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> _redoStack = new();
 
@@ -140,8 +140,26 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // Snap-to-alignment guides (PDF-space X/Y coordinates to draw as dotted lines)
     private double? _snapGuideX;
     private double? _snapGuideY;
+    private const double DefaultMeasurementScale = 25.4 / 72.0;
+
+    private enum SnapKind { None, Vertex, Endpoint, Center, Bounds, Grid }
+    private SnapKind _snapKindX;
+    private SnapKind _snapKindY;
     /// <summary>The vertex position being snapped (for indicator dot rendering).</summary>
     private Point? _snapVertexPos;
+
+    private static int SnapPriority(SnapKind k) => k switch
+    {
+        SnapKind.Vertex => 1,
+        SnapKind.Endpoint => 2,
+        SnapKind.Center => 3,
+        SnapKind.Bounds => 4,
+        SnapKind.Grid => 5,
+        _ => 99
+    };
+
+    private static bool IsBetterSnap(double dist, double bestDist, SnapKind kind, SnapKind bestKind)
+        => dist < bestDist || (Math.Abs(dist - bestDist) < 0.0001 && SnapPriority(kind) < SnapPriority(bestKind));
 
     private ObservableCollection<AnnotationLayer> _layers = [];
 
@@ -196,7 +214,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
             }
         }
-        MeasurementScale = 25.4 / 72.0;
+        MeasurementScale = DefaultMeasurementScale;
     }
 
     private void RecalculateStrokeCount()
@@ -326,7 +344,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// Millimetres per PDF point used for measurement labels.
     /// Default = 25.4/72 (uncalibrated). Set via calibration workflow.
     /// </summary>
-    public double MeasurementScale { get; set; } = 25.4 / 72.0;
+    public double MeasurementScale { get; set; } = DefaultMeasurementScale;
+    public bool IsMeasurementCalibrated => Math.Abs(MeasurementScale - DefaultMeasurementScale) > 0.0001;
 
     // ── Diff overlay ───────────────────────────────────────────────
     /// <summary>
@@ -526,6 +545,42 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (ActiveLayer == layer)
             ActiveLayer = Layers.Count > 0 ? Layers[0] : null;
         PurgeEntriesForLayer(layer);
+        InvalidateVisual();
+        NotifyAnnotationChanged();
+    }
+
+    public bool HasInconsistentMeasurementScales()
+    {
+        foreach (var layer in Layers)
+        {
+            foreach (var list in layer.PageMeasurements.Values)
+                foreach (var m in list)
+                    if (Math.Abs(m.Scale - MeasurementScale) > 0.0001)
+                        return true;
+
+            foreach (var list in layer.PageStrokes.Values)
+                foreach (var s in list)
+                    if (s.IsAreaMeasure && Math.Abs(s.AreaScale - MeasurementScale) > 0.0001)
+                        return true;
+        }
+        return false;
+    }
+
+    public void NormalizeMeasurementScales()
+    {
+        foreach (var layer in Layers)
+        {
+            foreach (var list in layer.PageMeasurements.Values)
+                foreach (var m in list)
+                    m.Scale = MeasurementScale;
+            foreach (var list in layer.PageStrokes.Values)
+                foreach (var s in list)
+                    if (s.IsAreaMeasure)
+                    {
+                        s.AreaScale = MeasurementScale;
+                        s.InvalidatePen();
+                    }
+        }
         InvalidateVisual();
         NotifyAnnotationChanged();
     }
@@ -947,8 +1002,166 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     public bool HasActivePolyline => _activePolyline != null;
+    public int ActivePolylinePointCount => _activePolyline?.Points.Count ?? 0;
+    public bool IsActivePolylineAreaMeasure => _activePolyline?.IsAreaMeasure ?? false;
+
+    public bool TryGetActivePolylineStart(out Point start)
+    {
+        if (_activePolyline != null && _activePolyline.Points.Count > 0)
+        {
+            start = _activePolyline.Points[0];
+            return true;
+        }
+        start = default;
+        return false;
+    }
+
+    public bool ShouldAutoCloseActivePolyline(Point pdfPoint, double threshold)
+    {
+        if (_activePolyline == null || _activePolyline.Points.Count < 3) return false;
+        var start = _activePolyline.Points[0];
+        double dx = pdfPoint.X - start.X;
+        double dy = pdfPoint.Y - start.Y;
+        return dx * dx + dy * dy <= threshold * threshold;
+    }
+
     public bool HasActiveShape => _activeShape != null;
     public bool HasActiveMeasurement => _activeMeasurement != null;
+
+    public (int FixedCount, int RemovedCount) ValidateAndRepairAnnotations()
+    {
+        int fixedCount = 0;
+        int removedCount = 0;
+        bool changedAny = false;
+
+        foreach (var layer in Layers)
+        {
+            foreach (var kv in layer.PageStrokes)
+            {
+                var list = kv.Value;
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var s = list[i];
+                    bool changed = false;
+
+                    if (s.IsPolyline && s.Points.Count > 1)
+                    {
+                        // Remove consecutive duplicate vertices.
+                        for (int p = s.Points.Count - 1; p >= 1; p--)
+                        {
+                            if (NearlySamePoint(s.Points[p], s.Points[p - 1]))
+                            {
+                                s.Points.RemoveAt(p);
+                                changed = true;
+                            }
+                        }
+
+                        // Remove legacy duplicated closing point (last == first).
+                        if (s.Points.Count > 2 && NearlySamePoint(s.Points[0], s.Points[^1]))
+                        {
+                            s.Points.RemoveAt(s.Points.Count - 1);
+                            changed = true;
+                        }
+
+                        // Closed polyline needs at least 3 vertices.
+                        if (s.IsClosed && s.Points.Count < 3)
+                        {
+                            s.IsClosed = false;
+                            s.IsFilled = false;
+                            changed = true;
+                        }
+
+                        // Area-measure polyline must be closed and filled when valid.
+                        if (s.IsAreaMeasure && s.Points.Count >= 3 && (!s.IsClosed || !s.IsFilled))
+                        {
+                            s.IsClosed = true;
+                            s.IsFilled = true;
+                            changed = true;
+                        }
+                    }
+
+                    if (s.Points.Count < 2)
+                    {
+                        list.RemoveAt(i);
+                        removedCount++;
+                        changedAny = true;
+                        continue;
+                    }
+
+                    if (changed)
+                    {
+                        s.InvalidatePen();
+                        fixedCount++;
+                        changedAny = true;
+                    }
+                }
+            }
+
+            foreach (var kv in layer.PageShapes)
+            {
+                var list = kv.Value;
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var sh = list[i];
+                    bool remove = false;
+                    switch (sh.ShapeType)
+                    {
+                        case InlineAnnotationTool.Line:
+                        case InlineAnnotationTool.Arrow:
+                            remove = NearlySamePoint(sh.Start, sh.End);
+                            break;
+                        case InlineAnnotationTool.Rectangle:
+                        case InlineAnnotationTool.Ellipse:
+                        case InlineAnnotationTool.RevisionCloud:
+                            remove = Math.Abs(sh.End.X - sh.Start.X) < 0.01
+                                || Math.Abs(sh.End.Y - sh.Start.Y) < 0.01;
+                            break;
+                    }
+
+                    if (remove)
+                    {
+                        list.RemoveAt(i);
+                        removedCount++;
+                        changedAny = true;
+                    }
+                }
+            }
+
+            foreach (var kv in layer.PageMeasurements)
+            {
+                var list = kv.Value;
+                for (int i = list.Count - 1; i >= 0; i--)
+                {
+                    var m = list[i];
+                    if (m.Points.Count < 2 || NearlySamePoint(m.Points[0], m.Points[1]))
+                    {
+                        list.RemoveAt(i);
+                        removedCount++;
+                        changedAny = true;
+                        continue;
+                    }
+
+                    if (m.Scale <= 0)
+                    {
+                        m.Scale = MeasurementScale;
+                        fixedCount++;
+                        changedAny = true;
+                    }
+                }
+            }
+        }
+
+        if (changedAny)
+        {
+            foreach (var layer in Layers)
+                layer.RecalculateCounts();
+            RecalculateStrokeCount();
+            InvalidateVisual();
+            NotifyAnnotationChanged();
+        }
+
+        return (fixedCount, removedCount);
+    }
 
     /// <summary>
     /// Two-pass Chaikin corner-cutting subdivision to produce a smooth curve
@@ -1434,6 +1647,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (_activeMeasurement != null && ActiveLayer != null && _activeMeasurement.Points.Count >= 2)
         {
+            // Keep measurement scale consistent with calibrated project scale.
+            _activeMeasurement.Scale = MeasurementScale;
             if (!ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
             {
                 measurements = [];
@@ -1744,6 +1959,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private record MoveSnapshot(object Item, Point[]? Points, Point? Position, Point? ArrowOrigin,
                                  Point? ShapeStart, Point? ShapeEnd);
 
+    private record GroupMoveSnapshot(List<MoveSnapshot> Items);
+
     /// <summary>
     /// Captures the current position state of an annotation before a drag begins.
     /// Call at drag-start; the returned snapshot is pushed to undo on drag-end.
@@ -1764,6 +1981,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PushMoveUndo(object snapshot)
     {
         _undoStack.Push((UndoType.Move, _currentPage, snapshot, ActiveLayer));
+        _redoStack.Clear();
+    }
+
+    public void PushGroupMoveUndo(List<object> snapshots)
+    {
+        if (snapshots.Count == 0) return;
+        var list = new List<MoveSnapshot>(snapshots.Count);
+        foreach (var s in snapshots)
+            if (s is MoveSnapshot ms)
+                list.Add(ms);
+        if (list.Count == 0) return;
+        _undoStack.Push((UndoType.GroupMove, _currentPage, new GroupMoveSnapshot(list), ActiveLayer));
         _redoStack.Clear();
     }
 
@@ -1936,6 +2165,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         _snapGuideX = null;
         _snapGuideY = null;
+        _snapKindX = SnapKind.None;
+        _snapKindY = SnapKind.None;
         if (ActiveLayer == null) return (rawDx, rawDy);
 
         var db = GetAnnotationBounds(dragging);
@@ -1953,6 +2184,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double snappedCy = Math.Round(cy / g) * g;
                 _snapGuideX = snappedCx;
                 _snapGuideY = snappedCy;
+                _snapKindX = SnapKind.Grid;
+                _snapKindY = SnapKind.Grid;
                 return (rawDx + (snappedCx - cx), rawDy + (snappedCy - cy));
             }
             double newL = db.Left + rawDx;
@@ -1963,6 +2196,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             double dy = snappedT - db.Top;
             _snapGuideX = snappedL;
             _snapGuideY = snappedT;
+            _snapKindX = SnapKind.Grid;
+            _snapKindY = SnapKind.Grid;
             return (dx, dy);
         }
 
@@ -2038,6 +2273,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         _snapGuideX = null;
         _snapGuideY = null;
+        _snapKindX = SnapKind.None;
+        _snapKindY = SnapKind.None;
 
         // Grid snap takes priority — snap to grid first, then refine with alignment snap
         if (SnapToGrid && GridSpacing > 0)
@@ -2045,6 +2282,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             vertex = SnapPointToGrid(vertex);
             _snapGuideX = vertex.X;
             _snapGuideY = vertex.Y;
+            _snapKindX = SnapKind.Grid;
+            _snapKindY = SnapKind.Grid;
             _snapVertexPos = vertex;
             return vertex;
         }
@@ -2097,9 +2336,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             foreach (var pt in ink.Points)
             {
                 double dx = Math.Abs(vx - pt.X);
-                if (dx < bestDistX) { bestDistX = dx; snapX = pt.X; _snapGuideX = pt.X; }
+                if (IsBetterSnap(dx, bestDistX, SnapKind.Vertex, _snapKindX)) { bestDistX = dx; snapX = pt.X; _snapGuideX = pt.X; _snapKindX = SnapKind.Vertex; }
                 double dy = Math.Abs(vy - pt.Y);
-                if (dy < bestDistY) { bestDistY = dy; snapY = pt.Y; _snapGuideY = pt.Y; }
+                if (IsBetterSnap(dy, bestDistY, SnapKind.Vertex, _snapKindY)) { bestDistY = dy; snapY = pt.Y; _snapGuideY = pt.Y; _snapKindY = SnapKind.Vertex; }
             }
             return;
         }
@@ -2113,14 +2352,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             if (i == 1) tx = tc.X; else if (i == 2) tx = tb.Right;
             double dist = Math.Abs(vx - tx);
-            if (dist < bestDistX) { bestDistX = dist; snapX = tx; _snapGuideX = tx; }
+            var kind = i == 1 ? SnapKind.Center : SnapKind.Bounds;
+            if (IsBetterSnap(dist, bestDistX, kind, _snapKindX)) { bestDistX = dist; snapX = tx; _snapGuideX = tx; _snapKindX = kind; }
         }
         double ty = tb.Top;
         for (int i = 0; i < 3; i++)
         {
             if (i == 1) ty = tc.Y; else if (i == 2) ty = tb.Bottom;
             double dist = Math.Abs(vy - ty);
-            if (dist < bestDistY) { bestDistY = dist; snapY = ty; _snapGuideY = ty; }
+            var kind = i == 1 ? SnapKind.Center : SnapKind.Bounds;
+            if (IsBetterSnap(dist, bestDistY, kind, _snapKindY)) { bestDistY = dist; snapY = ty; _snapGuideY = ty; _snapKindY = kind; }
         }
     }
 
@@ -2138,11 +2379,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 for (int di = 0; di < 3; di++)
                 {
                     double distX = Math.Abs(dxVals[di] - pt.X);
-                    if (distX < bestSnapDistX)
-                    { bestSnapDistX = distX; bestDx = rawDx + (pt.X - dxVals[di]); _snapGuideX = pt.X; }
+                    var sourceKindX = di == 1 ? SnapKind.Center : SnapKind.Bounds;
+                    var targetKindX = SnapKind.Vertex;
+                    var kindX = SnapPriority(targetKindX) < SnapPriority(sourceKindX) ? targetKindX : sourceKindX;
+                    if (IsBetterSnap(distX, bestSnapDistX, kindX, _snapKindX))
+                    { bestSnapDistX = distX; bestDx = rawDx + (pt.X - dxVals[di]); _snapGuideX = pt.X; _snapKindX = kindX; }
                     double distY = Math.Abs(dyVals[di] - pt.Y);
-                    if (distY < bestSnapDistY)
-                    { bestSnapDistY = distY; bestDy = rawDy + (pt.Y - dyVals[di]); _snapGuideY = pt.Y; }
+                    var sourceKindY = di == 1 ? SnapKind.Center : SnapKind.Bounds;
+                    var targetKindY = SnapKind.Vertex;
+                    var kindY = SnapPriority(targetKindY) < SnapPriority(sourceKindY) ? targetKindY : sourceKindY;
+                    if (IsBetterSnap(distY, bestSnapDistY, kindY, _snapKindY))
+                    { bestSnapDistY = distY; bestDy = rawDy + (pt.Y - dyVals[di]); _snapGuideY = pt.Y; _snapKindY = kindY; }
                 }
             }
             return;
@@ -2160,8 +2407,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
             for (int ti = 0; ti < 3; ti++)
             {
                 double dist = Math.Abs(dxVs[di] - txVals[ti]);
-                if (dist < bestSnapDistX)
-                { bestSnapDistX = dist; bestDx = rawDx + (txVals[ti] - dxVs[di]); _snapGuideX = txVals[ti]; }
+                var sourceKind = di == 1 ? SnapKind.Center : SnapKind.Bounds;
+                var targetKind = ti == 1 ? SnapKind.Center : SnapKind.Bounds;
+                var kind = SnapPriority(sourceKind) <= SnapPriority(targetKind) ? sourceKind : targetKind;
+                if (IsBetterSnap(dist, bestSnapDistX, kind, _snapKindX))
+                { bestSnapDistX = dist; bestDx = rawDx + (txVals[ti] - dxVs[di]); _snapGuideX = txVals[ti]; _snapKindX = kind; }
             }
         Span<double> dyVs = [dT, dCy, dB];
         Span<double> tyVals = [tT, tCy, tB];
@@ -2169,8 +2419,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
             for (int ti = 0; ti < 3; ti++)
             {
                 double dist = Math.Abs(dyVs[di] - tyVals[ti]);
-                if (dist < bestSnapDistY)
-                { bestSnapDistY = dist; bestDy = rawDy + (tyVals[ti] - dyVs[di]); _snapGuideY = tyVals[ti]; }
+                var sourceKind = di == 1 ? SnapKind.Center : SnapKind.Bounds;
+                var targetKind = ti == 1 ? SnapKind.Center : SnapKind.Bounds;
+                var kind = SnapPriority(sourceKind) <= SnapPriority(targetKind) ? sourceKind : targetKind;
+                if (IsBetterSnap(dist, bestSnapDistY, kind, _snapKindY))
+                { bestSnapDistY = dist; bestDy = rawDy + (tyVals[ti] - dyVs[di]); _snapGuideY = tyVals[ti]; _snapKindY = kind; }
             }
     }
 
@@ -2599,24 +2852,35 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Polylines have sparse points with straight segments — test segment proximity
         if (stroke.IsPolyline && stroke.Points.Count >= 2)
         {
-            // Closed polylines: also hit inside the polygon bounding box
+            // Closed/fillable polylines: hit interior using polygon geometry (not bbox).
             if (stroke.IsClosed && stroke.Points.Count >= 3)
             {
-                var bounds = GetStrokeBounds(stroke);
-                if (bounds.Contains(pt)) return true;
+                if (stroke.IsFilled && IsPointInPolygon(stroke.Points, pt))
+                    return true;
             }
             for (int i = 0; i < stroke.Points.Count - 1; i++)
                 if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= threshold)
                     return true;
+            if (stroke.IsClosed && stroke.Points.Count >= 3
+                && DistanceToSegment(pt, stroke.Points[^1], stroke.Points[0]) <= threshold)
+                return true;
             return false;
         }
-        double threshSq = threshold * threshold;
-        foreach (var p in stroke.Points)
+        // Freehand/highlight: use segment distance for more natural geometry hit-testing.
+        if (stroke.Points.Count >= 2)
         {
-            double dx = pt.X - p.X;
-            double dy = pt.Y - p.Y;
-            if (dx * dx + dy * dy <= threshSq)
-                return true;
+            double tol = Math.Max(threshold, stroke.Width * 0.7);
+            for (int i = 0; i < stroke.Points.Count - 1; i++)
+                if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= tol)
+                    return true;
+            return false;
+        }
+        if (stroke.Points.Count == 1)
+        {
+            double dx = pt.X - stroke.Points[0].X;
+            double dy = pt.Y - stroke.Points[0].Y;
+            double tol = Math.Max(threshold, stroke.Width);
+            return dx * dx + dy * dy <= tol * tol;
         }
         return false;
     }
@@ -2632,12 +2896,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case InlineAnnotationTool.Rectangle:
             {
                 var r = NormalizedRect(shape.Start, shape.End);
-                // Hit inside the bounding box or near any of the 4 edges
-                if (r.Contains(pt)) return true;
-                return DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
+                bool onEdge = DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
                     || DistanceToSegment(pt, r.TopRight, r.BottomRight) <= threshold
                     || DistanceToSegment(pt, r.BottomRight, r.BottomLeft) <= threshold
                     || DistanceToSegment(pt, r.BottomLeft, r.TopLeft) <= threshold;
+                if (onEdge) return true;
+                return shape.IsFilled && r.Contains(pt);
             }
             case InlineAnnotationTool.Ellipse:
             {
@@ -2650,19 +2914,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double ndx = (pt.X - cx) / rx;
                 double ndy = (pt.Y - cy) / ry;
                 double dist = Math.Sqrt(ndx * ndx + ndy * ndy);
-                // Hit if inside the ellipse or near the boundary
-                if (dist <= 1.0) return true;
+                // Filled ellipses hit inside; outlines hit boundary only.
+                if (shape.IsFilled && dist <= 1.0) return true;
                 double normThreshold = threshold / Math.Min(rx, ry);
                 return Math.Abs(dist - 1.0) <= normThreshold;
             }
             case InlineAnnotationTool.RevisionCloud:
             {
                 var r = NormalizedRect(shape.Start, shape.End);
-                if (r.Contains(pt)) return true;
-                return DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
+                bool onEdge = DistanceToSegment(pt, r.TopLeft, r.TopRight) <= threshold
                     || DistanceToSegment(pt, r.TopRight, r.BottomRight) <= threshold
                     || DistanceToSegment(pt, r.BottomRight, r.BottomLeft) <= threshold
                     || DistanceToSegment(pt, r.BottomLeft, r.TopLeft) <= threshold;
+                if (onEdge) return true;
+                return shape.IsFilled && r.Contains(pt);
             }
             case InlineAnnotationTool.Dot:
             {
@@ -2673,6 +2938,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
         return false;
+    }
+
+    private static bool IsPointInPolygon(IReadOnlyList<Point> poly, Point pt)
+    {
+        bool inside = false;
+        int n = poly.Count;
+        if (n < 3) return false;
+        for (int i = 0, j = n - 1; i < n; j = i++)
+        {
+            var pi = poly[i];
+            var pj = poly[j];
+            double dy = pj.Y - pi.Y;
+            if (Math.Abs(dy) < 1e-10) continue; // skip near-horizontal edges
+            bool intersect = ((pi.Y > pt.Y) != (pj.Y > pt.Y))
+                && (pt.X < (pj.X - pi.X) * (pt.Y - pi.Y) / dy + pi.X);
+            if (intersect) inside = !inside;
+        }
+        return inside;
     }
 
     private static double DistanceToSegment(Point p, Point a, Point b)
@@ -2688,6 +2971,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double projY = a.Y + t * dy;
         return Math.Sqrt((p.X - projX) * (p.X - projX) + (p.Y - projY) * (p.Y - projY));
     }
+
+    private static bool NearlySamePoint(Point a, Point b, double epsilon = 0.01)
+        => Math.Abs(a.X - b.X) <= epsilon && Math.Abs(a.Y - b.Y) <= epsilon;
 
     private static Rect NormalizedRect(Point a, Point b)
     {
@@ -2822,6 +3108,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     var redoSnap = CapturePreDragSnapshot(movSnap.Item);
                     RestoreMoveSnapshot(movSnap);
                     item = redoSnap;
+                    removed = true;
+                }
+                break;
+            case UndoType.GroupMove:
+                if (data is GroupMoveSnapshot groupMove && groupMove.Items.Count > 0)
+                {
+                    var redoItems = new List<MoveSnapshot>(groupMove.Items.Count);
+                    foreach (var mv in groupMove.Items)
+                    {
+                        var rs = CapturePreDragSnapshot(mv.Item);
+                        if (rs is MoveSnapshot rms)
+                            redoItems.Add(rms);
+                        RestoreMoveSnapshot(mv);
+                    }
+                    item = new GroupMoveSnapshot(redoItems);
                     removed = true;
                 }
                 break;
@@ -3033,6 +3334,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     var undoSnap = CapturePreDragSnapshot(movRedoSnap.Item);
                     RestoreMoveSnapshot(movRedoSnap);
                     _undoStack.Push((UndoType.Move, page, undoSnap!, entryLayer));
+                    layer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.GroupMove:
+                if (item is GroupMoveSnapshot groupMoveRedo && groupMoveRedo.Items.Count > 0)
+                {
+                    var undoItems = new List<MoveSnapshot>(groupMoveRedo.Items.Count);
+                    foreach (var mv in groupMoveRedo.Items)
+                    {
+                        var us = CapturePreDragSnapshot(mv.Item);
+                        if (us is MoveSnapshot ums)
+                            undoItems.Add(ums);
+                        RestoreMoveSnapshot(mv);
+                    }
+                    _undoStack.Push((UndoType.GroupMove, page, new GroupMoveSnapshot(undoItems), entryLayer));
                     layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();

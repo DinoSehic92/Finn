@@ -86,6 +86,8 @@ public partial class PreView
     private bool _hasPreSelectState;
     /// <summary>True while the user is dragging a rubber-band marquee rectangle in Select mode.</summary>
     private bool _rubberBandActive;
+    private bool _rubberBandAdditive;
+    private bool _rubberBandSubtractive;
     /// <summary>PDF-space start point of the rubber-band rectangle.</summary>
     private Point _rubberBandStartPdf;
     /// <summary>The annotation currently being edited via the property panel (double-click).</summary>
@@ -131,7 +133,7 @@ public partial class PreView
         }
         if (_multiDragSnapshots != null)
         {
-            foreach (var snap in _multiDragSnapshots) MuPDFRenderer.PushMoveUndo(snap);
+            MuPDFRenderer.PushGroupMoveUndo(_multiDragSnapshots);
             _multiDragSnapshots = null;
         }
         if (_groupResizing && _groupResizeStates is { Count: > 0 })
@@ -178,7 +180,10 @@ public partial class PreView
                 foreach (var sel in _selectedAnnotations)
                     _groupResizeStates.Add(AnnotatedPDFRenderer.CaptureGroupResizeSnapshot(sel));
                 _inkDrawing = true;
-                MuPDFRenderer.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.SizeAll);
+                if (corner == combined.TopLeft || corner == combined.BottomRight)
+                    MuPDFRenderer.Cursor = CursorSizeNWSE;
+                else
+                    MuPDFRenderer.Cursor = CursorSizeNESW;
                 return true;
             }
         }
@@ -577,6 +582,13 @@ public partial class PreView
             return;
         }
 
+        if (e.Key == Key.Oem2 && e.KeyModifiers.HasFlag(KeyModifiers.Shift) && !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+        {
+            AnnotateShortcutsCanvas.IsVisible = !AnnotateShortcutsCanvas.IsVisible;
+            e.Handled = true;
+            return;
+        }
+
         // Delete/Backspace: always check first, outside the else-if chain
         if (e.Key is Key.Delete or Key.Back && _selectedAnnotations.Count > 0)
         {
@@ -658,7 +670,11 @@ public partial class PreView
         }
         else if (e.Key == Key.Escape)
         {
-            if (PropertyPanelCanvas.IsVisible)
+            if (AnnotateShortcutsCanvas.IsVisible)
+            {
+                AnnotateShortcutsCanvas.IsVisible = false;
+            }
+            else if (PropertyPanelCanvas.IsVisible)
             {
                 ClosePropertyPanel();
             }
@@ -711,11 +727,13 @@ public partial class PreView
             bool coalesce = (now - _lastNudgeTime).TotalMilliseconds < 400;
             if (!coalesce)
             {
+                var snaps = new List<object>(_selectedAnnotations.Count);
                 foreach (var item in _selectedAnnotations)
                 {
                     var snap = MuPDFRenderer.CapturePreDragSnapshot(item);
-                    if (snap != null) MuPDFRenderer.PushMoveUndo(snap);
+                    if (snap != null) snaps.Add(snap);
                 }
+                MuPDFRenderer.PushGroupMoveUndo(snaps);
             }
             _lastNudgeTime = now;
             foreach (var item in _selectedAnnotations)
@@ -822,6 +840,13 @@ public partial class PreView
     private static readonly Avalonia.Input.Cursor CursorHand = new(Avalonia.Input.StandardCursorType.Hand);
     private static readonly Avalonia.Input.Cursor CursorSizeNWSE = new(Avalonia.Input.StandardCursorType.BottomRightCorner);
     private static readonly Avalonia.Input.Cursor CursorSizeNESW = new(Avalonia.Input.StandardCursorType.BottomLeftCorner);
+
+    private void OnAnnotateShortcutsBackgroundClick(object? sender, PointerPressedEventArgs e)
+    {
+        if (!AnnotateShortcutsCanvas.IsVisible) return;
+        AnnotateShortcutsCanvas.IsVisible = false;
+        e.Handled = true;
+    }
 
     private static Avalonia.Input.Cursor GetToolCursor(InlineAnnotationTool tool) => tool switch
     {

@@ -6,6 +6,7 @@ using Avalonia.Media;
 using MuPDFCore.MuPDFRenderer;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Finn.Views;
 
@@ -418,6 +419,8 @@ public partial class PreView
             case InlineAnnotationTool.Select:
                 // Empty space — start rubber-band marquee selection
                 _rubberBandActive = true;
+                _rubberBandAdditive = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+                _rubberBandSubtractive = e.KeyModifiers.HasFlag(KeyModifiers.Control);
                 _rubberBandStartPdf = pdfPoint.Value;
                 _inkDrawing = true;
                 MuPDFRenderer.SetRubberBand(pdfPoint.Value, pdfPoint.Value);
@@ -438,12 +441,17 @@ public partial class PreView
                 bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
                 if (MuPDFRenderer.HasActivePolyline)
                 {
+                    bool autoClose = MuPDFRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
                     if (e.ClickCount >= 2)
                     {
                         // The first click of the double-click already added a point via ClickCount==1;
                         // remove it so we don't get a duplicate node at the end.
                         MuPDFRenderer.RemoveLastPolylinePoint();
-                        MuPDFRenderer.EndPolyline();
+                        MuPDFRenderer.EndPolyline(close: autoClose);
+                    }
+                    else if (autoClose)
+                    {
+                        MuPDFRenderer.EndPolyline(close: true);
                     }
                     else
                         MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
@@ -459,9 +467,14 @@ public partial class PreView
                 bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
                 if (MuPDFRenderer.HasActivePolyline)
                 {
+                    bool autoClose = MuPDFRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
                     if (e.ClickCount >= 2)
                     {
                         MuPDFRenderer.RemoveLastPolylinePoint();
+                        MuPDFRenderer.EndPolyline(close: true);
+                    }
+                    else if (autoClose)
+                    {
                         MuPDFRenderer.EndPolyline(close: true);
                     }
                     else
@@ -529,8 +542,10 @@ public partial class PreView
             if (_annotateMode && MuPDFRenderer.HasActivePolyline)
             {
                 if (hoverPdf.HasValue)
+                {
                     MuPDFRenderer.UpdatePolylinePreview(hoverPdf.Value,
                         e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                }
             }
             // ArrowText preview: track cursor after first click sets origin (freeze while typing)
             else if (_annotateMode && _arrowTextOrigin != null && _textPlacementPdfPoint == null)
@@ -850,19 +865,36 @@ public partial class PreView
                     var found = MuPDFRenderer.FindAnnotationsInRect(rect);
                     if (found.Count > 0)
                     {
-                        SavePreSelectState();
-                        _selectedAnnotations.Clear();
-                        MuPDFRenderer.ClearSelectHighlight();
-                        foreach (var item in found)
+                        if (_rubberBandSubtractive)
                         {
-                            _selectedAnnotations.Add(item);
-                            MuPDFRenderer.AddSelectHighlight(item);
+                            foreach (var item in found)
+                                _selectedAnnotations.Remove(item);
                         }
-                        _selectedAnnotation = found[0];
-                        SyncToolbarToSelection();
+                        else if (_rubberBandAdditive)
+                        {
+                            foreach (var item in found)
+                                _selectedAnnotations.Add(item);
+                        }
+                        else
+                        {
+                            SavePreSelectState();
+                            _selectedAnnotations.Clear();
+                            foreach (var item in found)
+                                _selectedAnnotations.Add(item);
+                        }
+
+                        MuPDFRenderer.ClearSelectHighlight();
+                        foreach (var item in _selectedAnnotations)
+                            MuPDFRenderer.AddSelectHighlight(item);
+
+                        _selectedAnnotation = _selectedAnnotations.Count > 0 ? _selectedAnnotations.First() : null;
+                        if (_selectedAnnotation != null)
+                            SyncToolbarToSelection();
                     }
                 }
             }
+            _rubberBandAdditive = false;
+            _rubberBandSubtractive = false;
             MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
             return;
         }

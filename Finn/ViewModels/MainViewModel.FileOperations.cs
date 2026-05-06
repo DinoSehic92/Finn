@@ -801,13 +801,13 @@ namespace Finn.ViewModels
                         foreach (var child in children)
                         {
                             CurrentProject.StoredFiles.Remove(child);
-                            child.Filtyp = NEW_TYPE;
+                            if (string.IsNullOrEmpty(child.Filtyp)) child.Filtyp = NEW_TYPE;
                             child.Uppdrag = project.Namn;
                             project.StoredFiles.Add(child);
                         }
 
                         CurrentProject.StoredFiles.Remove(file);
-                        file.Filtyp = NEW_TYPE;
+                        if (string.IsNullOrEmpty(file.Filtyp)) file.Filtyp = NEW_TYPE;
                         file.Uppdrag = project.Namn;
                         project.StoredFiles.Add(file);
                     }

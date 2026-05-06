@@ -892,6 +892,10 @@ public partial class PreView
     /// </summary>
     private string ExportReviewPdf(string reviewName)
     {
+        var integrity = MuPDFRenderer.ValidateAndRepairAnnotations();
+        if ((integrity.FixedCount > 0 || integrity.RemovedCount > 0) && pwr != null)
+            pwr.StatusMessage = $"Annotations normalized ({integrity.FixedCount} fixed, {integrity.RemovedCount} removed)";
+
         const double renderZoom = 2.0;
 
         // Determine review output folder
