@@ -859,9 +859,9 @@ public partial class PreView
                             or InlineAnnotationTool.RevisionCloud)
             || item is InkStroke { IsPolyline: true, IsClosed: true };
         bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
-            || item is InkStroke { IsPolyline: true };
+            || item is InkStroke { IsPolyline: true, IsAreaMeasure: false };
         bool isText = item is TextAnnotation;
-        bool isPolyline = item is InkStroke { IsPolyline: true, Points.Count: >= 3 };
+        bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, Points.Count: >= 3 };
 
         PropertyStrokeRow.IsVisible = hasStroke;
         PropertyFillBtn.IsVisible = hasFill;

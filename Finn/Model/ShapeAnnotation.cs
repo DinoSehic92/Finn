@@ -48,6 +48,7 @@ public class ShapeAnnotation
     public InlineAnnotationTool ShapeType { get; set; }
     public Point Start { get; set; }
     public Point End { get; set; }
+    public int ZIndex { get; set; }
     public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
     public double StrokeWidth { get; set; } = 2;
     public double Opacity { get; set; } = 1.0;

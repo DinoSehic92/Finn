@@ -1830,43 +1830,29 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Record for z-order undo: stores the item and its index before the move.</summary>
     private record ZOrderSnapshot(object Item, int OldIndex);
 
-    /// <summary>Captures the current z-order index of an annotation for undo.</summary>
+    /// <summary>Captures the current ZIndex of an annotation for undo.</summary>
     public object? CaptureZOrderSnapshot(object item)
     {
-        if (ActiveLayer == null) return null;
-        int idx = item switch
+        int z = item switch
         {
-            InkStroke s => ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var st) ? st.IndexOf(s) : -1,
-            ShapeAnnotation sh => ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shp) ? shp.IndexOf(sh) : -1,
-            TextAnnotation t => ActiveLayer.PageTexts.TryGetValue(_currentPage, out var txt) ? txt.IndexOf(t) : -1,
-            MeasurementAnnotation m => ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) ? ms.IndexOf(m) : -1,
-            _ => -1
+            InkStroke s => s.ZIndex,
+            ShapeAnnotation sh => sh.ZIndex,
+            TextAnnotation t => t.ZIndex,
+            MeasurementAnnotation m => m.ZIndex,
+            _ => int.MinValue
         };
-        return idx >= 0 ? new ZOrderSnapshot(item, idx) : null;
+        return z != int.MinValue ? new ZOrderSnapshot(item, z) : null;
     }
 
-    /// <summary>Restores an annotation to a previously captured z-order index.</summary>
+    /// <summary>Restores an annotation's ZIndex from a previously captured snapshot.</summary>
     private void RestoreZOrder(ZOrderSnapshot snap)
     {
-        if (ActiveLayer == null) return;
         switch (snap.Item)
         {
-            case InkStroke s:
-                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var st) && st.Remove(s))
-                    st.Insert(Math.Min(snap.OldIndex, st.Count), s);
-                break;
-            case ShapeAnnotation sh:
-                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shp) && shp.Remove(sh))
-                    shp.Insert(Math.Min(snap.OldIndex, shp.Count), sh);
-                break;
-            case TextAnnotation t:
-                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var txt) && txt.Remove(t))
-                    txt.Insert(Math.Min(snap.OldIndex, txt.Count), t);
-                break;
-            case MeasurementAnnotation m:
-                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
-                    ms.Insert(Math.Min(snap.OldIndex, ms.Count), m);
-                break;
+            case InkStroke s: s.ZIndex = snap.OldIndex; break;
+            case ShapeAnnotation sh: sh.ZIndex = snap.OldIndex; break;
+            case TextAnnotation t: t.ZIndex = snap.OldIndex; break;
+            case MeasurementAnnotation m: m.ZIndex = snap.OldIndex; break;
         }
     }
 
@@ -2300,29 +2286,46 @@ public class AnnotatedPDFRenderer : PDFRenderer
     #region Z-Ordering
 
     /// <summary>Move an annotation to the top of its type list (drawn last = visually on top).</summary>
+    /// <summary>Returns the max ZIndex across all annotations on the current page in all visible layers.</summary>
+    private int GetMaxZIndex()
+    {
+        int max = 0;
+        foreach (var layer in Layers)
+        {
+            if (layer.PageStrokes.TryGetValue(_currentPage, out var st)) foreach (var s in st) if (s.ZIndex > max) max = s.ZIndex;
+            if (layer.PageShapes.TryGetValue(_currentPage, out var sh)) foreach (var s in sh) if (s.ZIndex > max) max = s.ZIndex;
+            if (layer.PageTexts.TryGetValue(_currentPage, out var tx)) foreach (var s in tx) if (s.ZIndex > max) max = s.ZIndex;
+            if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms)) foreach (var s in ms) if (s.ZIndex > max) max = s.ZIndex;
+        }
+        return max;
+    }
+
+    /// <summary>Returns the min ZIndex across all annotations on the current page in all visible layers.</summary>
+    private int GetMinZIndex()
+    {
+        int min = 0;
+        foreach (var layer in Layers)
+        {
+            if (layer.PageStrokes.TryGetValue(_currentPage, out var st)) foreach (var s in st) if (s.ZIndex < min) min = s.ZIndex;
+            if (layer.PageShapes.TryGetValue(_currentPage, out var sh)) foreach (var s in sh) if (s.ZIndex < min) min = s.ZIndex;
+            if (layer.PageTexts.TryGetValue(_currentPage, out var tx)) foreach (var s in tx) if (s.ZIndex < min) min = s.ZIndex;
+            if (layer.PageMeasurements.TryGetValue(_currentPage, out var ms)) foreach (var s in ms) if (s.ZIndex < min) min = s.ZIndex;
+        }
+        return min;
+    }
+
     public bool BringToFront(object item)
     {
         if (ActiveLayer == null) return false;
         var zSnap = CaptureZOrderSnapshot(item);
+        int newZ = GetMaxZIndex() + 1;
         bool moved = false;
         switch (item)
         {
-            case InkStroke s:
-                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes) && strokes.Remove(s))
-                { strokes.Add(s); moved = true; }
-                break;
-            case ShapeAnnotation sh:
-                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes) && shapes.Remove(sh))
-                { shapes.Add(sh); moved = true; }
-                break;
-            case TextAnnotation t:
-                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts) && texts.Remove(t))
-                { texts.Add(t); moved = true; }
-                break;
-            case MeasurementAnnotation m:
-                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
-                { ms.Add(m); moved = true; }
-                break;
+            case InkStroke s: s.ZIndex = newZ; moved = true; break;
+            case ShapeAnnotation sh: sh.ZIndex = newZ; moved = true; break;
+            case TextAnnotation t: t.ZIndex = newZ; moved = true; break;
+            case MeasurementAnnotation m: m.ZIndex = newZ; moved = true; break;
         }
         if (moved)
         {
@@ -2332,30 +2335,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return moved;
     }
 
-    /// <summary>Move an annotation to the bottom of its type list (drawn first = visually behind).</summary>
+    /// <summary>Move an annotation behind all others by assigning a ZIndex below the current minimum.</summary>
     public bool SendToBack(object item)
     {
         if (ActiveLayer == null) return false;
         var zSnap = CaptureZOrderSnapshot(item);
+        int newZ = GetMinZIndex() - 1;
         bool moved = false;
         switch (item)
         {
-            case InkStroke s:
-                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes) && strokes.Remove(s))
-                { strokes.Insert(0, s); moved = true; }
-                break;
-            case ShapeAnnotation sh:
-                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes) && shapes.Remove(sh))
-                { shapes.Insert(0, sh); moved = true; }
-                break;
-            case TextAnnotation t:
-                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts) && texts.Remove(t))
-                { texts.Insert(0, t); moved = true; }
-                break;
-            case MeasurementAnnotation m:
-                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
-                { ms.Insert(0, m); moved = true; }
-                break;
+            case InkStroke s: s.ZIndex = newZ; moved = true; break;
+            case ShapeAnnotation sh: sh.ZIndex = newZ; moved = true; break;
+            case TextAnnotation t: t.ZIndex = newZ; moved = true; break;
+            case MeasurementAnnotation m: m.ZIndex = newZ; moved = true; break;
         }
         if (moved)
         {
@@ -3260,36 +3252,40 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _textItemPool.Clear();
         var textItems = _textItemPool;
 
-        // Draw all visible layers
+        // Collect all annotations from all visible layers into a single list sorted by ZIndex
+        // so that cross-type z-ordering (e.g. text behind shape) works correctly.
+        var allAnnotations = new List<(int Z, object Item, AnnotationLayer Layer)>();
         foreach (var layer in Layers)
         {
             if (!layer.IsVisible) continue;
             if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
+                foreach (var s in strokes) allAnnotations.Add((s.ZIndex, s, layer));
+            if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
+                foreach (var s in shapes) allAnnotations.Add((s.ZIndex, s, layer));
+            if (layer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
+                foreach (var m in measurements) allAnnotations.Add((m.ZIndex, m, layer));
+            if (layer.PageTexts.TryGetValue(_currentPage, out var texts))
+                foreach (var t in texts) allAnnotations.Add((t.ZIndex, t, layer));
+        }
+        allAnnotations.Sort((a, b) => a.Z.CompareTo(b.Z));
+
+        foreach (var (_, item, _) in allAnnotations)
+        {
+            switch (item)
             {
-                foreach (var stroke in strokes)
-                {
+                case InkStroke stroke:
                     RenderStroke(context, stroke, da, boundsSize, scaleX, scaleY, penScale);
                     if (stroke.IsAreaMeasure && stroke.IsClosed && stroke.Points.Count >= 3)
                         CollectAreaLabel(stroke, da, boundsSize, penScale, textItems);
-                }
-            }
-            if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
-            {
-                foreach (var shape in shapes)
+                    break;
+                case ShapeAnnotation shape:
                     RenderShape(context, shape, da, boundsSize, scaleX, scaleY, penScale);
-            }
-            if (layer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
-            {
-                foreach (var m in measurements)
-                {
+                    break;
+                case MeasurementAnnotation m:
                     RenderMeasurementGeometry(context, m.Points, m.Color, da, boundsSize, penScale, m);
                     CollectMeasurementLabel(m, da, boundsSize, penScale, textItems);
-                }
-            }
-            if (layer.PageTexts.TryGetValue(_currentPage, out var texts))
-            {
-                foreach (var t in texts)
-                {
+                    break;
+                case TextAnnotation t:
                     if (t.IsStickyNote)
                         CollectStickyNoteIcon(t, da, boundsSize, penScale, textItems, isExpanded: false);
                     else if (t.IsLabel)
@@ -3300,7 +3296,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         if (t.ArrowOrigin.HasValue)
                             RenderTextArrow(context, t, da, boundsSize, penScale);
                     }
-                }
+                    break;
             }
         }
 
@@ -4937,6 +4933,7 @@ public class InkStroke
 {
     public List<Point> Points { get; set; } = [];
     public Color Color { get; set; } = Colors.Red;
+    public int ZIndex { get; set; }
     public double Width { get; set; } = 3;
     public double Opacity { get; set; } = 1.0;
     public bool IsHighlighter { get; set; }

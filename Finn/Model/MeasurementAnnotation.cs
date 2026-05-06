@@ -16,6 +16,7 @@ public class MeasurementAnnotation
 {
     public List<Point> Points { get; set; } = [];
     public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
+    public int ZIndex { get; set; }
 
     /// <summary>
     /// Millimetres per PDF point. Default = 25.4/72 (uncalibrated).

@@ -17,6 +17,7 @@ public class TextAnnotation
     private double _maxWidth;
 
     public Point Position { get; set; }
+    public int ZIndex { get; set; }
 
     public string Text
     {
