@@ -1,6 +1,7 @@
 ﻿using Finn.ViewModels;
 using Avalonia.Controls;
 using Finn.Dialogs;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 
@@ -61,9 +62,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         try
         {
-            await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);
+            try
+            {
+                // Calendar save is best-effort on close — a failure must never
+                // prevent the close flow from reaching the dirty-check below.
+                await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);
+            }
+            catch (Exception ex)
+            {
+                Finn.Utils.ErrorLogger.Log(ex, "OnClosing: calendar save");
+            }
 
-            if (await ctx.IsStorageDifferentFromFileAsync())
+                if (await ctx.IsStorageDifferentFromFileAsync())
             {
                 OpenClosingDia();
             }

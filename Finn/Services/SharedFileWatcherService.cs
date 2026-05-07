@@ -80,8 +80,9 @@ public sealed class SharedFileWatcherService : IDisposable
 
                 try
                 {
-                    if (!Directory.Exists(dir)) continue;
-
+                    // Skip Directory.Exists here — it blocks on slow/unreachable
+                    // servers. The FileSystemWatcher constructor will throw if the
+                    // directory is inaccessible; we catch that below.
                     var watcher = new FileSystemWatcher(dir, "*.json")
                     {
                         NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
@@ -100,19 +101,41 @@ public sealed class SharedFileWatcherService : IDisposable
                 catch (Exception ex) { Utils.ErrorLogger.Log(ex, $"SharedFileWatcherService: FSW creation failed for {dir}"); }
             }
 
-            // Seed baseline timestamps for the polling fallback
+            // Prune stale keys synchronously — no I/O involved
             var staleKeys = _lastKnownWriteTimes.Keys.Except(trackedFiles, StringComparer.OrdinalIgnoreCase).ToList();
             foreach (var key in staleKeys)
                 _lastKnownWriteTimes.Remove(key);
 
+            // New files get a placeholder; the actual timestamp is seeded
+            // asynchronously below so we never block the calling thread
+            // (which may be the UI thread) on a slow/unreachable server.
             foreach (var file in trackedFiles)
             {
                 if (!_lastKnownWriteTimes.ContainsKey(file))
-                {
-                    try { _lastKnownWriteTimes[file] = File.GetLastWriteTimeUtc(file); }
-                    catch { _lastKnownWriteTimes[file] = DateTime.MinValue; }
-                }
+                    _lastKnownWriteTimes[file] = DateTime.MinValue;
             }
+        }
+
+        // Seed baseline write-times on a background thread so the caller
+        // (often the UI thread during startup) is never blocked by network I/O.
+        var filesToSeed = trackedFiles
+            .Where(f => { lock (_lock) { return _lastKnownWriteTimes.TryGetValue(f, out var t) && t == DateTime.MinValue; } })
+            .ToList();
+
+        if (filesToSeed.Count > 0)
+        {
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                foreach (var file in filesToSeed)
+                {
+                    try
+                    {
+                        var ts = File.GetLastWriteTimeUtc(file);
+                        lock (_lock) { _lastKnownWriteTimes[file] = ts; }
+                    }
+                    catch { /* server unreachable — leave as MinValue; poll will retry */ }
+                }
+            });
         }
 
         // Start or restart the polling timer

@@ -195,15 +195,16 @@ namespace Finn.ViewModels
                     }
                 }
 
-                SetProjectlist();
-                SetDefaultSelection();
-                MigrateGroupsOnLoad();
-                SyncPreviewRegionColor();
                 // SyncPlainText does synchronous file I/O — run on background thread
                 // so it does not block the UI during startup.
                 Task.Run(() => Data.SyncPlainText())
                     .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception?.InnerException ?? t.Exception, "SyncPlainText"),
                         System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+
+                SetProjectlist();
+                SetDefaultSelection();
+                MigrateGroupsOnLoad();
+                SyncPreviewRegionColor();
             }
 
             public async Task SaveFile(Avalonia.Visual window)
@@ -271,21 +272,30 @@ namespace Finn.ViewModels
             /// Compare the in-memory Storage (Projects) with the on-disk Projects.json file.
             /// Returns true when the two are different (i.e. there are unsaved changes).
             /// </summary>
-            public Task<bool> IsStorageDifferentFromFileAsync(string? projectsFilePath = null)
+            public async Task<bool> IsStorageDifferentFromFileAsync(string? projectsFilePath = null)
             {
-                // Capture the storage snapshot on the UI thread before going async,
-                // so we serialize the state as it is right now.
-                string currentJson = JsonHelper.Serialize(Storage);
+                string path = !string.IsNullOrWhiteSpace(projectsFilePath)
+                    ? projectsFilePath
+                    : Path.Combine(SavePath, "Projects.json");
 
-                string path;
-                if (!string.IsNullOrWhiteSpace(projectsFilePath))
-                    path = projectsFilePath;
-                else if (!string.IsNullOrWhiteSpace(CurrentProjectsFilePath))
-                    path = CurrentProjectsFilePath;
-                else
-                    path = Path.Combine(SavePath, "Projects.json");
+                // Serialize Storage on the UI thread. Storage and its object graph
+                // are UI-owned — serializing them from a background thread while the
+                // UI can still mutate them risks collection-modified exceptions or
+                // an inconsistent snapshot.
+                string currentJson;
+                try
+                {
+                    currentJson = JsonHelper.Serialize(Storage);
+                }
+                catch (Exception ex)
+                {
+                    Utils.ErrorLogger.Log(ex, "IsStorageDifferentFromFileAsync: serialize");
+                    return true;
+                }
 
-                return Task.Run(() =>
+                // File read and normalization are pure I/O / CPU work with no
+                // shared mutable state — safe to run off the UI thread.
+                return await Task.Run(() =>
                 {
                     try
                     {
@@ -294,6 +304,12 @@ namespace Finn.ViewModels
 
                         string savedJson = File.ReadAllText(path);
 
+                        // Fast path: byte-identical strings mean nothing changed.
+                        if (string.Equals(savedJson, currentJson, StringComparison.Ordinal))
+                            return false;
+
+                        // Slow path: normalize both sides to strip transient fields
+                        // before concluding something actually changed.
                         using var savedDoc = JsonDocument.Parse(savedJson);
                         using var currentDoc = JsonDocument.Parse(currentJson);
 
@@ -304,8 +320,7 @@ namespace Finn.ViewModels
                     }
                     catch (Exception ex)
                     {
-                        // If comparison fails, assume changed so the caller can decide whether to save.
-                        Utils.ErrorLogger.Log(ex, "IsStorageDifferentFromFileAsync");
+                        Utils.ErrorLogger.Log(ex, "IsStorageDifferentFromFileAsync: compare");
                         return true;
                     }
                 });
@@ -323,9 +338,8 @@ namespace Finn.ViewModels
                 "HasBookmarks",
                 "HasAppendedFiles",
                 "FiletypesTree",
-                // Shared-project metadata changes on every push/pull
-                // but shouldn't trigger unsaved-changes detection.
-                "SharedPath",
+                // LastPushedUtc changes on every push and is not a user-facing edit,
+                // so it shouldn't trigger an unsaved-changes prompt on its own.
                 "LastPushedUtc",
             ];
 

@@ -364,8 +364,11 @@ namespace Finn.ViewModels
 
         public void SyncPlainText()
         {
+            // This method is called from Task.Run, so only do disk I/O here.
+            // All mutations of viewmodel/model state are posted back to the UI thread.
             string indexPath = Path.Combine(_savePath, "Content.json");
 
+            ObservableCollection<ContentData>? content = null;
             var indexedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (File.Exists(indexPath))
@@ -373,10 +376,9 @@ namespace Finn.ViewModels
                 try
                 {
                     var json = File.ReadAllText(indexPath);
-                    var content = JsonHelper.Deserialize<ObservableCollection<ContentData>>(json);
+                    content = JsonHelper.Deserialize<ObservableCollection<ContentData>>(json);
                     if (content != null)
                     {
-                        TextContent = content;
                         foreach (ContentData entry in content)
                             indexedPaths.Add(entry.Filepath);
                     }
@@ -387,13 +389,18 @@ namespace Finn.ViewModels
                 }
             }
 
-            foreach (var project in Storage.StoredProjects)
+            // Apply state on the UI thread — Storage and FileData are UI-bound objects.
+            var capturedContent = content;
+            var capturedPaths = indexedPaths;
+            Dispatcher.UIThread.Post(() =>
             {
-                foreach (var file in project.StoredFiles)
-                {
-                    file.HasPlainText = indexedPaths.Contains(file.Sökväg);
-                }
-            }
+                if (capturedContent != null)
+                    TextContent = capturedContent;
+
+                foreach (var project in Storage.StoredProjects)
+                    foreach (var file in project.StoredFiles)
+                        file.HasPlainText = capturedPaths.Contains(file.Sökväg);
+            });
         }
 
         public async Task LoadIndexFileAsync(string indexPath)
