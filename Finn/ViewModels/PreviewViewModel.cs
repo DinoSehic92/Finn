@@ -1398,11 +1398,18 @@ namespace Finn.ViewModels
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        // --- Release old renderer resources ---
+                        // --- Release old renderer resources BEFORE disposing old context ---
+                        // ReleaseResources disposes StructuredTextPage (which holds MuPDFFont
+                        // objects). These objects must be disposed while their owner context
+                        // is still alive. Calling ReleaseResources after prevCtx.Dispose()
+                        // causes MuPDFCore.LifetimeManagementException (font disposed after context).
                         if (mainRenderer?.HighlightedRegions != null)
                             mainRenderer.HighlightedRegions = null!;
                         if (!dualFileMode && secondaryRenderer?.HighlightedRegions != null)
                             secondaryRenderer.HighlightedRegions = null!;
+                        mainRenderer?.ReleaseResources();
+                        if (!dualFileMode)
+                            secondaryRenderer?.ReleaseResources();
 
                         // --- Dispose old, swap in new ---
                         var prevDoc = MainPreviewFile;
@@ -1439,7 +1446,6 @@ namespace Finn.ViewModels
                         // if a newer request arrived while queued for the UI thread.
                         if (mainRenderer != null && !IsStale(myGeneration))
                         {
-                            mainRenderer.ReleaseResources();
                             mainRenderer.Initialize(MainPreviewFile!, 1, desired, ZOOM_LEVEL);
                             mainRenderer.IsVisible = true;
                             SetSearchResults();
@@ -1453,7 +1459,6 @@ namespace Finn.ViewModels
                         {
                             requestPage2 = desired + 1;
                             OnPropertyChanged(nameof(RequestPage2));
-                            secondaryRenderer.ReleaseResources();
                             secondaryRenderer.Initialize(MainPreviewFile!, 1, requestPage2, ZOOM_LEVEL);
                             secondaryRenderer.IsVisible = true;
                             SetSecondarySearchResults();

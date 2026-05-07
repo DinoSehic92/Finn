@@ -119,6 +119,7 @@ namespace Finn.ViewModels
 
                     var folder = CreateAttachedFolder(path, "Other Files");
                     CurrentProject!.Folders.Add(folder);
+                    await SyncFolderAsync(folder);
                 }
 
                 RefreshFolderWatchers();
