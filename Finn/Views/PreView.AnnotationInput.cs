@@ -44,27 +44,37 @@ public partial class PreView
         // Right-click: finish/cancel active operations
         if (point.Properties.IsRightButtonPressed)
         {
+            if (_matchStyleArmed)
+            {
+                CancelMatchStyle();
+                e.Handled = true;
+                return;
+            }
             if (MuPDFRenderer.HasActivePolyline)
             {
                 MuPDFRenderer.EndPolyline();
+                UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
             if (MuPDFRenderer.HasActiveShape)
             {
                 MuPDFRenderer.CancelStroke();
+                UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
             if (MuPDFRenderer.HasActiveMeasurement)
             {
                 MuPDFRenderer.CancelStroke();
+                UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
             if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null)
             {
-                OnTextInputCommit(this, e);
+                OnTextInputCancel(this, e);
+                UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
@@ -73,6 +83,7 @@ public partial class PreView
                 _arrowTextOrigin = null;
                 MuPDFRenderer.ClearArrowTextPreview();
                 _inkDrawing = false;
+                UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
@@ -80,26 +91,23 @@ public partial class PreView
             {
                 MuPDFRenderer.CancelStroke();
                 _inkDrawing = false;
+                UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
-            // Right-click with nothing active: show context menu or switch to Select
+            // Right-click with nothing active: switch to Select tool, then select hit item or deselect.
+            ApplyToolSwitch(InlineAnnotationTool.Select);
             var rightPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
             object? rightHit = rightPdf.HasValue ? MuPDFRenderer.FindTopmostAt(rightPdf.Value) : null;
             if (rightHit != null)
             {
-                if (MuPDFRenderer.ActiveTool != InlineAnnotationTool.Select)
-                    ApplyToolSwitch(InlineAnnotationTool.Select);
+                SelectAnnotation(rightHit);
                 e.Handled = true;
                 return;
             }
             if (_selectedAnnotation != null)
             {
                 DeselectAnnotation();
-            }
-            if (MuPDFRenderer.ActiveTool != InlineAnnotationTool.Select)
-            {
-                ApplyToolSwitch(InlineAnnotationTool.Select);
             }
             e.Handled = true;
             return;
@@ -109,6 +117,20 @@ public partial class PreView
 
         var pdfPoint = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
         if (!pdfPoint.HasValue) return;
+
+        if (_matchStyleArmed)
+        {
+            var matchHit = MuPDFRenderer.FindTopmostAt(pdfPoint.Value);
+            if (matchHit != null && _matchStyleSource != null && !ReferenceEquals(matchHit, _matchStyleSource))
+            {
+                ApplyMatchedStyle(_matchStyleSource, matchHit);
+                SelectAnnotation(matchHit);
+                CancelMatchStyle();
+            }
+            e.Pointer.Capture(null);
+            e.Handled = true;
+            return;
+        }
 
         e.Pointer.Capture(MuPDFRenderer);
         e.Handled = true;
@@ -351,12 +373,6 @@ public partial class PreView
                     }
                 }
             }
-            // Multi-selection resize handle: check combined bounding-box corners
-            if (hitItem == null && _selectedAnnotations.Count >= 2 && !MuPDFRenderer.IsActiveLayerLocked)
-            {
-                if (TryBeginGroupResize(pdfPoint.Value))
-                    return;
-            }
             // Clicked empty space: deselect any current selection
             if (_selectedAnnotations.Count > 0)
             {
@@ -458,6 +474,7 @@ public partial class PreView
                 }
                 else
                     MuPDFRenderer.BeginPolyline(pdfPoint.Value);
+                UpdateAnnotationStatusHint();
                 e.Pointer.Capture(null);
                 break;
             }
@@ -482,6 +499,7 @@ public partial class PreView
                 }
                 else
                     MuPDFRenderer.BeginPolyline(pdfPoint.Value, asAreaMeasure: true);
+                UpdateAnnotationStatusHint();
                 e.Pointer.Capture(null);
                 break;
             }
@@ -494,6 +512,7 @@ public partial class PreView
             default: // Draw, Highlight
                 _inkDrawing = true;
                 MuPDFRenderer.BeginStroke(pdfPoint.Value);
+                UpdateAnnotationStatusHint();
                 break;
         }
         }
@@ -556,10 +575,24 @@ public partial class PreView
             // Eraser hover highlight: track what's under the cursor
             else if (_annotateMode && MuPDFRenderer.ActiveTool == InlineAnnotationTool.Eraser)
             {
+                bool hoverMoved = true;
                 if (hoverPdf.HasValue)
-                    MuPDFRenderer.UpdateEraserHover(hoverPdf.Value);
-                else
-                    MuPDFRenderer.ClearEraserHover();
+                {
+                    double hdx = hoverPdf.Value.X - _lastHoverPdf.X;
+                    double hdy = hoverPdf.Value.Y - _lastHoverPdf.Y;
+                    if (hdx * hdx + hdy * hdy < HoverThresholdSq)
+                        hoverMoved = false;
+                    else
+                        _lastHoverPdf = hoverPdf.Value;
+                }
+
+                if (hoverMoved)
+                {
+                    if (hoverPdf.HasValue)
+                        MuPDFRenderer.UpdateEraserHover(hoverPdf.Value);
+                    else
+                        MuPDFRenderer.ClearEraserHover();
+                }
             }
             // General hover: sticky-note popup, text placement ghost, select outline
             else if (_annotateMode)
@@ -605,12 +638,14 @@ public partial class PreView
                 {
                     var hoverHit = MuPDFRenderer.FindTopmostAt(hoverPdf.Value);
                     MuPDFRenderer.UpdateSelectHover(hoverHit);
+                    ShowHoverEditHint(hoverHit);
                     if (at is InlineAnnotationTool.Select)
                         MuPDFRenderer.Cursor = GetHoverCursor(hoverPdf.Value, hoverHit);
                 }
                 else if (hoverMoved)
                 {
                     MuPDFRenderer.UpdateSelectHover(null);
+                    UpdateAnnotationStatusHint();
                 }
             }
             return;
@@ -839,11 +874,13 @@ public partial class PreView
             || _groupResizing)
         {
             FinishDrag();
+            UpdateAnnotationStatusHint();
             return;
         }
         if (_resizingTextAnnotation != null)
         {
             FinishDrag(isPropertyUndo: true);
+            UpdateAnnotationStatusHint();
             return;
         }
 
@@ -896,6 +933,7 @@ public partial class PreView
             _rubberBandAdditive = false;
             _rubberBandSubtractive = false;
             MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
+            UpdateAnnotationStatusHint();
             return;
         }
 

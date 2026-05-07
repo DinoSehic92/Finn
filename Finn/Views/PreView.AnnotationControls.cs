@@ -15,6 +15,10 @@ namespace Finn.Views;
 
 public partial class PreView
 {
+    private StackPanel? _propertyDashRow;
+    private StackPanel? _propertyOpacityRow;
+    private Button? _propertyClosePolyBtn;
+
     private void OnAnnotateColor(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string colorName)
@@ -30,6 +34,7 @@ public partial class PreView
 
             SetActiveColorButton(btn);
             UpdateColorIndicator(color);
+            UpdateAnnotationStatusHint();
             MuPDFRenderer.Focus();
         }
     }
@@ -40,8 +45,11 @@ public partial class PreView
         var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
-            if (snap != null) snaps.Add(snap);
+            if (_propertyPanelTarget == null)
+            {
+                var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+                if (snap != null) snaps.Add(snap);
+            }
             switch (selItem)
             {
                 case InkStroke s: s.Color = color; s.InvalidatePen(); break;
@@ -50,7 +58,8 @@ public partial class PreView
                 case MeasurementAnnotation m: m.Color = color; break;
             }
         }
-        MuPDFRenderer.PushGroupPropertyUndo(snaps);
+        if (snaps.Count > 0)
+            MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
     }
@@ -62,6 +71,7 @@ public partial class PreView
             var tool = Enum.Parse<InlineAnnotationTool>(toolName);
             ApplyToolSwitch(tool);
         }
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -95,6 +105,7 @@ public partial class PreView
 
             SetActiveWidthButton(btn);
             UpdateBrushSizeIndicator(w);
+            UpdateAnnotationStatusHint();
         }
     }
 
@@ -128,6 +139,7 @@ public partial class PreView
 
             SetActiveDashButton(btn);
             UpdateDashIndicator(pattern);
+            UpdateAnnotationStatusHint();
         }
     }
 
@@ -157,6 +169,7 @@ public partial class PreView
 
             SetActiveButton(ref _activeCornerRadiusButton, btn);
             UpdateCornerIndicator(r);
+            UpdateAnnotationStatusHint();
         }
     }
 
@@ -166,7 +179,13 @@ public partial class PreView
     /// </summary>
     private static void SetActiveButton(ref Button? field, Button? btn)
     {
-        if (field != null) { field.BorderThickness = new Thickness(0); field.BorderBrush = null; }
+        if (field != null)
+        {
+            field.BorderThickness = new Thickness(0);
+            field.BorderBrush = null;
+            field.Background = Brushes.Transparent;
+            field.Opacity = 1.0;
+        }
         field = btn;
         if (btn != null)
         {
@@ -174,6 +193,10 @@ public partial class PreView
             btn.BorderBrush = btn.TryFindResource("SystemAccentColor", btn.ActualThemeVariant, out var accentObj) && accentObj is Color accentColor
                 ? new SolidColorBrush(accentColor)
                 : Brushes.White;
+            btn.Background = btn.TryFindResource("SystemAccentColor", btn.ActualThemeVariant, out accentObj) && accentObj is Color activeColor
+                ? new SolidColorBrush(Color.FromArgb(32, activeColor.R, activeColor.G, activeColor.B))
+                : new SolidColorBrush(Color.FromArgb(32, 255, 255, 255));
+            btn.Opacity = 1.0;
         }
     }
 
@@ -474,8 +497,10 @@ public partial class PreView
         // Apply to selected closed polyline
         else if (_selectedAnnotation is InkStroke { IsPolyline: true, IsClosed: true } poly)
         {
+            var snap = MuPDFRenderer.CapturePropertySnapshot(poly);
             poly.IsFilled = MuPDFRenderer.IsFilledMode;
             poly.InvalidatePen();
+            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
             MuPDFRenderer.InvalidateVisual();
             MuPDFRenderer.NotifyAnnotationChanged();
         }
@@ -483,34 +508,49 @@ public partial class PreView
         SyncFillToggleButton(MuPDFRenderer.IsFilledMode);
     }
 
-    /// <summary>Syncs the fill toggle button visual state to the given value.</summary>
-    private void SyncFillToggleButton(bool isFilled)
+    /// <summary>Applies accent-color active styling to a toggle button, or resets it to transparent.</summary>
+    private static void SyncToggleButton(Button? btn, bool active)
     {
-        if (FillToggleBtn == null) return;
-        FillToggleBtn.BorderThickness = isFilled ? new Thickness(2) : new Thickness(0);
-        FillToggleBtn.BorderBrush = isFilled
-            ? (FillToggleBtn.TryFindResource("SystemAccentColor", FillToggleBtn.ActualThemeVariant, out var obj) && obj is Color c
+        if (btn == null) return;
+        btn.BorderThickness = active ? new Thickness(2) : new Thickness(0);
+        btn.BorderBrush = active
+            ? (btn.TryFindResource("SystemAccentColor", btn.ActualThemeVariant, out var obj) && obj is Color c
                 ? new SolidColorBrush(c) : Brushes.White)
             : null;
+        btn.Background = active
+            ? (btn.TryFindResource("SystemAccentColor", btn.ActualThemeVariant, out var bgObj) && bgObj is Color bgColor
+                ? new SolidColorBrush(Color.FromArgb(32, bgColor.R, bgColor.G, bgColor.B))
+                : new SolidColorBrush(Color.FromArgb(32, 255, 255, 255)))
+            : Brushes.Transparent;
     }
+
+    /// <summary>Syncs the fill toggle button visual state to the given value.</summary>
+    private void SyncFillToggleButton(bool isFilled) => SyncToggleButton(FillToggleBtn, isFilled);
 
     private void OnToggleGrid(object sender, RoutedEventArgs e)
     {
         MuPDFRenderer.SnapToGrid = !MuPDFRenderer.SnapToGrid;
         SyncGridToggleButton(MuPDFRenderer.SnapToGrid);
         MuPDFRenderer.InvalidateVisual();
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
     /// <summary>Syncs the grid toggle button visual state to the given value.</summary>
-    private void SyncGridToggleButton(bool active)
+    private void SyncGridToggleButton(bool active) => SyncToggleButton(GridToggleBtn, active);
+
+    private void OnToggleStatusHints(object? sender, RoutedEventArgs e)
     {
-        if (GridToggleBtn == null) return;
-        GridToggleBtn.BorderThickness = active ? new Thickness(2) : new Thickness(0);
-        GridToggleBtn.BorderBrush = active
-            ? (GridToggleBtn.TryFindResource("SystemAccentColor", GridToggleBtn.ActualThemeVariant, out var obj) && obj is Color c
-                ? new SolidColorBrush(c) : Brushes.White)
-            : null;
+        _showAnnotationStatusHints = !_showAnnotationStatusHints;
+        SyncStatusHintsToggleButton();
+        UpdateAnnotationStatusHint();
+        MuPDFRenderer.Focus();
+    }
+
+    private void SyncStatusHintsToggleButton()
+    {
+        _statusHintsToggleBtn ??= this.FindControl<Button>("StatusHintsToggleBtn");
+        SyncToggleButton(_statusHintsToggleBtn, _showAnnotationStatusHints);
     }
 
     private static void MoveAnnotation(object item, double dx, double dy)
@@ -538,9 +578,6 @@ public partial class PreView
                 break;
         }
     }
-
-    private Point? _pendingArrowOrigin;
-    private bool _pendingStickyNote;
 
     private void ShowTextInput(Point pdfPoint, Point screenPos, Point? arrowOrigin = null, bool isStickyNote = false)
     {
@@ -574,6 +611,7 @@ public partial class PreView
 
         PropertyPanelCanvas.IsVisible = true;
         PropertyTextBox.Focus();
+        UpdateAnnotationStatusHint();
     }
 
     private void ShowTextEdit(TextAnnotation existing, Point screenPos)
@@ -628,9 +666,14 @@ public partial class PreView
 
         CloseTextInput();
         MuPDFRenderer.InvalidateVisual();
+        UpdateAnnotationStatusHint();
     }
 
-    private void OnTextInputCancel(object sender, RoutedEventArgs e) => CloseTextInput();
+    private void OnTextInputCancel(object sender, RoutedEventArgs e)
+    {
+        CloseTextInput();
+        UpdateAnnotationStatusHint();
+    }
 
     private void OnTextInputKeyDown(object? sender, KeyEventArgs e)
     {
@@ -657,6 +700,7 @@ public partial class PreView
         // preventing the user from drawing a new reference line.
         _calibrationMode = true;
         ApplyToolSwitch(InlineAnnotationTool.MeasureDistance);
+        UpdateAnnotationStatusHint();
     }
 
     private void OnCalibrationApply(object sender, RoutedEventArgs e)
@@ -669,6 +713,7 @@ public partial class PreView
                 MuPDFRenderer.NormalizeMeasurementScales();
         }
         CalibrationCanvas.IsVisible = false;
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -676,6 +721,7 @@ public partial class PreView
     {
         CalibrationCanvas.IsVisible = false;
         _calibrationMode = false;
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -719,9 +765,7 @@ public partial class PreView
     {
         if (_propertyPanelTarget != null)
         {
-            SavePreSelectState();
-            SyncToolbarToSelection();
-            DeselectAnnotation();
+            ArmMatchStyle(_propertyPanelTarget);
         }
         ClosePropertyPanel();
     }
@@ -729,14 +773,20 @@ public partial class PreView
     private void OnPropertyBringToFront(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget != null)
+        {
             MuPDFRenderer.BringToFront(_propertyPanelTarget);
+            if (pwr != null) pwr.StatusMessage = "Annotation moved to front";
+        }
         ClosePropertyPanel();
     }
 
     private void OnPropertySendToBack(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget != null)
+        {
             MuPDFRenderer.SendToBack(_propertyPanelTarget);
+            if (pwr != null) pwr.StatusMessage = "Annotation sent to back";
+        }
         ClosePropertyPanel();
     }
 
@@ -880,19 +930,19 @@ public partial class PreView
             || item is InkStroke { IsPolyline: true, IsAreaMeasure: false };
 
         PropertyStrokeRow.IsVisible = hasStroke;
-        var dashRow = this.FindControl<StackPanel>("PropertyDashRow");
-        if (dashRow != null) dashRow.IsVisible = hasDash;
+        _propertyDashRow ??= this.FindControl<StackPanel>("PropertyDashRow");
+        if (_propertyDashRow != null) _propertyDashRow.IsVisible = hasDash;
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
-        var opacityRow = this.FindControl<StackPanel>("PropertyOpacityRow");
-        if (opacityRow != null) opacityRow.IsVisible = !isText;
-        var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
-        if (closePolyBtn != null) closePolyBtn.IsVisible = isPolyline || isAreaPolyline;
+        _propertyOpacityRow ??= this.FindControl<StackPanel>("PropertyOpacityRow");
+        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = !isText;
+        _propertyClosePolyBtn ??= this.FindControl<Button>("PropertyClosePolyBtn");
+        if (_propertyClosePolyBtn != null) _propertyClosePolyBtn.IsVisible = isPolyline || isAreaPolyline;
 
-        if ((isPolyline || isAreaPolyline) && closePolyBtn != null)
+        if ((isPolyline || isAreaPolyline) && _propertyClosePolyBtn != null)
         {
             var poly = (InkStroke)item;
-            ToolTip.SetTip(closePolyBtn, poly.IsClosed ? "Open Polyline" : "Close Polyline");
+            ToolTip.SetTip(_propertyClosePolyBtn, poly.IsClosed ? "Open polyline" : "Close polyline");
         }
 
         if (hasFill)
@@ -931,6 +981,8 @@ public partial class PreView
         // Restore the transparent background for normal (non-text-edit) usage
         PropertyPanelCanvas.Background = Avalonia.Media.Brushes.Transparent;
         _propertyPanelTarget = null;
+        FlushPropertySessionUndo();
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -953,32 +1005,33 @@ public partial class PreView
         if (_propertyPanelTarget == null) return;
         if (sender is not Button btn || btn.Tag is not string colorName) return;
         var color = ColorPalette.GetValueOrDefault(colorName, ColorPalette["Red"]);
+        foreach (var selItem in _selectedAnnotations)
+            StagePropertyUndoSnapshot(selItem);
         ApplyColorToSelection(color);
         MuPDFRenderer.StrokeColor = color;
         SetActiveColorButton(FindToolbarButtonByTag(colorName));
+        UpdateAnnotationStatusHint();
     }
 
     private void OnPropertyWidth(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget == null) return;
         if (sender is not Button btn || btn.Tag is not string widthStr || !double.TryParse(widthStr, out double w)) return;
-        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
-            if (snap != null) snaps.Add(snap);
+            StagePropertyUndoSnapshot(selItem);
             switch (selItem)
             {
                 case InkStroke ink: ink.Width = w; ink.InvalidatePen(); break;
                 case ShapeAnnotation sh: sh.StrokeWidth = w; sh.InvalidatePen(); break;
             }
         }
-        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.StrokeWidth = w;
         _normalStrokeWidth = w;
         SetActiveWidthButton(FindToolbarButtonByTag(widthStr));
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
+        UpdateAnnotationStatusHint();
     }
 
     private void OnPropertyDash(object sender, RoutedEventArgs e)
@@ -986,22 +1039,20 @@ public partial class PreView
         if (_propertyPanelTarget == null) return;
         if (sender is not Button btn || btn.Tag is not string patternName
             || !Enum.TryParse<LineDashPattern>(patternName, out var pattern)) return;
-        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
-            if (snap != null) snaps.Add(snap);
+            StagePropertyUndoSnapshot(selItem);
             switch (selItem)
             {
                 case InkStroke ink: ink.DashPattern = pattern; ink.InvalidatePen(); break;
                 case ShapeAnnotation sh: sh.DashPattern = pattern; sh.InvalidatePen(); break;
             }
         }
-        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.StrokeDashPattern = pattern;
         SetActiveDashButton(FindToolbarButtonByTag(patternName));
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
+        UpdateAnnotationStatusHint();
     }
 
     private void OnPropertyFill(object sender, RoutedEventArgs e)
@@ -1009,16 +1060,16 @@ public partial class PreView
         bool isFilled;
         if (_propertyPanelTarget is ShapeAnnotation sh)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+            StagePropertyUndoSnapshot(sh);
             sh.IsFilled = !sh.IsFilled;
             sh.InvalidatePen();
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
             isFilled = sh.IsFilled;
             MuPDFRenderer.IsFilledMode = isFilled;
             SyncFillToggleButton(isFilled);
         }
         else if (_propertyPanelTarget is InkStroke { IsPolyline: true, IsClosed: true } poly)
         {
+            StagePropertyUndoSnapshot(poly);
             poly.IsFilled = !poly.IsFilled;
             poly.InvalidatePen();
             isFilled = poly.IsFilled;
@@ -1029,6 +1080,7 @@ public partial class PreView
         PropertyFillBtn.BorderBrush = isFilled ? Brushes.White : null;
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
+        UpdateAnnotationStatusHint();
     }
 
     private void OnPropertyCornerRadius(object sender, RoutedEventArgs e)
@@ -1037,6 +1089,7 @@ public partial class PreView
         if (sender is not Button btn || btn.Tag is not string radiusStr || !double.TryParse(radiusStr, out double r)) return;
         foreach (var selItem in _selectedAnnotations)
         {
+            StagePropertyUndoSnapshot(selItem);
             switch (selItem)
             {
                 case ShapeAnnotation sh when sh.ShapeType == InlineAnnotationTool.Rectangle:
@@ -1049,17 +1102,16 @@ public partial class PreView
         SetActiveButton(ref _activeCornerRadiusButton, btn);
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
+        UpdateAnnotationStatusHint();
     }
 
     private void OnPropertyOpacityChanged(object? sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget == null || PropertyOpacitySlider == null) return;
         double val = PropertyOpacitySlider.Value;
-        var snaps = new List<object>(_selectedAnnotations.Count);
         foreach (var selItem in _selectedAnnotations)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
-            if (snap != null) snaps.Add(snap);
+            StagePropertyUndoSnapshot(selItem);
             switch (selItem)
             {
                 case InkStroke s: s.Opacity = val; s.InvalidatePen(); break;
@@ -1067,11 +1119,11 @@ public partial class PreView
                 case TextAnnotation t: t.Opacity = val; break;
             }
         }
-        MuPDFRenderer.PushGroupPropertyUndo(snaps);
         MuPDFRenderer.StrokeOpacity = val;
         if (OpacitySlider != null) OpacitySlider.Value = val;
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
+        UpdateAnnotationStatusHint();
     }
 }
 

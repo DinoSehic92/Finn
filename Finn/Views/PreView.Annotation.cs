@@ -92,6 +92,24 @@ public partial class PreView
     private Point _rubberBandStartPdf;
     /// <summary>The annotation currently being edited via the property panel (double-click).</summary>
     private object? _propertyPanelTarget;
+    /// <summary>True while the format-painter style matching flow is waiting for a target annotation.</summary>
+    private bool _matchStyleArmed;
+    /// <summary>The annotation whose style should be applied to the next clicked target.</summary>
+    private object? _matchStyleSource;
+    /// <summary>Whether the centered helper text below the toolbar is visible.</summary>
+    private bool _showAnnotationStatusHints = true;
+    /// <summary>Cached reference to the status hint border control.</summary>
+    private Border? _annotationStatusBorder;
+    /// <summary>Cached reference to the status hint text control.</summary>
+    private TextBlock? _annotationStatusText;
+    /// <summary>Cached reference to the status hints toggle button.</summary>
+    private Button? _statusHintsToggleBtn;
+    /// <summary>Arrow origin point staged during ArrowText two-click placement.</summary>
+    private Point? _pendingArrowOrigin;
+    /// <summary>True when the pending text input is for a sticky note.</summary>
+    private bool _pendingStickyNote;
+    /// <summary>Collects property snapshots while the property panel is open so related edits undo as a single step.</summary>
+    private readonly Dictionary<object, object> _propertySessionSnapshots = new();
 
     // ── Group resize drag state ──
     /// <summary>True while the user is dragging a corner handle of the combined selection bounding box.</summary>
@@ -118,6 +136,227 @@ public partial class PreView
         _preDragSnapshot = null;
         _multiDragSnapshots = null;
         MuPDFRenderer.ClearRubberBand();
+    }
+
+    private void SetAnnotationStatusText(string? text)
+    {
+        _annotationStatusBorder ??= this.FindControl<Border>("AnnotationStatusBorder");
+        _annotationStatusText ??= this.FindControl<TextBlock>("AnnotationStatusText");
+        if (_annotationStatusBorder == null || _annotationStatusText == null) return;
+
+        bool visible = _annotateMode
+            && _showAnnotationStatusHints
+            && !string.IsNullOrWhiteSpace(text);
+
+        _annotationStatusText.Text = text ?? string.Empty;
+        _annotationStatusBorder.IsVisible = visible;
+    }
+
+    private void StagePropertyUndoSnapshot(object item)
+    {
+        if (_propertySessionSnapshots.ContainsKey(item)) return;
+        var snap = MuPDFRenderer.CapturePropertySnapshot(item);
+        if (snap != null)
+            _propertySessionSnapshots[item] = snap;
+    }
+
+    private void FlushPropertySessionUndo()
+    {
+        if (_propertySessionSnapshots.Count == 0) return;
+        MuPDFRenderer.PushGroupPropertyUndo(_propertySessionSnapshots.Values.ToList());
+        _propertySessionSnapshots.Clear();
+    }
+
+    private void ClearPropertySessionUndo() => _propertySessionSnapshots.Clear();
+
+    private string GetDefaultToolStatusText()
+    {
+        if (_selectedAnnotations.Count > 1)
+            return "Selection: drag to move, drag corners to resize, Delete to remove, Esc to deselect.";
+
+        if (_selectedAnnotation != null && MuPDFRenderer.ActiveTool == InlineAnnotationTool.Select)
+            return "Select: drag to move, drag handles to edit, double-click to open properties.";
+
+        return MuPDFRenderer.ActiveTool switch
+        {
+            InlineAnnotationTool.Select => "Select: click to select, Shift+click for multi-select, drag empty space to marquee select.",
+            InlineAnnotationTool.Draw => "Draw: drag to sketch freehand, right-click or Esc to cancel.",
+            InlineAnnotationTool.Highlight => "Highlight: drag to mark up content, right-click or Esc to cancel.",
+            InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
+            InlineAnnotationTool.Dot => "Dot: click once to place a dot annotation.",
+            InlineAnnotationTool.Rectangle => "Rectangle: click once to start, move the mouse, click again to finish. Hold Shift for a square.",
+            InlineAnnotationTool.Ellipse => "Ellipse: click once to start, move the mouse, click again to finish. Hold Shift for a circle.",
+            InlineAnnotationTool.Line => "Line: click once to start, move the mouse, click again to finish. Hold Shift to constrain angles.",
+            InlineAnnotationTool.Arrow => "Arrow: click once to start, move the mouse, click again to finish. Hold Shift to constrain angles.",
+            InlineAnnotationTool.RevisionCloud => "Revision Cloud: click once to start, move the mouse, click again to finish.",
+            InlineAnnotationTool.Text => "Comment: click to place a text box, Enter to save, Shift+Enter for a newline.",
+            InlineAnnotationTool.ArrowText => "Arrow Comment: click the arrow origin, click the text position, then enter your comment.",
+            InlineAnnotationTool.StickyNote => "Sticky Note: click to place a note, then type your comment.",
+            InlineAnnotationTool.MeasureDistance => _calibrationMode
+                ? "Calibration: draw a reference line, then enter the real-world distance."
+                : "Measure: click the start point, move the mouse, click again to finish.",
+            InlineAnnotationTool.MeasureArea => "Area Measure: click to add points, click the first point or press Enter to close and calculate area.",
+            InlineAnnotationTool.Eraser => "Eraser: click or drag across annotations to remove them.",
+            _ => string.Empty,
+        };
+    }
+
+    private void UpdateAnnotationStatusHint()
+    {
+        string text = _matchStyleArmed
+            ? "Match Style: click a target annotation to apply the style. Right-click or Esc cancels."
+            : _textPlacementPdfPoint.HasValue || _editingTextAnnotation != null
+                ? "Text Editing: Enter saves, Shift+Enter inserts a new line, Esc cancels."
+                : _arrowTextOrigin != null
+                    ? "Arrow Comment: choose where the text box should go."
+                    : MuPDFRenderer.HasActivePolyline
+                        ? MuPDFRenderer.ActiveTool == InlineAnnotationTool.MeasureArea
+                            ? "Area Measure: keep clicking to add vertices, then click the first point or press Enter to close."
+                            : "Polyline: keep clicking to add vertices, then click the first point or press Enter to close."
+                        : MuPDFRenderer.HasActiveMeasurement
+                            ? (_calibrationMode
+                                ? "Calibration: finish the reference line to enter the known distance."
+                                : "Measure: click the end point to finish the measurement.")
+                            : MuPDFRenderer.HasActiveShape
+                                ? "Shape: move the mouse to preview, click again to finish. Hold Shift to constrain."
+                                : GetDefaultToolStatusText();
+
+        SetAnnotationStatusText(text);
+    }
+
+    private void ShowHoverEditHint(object? hoverHit)
+    {
+        if (!_annotateMode || !_showAnnotationStatusHints || _matchStyleArmed) return;
+        if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null || MuPDFRenderer.HasActivePolyline || MuPDFRenderer.HasActiveMeasurement || MuPDFRenderer.HasActiveShape)
+            return;
+
+        string? text = hoverHit switch
+        {
+            TextAnnotation => "Double-click to edit text. Single-click to select and drag.",
+            ShapeAnnotation or InkStroke or MeasurementAnnotation => "Double-click to edit properties. Single-click to select and drag.",
+            _ => null
+        };
+
+        if (text != null)
+            SetAnnotationStatusText(text);
+        else
+            UpdateAnnotationStatusHint();
+    }
+
+    private void ArmMatchStyle(object source)
+    {
+        _matchStyleSource = source;
+        _matchStyleArmed = true;
+        MuPDFRenderer.Cursor = CursorHand;
+        UpdateAnnotationStatusHint();
+        MuPDFRenderer.Focus();
+    }
+
+    private void CancelMatchStyle(bool restoreCursor = true)
+    {
+        _matchStyleArmed = false;
+        _matchStyleSource = null;
+        if (restoreCursor && _annotateMode)
+            MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
+        UpdateAnnotationStatusHint();
+    }
+
+    private void ApplyMatchedStyle(object source, object target)
+    {
+        Color? sourceColor = source switch
+        {
+            InkStroke s => s.Color,
+            ShapeAnnotation s => s.Color,
+            TextAnnotation t => t.Color,
+            MeasurementAnnotation m => m.Color,
+            _ => null
+        };
+        double? sourceOpacity = source switch
+        {
+            InkStroke s => s.Opacity,
+            ShapeAnnotation s => s.Opacity,
+            TextAnnotation t => t.Opacity,
+            _ => null
+        };
+        double? sourceWidth = source switch
+        {
+            InkStroke s => s.Width,
+            ShapeAnnotation s => s.StrokeWidth,
+            _ => null
+        };
+        LineDashPattern? sourceDash = source switch
+        {
+            InkStroke s => s.DashPattern,
+            ShapeAnnotation s => s.DashPattern,
+            _ => null
+        };
+        bool? sourceFill = source switch
+        {
+            ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud } s => s.IsFilled,
+            InkStroke { IsPolyline: true, IsClosed: true } s => s.IsFilled,
+            _ => null
+        };
+        double? sourceCornerRadius = source switch
+        {
+            ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle } s => s.CornerRadius,
+            InkStroke { IsPolyline: true, IsAreaMeasure: false } s => s.CornerRadius,
+            _ => null
+        };
+        double? sourceFontSize = source switch
+        {
+            TextAnnotation t => t.FontSize,
+            _ => null
+        };
+
+        var snapshot = MuPDFRenderer.CapturePropertySnapshot(target);
+        if (snapshot != null)
+            MuPDFRenderer.PushPropertyUndo(snapshot);
+
+        switch (target)
+        {
+            case InkStroke ink:
+                if (sourceColor.HasValue) ink.Color = sourceColor.Value;
+                if (sourceOpacity.HasValue) ink.Opacity = sourceOpacity.Value;
+                if (sourceWidth.HasValue) ink.Width = sourceWidth.Value;
+                if (sourceDash.HasValue) ink.DashPattern = sourceDash.Value;
+                if (sourceCornerRadius.HasValue && ink.IsPolyline && !ink.IsAreaMeasure)
+                    ink.CornerRadius = sourceCornerRadius.Value;
+                if (sourceFill.HasValue && ink.IsPolyline && ink.IsClosed)
+                    ink.IsFilled = sourceFill.Value;
+                ink.InvalidatePen();
+                break;
+
+            case ShapeAnnotation shape:
+                if (sourceColor.HasValue) shape.Color = sourceColor.Value;
+                if (sourceOpacity.HasValue) shape.Opacity = sourceOpacity.Value;
+                if (sourceWidth.HasValue) shape.StrokeWidth = sourceWidth.Value;
+                if (sourceDash.HasValue) shape.DashPattern = sourceDash.Value;
+                if (sourceCornerRadius.HasValue && shape.ShapeType == InlineAnnotationTool.Rectangle)
+                    shape.CornerRadius = sourceCornerRadius.Value;
+                if (sourceFill.HasValue && shape.ShapeType is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud)
+                    shape.IsFilled = sourceFill.Value;
+                shape.InvalidatePen();
+                break;
+
+            case TextAnnotation text:
+                if (sourceColor.HasValue) text.Color = sourceColor.Value;
+                if (sourceOpacity.HasValue) text.Opacity = sourceOpacity.Value;
+                if (sourceFontSize.HasValue)
+                {
+                    text.FontSize = sourceFontSize.Value;
+                    MuPDFRenderer.TextFontSize = sourceFontSize.Value;
+                    UpdateFontSizeLabel();
+                }
+                break;
+
+            case MeasurementAnnotation measurement:
+                if (sourceColor.HasValue) measurement.Color = sourceColor.Value;
+                if (pwr != null) pwr.StatusMessage = "Style applied (color only for measurements)";
+                break;
+        }
+
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
     }
 
     /// <summary>
@@ -292,6 +531,7 @@ public partial class PreView
         _selectedAnnotations.Clear();
         MuPDFRenderer.ClearSelectHighlight();
         RestorePreSelectState();
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -340,6 +580,7 @@ public partial class PreView
             MuPDFRenderer.AddSelectHighlight(sel);
 
         SyncToolbarToSelection();
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -360,6 +601,7 @@ public partial class PreView
         }
         if (_selectedAnnotation != null)
             SyncToolbarToSelection();
+        UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
 
@@ -427,6 +669,9 @@ public partial class PreView
                     Opacity = src.Opacity, IsHighlighter = src.IsHighlighter,
                     IsPolyline = src.IsPolyline,
                     IsClosed = src.IsClosed,
+                    IsFilled = src.IsFilled,
+                    IsAreaMeasure = src.IsAreaMeasure,
+                    AreaScale = src.AreaScale,
                     DashPattern = src.DashPattern,
                     CornerRadius = src.CornerRadius
                 };
@@ -504,6 +749,8 @@ public partial class PreView
         HighlightInitialButtons();
         UpdateUndoRedoButtons();
         UpdateActiveLayerLabel();
+        SyncStatusHintsToggleButton();
+        UpdateAnnotationStatusHint();
     }
 
     private void DeactivateAnnotateMode()
@@ -525,6 +772,7 @@ public partial class PreView
         PropertyPanelCanvas.IsVisible = false;
         PropertyPanelCanvas.Background = Avalonia.Media.Brushes.Transparent;
         ResetDragState();
+        CancelMatchStyle(restoreCursor: false);
         _selectedAnnotation = null;
         _calibrationMode = false;
         _arrowTextOrigin = null;
@@ -562,6 +810,7 @@ public partial class PreView
         SetActiveColorButton(null);
         SetActiveWidthButton(null);
         SetActiveDashButton(null);
+        SetAnnotationStatusText(null);
     }
 
     private void OnAnnotateKeyDown(object? sender, KeyEventArgs e)
@@ -673,6 +922,10 @@ public partial class PreView
             if (AnnotateShortcutsCanvas.IsVisible)
             {
                 AnnotateShortcutsCanvas.IsVisible = false;
+            }
+            else if (_matchStyleArmed)
+            {
+                CancelMatchStyle();
             }
             else if (PropertyPanelCanvas.IsVisible)
             {
@@ -954,6 +1207,12 @@ public partial class PreView
         {
             MuPDFRenderer.CancelStroke();
         }
+        if (tool != InlineAnnotationTool.Select && _selectedAnnotations.Count > 0)
+            DeselectAnnotation();
+        if (tool != InlineAnnotationTool.Select && PropertyPanelCanvas.IsVisible)
+            ClosePropertyPanel();
+        if (_matchStyleArmed)
+            CancelMatchStyle(restoreCursor: false);
 
         MuPDFRenderer.ActiveTool = tool;
         MuPDFRenderer.ClearEraserHover();
@@ -980,6 +1239,7 @@ public partial class PreView
 
         MuPDFRenderer.Cursor = GetToolCursor(tool);
         SetActiveToolButton(FindToolbarButtonByTag(tool.ToString()));
+        UpdateAnnotationStatusHint();
     }
 
     /// <summary>Switch tool programmatically (from keyboard shortcut).</summary>

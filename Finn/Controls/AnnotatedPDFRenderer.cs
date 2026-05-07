@@ -74,6 +74,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
     private static readonly IBrush s_snapBrush =
         new SolidColorBrush(Color.FromArgb(180, 16, 185, 129)).ToImmutable();
+    private static readonly IBrush s_snapVertexBrush =
+        new SolidColorBrush(Color.FromArgb(230, 255, 255, 255)).ToImmutable();
+    private static readonly IBrush s_snapVertexPenBrush =
+        new SolidColorBrush(Color.FromArgb(220, 16, 185, 129)).ToImmutable();
     private static readonly IBrush s_rubberBandFillBrush =
         new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
     private static readonly IBrush s_rubberBandBorderBrush =
@@ -90,6 +94,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static readonly IPen s_snapGuidePen =
         new Pen(new SolidColorBrush(Color.FromArgb(180, 16, 185, 129)).ToImmutable(),
             1.0, dashStyle: new DashStyle([3, 3], 0), lineCap: PenLineCap.Flat);
+    private static readonly IPen s_snapVertexPen =
+        new Pen(s_snapVertexPenBrush, 1.4, lineCap: PenLineCap.Round);
     private static readonly IPen s_rubberBandPen =
         new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
             1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
@@ -2235,6 +2241,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             _snapGuideX = null;
             _snapGuideY = null;
             _snapVertexPos = null;
+            _snapKindX = SnapKind.None;
+            _snapKindY = SnapKind.None;
             InvalidateVisual();
         }
     }
@@ -2316,9 +2324,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 var pp = _activePolyline.Points[i];
                 double dx = Math.Abs(vertex.X - pp.X);
-                if (dx < bestDistX) { bestDistX = dx; snapX = pp.X; _snapGuideX = pp.X; }
+                if (IsBetterSnap(dx, bestDistX, SnapKind.Vertex, _snapKindX)) { bestDistX = dx; snapX = pp.X; _snapGuideX = pp.X; _snapKindX = SnapKind.Vertex; }
                 double dy = Math.Abs(vertex.Y - pp.Y);
-                if (dy < bestDistY) { bestDistY = dy; snapY = pp.Y; _snapGuideY = pp.Y; }
+                if (IsBetterSnap(dy, bestDistY, SnapKind.Vertex, _snapKindY)) { bestDistY = dy; snapY = pp.Y; _snapGuideY = pp.Y; _snapKindY = SnapKind.Vertex; }
             }
         }
 
@@ -3940,6 +3948,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             var guidePen = s_snapGuidePen;
             double dotRadius = 3.5;
+            double snapVertexRadius = 5.5;
             if (_snapGuideX.HasValue)
             {
                 var sx = PdfToScreen(new Point(_snapGuideX.Value, 0), da, boundsSize).X;
@@ -3965,6 +3974,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 var dotPos = PdfToScreen(new Point(_snapVertexPos.Value.X, _snapGuideY.Value), da, boundsSize);
                 context.DrawEllipse(s_snapBrush, null, dotPos, dotRadius, dotRadius);
+            }
+
+            if (_snapVertexPos.HasValue && (_snapKindX == SnapKind.Vertex || _snapKindY == SnapKind.Vertex || _snapKindX == SnapKind.Grid || _snapKindY == SnapKind.Grid))
+            {
+                var snappedVertex = PdfToScreen(_snapVertexPos.Value, da, boundsSize);
+                context.DrawEllipse(s_snapVertexBrush, s_snapVertexPen, snappedVertex, snapVertexRadius, snapVertexRadius);
             }
         }
 
