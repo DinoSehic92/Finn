@@ -1333,6 +1333,9 @@ namespace Finn.ViewModels
                 var sw = Stopwatch.StartNew();
                 if (_readBytesMode)
                 {
+                    // ReadBytesMode: read the file asynchronously first so the load is
+                    // cancellable at the I/O level. The MuPDF construction step that
+                    // follows is fast (in-memory) so it does not need Task.Run.
                     byte[] fileBytes = await File.ReadAllBytesAsync(openPath, token).ConfigureAwait(false);
                     if (IsStale(myGeneration))
                         return;
@@ -1340,7 +1343,14 @@ namespace Finn.ViewModels
                 }
                 else
                 {
-                    (previewDoc, previewContext) = CreateMuPDFDocument(openPath, false);
+                    // Path mode: MuPDF opens and reads the file via a synchronous native
+                    // call that cannot be interrupted mid-way. Run it on a dedicated
+                    // thread-pool thread so the UI thread is never blocked regardless of
+                    // how SetFileAsync was called. The result is discarded below if the
+                    // user has already moved to a different file while the read ran.
+                    (previewDoc, previewContext) = await Task.Run(
+                        () => CreateMuPDFDocument(openPath, false), token)
+                        .ConfigureAwait(false);
                 }
 
                 if (token.IsCancellationRequested || IsStale(myGeneration))
@@ -1724,7 +1734,6 @@ namespace Finn.ViewModels
 
                 if (IsStale2()) return;
 
-                // Create MuPDF objects on the background thread (no UI dependency).
                 if (_readBytesMode)
                 {
                     byte[] fileBytes = await File.ReadAllBytesAsync(filePath, token).ConfigureAwait(false);
@@ -1733,7 +1742,9 @@ namespace Finn.ViewModels
                 }
                 else
                 {
-                    (newDoc, newContext) = CreateMuPDFDocument(filePath, false);
+                    (newDoc, newContext) = await Task.Run(
+                        () => CreateMuPDFDocument(filePath, false), token)
+                        .ConfigureAwait(false);
                 }
 
                 if (IsStale2() || token.IsCancellationRequested)

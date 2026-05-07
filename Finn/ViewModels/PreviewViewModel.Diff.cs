@@ -1059,7 +1059,7 @@ namespace Finn.ViewModels
 
                     // Resolve through local cache
                     string path = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
-                    var (newDoc, newCtx) = CreateMuPDFDocument(path, false);
+                    var (newDoc, newCtx) = await Task.Run(() => CreateMuPDFDocument(path, false)).ConfigureAwait(false);
 
                     if (_secondaryCloseGen != openStartGen)
                     {
@@ -1133,7 +1133,7 @@ namespace Finn.ViewModels
 
                     // Resolve through local cache
                     string resolvedPath = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
-                    var (newDoc, newCtx) = CreateMuPDFDocument(resolvedPath, false);
+                    var (newDoc, newCtx) = await Task.Run(() => CreateMuPDFDocument(resolvedPath, false)).ConfigureAwait(false);
 
                     if (_secondaryCloseGen != openStartGen)
                     {
