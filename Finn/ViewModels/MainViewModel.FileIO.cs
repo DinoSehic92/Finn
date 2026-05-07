@@ -271,47 +271,44 @@ namespace Finn.ViewModels
             /// Compare the in-memory Storage (Projects) with the on-disk Projects.json file.
             /// Returns true when the two are different (i.e. there are unsaved changes).
             /// </summary>
-            public bool IsStorageDifferentFromFile(string? projectsFilePath = null)
+            public Task<bool> IsStorageDifferentFromFileAsync(string? projectsFilePath = null)
             {
-                try
-                {
-                    string path;
-                    if (!string.IsNullOrWhiteSpace(projectsFilePath))
-                        path = projectsFilePath;
-                    else if (!string.IsNullOrWhiteSpace(CurrentProjectsFilePath))
-                        path = CurrentProjectsFilePath;
-                    else
-                        path = Path.Combine(SavePath, "Projects.json");
+                // Capture the storage snapshot on the UI thread before going async,
+                // so we serialize the state as it is right now.
+                string currentJson = JsonHelper.Serialize(Storage);
 
-                    if (!File.Exists(path))
+                string path;
+                if (!string.IsNullOrWhiteSpace(projectsFilePath))
+                    path = projectsFilePath;
+                else if (!string.IsNullOrWhiteSpace(CurrentProjectsFilePath))
+                    path = CurrentProjectsFilePath;
+                else
+                    path = Path.Combine(SavePath, "Projects.json");
+
+                return Task.Run(() =>
+                {
+                    try
                     {
-                        // No file on disk -> consider storage different (unsaved)
+                        if (!File.Exists(path))
+                            return true;
+
+                        string savedJson = File.ReadAllText(path);
+
+                        using var savedDoc = JsonDocument.Parse(savedJson);
+                        using var currentDoc = JsonDocument.Parse(currentJson);
+
+                        var savedNorm = NormalizeElement(savedDoc.RootElement);
+                        var currentNorm = NormalizeElement(currentDoc.RootElement);
+
+                        return savedNorm != currentNorm;
+                    }
+                    catch (Exception ex)
+                    {
+                        // If comparison fails, assume changed so the caller can decide whether to save.
+                        Utils.ErrorLogger.Log(ex, "IsStorageDifferentFromFileAsync");
                         return true;
                     }
-
-                    // Serialize current storage using the same pipeline as Save
-                    string currentJson = JsonHelper.Serialize(Storage);
-
-                    // Read the on-disk file
-                    string savedJson = File.ReadAllText(path);
-
-                    // Normalize both through JsonDocument to ignore formatting/whitespace
-                    // and prune transient fields before comparing.
-                    using var savedDoc = JsonDocument.Parse(savedJson);
-                    using var currentDoc = JsonDocument.Parse(currentJson);
-
-                    var savedNorm = NormalizeElement(savedDoc.RootElement);
-                    var currentNorm = NormalizeElement(currentDoc.RootElement);
-
-                    return savedNorm != currentNorm;
-                }
-                catch (Exception ex)
-                {
-                    // If comparison fails (disk full, IO error, etc.), log it and
-                    // assume changed so the caller can decide whether to save.
-                    Utils.ErrorLogger.Log(ex, "IsStorageDifferentFromFile");
-                    return true;
-                }
+                });
             }
 
             // Remove transient UI fields that used to be stored in Projects.json but

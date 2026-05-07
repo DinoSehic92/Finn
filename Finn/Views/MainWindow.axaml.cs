@@ -11,6 +11,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 {
 
     public bool ConfirmLeave { get; set; } = true;
+    private bool _closeCheckInProgress;
 
     public MainWindow()
     {
@@ -45,26 +46,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        if (_closeCheckInProgress)
+        {
+            e.Cancel = true;
+            return;
+        }
+
         // Cancel immediately so the window stays open while we do async work.
         // Without this, the first await yields back to the framework which
         // sees e.Cancel == false and closes the window before we get a chance
         // to show the save prompt.
         e.Cancel = true;
+        _closeCheckInProgress = true;
 
-        await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);
-
-        if (ctx.IsStorageDifferentFromFile())
+        try
         {
-            OpenClosingDia();
+            await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);
+
+            if (await ctx.IsStorageDifferentFromFileAsync())
+            {
+                OpenClosingDia();
+            }
+            else
+            {
+                // No unsaved project changes — close for real.
+                await ctx.PreviewVM.SafeDisposeAsync();
+                if (ctx.PreviewWindowOpen)
+                    ctx.PreviewWindowOpen = false;
+                ConfirmLeave = false;
+                _closeCheckInProgress = false;
+                Close();
+            }
         }
-        else
+        finally
         {
-            // No unsaved project changes — close for real.
-            await ctx.PreviewVM.SafeDisposeAsync();
-            if (ctx.PreviewWindowOpen)
-                ctx.PreviewWindowOpen = false;
-            ConfirmLeave = false;
-            Close();
+            if (ConfirmLeave)
+                _closeCheckInProgress = false;
         }
     }
 
