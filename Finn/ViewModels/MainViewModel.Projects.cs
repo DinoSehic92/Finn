@@ -18,7 +18,7 @@ namespace Finn.ViewModels
     /// </summary>
     public partial class MainViewModel
     {
-        public void NewProject(string name, string group = null, string category = PROJECT_CATEGORY)
+        public void NewProject(string name, string? group = null, string category = PROJECT_CATEGORY)
         {
             if (!Storage.StoredProjects.Any(x => x.Namn == name))
             {
@@ -336,7 +336,7 @@ namespace Finn.ViewModels
 
         public void SetProject(string name)
         {
-            ProjectData project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
+            ProjectData? project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
             if (project == null) return;
 
             // Clear any active search highlights before switching projects.
@@ -348,7 +348,7 @@ namespace Finn.ViewModels
             currentProject = project;
             InvalidateAvailableParentsCache();
 
-            if (!CurrentProject.Filetypes.Contains(type))
+            if (!currentProject!.Filetypes.Contains(type))
                 type = ALL_TYPES;
 
             UpdateFilter();
@@ -396,7 +396,7 @@ namespace Finn.ViewModels
                 }
             }
 
-            if (!CurrentProject.Filetypes.Contains(typeName))
+            if (!currentProject!.Filetypes.Contains(typeName))
                 typeName = ALL_TYPES;
 
             type = typeName;
@@ -414,7 +414,7 @@ namespace Finn.ViewModels
 
         public void ReselectProject()
         {
-            SetProject(CurrentProject.Namn);
+            SetProject(CurrentProject!.Namn);
             SignalColumnsChanged();
         }
 
@@ -456,7 +456,7 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(Type));
         }
 
-        public ProjectData GetProject(string name)
+        public ProjectData? GetProject(string name)
         {
             return Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
         }
@@ -473,7 +473,7 @@ namespace Finn.ViewModels
             }
         }
 
-        public ProjectData GetDefaultProject()
+        public ProjectData? GetDefaultProject()
         {
             return Storage.StoredProjects.FirstOrDefault();
         }
@@ -697,7 +697,7 @@ namespace Finn.ViewModels
                 return;
 
             var childNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var child in children)
+            foreach (var child in children!)
                 ExportFileTree(child, currentDirectory, childrenByParent, childNames, exportReport, progress, options, token, isRoot: false, branchIsGroup: branchIsGroup || file.IsGroup);
         }
 
@@ -1147,8 +1147,8 @@ namespace Finn.ViewModels
             else if (localTodo > 0 && serverTodo > 0)
             {
                 // Same count but different content
-                var localTexts = string.Join("|", local.TodoItems.Select(t => t.Text + t.IsDone));
-                var serverTexts = string.Join("|", server.TodoItems.Select(t => t.Text + t.IsDone));
+                var localTexts = string.Join("|", (local.TodoItems ?? []).Select(t => t.Text + t.IsDone));
+                var serverTexts = string.Join("|", (server.TodoItems ?? []).Select(t => t.Text + t.IsDone));
                 if (localTexts != serverTexts)
                     entries.Add(new SharedDiffEntry { Change = "Modified", Category = "To-Do", Detail = $"{localTodo} items (content changed)" });
             }

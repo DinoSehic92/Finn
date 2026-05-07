@@ -21,10 +21,9 @@ public partial class xInfoDia : Window
         Close();
     }
 
-    private void SetupInfo(object sender, RoutedEventArgs e)
+    private void SetupInfo(object? sender, RoutedEventArgs e)
     {
-
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (DataContext is not MainViewModel ctx) return;
 
         if(ctx.CurrentFile != null)
         {

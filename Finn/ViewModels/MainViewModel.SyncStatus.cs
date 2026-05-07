@@ -188,7 +188,7 @@ namespace Finn.ViewModels
                 bool showNotification = folder.Mode is SyncFolderMode.OtherFiles;
                 if (showNotification)
                 {
-                    preCount = CurrentProject.StoredFiles.FirstOrDefault(
+                    preCount = CurrentProject!.StoredFiles.FirstOrDefault(
                                 x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase))
                             ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0;
                 }
@@ -205,7 +205,7 @@ namespace Finn.ViewModels
 
                     if (confirmed && showNotification && mainWindow != null)
                     {
-                        int postCount = CurrentProject.StoredFiles.FirstOrDefault(
+                        int postCount = CurrentProject!.StoredFiles.FirstOrDefault(
                                     x => string.Equals(x.Namn, folder.AttachToFile, StringComparison.OrdinalIgnoreCase))
                                 ?.OtherFiles.Count(x => string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)) ?? 0;
 
@@ -668,6 +668,7 @@ namespace Finn.ViewModels
 
                 // Collect app-state paths on the UI thread, then do all disk I/O off it.
                 var project = CurrentProject;
+                if (project == null) return;
                 var appPaths = CollectSyncedPaths(folder, project);
 
                 var (diskCount, dirWriteUtc) = await Task.Run(() =>
@@ -840,7 +841,7 @@ namespace Finn.ViewModels
                     foreach (var project in Storage.StoredProjects)
                     {
                         bool hasPath = !string.IsNullOrEmpty(project.SharedPath);
-                        bool match = hasPath && changedFiles.Contains(project.SharedPath);
+                        bool match = hasPath && changedFiles.Contains(project.SharedPath!);
                         bool suppressSelfPush = match && ShouldSuppressSharedFileChange(project);
                         System.Diagnostics.Debug.WriteLine($"[SharedSync]   project '{project.Namn}' path='{project.SharedPath}' match={match} suppressSelfPush={suppressSelfPush}");
                         if (match && !suppressSelfPush)

@@ -30,7 +30,7 @@ public partial class MainView
     {
         if (_ctx.UI.PreviewEmbeddedOpen || _ctx.PreviewWindowOpen)
         {
-            _ctx.Collections.AddBookmark(BookmarkInput.Text);
+            _ctx.Collections.AddBookmark(BookmarkInput.Text ?? string.Empty);
             BookmarkInput.Clear();
             UpdateBookmarksEmptyHint();
         }
@@ -38,7 +38,7 @@ public partial class MainView
 
     private void OnRenameBookmark(object? sender, RoutedEventArgs e)
     {
-        _ctx.Collections.RenameBookmark(BookmarkInput.Text);
+        _ctx.Collections.RenameBookmark(BookmarkInput.Text ?? string.Empty);
         BookmarkInput.Clear();
     }
 

@@ -16,7 +16,7 @@ public partial class xNewDia : Window
     public xNewDia()
     {
         InitializeComponent();
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
         ProjectCategory.SelectionChanged += OnCategoryChanged;
         Opened += (_, _) => RefreshGroupPicker();
     }
@@ -32,12 +32,12 @@ public partial class xNewDia : Window
         ProjectGroup.SelectedIndex = 0; // "— No Group —"
     }
 
-    private void OnAddProject(object sender, RoutedEventArgs e)
+    private void OnAddProject(object? sender, RoutedEventArgs e)
     {
         var name = ProjectName.Text;
         if (string.IsNullOrWhiteSpace(name)) { this.Close(); return; }
 
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (DataContext is not MainViewModel ctx) return;
 
         string cat = (ProjectCategory.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Project";
 
@@ -46,7 +46,7 @@ public partial class xNewDia : Window
         if (idx >= 0 && idx < _groupItems.Count)
             group = _groupItems[idx].GroupName; // null = no group
 
-        ctx.NewProject(name, group, cat);
+        ctx.NewProject(name, group!, cat);
         ctx.MarkDirty();
         ctx.UpdateTreeview();
 

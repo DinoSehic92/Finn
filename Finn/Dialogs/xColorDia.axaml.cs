@@ -43,7 +43,7 @@ public partial class xColorDia : Window
             lightCombo.SelectionChanged += OnLightPresetSelected;
         }
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
     }
 
     public void OnClose(object sender, RoutedEventArgs e)

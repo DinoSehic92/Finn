@@ -300,15 +300,17 @@ namespace Finn.ViewModels
             cancellationToken.ThrowIfCancellationRequested();
             statusProgress?.Report("Saving index…");
 
-            // ── Post-processing (background thread to avoid blocking UI) ──
+            // ── Post-processing ──
+            // Snapshot existing content on the UI thread before going background
+            // to avoid reading a UI-bound ObservableCollection from another thread.
+            var existingContent = TextContent?.ToList() ?? new List<ContentData>();
+
             await Task.Run(() =>
             {
                 // Build the final content set in a dictionary keyed by path.
-                // This replaces individual Remove(O(n)) + Add + notification
-                // calls on the ObservableCollection with a single bulk swap.
                 var merged = new Dictionary<string, ContentData>(StringComparer.OrdinalIgnoreCase);
 
-                foreach (var c in TextContent)
+                foreach (var c in existingContent)
                 {
                     if (!string.IsNullOrEmpty(c.PlainText))
                         merged[c.Filepath] = c;
@@ -320,20 +322,20 @@ namespace Finn.ViewModels
                         merged[content.Filepath] = content;
                 }
 
-                // Single assignment – one CollectionChanged notification
-                TextContent = new ObservableCollection<ContentData>(merged.Values);
-
-                // Sync HasPlainText flag on every file
+                var newContent = new ObservableCollection<ContentData>(merged.Values);
                 var indexedPaths = new HashSet<string>(merged.Keys, StringComparer.OrdinalIgnoreCase);
 
-                foreach (ProjectData project in Storage.StoredProjects)
+                // Single assignment + HasPlainText sync must happen on the UI thread
+                // — ObservableCollection raises CollectionChanged and FileData raises
+                //   PropertyChanged, both of which must fire on the UI thread.
+                Dispatcher.UIThread.Invoke(() =>
                 {
-                    foreach (FileData file in project.StoredFiles)
-                    {
-                        var paths = file.AllPdfPaths(checkExists: false);
-                        file.HasPlainText = paths.Any(indexedPaths.Contains);
-                    }
-                }
+                    TextContent = newContent;
+
+                    foreach (ProjectData project in Storage.StoredProjects)
+                        foreach (FileData file in project.StoredFiles)
+                            file.HasPlainText = file.AllPdfPaths(checkExists: false).Any(indexedPaths.Contains);
+                });
 
                 SaveIndexFile(indexPath);
             }, cancellationToken);
@@ -414,37 +416,29 @@ namespace Finn.ViewModels
 
             TextContent = content;
 
-            // Sync HasPlainText flags on a background thread to avoid blocking UI
-            // with File.Exists calls inside AllPdfPaths
+            // Sync HasPlainText flags on the UI thread. AllPdfPaths(checkExists: false)
+            // does no disk I/O so this is fast enough to run inline.
             var indexedFiles = new HashSet<string>(
                 TextContent!.Select(c => c.Filepath),
                 StringComparer.OrdinalIgnoreCase);
 
-            var storage = Storage;
-            await Task.Run(() =>
-            {
-                foreach (ProjectData project in storage.StoredProjects)
-                {
-                    foreach (FileData file in project.StoredFiles)
-                    {
-                        var paths = file.AllPdfPaths(checkExists: false);
-                        file.HasPlainText = paths.Any(indexedFiles.Contains);
-                    }
-                }
-            });
+            foreach (ProjectData project in Storage.StoredProjects)
+                foreach (FileData file in project.StoredFiles)
+                    file.HasPlainText = file.AllPdfPaths(checkExists: false).Any(indexedFiles.Contains);
         }
 
         private void SaveIndexFile(string indexPath)
         {
             if (!Directory.Exists(_savePath))
-            {
                 Directory.CreateDirectory(_savePath);
-            }
 
-            // Stream-serialize directly to disk so the entire JSON is never
-            // materialised as a single managed string (can be 100s of MB).
-            using var stream = new FileStream(indexPath, FileMode.Create, FileAccess.Write, FileShare.None);
-            System.Text.Json.JsonSerializer.Serialize(stream, TextContent, JsonHelper.Options);
+            // Write to a temp file first so that Content.json is never left
+            // truncated if the process crashes or the disk fills mid-write.
+            string tempPath = indexPath + ".tmp";
+            using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                System.Text.Json.JsonSerializer.Serialize(stream, TextContent, JsonHelper.Options);
+
+            File.Move(tempPath, indexPath, overwrite: true);
         }
 
         #endregion

@@ -49,9 +49,9 @@ namespace Finn.ViewModels
                 // HashSet for O(1) path lookups instead of O(n) List.Contains
                 HashSet<string> filepaths = new(StringComparer.OrdinalIgnoreCase);
 
-                foreach (ContentData content in Data.TextContent)
+                foreach (ContentData content in Data.TextContent ?? [])
                 {
-                    if (content.PlainText.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                    if (content.PlainText?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) == true)
                     {
                         filepaths.Add(content.Filepath);
                     }

@@ -21,6 +21,7 @@ namespace Finn.ViewModels
             public async Task LoadFile(Visual window)
             {
                 var topLevel = TopLevel.GetTopLevel(window);
+                if (topLevel == null) return;
 
                 var jsonformat = new FilePickerFileType("Json format") { Patterns = new[] { "*.json" } };
                 List<FilePickerFileType> formatlist = new() { jsonformat };
@@ -215,7 +216,7 @@ namespace Finn.ViewModels
                 List<FilePickerFileType> formatlist = new() { jsonformat };
                 IReadOnlyList<FilePickerFileType> fileformat = formatlist;
 
-                var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                var file = await topLevel!.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                 {
                     Title = "Save File",
                     FileTypeChoices = fileformat

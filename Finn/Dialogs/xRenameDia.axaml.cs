@@ -13,7 +13,7 @@ public partial class xRenameDia : Window
     {
         InitializeComponent();
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
 
     }
 
@@ -22,9 +22,9 @@ public partial class xRenameDia : Window
         NewNameInput.Text = name;
     }
 
-    private async void AcceptRename(object sender, RoutedEventArgs e)
+    private async void AcceptRename(object? sender, RoutedEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (DataContext is not MainViewModel ctx) return;
         var result = ctx.RenameOriginal(NewNameInput.Text?.ToString() ?? string.Empty);
         if (!result.Success)
         {

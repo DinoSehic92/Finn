@@ -17,13 +17,13 @@ public partial class xMetaDia : Window
 
         MainGrid.AddHandler(DataGrid.LoadedEvent, SetupMetadata);
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
 
     }
 
-    private void SetupMetadata(object sender, RoutedEventArgs e)
+    private void SetupMetadata(object? sender, RoutedEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (DataContext is not MainViewModel ctx) return;
         if (ctx.CurrentFile == null) return;
 
         string val1 = ctx.CurrentFile.Namn;
@@ -161,69 +161,69 @@ public partial class xMetaDia : Window
 
     }
 
-    private void OnEditProject(object sender, RoutedEventArgs e)
+    private void OnEditProject(object? sender, RoutedEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (DataContext is not MainViewModel ctx) return;
 
         foreach (FileData file in ctx.CurrentFiles)
         {
             if (NameCheck.IsChecked == true)
             {
-                ctx.RenameFile(file, FileNameInp.Text);
+                ctx.RenameFile(file, FileNameInp.Text ?? string.Empty);
             }
 
             if (HandlingCheck.IsChecked == true)
             {
-                file.Handling = HandlingInp.Text;
+                file.Handling = HandlingInp.Text ?? string.Empty;
             }
 
             if (StatusCheck.IsChecked == true)
             {
-                file.Status = StatusInp.Text;
+                file.Status = StatusInp.Text ?? string.Empty;
             }
 
             if (DatumCheck.IsChecked == true)
             {
-                file.Datum = DatumInp.Text;
+                file.Datum = DatumInp.Text ?? string.Empty;
             }
 
             if (RitningCheck.IsChecked == true)
             {
-                file.Ritningstyp = RitningInp.Text;
+                file.Ritningstyp = RitningInp.Text ?? string.Empty;
             }
 
             if (Besk1Check.IsChecked == true)
             {
-                file.Beskrivning1 = Besk1Inp.Text;
+                file.Beskrivning1 = Besk1Inp.Text ?? string.Empty;
             }
 
             if (Besk2Check.IsChecked == true)
             {
-                file.Beskrivning2 = Besk2Inp.Text;
+                file.Beskrivning2 = Besk2Inp.Text ?? string.Empty;
             }
 
             if (Besk3Check.IsChecked == true)
             {
-                file.Beskrivning3 = Besk3Inp.Text;
+                file.Beskrivning3 = Besk3Inp.Text ?? string.Empty;
             }
 
             if (Besk4Check.IsChecked == true)
             {
-                file.Beskrivning4 = Besk4Inp.Text;
+                file.Beskrivning4 = Besk4Inp.Text ?? string.Empty;
             }
 
             if (RevCheck.IsChecked == true)
             {
-                file.Revidering = RevInp.Text;
+                file.Revidering = RevInp.Text ?? string.Empty;
             }
 
             if (PathCheck.IsChecked == true)
             {
-                string text = PathInp.Text;
+                string text = PathInp.Text ?? string.Empty;
 
-                if (text == null || text == string.Empty)
+                if (text == string.Empty)
                 {
-                    file.Sökväg = text;
+                    file.Sökväg = string.Empty;
                 }
                 else
                 {

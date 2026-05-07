@@ -119,6 +119,7 @@ namespace Finn.ViewModels
                 if (CurrentProject == null) return;
 
                 var topLevel = TopLevel.GetTopLevel(window);
+                if (topLevel == null) return;
                 var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = "Add File",
@@ -147,7 +148,7 @@ namespace Finn.ViewModels
                 var existingByName = BuildFileNameLookup();
 
                 // When a specific type is selected, use it as the default category
-                string defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
+                string? defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
 
                 var candidatePaths = new List<(string Path, string Source)>();
                 var versionCandidates = new List<VersionImportEntry>();
@@ -187,7 +188,7 @@ namespace Finn.ViewModels
                         DataContext = this,
                         RequestedThemeVariant = mainWindow.ActualThemeVariant
                     };
-                    dialog.SetFiles(candidatePaths, skippedCount, CurrentProject.AllowedTypes, defaultCategory);
+                    dialog.SetFiles(candidatePaths, skippedCount, CurrentProject!.AllowedTypes, defaultCategory);
                     await dialog.ShowDialog(mainWindow);
 
                     if (dialog.Confirmed)
@@ -203,13 +204,13 @@ namespace Finn.ViewModels
                             {
                                 Namn = System.IO.Path.GetFileNameWithoutExtension(path),
                                 Filtyp = assignedType,
-                                Uppdrag = CurrentProject.Namn,
+                                Uppdrag = CurrentProject!.Namn,
                                 Sökväg = path
                             });
                         }
 
                         if (newFiles.Count > 0)
-                            CurrentProject.AddFiles(newFiles);
+                            CurrentProject!.AddFiles(newFiles);
                     }
                     else
                     {
@@ -246,7 +247,7 @@ namespace Finn.ViewModels
 
             public void SetGroup(string? group)
             {
-                CurrentProject.Parent = string.IsNullOrWhiteSpace(group) ? null : group;
+                CurrentProject!.Parent = string.IsNullOrWhiteSpace(group) ? null : group;
                 MarkDirty();
             }
 
@@ -254,18 +255,22 @@ namespace Finn.ViewModels
             {
                 if (CurrentFiles == null) return;
                 var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Namn));
-                _ = TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text)
-                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyFilenameToClipboard"),
-                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                var clipboard2 = TopLevel.GetTopLevel(window)?.Clipboard;
+                if (clipboard2 != null)
+                    _ = clipboard2.SetTextAsync(text)
+                        .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyFilenameToClipboard"),
+                            System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public void CopyFilepathToClipboard(Avalonia.Visual window)
             {
                 if (CurrentFiles == null) return;
                 var text = string.Join(Environment.NewLine, CurrentFiles.Select(f => f.Sökväg));
-                _ = TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(text)
-                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyFilepathToClipboard"),
-                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                var clipboard3 = TopLevel.GetTopLevel(window)?.Clipboard;
+                if (clipboard3 != null)
+                    _ = clipboard3.SetTextAsync(text)
+                        .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyFilepathToClipboard"),
+                            System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public void CopyListviewToClipboard(Avalonia.Visual window)
@@ -275,27 +280,29 @@ namespace Finn.ViewModels
 
                 foreach (FileData file in CurrentFiles)
                 {
-                    if (CurrentProject.Meta_1 == true) { sb.Append(file.Namn).Append('\t'); }
-                    if (CurrentProject.Meta_2 == true) { sb.Append(file.Filtyp).Append('\t'); }
-                    if (CurrentProject.Meta_3 == true) { sb.Append(file.Uppdrag).Append('\t'); }
-                    if (CurrentProject.Meta_4 == true) { sb.Append(file.Tagg).Append('\t'); }
-                    if (CurrentProject.Meta_5 == true) { sb.Append(file.Färg).Append('\t'); }
-                    if (CurrentProject.Meta_6 == true) { sb.Append(file.Handling).Append('\t'); }
-                    if (CurrentProject.Meta_7 == true) { sb.Append(file.Status).Append('\t'); }
-                    if (CurrentProject.Meta_8 == true) { sb.Append(file.Datum).Append('\t'); }
-                    if (CurrentProject.Meta_9 == true) { sb.Append(file.Ritningstyp).Append('\t'); }
-                    if (CurrentProject.Meta_10 == true) { sb.Append(file.Beskrivning1).Append('\t'); }
-                    if (CurrentProject.Meta_11 == true) { sb.Append(file.Beskrivning2).Append('\t'); }
-                    if (CurrentProject.Meta_12 == true) { sb.Append(file.Beskrivning3).Append('\t'); }
-                    if (CurrentProject.Meta_13 == true) { sb.Append(file.Beskrivning4).Append('\t'); }
-                    if (CurrentProject.Meta_14 == true) { sb.Append(file.Revidering).Append('\t'); }
-                    if (CurrentProject.Meta_15 == true) { sb.Append(file.Sökväg).Append('\t'); }
+                    if (CurrentProject!.Meta_1 == true) { sb.Append(file.Namn).Append('\t'); }
+                    if (CurrentProject!.Meta_2 == true) { sb.Append(file.Filtyp).Append('\t'); }
+                    if (CurrentProject!.Meta_3 == true) { sb.Append(file.Uppdrag).Append('\t'); }
+                    if (CurrentProject!.Meta_4 == true) { sb.Append(file.Tagg).Append('\t'); }
+                    if (CurrentProject!.Meta_5 == true) { sb.Append(file.Färg).Append('\t'); }
+                    if (CurrentProject!.Meta_6 == true) { sb.Append(file.Handling).Append('\t'); }
+                    if (CurrentProject!.Meta_7 == true) { sb.Append(file.Status).Append('\t'); }
+                    if (CurrentProject!.Meta_8 == true) { sb.Append(file.Datum).Append('\t'); }
+                    if (CurrentProject!.Meta_9 == true) { sb.Append(file.Ritningstyp).Append('\t'); }
+                    if (CurrentProject!.Meta_10 == true) { sb.Append(file.Beskrivning1).Append('\t'); }
+                    if (CurrentProject!.Meta_11 == true) { sb.Append(file.Beskrivning2).Append('\t'); }
+                    if (CurrentProject!.Meta_12 == true) { sb.Append(file.Beskrivning3).Append('\t'); }
+                    if (CurrentProject!.Meta_13 == true) { sb.Append(file.Beskrivning4).Append('\t'); }
+                    if (CurrentProject!.Meta_14 == true) { sb.Append(file.Revidering).Append('\t'); }
+                    if (CurrentProject!.Meta_15 == true) { sb.Append(file.Sökväg).Append('\t'); }
 
                     sb.AppendLine();
                 }
-                _ = TopLevel.GetTopLevel(window).Clipboard.SetTextAsync(sb.ToString())
-                    .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyListviewToClipboard"),
-                        System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
+                var clipboard = TopLevel.GetTopLevel(window)?.Clipboard;
+                if (clipboard != null)
+                    _ = clipboard.SetTextAsync(sb.ToString())
+                        .ContinueWith(t => Utils.ErrorLogger.Log(t.Exception!, "CopyListviewToClipboard"),
+                            System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
             }
 
             public void CheckSingleFile()
@@ -471,7 +478,7 @@ namespace Finn.ViewModels
                 try
                 {
                     if (string.IsNullOrEmpty(CurrentFile?.Sökväg)) return;
-                    string folderpath = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
+                    string? folderpath = System.IO.Path.GetDirectoryName(CurrentFile.Sökväg);
                     Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
                 }
                 catch (Exception) { }
@@ -481,7 +488,7 @@ namespace Finn.ViewModels
             {
                 try
                 {
-                    string folderpath = System.IO.Path.GetDirectoryName(filepath);
+                    string? folderpath = System.IO.Path.GetDirectoryName(filepath);
                     Process process = Process.Start("explorer.exe", "\"" + folderpath + "\"");
                 }
                 catch (Exception) { }
@@ -535,7 +542,7 @@ namespace Finn.ViewModels
 
             public void AddAppendedFile(string filepath, bool fromFolder = false)
             {
-                if (CurrentFile != null && !CurrentProject.StoredFiles.Any(x =>
+                if (CurrentFile != null && !CurrentProject!.StoredFiles.Any(x =>
                     string.Equals(x.Sökväg, filepath, StringComparison.OrdinalIgnoreCase)))
                 {
                     var appended = new FileData()
@@ -655,14 +662,14 @@ namespace Finn.ViewModels
                     return;
 
                 // Update children that point back to this file by name
-                foreach (var child in CurrentProject.StoredFiles)
+                foreach (var child in CurrentProject!.StoredFiles)
                 {
                     if (string.Equals(child.ParentNamn, oldName, StringComparison.OrdinalIgnoreCase))
                         child.ParentNamn = newName;
                 }
 
                 // Update folder entries attached to this file
-                foreach (var folder in CurrentProject.Folders)
+                foreach (var folder in CurrentProject!.Folders)
                 {
                     if (string.Equals(folder.AttachToFile, oldName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -789,7 +796,7 @@ namespace Finn.ViewModels
                     // so a direct call can't bypass the check.
                     if (file.IsGroup || file.IsFromFolder) continue;
 
-                    var children = CurrentProject.GetChildren(file);
+                    var children = CurrentProject!.GetChildren(file);
 
                     // If any child is from a sync folder, skip the whole parent —
                     // moving it would silently orphan the source folder's baseline.
@@ -813,10 +820,10 @@ namespace Finn.ViewModels
                     }
                 }
 
-                CurrentProject.WireParentReferences();
+                CurrentProject!.WireParentReferences();
                 project.WireParentReferences();
-                CurrentProject.RefreshHasChildren();
-                CurrentProject.SetFiletypeList();
+                CurrentProject!.RefreshHasChildren();
+                CurrentProject!.SetFiletypeList();
                 project.RefreshHasChildren();
                 project.SetFiletypeList();
                 UpdateFilter();

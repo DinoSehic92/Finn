@@ -4326,7 +4326,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         IBrush? fillBrush = null;
         if (closed && stroke.IsFilled && overridePen == null)
             fillBrush = stroke.GetOrCreateFillBrush();
-        context.DrawGeometry(fillBrush, pen, geometry);
+        context.DrawGeometry(fillBrush, pen, geometry!);
     }
 
     /// <summary>Builds a StreamGeometry from pre-transformed screen-space points.</summary>

@@ -31,7 +31,7 @@ namespace Finn.ViewModels
 
         private UISettingsViewModel UI => uiGetter();
 
-        private CalendarStorage calendarStorage;
+        private CalendarStorage calendarStorage = null!;
         public CalendarStorage CalendarStorage
         {
             get => calendarStorage;
@@ -215,7 +215,7 @@ namespace Finn.ViewModels
                     currentCalendarData.PropertyChanged -= OnCurrentEntryChanged;
                     UnsubscribeTimesheetItems(currentCalendarData);
                 }
-                SetProperty(ref currentCalendarData, value, () =>
+                SetProperty(ref currentCalendarData!, value, () =>
                 {
                     if (currentCalendarData != null)
                     {
@@ -434,7 +434,7 @@ namespace Finn.ViewModels
 
                 _trackedProjectName = value?.Project;
 
-                SetProperty(ref currentTimeSheetProject, value, () =>
+                SetProperty(ref currentTimeSheetProject!, value, () =>
                 {
                     if (currentTimeSheetProject != null)
                         currentTimeSheetProject.PropertyChanged += OnCurrentProjectPropertyChanged;

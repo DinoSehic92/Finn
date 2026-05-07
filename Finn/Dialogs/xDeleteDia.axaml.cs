@@ -12,23 +12,24 @@ public partial class xDeleteDia : Window
     {
         InitializeComponent();
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
         Loaded += OnLoaded;
 
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object? sender, RoutedEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
-        ctx.Confirmed = false;
+        if (this.DataContext is MainViewModel ctx1)
+            ctx1.Confirmed = false;
     }
 
-    private void OnConfirm(object sender, RoutedEventArgs e)
+    private void OnConfirm(object? sender, RoutedEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
-        ctx.Confirmed = true;
-
-        this.Close();
+        if (this.DataContext is MainViewModel ctx2)
+        {
+            ctx2.Confirmed = true;
+            this.Close();
+        }
     }
 
     private void OnCancel(object sender, RoutedEventArgs e)

@@ -97,7 +97,7 @@ namespace Finn.ViewModels
             // CalendarStorage moved into CalendarViewModel
 
             // Data operations (content indexing, thumbnails, metadata) managed by DataViewModel
-            private DataViewModel _data;
+            private DataViewModel _data = null!;
             public DataViewModel Data
             {
                 get => _data;
@@ -112,7 +112,7 @@ namespace Finn.ViewModels
             }
 
             // Collections, bookmarks, and favorites are managed by CollectionsViewModel
-            private CollectionsViewModel _collections;
+            private CollectionsViewModel _collections = null!;
             public CollectionsViewModel Collections
             {
                 get => _collections;
@@ -147,7 +147,7 @@ namespace Finn.ViewModels
             }
 
             // Calendar viewmodel extracted to keep calendar logic separate
-            private CalendarViewModel _calendar;
+            private CalendarViewModel _calendar = null!;
             public CalendarViewModel Calendar
             {
                 get => _calendar;
@@ -182,14 +182,14 @@ namespace Finn.ViewModels
                 set { projectList = value; OnPropertyChanged(nameof(ProjectList)); }
             }
 
-            private ProjectData currentProject;
-            public ProjectData CurrentProject
+            private ProjectData? currentProject;
+            public ProjectData? CurrentProject
             {
                 get { return currentProject; }
                 set { currentProject = value; InvalidateAvailableParentsCache(); OnPropertyChanged(nameof(CurrentProject)); OnPropertyChanged(nameof(IsSearchResult)); ScheduleFilterUpdate(); }
             }
 
-            private string type = null;
+            private string type = string.Empty;
             public string Type
             {
                 get { return type; }
@@ -206,7 +206,7 @@ namespace Finn.ViewModels
             public int NrFilteredFiles => FilteredFiles?.Count(f => f.IsRegularFile) ?? 0;
             public int NrSelectedFiles => CurrentFiles?.Count ?? 0;
 
-            private IList<FileData> currentFiles = null;
+            private IList<FileData> currentFiles = [];
             public IList<FileData> CurrentFiles
             {
                 get { return currentFiles; }
@@ -235,7 +235,7 @@ namespace Finn.ViewModels
                 }
             }
 
-            public FileData CurrentFile => CurrentFiles?.LastOrDefault();
+            public FileData? CurrentFile => CurrentFiles?.LastOrDefault();
             public bool FileSelected => CurrentFile != null;
 
             /// <summary>

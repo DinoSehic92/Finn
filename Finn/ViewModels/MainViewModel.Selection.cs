@@ -40,7 +40,7 @@ namespace Finn.ViewModels
             file.IsAppendedFile
             && file.IsFromFolder
             && !string.IsNullOrEmpty(file.SyncFolder)
-            && CurrentProject.Folders.Any(f =>
+            && CurrentProject!.Folders.Any(f =>
                 f.Mode == SyncFolderMode.AttachedFiles
                 && string.Equals(f.Path, file.SyncFolder, StringComparison.OrdinalIgnoreCase));
 
@@ -51,7 +51,7 @@ namespace Finn.ViewModels
         /// synced children, breaking the source folder's baseline.
         /// </summary>
         private bool HasSyncedChildren(FileData file) =>
-            CurrentProject.GetChildren(file).Any(c => c.IsFromFolder);
+            CurrentProject!.GetChildren(file).Any(c => c.IsFromFolder);
 
         private bool CanMoveToParent(FileData target, FileData file)
         {
@@ -95,7 +95,7 @@ namespace Finn.ViewModels
         /// </summary>
         private void DetachChildren(FileData parent, string? detachedType = null)
         {
-            var children = CurrentProject.GetChildren(parent);
+            var children = CurrentProject!.GetChildren(parent);
             foreach (var child in children)
                 DetachChild(child, detachedType);
         }
@@ -105,7 +105,7 @@ namespace Finn.ViewModels
         /// </summary>
         private void RefreshChildrenFromParent(FileData parent, bool syncCategory = false)
         {
-            foreach (var child in CurrentProject.GetChildren(parent))
+            foreach (var child in CurrentProject!.GetChildren(parent))
             {
                 if (syncCategory)
                     child.Filtyp = parent.Filtyp;
@@ -129,8 +129,8 @@ namespace Finn.ViewModels
 
         private void RefreshHierarchyState(bool refreshCollections = false, bool updateFilter = true)
         {
-            CurrentProject.RefreshHasChildren();
-            CurrentProject.SetFiletypeList();
+            CurrentProject!.RefreshHasChildren();
+            CurrentProject!.SetFiletypeList();
 
             if (refreshCollections)
                 Collections.SetCollectionContent();
@@ -175,11 +175,11 @@ namespace Finn.ViewModels
                 IsGroup = true,
                 IsExpanded = true,
                 Filtyp = categoryOverride ?? (Type != ALL_TYPES ? Type : NEW_TYPE),
-                Uppdrag = CurrentProject.Namn,
+                Uppdrag = CurrentProject!.Namn,
                 Sökväg = string.Empty
             };
 
-            CurrentProject.StoredFiles.Add(group);
+            CurrentProject!.StoredFiles.Add(group);
             RefreshHierarchyState();
             MarkDirty();
             return group;
@@ -290,7 +290,7 @@ namespace Finn.ViewModels
         private string EnsureUniqueName(string name, FileData? exclude = null)
         {
             var existing = new HashSet<string>(
-                CurrentProject.StoredFiles
+                CurrentProject!.StoredFiles
                     .Where(f => f != exclude)
                     .Select(f => f.Namn),
                 StringComparer.OrdinalIgnoreCase);
@@ -314,9 +314,9 @@ namespace Finn.ViewModels
         {
             if (group == null || !group.IsGroup) return;
 
-            var children = CurrentProject.GetChildren(group).ToList();
+            var children = CurrentProject!.GetChildren(group).ToList();
 
-            // Synced children (from an AttachedFiles folder) must not be released
+            // Synced children
             // as free-standing top-level files — they belong to the folder's set
             // and detaching them individually would orphan them.
             // Remove them along with the group header instead.
@@ -332,17 +332,17 @@ namespace Finn.ViewModels
             foreach (var child in syncedChildren)
             {
                 child.PartOfCollections.Clear();
-                CurrentProject.StoredFiles.Remove(child);
+                CurrentProject!.StoredFiles.Remove(child);
                 PreviewVM.RecentFiles.Remove(child);
             }
 
-            CurrentProject.StoredFiles.Remove(group);
+            CurrentProject!.StoredFiles.Remove(group);
             PreviewVM.RecentFiles.Remove(group);
 
             // Flag affected sync folders so the user sees them as pending re-sync.
             var affectedFolders = syncedChildren
                 .Where(c => !string.IsNullOrEmpty(c.SyncFolder))
-                .Select(c => c.SyncFolder)
+                .Select(c => c.SyncFolder!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (affectedFolders.Count > 0)
                 FlagSyncFoldersAsPending(affectedFolders);
@@ -365,7 +365,7 @@ namespace Finn.ViewModels
         /// Result is cached and invalidated whenever the hierarchy changes.
         /// </summary>
         public IReadOnlyList<FileData> AvailableParents =>
-            _cachedAvailableParents ??= CurrentProject.StoredFiles
+            _cachedAvailableParents ??= CurrentProject!.StoredFiles
                 .Where(f => f.IsParent)
                 .OrderByDescending(f => f.IsGroup)
                 .ThenBy(f => f.Namn)
@@ -396,13 +396,13 @@ namespace Finn.ViewModels
                     file.PartOfCollections.Clear();
                     DetachChild(file);
                     PreviewVM.RecentFiles.Remove(file);
-                    CurrentProject.StoredFiles.Remove(file);
+                    CurrentProject!.StoredFiles.Remove(file);
                     continue;
                 }
 
                 file.PartOfCollections.Clear();
 
-                var children = CurrentProject.GetChildren(file);
+                var children = CurrentProject!.GetChildren(file);
                 foreach (var child in children)
                 {
                     if (child.IsFromFolder && !string.IsNullOrEmpty(child.SyncFolder))
@@ -411,10 +411,10 @@ namespace Finn.ViewModels
                     child.PartOfCollections.Clear();
                     DetachChild(child);
                     PreviewVM.RecentFiles.Remove(child);
-                    CurrentProject.StoredFiles.Remove(child);
+                    CurrentProject!.StoredFiles.Remove(child);
                 }
 
-                CurrentProject.RemoveFile(file);
+                CurrentProject!.RemoveFile(file);
                 PreviewVM.RecentFiles.Remove(file);
             }
 
@@ -422,7 +422,7 @@ namespace Finn.ViewModels
 
             // Reset the type filter when the removed files were the last
             // of their kind, so the grid doesn't stay stuck on an empty type.
-            if (type != ALL_TYPES && !CurrentProject.Filetypes.Contains(type))
+            if (type != ALL_TYPES && !CurrentProject!.Filetypes.Contains(type))
             {
                 type = ALL_TYPES;
                 OnPropertyChanged(nameof(Type));
@@ -451,11 +451,11 @@ namespace Finn.ViewModels
                 // Propagate to children so they stay consistent with their parent
                 if (file.HasChildren)
                 {
-                    foreach (var child in CurrentProject.GetChildren(file))
+                    foreach (var child in CurrentProject!.GetChildren(file))
                         child.Filtyp = type;
                 }
             }
-            currentProject.SetFiletypeList();
+            currentProject!.SetFiletypeList();
             UpdateFilter();
             SignalTreeViewUpdate();
             MarkDirty();
@@ -463,7 +463,7 @@ namespace Finn.ViewModels
 
         public void UpdateFilter()
         {
-            var topLevel = CurrentProject.StoredFiles.Where(x => x.IsTopLevel);
+            var topLevel = CurrentProject!.StoredFiles.Where(x => x.IsTopLevel);
             var filtered = Type != ALL_TYPES
                 ? topLevel.Where(x => x.Filtyp == Type)
                 : topLevel;
@@ -481,7 +481,7 @@ namespace Finn.ViewModels
                 result.Add(file);
                 if (file.IsExpanded)
                 {
-                    var children = CurrentProject.GetChildren(file)
+                    var children = CurrentProject!.GetChildren(file)
                         .OrderBy(x => x.Namn);
                     result.AddRange(children);
                 }
@@ -490,7 +490,7 @@ namespace Finn.ViewModels
             filteredFiles.ReplaceAll(result);
             OnPropertyChanged(nameof(NrFilteredFiles));
 
-            if (CurrentProject.Category != SEARCH_CATEGORY)
+            if (CurrentProject!.Category != SEARCH_CATEGORY)
             {
                 IndexedSearch = false;
                 PreviewVM.SearchMode = false;
@@ -531,7 +531,7 @@ namespace Finn.ViewModels
         private List<FileData> CollectExpandedDescendants(FileData parent)
         {
             var result = new List<FileData>();
-            var children = CurrentProject.GetChildren(parent)
+            var children = CurrentProject!.GetChildren(parent)
                 .OrderBy(x => x.Namn);
 
             foreach (var child in children)
@@ -609,7 +609,7 @@ namespace Finn.ViewModels
             var activeParent = selected.IsAppendedFile ? selected.ParentFile : selected;
 
             bool changed = false;
-            foreach (var file in CurrentProject.StoredFiles)
+            foreach (var file in CurrentProject!.StoredFiles)
             {
                 if (file.IsAppendedFile) continue;
                 if (!file.HasChildren) continue;

@@ -383,7 +383,7 @@ public partial class MainView : UserControl
         {
             var window = (TopLevel)ParentWindow;
             if (window is not null)
-                _ctx.OpenPreviewWindow(window.RequestedThemeVariant);
+                _ctx.OpenPreviewWindow(window.RequestedThemeVariant!);
         }
         else
         {
@@ -710,7 +710,7 @@ public partial class MainView : UserControl
     private void OnStartSearch(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
-            OnSearch(null, null);
+            OnSearch(null!, null!);
     }
 
     private void OnClearSearch(object? sender, RoutedEventArgs e)
@@ -1088,7 +1088,7 @@ public partial class MainView : UserControl
             if (_ctx.CurrentFile == null || _ctx.CurrentFile.IsChild) return;
 
             var parentName = _ctx.CurrentFile.Namn;
-            var existing = _ctx.CurrentProject.GetChildren(_ctx.CurrentFile)
+            var existing = _ctx.CurrentProject!.GetChildren(_ctx.CurrentFile)
                 .OrderBy(f => f.Namn);
 
             var window = ParentWindow;
@@ -1423,7 +1423,7 @@ public partial class MainView : UserControl
         try
         {
             var window = ParentWindow;
-            await _ctx.SyncFoldersAsync(_ctx.CurrentProject.Folders.ToList(), window);
+            await _ctx.SyncFoldersAsync(_ctx.CurrentProject!.Folders.ToList(), window);
         }
         catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnSyncAllFolders)); }
     }

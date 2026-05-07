@@ -22,6 +22,19 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // Register global handlers first so any exception thrown during
+        // initialization (window creation, viewmodel setup, etc.) is captured.
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+        {
+            Finn.Utils.ErrorLogger.Log(e.ExceptionObject as Exception, "AppDomain.UnhandledException");
+        };
+
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+        {
+            Finn.Utils.ErrorLogger.Log(e.Exception, "TaskScheduler.UnobservedTaskException");
+            e.SetObserved();
+        };
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var vm = InitializeViewModel();
@@ -54,17 +67,6 @@ public partial class App : Application
             };
         }
 
-        // Global exception handlers to capture unexpected errors from UI or background threads
-        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-        {
-            Finn.Utils.ErrorLogger.Log(e.ExceptionObject as Exception, "AppDomain.UnhandledException");
-        };
-
-        TaskScheduler.UnobservedTaskException += (s, e) =>
-        {
-            Finn.Utils.ErrorLogger.Log(e.Exception, "TaskScheduler.UnobservedTaskException");
-            e.SetObserved();
-        };
 
         base.OnFrameworkInitializationCompleted();
     }

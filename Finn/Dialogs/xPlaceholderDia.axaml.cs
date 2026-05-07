@@ -16,7 +16,7 @@ public partial class xPlaceholderDia : Window
     {
         InitializeComponent();
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
         Opened += (_, _) => NewFileName.Focus();
     }
 

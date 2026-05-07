@@ -19,10 +19,10 @@ namespace Finn.Controls
         /// Foreground brush used for hands, ticks, and numerals.
         /// Defaults to inheriting from the parent control's foreground.
         /// </summary>
-        public static readonly StyledProperty<IBrush> ForegroundProperty =
+        public static readonly StyledProperty<IBrush?> ForegroundProperty =
             TextBlock.ForegroundProperty.AddOwner<AnalogWatchControl>();
 
-        public IBrush Foreground
+        public IBrush? Foreground
         {
             get => GetValue(ForegroundProperty);
             set => SetValue(ForegroundProperty, value);

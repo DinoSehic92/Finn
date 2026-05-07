@@ -14,7 +14,7 @@ namespace Finn.Model
         private string _selectedLabel = "NEW";
 
         /// <summary>The existing file this new path matched by name.</summary>
-        public FileData ExistingFile { get; init; }
+        public FileData ExistingFile { get; init; } = null!;
 
         /// <summary>The full path of the file being imported.</summary>
         public string NewFilePath { get; init; } = string.Empty;

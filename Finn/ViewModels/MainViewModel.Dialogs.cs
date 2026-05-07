@@ -133,7 +133,7 @@ namespace Finn.ViewModels
                 var window = new xRenameDia();
                 ConfigureWindow(window, mainWindow);
                 window.SetCurrentName(CurrentFile.Namn);
-                window.NewNameInput.CaretIndex = window.NewNameInput.Text.Length;
+                window.NewNameInput.CaretIndex = window.NewNameInput.Text?.Length ?? 0;
                 window.ShowDialog(mainWindow);
                 window.NewNameInput.Focus();
             }

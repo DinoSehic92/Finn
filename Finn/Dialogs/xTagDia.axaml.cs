@@ -12,15 +12,15 @@ public partial class xTagDia : Window
     {
         InitializeComponent();
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
 
     }
 
-    private void OnSetTag(object sender, RoutedEventArgs e)
+    private void OnSetTag(object? sender, RoutedEventArgs e)
     {
         if (TagMenuInput.Text != null)
         {
-            MainViewModel ctx = (MainViewModel)this.DataContext;
+            if (DataContext is not MainViewModel ctx) return;
             ctx.AddTag(TagMenuInput.Text.ToString());
         }
 

@@ -161,7 +161,7 @@ public partial class MainView
         // Let the owner choose the sharing mode before the first push
         var settingsDia = new Finn.Dialogs.xShareSettingsDia();
         _ctx.ConfigureWindow(settingsDia, window);
-        settingsDia.SetCurrentMode(_ctx.CurrentProject.OneWayShare);
+        settingsDia.SetCurrentMode(_ctx.CurrentProject!.OneWayShare);
         await settingsDia.ShowDialog(window);
 
         if (!settingsDia.Confirmed)

@@ -1400,12 +1400,9 @@ namespace Finn.ViewModels
                     {
                         // --- Release old renderer resources ---
                         if (mainRenderer?.HighlightedRegions != null)
-                            mainRenderer.HighlightedRegions = null;
+                            mainRenderer.HighlightedRegions = null!;
                         if (!dualFileMode && secondaryRenderer?.HighlightedRegions != null)
-                            secondaryRenderer.HighlightedRegions = null;
-                        mainRenderer?.ReleaseResources();
-                        if (!dualFileMode)
-                            secondaryRenderer?.ReleaseResources();
+                            secondaryRenderer.HighlightedRegions = null!;
 
                         // --- Dispose old, swap in new ---
                         var prevDoc = MainPreviewFile;
@@ -1618,9 +1615,9 @@ namespace Finn.ViewModels
                     try
                     {
                         if (mainRenderer?.HighlightedRegions != null)
-                            mainRenderer.HighlightedRegions = null;
+                            mainRenderer.HighlightedRegions = null!;
                         if (!dualFileMode && secondaryRenderer?.HighlightedRegions != null)
-                            secondaryRenderer.HighlightedRegions = null;
+                            secondaryRenderer.HighlightedRegions = null!;
 
                         mainRenderer?.ReleaseResources();
                         mainRenderer?.InvalidateVisual();
@@ -1978,7 +1975,7 @@ namespace Finn.ViewModels
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (mainRenderer?.HighlightedRegions != null)
-                        mainRenderer.HighlightedRegions = null;
+                        mainRenderer.HighlightedRegions = null!;
                     try
                     {
                         if (MainPreviewFile != null && mainRenderer != null)
@@ -2042,7 +2039,7 @@ namespace Finn.ViewModels
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     if (secondaryRenderer?.HighlightedRegions != null)
-                        secondaryRenderer.HighlightedRegions = null;
+                        secondaryRenderer.HighlightedRegions = null!;
                     try
                     {
                         var doc = DualFileMode ? secondaryFile : MainPreviewFile;
@@ -2120,7 +2117,7 @@ namespace Finn.ViewModels
                                         if (!(CurrentPage1 == page1 && mainRenderer.IsViewerInitialized))
                                         {
                                             if (mainRenderer.HighlightedRegions != null)
-                                                mainRenderer.HighlightedRegions = null;
+                                                mainRenderer.HighlightedRegions = null!;
                                             try
                                             {
                                                 mainRenderer.ReleaseResources();
@@ -2144,7 +2141,7 @@ namespace Finn.ViewModels
                                             return;
 
                                         if (secondaryRenderer.HighlightedRegions != null)
-                                            secondaryRenderer.HighlightedRegions = null;
+                                            secondaryRenderer.HighlightedRegions = null!;
                                         try
                                         {
                                             var doc = DualFileMode ? secondaryFile : MainPreviewFile;

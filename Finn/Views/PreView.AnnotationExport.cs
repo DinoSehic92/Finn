@@ -899,7 +899,7 @@ public partial class PreView
         const double renderZoom = 2.0;
 
         // Determine review output folder
-        string baseFolder = ctx?.CurrentProject?.ReviewFolder;
+        string? baseFolder = ctx?.CurrentProject?.ReviewFolder;
         if (string.IsNullOrWhiteSpace(baseFolder))
             baseFolder = Path.Combine(MainViewModel.SavePath, "Reviews");
 
@@ -907,9 +907,9 @@ public partial class PreView
         string outputDir = Path.Combine(baseFolder, subFolder);
         Directory.CreateDirectory(outputDir);
 
-        string? sourcePath = pwr.CurrentFile?.Sökväg;
+        string? sourcePath = pwr?.CurrentFile?.Sökväg;
         string sourceName = sourcePath != null
-            ? Path.GetFileNameWithoutExtension(sourcePath)
+            ? Path.GetFileNameWithoutExtension(sourcePath) ?? "whiteboard"
             : "whiteboard";
         string outputPath = Path.Combine(outputDir, $"{sourceName}.pdf");
 

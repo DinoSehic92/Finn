@@ -118,7 +118,7 @@ namespace Finn.Model
             {
                 try
                 {
-                    System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath).ToBitmap();
+                    System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath)!.ToBitmap();
                     IconBytes = BitmapToByteArray(bitmap);
                 }
                 catch
@@ -139,7 +139,7 @@ namespace Finn.Model
         {
             Type = Path.GetExtension(filepath);
             Name = Path.GetFileName(filepath).Replace(Type, "");
-            System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath).ToBitmap();
+            System.Drawing.Bitmap bitmap = System.Drawing.Icon.ExtractAssociatedIcon(filepath)!.ToBitmap();
             IconBytes = BitmapToByteArray(bitmap);
         }
 

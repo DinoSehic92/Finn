@@ -11,7 +11,7 @@ public partial class xMessageDia : Window
     {
         InitializeComponent();
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
 
     }
 

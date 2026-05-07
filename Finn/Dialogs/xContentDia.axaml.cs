@@ -14,7 +14,7 @@ public partial class xContentDia : Window
     {
         InitializeComponent();
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
 
     }
 

@@ -100,7 +100,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
         var window = new xCloseDia()
         {
-            DataContext = (MainViewModel)this.DataContext
+            DataContext = this.DataContext as MainViewModel
         };
 
         window.SetMainWindow(this);

@@ -29,7 +29,7 @@ namespace Finn.ViewModels
             /// </summary>
             private bool IsDuplicateFolderPath(string path)
             {
-                foreach (var f in CurrentProject.Folders)
+                foreach (var f in CurrentProject!.Folders)
                 {
                     if (string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase))
                         return true;
@@ -39,7 +39,7 @@ namespace Finn.ViewModels
 
             private FileData? FindAttachedFolderOwner(FolderData folder)
             {
-                var topLevel = CurrentProject.StoredFiles.Where(x => !x.IsAppendedFile);
+                var topLevel = CurrentProject!.StoredFiles.Where(x => !x.IsAppendedFile);
 
                 if (!string.IsNullOrWhiteSpace(folder.AttachToFilePath))
                 {
@@ -60,7 +60,7 @@ namespace Finn.ViewModels
             }
 
             private List<FileData> GetSyncedAttachedChildren(FileData parent, string folderPath) =>
-                CurrentProject.GetChildren(parent)
+                CurrentProject!.GetChildren(parent)
                     .Where(x => string.Equals(x.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
@@ -75,7 +75,7 @@ namespace Finn.ViewModels
             {
                 if (CurrentFile != null)
                 {
-                    CurrentProject.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, AttachToFilePath = CurrentFile.Sökväg });
+                    CurrentProject!.Folders.Add(new FolderData() { Name = "New file folder", AttachToFile = CurrentFile.Namn, AttachToFilePath = CurrentFile.Sökväg });
                 }
             }
 
@@ -87,18 +87,18 @@ namespace Finn.ViewModels
                     {
                         // Remove all versions whose path falls under this version folder.
                         RemoveVersionsUnderPath(folder.Path);
-                        CurrentProject.Folders.Remove(folder);
+                        CurrentProject!.Folders.Remove(folder);
                     }
                     else if (folder.IsProjectLevel)
                     {
-                        CurrentProject.StoredFiles.RemoveAll(x => x.IsFromFolder && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase));
+                        CurrentProject!.StoredFiles.RemoveAll(x => x.IsFromFolder && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase));
                         UpdateFilter();
-                        CurrentProject.Folders.Remove(folder);
+                        CurrentProject!.Folders.Remove(folder);
                         SignalTreeViewUpdate();
                     }
                     else
                     {
-                        FileData file = FindAttachedFolderOwner(folder);
+                        FileData? file = FindAttachedFolderOwner(folder);
 
                         if (file != null)
                         {
@@ -109,9 +109,9 @@ namespace Finn.ViewModels
                                 {
                                     r.PartOfCollections.Clear();
                                     r.ClearParent();
-                                    CurrentProject.StoredFiles.Remove(r);
+                                    CurrentProject!.StoredFiles.Remove(r);
                                 }
-                                CurrentProject.RefreshHasChildren();
+                                CurrentProject!.RefreshHasChildren();
                                 UpdateFilter();
                             }
 
@@ -124,7 +124,7 @@ namespace Finn.ViewModels
                         }
 
                         Collections.SetCollectionContent();
-                        CurrentProject.Folders.Remove(folder);
+                        CurrentProject!.Folders.Remove(folder);
                     }
                 }
 
@@ -137,7 +137,7 @@ namespace Finn.ViewModels
                         {
                             var entry = PendingSyncFolders[i];
                             if (string.Equals(entry.FolderPath, folder.Path, StringComparison.OrdinalIgnoreCase)
-                                && string.Equals(entry.ProjectName, CurrentProject.Namn, StringComparison.OrdinalIgnoreCase))
+                                && string.Equals(entry.ProjectName, CurrentProject!.Namn, StringComparison.OrdinalIgnoreCase))
                             {
                                 PendingSyncFolders.RemoveAt(i);
                             }
@@ -155,8 +155,8 @@ namespace Finn.ViewModels
                 IsSyncing = true;
                 try
                 {
-                    int fileCountBefore = CurrentProject.StoredFiles.Count;
-                    int otherCountBefore = CurrentProject.StoredFiles.Sum(f => f.OtherFiles.Count);
+                    int fileCountBefore = CurrentProject!.StoredFiles.Count;
+                    int otherCountBefore = CurrentProject!.StoredFiles.Sum(f => f.OtherFiles.Count);
                     var syncedPaths = new List<string>();
 
                     for (int i = 0; i < folders.Count; i++)
@@ -172,8 +172,8 @@ namespace Finn.ViewModels
 
                     PreviewVM.BackgroundTaskActive = false;
 
-                    int delta = CurrentProject.StoredFiles.Count - fileCountBefore;
-                    int otherDelta = CurrentProject.StoredFiles.Sum(f => f.OtherFiles.Count) - otherCountBefore;
+                    int delta = CurrentProject!.StoredFiles.Count - fileCountBefore;
+                    int otherDelta = CurrentProject!.StoredFiles.Sum(f => f.OtherFiles.Count) - otherCountBefore;
                     int totalDelta = delta + otherDelta;
 
                     if (totalDelta > 0)
@@ -208,10 +208,10 @@ namespace Finn.ViewModels
             {
                 var lookup = new Dictionary<string, FileData>(StringComparer.OrdinalIgnoreCase);
                 // Parents first — TryAdd keeps the first entry per name.
-                foreach (var f in CurrentProject.StoredFiles.Where(f => !f.IsAppendedFile))
+                foreach (var f in CurrentProject!.StoredFiles.Where(f => !f.IsAppendedFile))
                     lookup.TryAdd(f.Namn, f);
                 // Children fill in names that don't have a parent match.
-                foreach (var f in CurrentProject.StoredFiles.Where(f => f.IsAppendedFile))
+                foreach (var f in CurrentProject!.StoredFiles.Where(f => f.IsAppendedFile))
                     lookup.TryAdd(f.Namn, f);
                 return lookup;
             }
@@ -223,7 +223,7 @@ namespace Finn.ViewModels
             private HashSet<string> BuildKnownPathSet()
             {
                 var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var file in CurrentProject.StoredFiles)
+                foreach (var file in CurrentProject!.StoredFiles)
                 {
                     if (!string.IsNullOrEmpty(file.Sökväg))
                         known.Add(file.Sökväg);
@@ -270,7 +270,7 @@ namespace Finn.ViewModels
 
                 if (!folder.IsProjectLevel)
                 {
-                    FileData file = FindAttachedFolderOwner(folder);
+                    FileData? file = FindAttachedFolderOwner(folder);
 
                     if (file == null)
                     {
@@ -287,7 +287,7 @@ namespace Finn.ViewModels
                         foreach (var o in oldSynced)
                             oldByPath.TryAdd(o.Sökväg, o);
 
-                        var diskFiles = await Task.Run(() => GetFilesFromFolder(folder, CurrentProject.Namn));
+                        var diskFiles = await Task.Run(() => GetFilesFromFolder(folder, CurrentProject!.Namn));
                         var diskPaths = new HashSet<string>(
                             diskFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
 
@@ -296,7 +296,7 @@ namespace Finn.ViewModels
                         // Exclude paths already tracked anywhere in the project (e.g. files
                         // that were detached from this folder but kept as top-level entries).
                         var allTrackedPaths = new HashSet<string>(
-                            CurrentProject.StoredFiles.Select(x => x.Sökväg),
+                            CurrentProject!.StoredFiles.Select(x => x.Sökväg),
                             StringComparer.OrdinalIgnoreCase);
                         var additions = diskFiles
                             .Where(f => !oldByPath.ContainsKey(f.Sökväg) && !allTrackedPaths.Contains(f.Sökväg))
@@ -451,7 +451,7 @@ namespace Finn.ViewModels
                         diff.Additions, diff.VersionCandidates, diff.SkippedCount, folder, mainWindow);
                 }
 
-                CurrentProject.SetFiletypeList();
+                CurrentProject!.SetFiletypeList();
                 UpdateFilter();
                 BuildTreeData();
 
@@ -479,11 +479,11 @@ namespace Finn.ViewModels
             /// </summary>
             private async Task<ProjectFolderDiff> ComputeProjectFolderDiffAsync(FolderData folder)
             {
-                string projectName = CurrentProject.Namn;
+                string projectName = CurrentProject!.Namn;
                 var diskFiles = await Task.Run(() => GetFilesFromFolder(folder, projectName));
                 var diskPaths = new HashSet<string>(diskFiles.Select(f => f.Sökväg), StringComparer.OrdinalIgnoreCase);
 
-                var existingFiles = CurrentProject.StoredFiles
+                var existingFiles = CurrentProject!.StoredFiles
                     .Where(x => x.IsFromFolder
                         && string.Equals(x.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -501,7 +501,7 @@ namespace Finn.ViewModels
 
                 foreach (var file in filesToAdd)
                 {
-                    var alreadyTracked = CurrentProject.StoredFiles.FirstOrDefault(
+                    var alreadyTracked = CurrentProject!.StoredFiles.FirstOrDefault(
                         x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase));
                     if (alreadyTracked != null)
                     {
@@ -570,7 +570,7 @@ namespace Finn.ViewModels
                 if (removeDia.Confirmed)
                 {
                     var removeSet = new HashSet<FileData>(filesToRemove);
-                    CurrentProject.StoredFiles.RemoveAll(f => removeSet.Contains(f));
+                    CurrentProject!.StoredFiles.RemoveAll(f => removeSet.Contains(f));
                     return true;
                 }
                 return false;
@@ -591,7 +591,7 @@ namespace Finn.ViewModels
                 if (additions.Count > 0 && mainWindow != null)
                 {
                     string folderName = new DirectoryInfo(folder.Path).Name;
-                    string defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
+                    string? defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
 
                     var candidatePaths = additions.Select(f => (f.Sökväg, folderName)).ToList();
                     var dialog = new Dialogs.xImportDia
@@ -599,7 +599,7 @@ namespace Finn.ViewModels
                         DataContext = this,
                         RequestedThemeVariant = mainWindow.ActualThemeVariant
                     };
-                    dialog.SetFiles(candidatePaths, skippedCount, CurrentProject.AllowedTypes, defaultCategory);
+                    dialog.SetFiles(candidatePaths, skippedCount, CurrentProject!.AllowedTypes, defaultCategory);
                     await dialog.ShowDialog(mainWindow);
 
                     if (dialog.Confirmed)
@@ -612,7 +612,7 @@ namespace Finn.ViewModels
                             f.Filtyp = assignedType;
 
                         if (confirmed.Count > 0)
-                            CurrentProject.StoredFiles.AddRange(confirmed);
+                            CurrentProject!.StoredFiles.AddRange(confirmed);
                     }
                     else
                     {
@@ -650,7 +650,7 @@ namespace Finn.ViewModels
                     Types = VERSIONS_TYPE,
                     Path = path
                 };
-                CurrentProject.Folders.Add(folder);
+                CurrentProject!.Folders.Add(folder);
                 MarkDirty();
                 RefreshFolderWatchers();
             }
@@ -666,7 +666,7 @@ namespace Finn.ViewModels
                     ? folderPath
                     : folderPath + Path.DirectorySeparatorChar;
                 int count = 0;
-                foreach (var f in CurrentProject.StoredFiles)
+                foreach (var f in CurrentProject!.StoredFiles)
                     foreach (var v in f.Versions)
                         if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
                             count++;
@@ -682,7 +682,7 @@ namespace Finn.ViewModels
                 string root = folderPath.EndsWith(Path.DirectorySeparatorChar)
                     ? folderPath
                     : folderPath + Path.DirectorySeparatorChar;
-                foreach (var file in CurrentProject.StoredFiles)
+                foreach (var file in CurrentProject!.StoredFiles)
                 {
                     int before = file.Versions.Count;
                     for (int i = file.Versions.Count - 1; i >= 0; i--)
@@ -693,7 +693,7 @@ namespace Finn.ViewModels
                     if (before > 0 && file.Versions.Count == 0 && !string.IsNullOrEmpty(file.OriginalPath))
                     {
                         // Last version removed — clear the original path marker
-                        file.OriginalPath = null;
+                        file.OriginalPath = string.Empty;
                     }
                 }
             }
@@ -733,7 +733,7 @@ namespace Finn.ViewModels
 
                 // Collect stale versions before removing
                 var staleVersions = new List<(FileData File, FileVersionData Version)>();
-                foreach (var file in CurrentProject.StoredFiles)
+                foreach (var file in CurrentProject!.StoredFiles)
                 {
                     foreach (var v in file.Versions)
                     {
@@ -927,7 +927,7 @@ namespace Finn.ViewModels
                         break;
 
                     string? parent = Path.GetDirectoryName(dir);
-                    if (parent == dir) break;
+                    if (parent == null || parent == dir) break;
                     dir = parent;
                 }
                 return null;
@@ -1005,7 +1005,7 @@ namespace Finn.ViewModels
                 if (folder.Mode == SyncFolderMode.VersionDelivery)
                 {
                     versionFilter = new HashSet<string>(
-                        CurrentProject.StoredFiles.Select(f => f.Namn),
+                        CurrentProject!.StoredFiles.Select(f => f.Namn),
                         StringComparer.OrdinalIgnoreCase);
                 }
 
@@ -1041,7 +1041,7 @@ namespace Finn.ViewModels
                         // Find versions whose exact path matches a newly-excluded disk path
                         var versionsToRemove = new List<(FileData File, FileVersionData Version)>();
                         var pathSet = new HashSet<string>(justExcludedPaths, StringComparer.OrdinalIgnoreCase);
-                        foreach (var file in CurrentProject.StoredFiles)
+                        foreach (var file in CurrentProject!.StoredFiles)
                         {
                             foreach (var v in file.Versions)
                             {
@@ -1082,11 +1082,11 @@ namespace Finn.ViewModels
                     folder.ExcludedFiles = newExcludedPaths;
                     folder.InvalidateExclusionCache();
 
-                    CurrentProject.RefreshHasChildren();
+                    CurrentProject!.RefreshHasChildren();
                     UpdateFilter();
                     MarkDirty();
 
-                    // Re-include: paths that were excluded before but are now checked
+                    // Re-include
                     bool hasReIncluded = oldExcludedSet.Except(newExcludedSet).Any();
                     if (hasReIncluded)
                     {
@@ -1109,19 +1109,19 @@ namespace Finn.ViewModels
                     if (justExcluded.Count > 0)
                     {
                         var nameSet = new HashSet<string>(justExcluded, StringComparer.OrdinalIgnoreCase);
-                        var filesToRemove = CurrentProject.StoredFiles
+                        var filesToRemove = CurrentProject!.StoredFiles
                             .Where(f => f.IsFromFolder
                                 && string.Equals(f.SyncFolder, folder.Path, StringComparison.OrdinalIgnoreCase)
                                 && nameSet.Contains(f.Namn))
                             .ToList();
                         foreach (var f in filesToRemove)
-                            CurrentProject.StoredFiles.Remove(f);
+                            CurrentProject!.StoredFiles.Remove(f);
                     }
 
                     folder.ExcludedFiles = newExcluded;
                     folder.InvalidateExclusionCache();
 
-                    CurrentProject.RefreshHasChildren();
+                    CurrentProject!.RefreshHasChildren();
                     UpdateFilter();
                     MarkDirty();
 
@@ -1151,7 +1151,7 @@ namespace Finn.ViewModels
                 ? newFolderPath
                 : newFolderPath + Path.DirectorySeparatorChar;
 
-            foreach (var file in CurrentProject.StoredFiles)
+            foreach (var file in CurrentProject!.StoredFiles)
             {
                 if (string.Equals(file.SyncFolder, oldFolderPath, StringComparison.OrdinalIgnoreCase))
                     file.SyncFolder = newFolderPath;

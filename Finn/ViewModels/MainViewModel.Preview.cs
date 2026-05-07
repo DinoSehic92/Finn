@@ -118,8 +118,7 @@ namespace Finn.ViewModels
                         continue;
 
                     var folder = CreateAttachedFolder(path, "Other Files");
-                    CurrentProject.Folders.Add(folder);
-                    await SyncFolderAsync(folder);
+                    CurrentProject!.Folders.Add(folder);
                 }
 
                 RefreshFolderWatchers();
@@ -152,7 +151,7 @@ namespace Finn.ViewModels
                         Types = "PDF",
                         Path = path
                     };
-                    CurrentProject.Folders.Add(folder);
+                    CurrentProject!.Folders.Add(folder);
                     await SyncFolderAsync(folder, mainWindow);
                 }
 
@@ -177,7 +176,7 @@ namespace Finn.ViewModels
                 foreach (string path in paths)
                 {
                     NewVersionFolder(path);
-                    var folder = CurrentProject.Folders.LastOrDefault();
+                    var folder = CurrentProject!.Folders.LastOrDefault();
                     if (folder != null)
                         await SyncFolderAsync(folder, mainWindow);
                 }
@@ -202,7 +201,7 @@ namespace Finn.ViewModels
             try
             {
                 NewFileFolder();
-                var folder = CurrentProject.Folders.LastOrDefault();
+                var folder = CurrentProject!.Folders.LastOrDefault();
                 if (folder != null)
                 {
                     folder.Path = folderPath;

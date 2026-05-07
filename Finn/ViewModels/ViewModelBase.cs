@@ -49,6 +49,6 @@ namespace Finn.ViewModels
             GC.SuppressFinalize(this);
         }
 
-        public override string ToString() => GetType().FullName ?? base.ToString();
+        public override string ToString() => GetType().FullName ?? base.ToString() ?? string.Empty;
     }
 }

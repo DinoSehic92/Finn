@@ -29,23 +29,23 @@ public partial class xEditDia : Window
             ProjectCategory.SelectionChanged += (_, _) =>
             {
                 string cat = (ProjectCategory.SelectedItem as ComboBoxItem)?.Content?.ToString()
-                             ?? ctx.CurrentProject.Category;
+                             ?? ctx.CurrentProject?.Category ?? string.Empty;
                 RefreshGroupPicker(cat, null);
             };
         };
 
-        KeyDown += CloseKey;
+        KeyDown += CloseKey!;
     }
 
     private ComboBox? _projectGroupCombo;
 
-    private void SetupGroupCombo(object sender, RoutedEventArgs e)
+    private void SetupGroupCombo(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel ctx) return;
         _projectGroupCombo = sender as ComboBox ?? this.FindControl<ComboBox>("ProjectGroup");
         if (_projectGroupCombo == null) return;
 
-        RefreshGroupPicker(ctx.CurrentProject.Category, ctx.CurrentProject.Parent);
+        RefreshGroupPicker(ctx.CurrentProject?.Category ?? string.Empty, ctx.CurrentProject?.Parent);
     }
 
     private void RefreshGroupPicker(string category, string? selectedGroup)
@@ -62,24 +62,24 @@ public partial class xEditDia : Window
         _projectGroupCombo.SelectedIndex = idx >= 0 ? idx : 0;
     }
 
-    private void SetupCategory(object sender, RoutedEventArgs e)
+    private void SetupCategory(object? sender, RoutedEventArgs e)
     {
-        MainViewModel ctx = (MainViewModel)this.DataContext;
+        if (DataContext is not MainViewModel ctx) return;
 
-        string cat = ctx.CurrentProject.Category;
+        string cat = ctx.CurrentProject?.Category ?? string.Empty;
 
-        ComboBoxItem comboBoxItem = null;
+        ComboBoxItem? comboBoxItem = null;
 
-        foreach (ComboBoxItem item in ProjectCategory.Items)
+        foreach (ComboBoxItem? item in ProjectCategory.Items)
         {
-            if (item.Content.ToString() == cat)
+            if (item?.Content?.ToString() == cat)
                 comboBoxItem = item;
         }
 
         ProjectCategory.SelectedItem = comboBoxItem;
 
         // Shared projects cannot be renamed — disable the name field
-        if (ctx.CurrentProject.IsShared)
+        if (ctx.CurrentProject?.IsShared == true)
         {
             ProjectName.IsEnabled = false;
             ProjectName.PlaceholderText = "Rename disabled (shared)";
@@ -97,7 +97,7 @@ public partial class xEditDia : Window
                 {
                     if (e.PropertyName == nameof(ProjectData.SharedSyncStatus))
                         Avalonia.Threading.Dispatcher.UIThread.Post(
-                            () => UpdateSyncText(syncText, ctx.CurrentProject));
+                            () => UpdateSyncText(syncText, ctx.CurrentProject!));
                 };
             }
         }
@@ -125,19 +125,19 @@ public partial class xEditDia : Window
         if (DataContext is not MainViewModel ctx) return;
         if (ProjectName.Text == null) return;
 
-        if (!ctx.CurrentProject.IsShared)
-            ctx.RenameProject(ProjectName.Text.ToString());
+        if (ctx.CurrentProject?.IsShared == false)
+            ctx.RenameProject(ProjectName.Text!.ToString());
 
         // Read selected group from the picker
         int groupIdx = _projectGroupCombo?.SelectedIndex ?? -1;
         if (groupIdx >= 0 && groupIdx < _groupItems.Count)
-            ctx.CurrentProject.Parent = _groupItems[groupIdx].GroupName; // null = no group
+            ctx.CurrentProject!.Parent = _groupItems[groupIdx].GroupName;
 
         // Category is always set from the Category ComboBox
         if (ProjectCategory.SelectedItem is ComboBoxItem selectedCombo)
             ctx.SetCategory(selectedCombo.Content?.ToString() ?? "Project");
 
-        ctx.CurrentProject.ReviewFolder = ReviewFolder.Text?.Trim() ?? string.Empty;
+        ctx.CurrentProject!.ReviewFolder = ReviewFolder.Text?.Trim() ?? string.Empty;
         ctx.MarkDirty();
         ctx.UpdateTreeview();
 
