@@ -371,6 +371,9 @@ public partial class PreView
     private void UpdateFontSizeLabel()
     {
         FontSizeLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
+        // Also sync the property panel label if it is open
+        var propLabel = this.FindControl<TextBlock>("PropertyFontSizeLabel");
+        if (propLabel != null) propLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
     }
 
     private void UpdateUndoRedoButtons()
@@ -476,6 +479,9 @@ public partial class PreView
             MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged();
         }
     }
+
+    private void OnPropertyFontSizeDecrease(object sender, RoutedEventArgs e) => OnFontSizeDecrease(sender, e);
+    private void OnPropertyFontSizeIncrease(object sender, RoutedEventArgs e) => OnFontSizeIncrease(sender, e);
 
     private void OnToggleFill(object sender, RoutedEventArgs e)
     {

@@ -44,6 +44,10 @@ public partial class PreView
 
         ScreenshotModeBanner.IsVisible = true;
         pwr.StatusMessage = "Drag to capture — Esc to cancel";
+
+        // Ensure the renderer has focus so pointer events are not swallowed
+        // by a previously focused control (e.g. the search text box).
+        MuPDFRenderer.Focus();
     }
 
     private void DeactivateScreenshotMode()
@@ -92,7 +96,6 @@ public partial class PreView
         _screenshotStartPdf = pdfPt.Value;
         _screenshotDragging = true;
         MuPDFRenderer.SetRubberBand(pdfPt.Value, pdfPt.Value);
-        MuPDFRenderer.Cursor = new Cursor(StandardCursorType.SizeAll);
         e.Pointer.Capture(MuPDFRenderer);
         e.Handled = true;
     }
@@ -118,7 +121,6 @@ public partial class PreView
 
         var endPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
         // Restore cross cursor momentarily before full deactivation cleans up
-        MuPDFRenderer.Cursor = new Cursor(StandardCursorType.Cross);
         DeactivateScreenshotMode();
 
         if (!endPdf.HasValue) return;

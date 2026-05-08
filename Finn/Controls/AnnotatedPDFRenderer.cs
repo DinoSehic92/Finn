@@ -1916,7 +1916,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (_screenshotMode == active) return;
         _screenshotMode = active;
+        if (active)
+            PointerMoved += OnScreenshotPointerMovedCursorFix;
+        else
+            PointerMoved -= OnScreenshotPointerMovedCursorFix;
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Re-applies the Cross cursor after the base PDFRenderer's PointerMoved
+    /// handler overwrites it with Arrow. Runs as a Bubble handler registered
+    /// after the base class handler so it fires last.
+    /// </summary>
+    private void OnScreenshotPointerMovedCursorFix(object? sender, Avalonia.Input.PointerEventArgs e)
+    {
+        if (_screenshotMode)
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Cross);
     }
 
     /// <summary>Update the rubber-band rectangle (PDF coordinates).</summary>
