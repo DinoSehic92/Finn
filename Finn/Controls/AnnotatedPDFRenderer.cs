@@ -40,6 +40,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // Rubber-band marquee selection rectangle (PDF-space)
     private Point? _rubberBandStart;
     private Point? _rubberBandEnd;
+    // When true the rubber-band is used for screenshot selection: render a dim veil
+    // over the area outside the selection instead of the standard translucent fill.
+    private bool _screenshotMode;
 
     // Eraser hover highlight: the item the eraser is hovering over
     private object? _eraserHoverItem;
@@ -82,6 +85,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
     private static readonly IBrush s_rubberBandBorderBrush =
         new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable();
+    private static readonly IBrush s_screenshotVeilBrush =
+        new SolidColorBrush(Color.FromArgb(100, 0, 0, 0)).ToImmutable();
+    private static readonly IBrush s_screenshotSelectionBrush =
+        new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)).ToImmutable();
     private static readonly IBrush s_selectHoverBrush =
         new SolidColorBrush(Color.FromArgb(90, 232, 125, 47)).ToImmutable();
     private static readonly IBrush s_gridDotBrush =
@@ -99,6 +106,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static readonly IPen s_rubberBandPen =
         new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
             1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
+    private static readonly IPen s_screenshotBorderPen =
+        new Pen(new SolidColorBrush(Color.FromArgb(220, 220, 50, 50)).ToImmutable(),
+            1.5, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
     // Pens whose thickness depends on penScale are cached per-frame.
     private IPen? _cachedSelectHoverPen;
     private IPen? _cachedSelectionPen;
@@ -1900,6 +1910,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     #region Rubber-band marquee selection
+
+    /// <summary>Enable or disable screenshot-mode dim-veil rendering for the rubber-band.</summary>
+    public void SetScreenshotMode(bool active)
+    {
+        if (_screenshotMode == active) return;
+        _screenshotMode = active;
+        InvalidateVisual();
+    }
 
     /// <summary>Update the rubber-band rectangle (PDF coordinates).</summary>
     public void SetRubberBand(Point start, Point end)
@@ -3984,14 +4002,47 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
 
         // Rubber-band marquee selection rectangle
-        if (_rubberBandStart.HasValue && _rubberBandEnd.HasValue)
+        if (_screenshotMode && !_rubberBandStart.HasValue)
+        {
+            // Full-surface veil before any drag has started
+            context.DrawRectangle(s_screenshotVeilBrush, null,
+                new Rect(0, 0, boundsSize.Width, boundsSize.Height));
+        }
+        else if (_rubberBandStart.HasValue && _rubberBandEnd.HasValue)
         {
             var rs = PdfToScreen(_rubberBandStart.Value, da, boundsSize);
             var re = PdfToScreen(_rubberBandEnd.Value, da, boundsSize);
             var rect = new Rect(Math.Min(rs.X, re.X), Math.Min(rs.Y, re.Y),
                 Math.Abs(re.X - rs.X), Math.Abs(re.Y - rs.Y));
-            var borderPen = s_rubberBandPen;
-            context.DrawRectangle(s_rubberBandFillBrush, borderPen, rect);
+
+            if (_screenshotMode)
+            {
+                // Draw dim veil over the four regions surrounding the selection,
+                // leaving the selected area fully visible.
+                var full = new Rect(0, 0, boundsSize.Width, boundsSize.Height);
+                // Top strip
+                if (rect.Top > 0)
+                    context.DrawRectangle(s_screenshotVeilBrush, null,
+                        new Rect(0, 0, full.Width, rect.Top));
+                // Bottom strip
+                if (rect.Bottom < full.Height)
+                    context.DrawRectangle(s_screenshotVeilBrush, null,
+                        new Rect(0, rect.Bottom, full.Width, full.Height - rect.Bottom));
+                // Left strip (between top and bottom)
+                if (rect.Left > 0)
+                    context.DrawRectangle(s_screenshotVeilBrush, null,
+                        new Rect(0, rect.Top, rect.Left, rect.Height));
+                // Right strip (between top and bottom)
+                if (rect.Right < full.Width)
+                    context.DrawRectangle(s_screenshotVeilBrush, null,
+                        new Rect(rect.Right, rect.Top, full.Width - rect.Right, rect.Height));
+                // Selection border
+                context.DrawRectangle(null, s_screenshotBorderPen, rect);
+            }
+            else
+            {
+                context.DrawRectangle(s_rubberBandFillBrush, s_rubberBandPen, rect);
+            }
         }
 
         // Selection handles: dashed bounding box around selected items
@@ -4855,6 +4906,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return Math.Abs(area) * 0.5;
     }
 
+    /// <summary>Computes the perimeter (PDF-space pt) of a closed polygon.</summary>
+    private static double ComputePolygonPerimeterPt(List<Point> pts)
+    {
+        int n = pts.Count;
+        if (n < 2) return 0;
+        double perim = 0;
+        for (int i = 0; i < n; i++)
+        {
+            var a = pts[i];
+            var b = pts[(i + 1) % n];
+            double dx = b.X - a.X, dy = b.Y - a.Y;
+            perim += Math.Sqrt(dx * dx + dy * dy);
+        }
+        return perim;
+    }
+
     /// <summary>Renders an area label at the centroid of a closed area-measure polyline.</summary>
     private void CollectAreaLabel(InkStroke stroke, Rect da, Size boundsSize,
                                   double penScale, List<TextOverlayDrawOp.TextItem> items)
@@ -4868,18 +4935,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
         cx /= pts.Count; cy /= pts.Count;
         var screenPos = PdfToScreen(new Point(cx, cy), da, boundsSize);
 
-        // Area in PDF pt² → mm² via scale²
-        double areaPt2 = ComputePolygonAreaPt2(pts);
         double scaleMmPerPt = stroke.AreaScale;   // mm/pt
+
+        // Area label
+        double areaPt2 = ComputePolygonAreaPt2(pts);
         double areaMm2 = areaPt2 * scaleMmPerPt * scaleMmPerPt;
-        string label = FormatArea(areaMm2);
+        string areaLabel = FormatArea(areaMm2);
+
+        // Perimeter label
+        double perimPt = ComputePolygonPerimeterPt(pts);
+        double perimMm = perimPt * scaleMmPerPt;
+        string perimLabel = "\u2299 " + FormatLength(perimMm);
 
         float fontSize = (float)(10 * penScale);
         var color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B);
+
         items.Add(new TextOverlayDrawOp.TextItem(
-            (float)screenPos.X, (float)screenPos.Y, label, fontSize, color,
+            (float)screenPos.X, (float)screenPos.Y,
+            areaLabel, fontSize, color,
             HasBackground: true, HasBorder: false, IsTextAnnotation: false,
-            TintBackground: true));
+            TintBackground: true,
+            SecondLine: perimLabel,
+            CenterOnPoint: true));
     }
 
     private static string FormatArea(double mm2)
@@ -4891,6 +4968,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (mm2 >= 100)
             return $"{mm2 / 100:F2} cm²";
         return $"{mm2:F1} mm²";
+    }
+
+    private static string FormatLength(double mm)
+    {
+        if (mm >= 1000) return $"{mm / 1000:F2} m";
+        if (mm >= 10)   return $"{mm:F1} mm";
+        return $"{mm:F2} mm";
     }
 
 
@@ -5054,7 +5138,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                        string FontFamily = "",
                                        bool IsStickyNote = false, bool IsExpandedStickyNote = false,
                                        float PopupFontSize = 0f, bool IsPopupOnly = false,
-                                       bool TintBackground = false);
+                                       bool TintBackground = false,
+                                       string SecondLine = "",
+                                       bool CenterOnPoint = false);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -5123,7 +5209,47 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
                     if (item.HasBackground && !item.IsTextAnnotation)
                     {
+                        bool twoLine = !string.IsNullOrEmpty(item.SecondLine);
+                        if (twoLine)
+                        {
+                            // Measure both lines and draw one unified centered pill
+                            font.MeasureText(item.Text,       out var b1);
+                            font.MeasureText(item.SecondLine, out var b2);
+                            float lineH    = item.FontSize * 1.3f;
+                            float boxW     = Math.Max(b1.Width, b2.Width) + 16;
+                            float boxH     = lineH * 2 + 6;
+                            float boxX     = item.X - boxW / 2f;
+                            float line1Y   = item.Y - lineH * 0.5f;
+                            float line2Y   = line1Y + lineH;
+                            float bgTop    = line1Y + b1.Top - 4;
+
+                            if (item.TintBackground)
+                                bgPaint.Color = new SKColor(
+                                    (byte)(200 + item.Color.Red   / 5),
+                                    (byte)(200 + item.Color.Green / 5),
+                                    (byte)(200 + item.Color.Blue  / 5),
+                                    220);
+                            else
+                                bgPaint.Color = new SKColor(255, 255, 255, 200);
+
+                            canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, bgPaint);
+                            borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 80);
+                            borderPaint.StrokeWidth = 1f;
+                            canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, borderPaint);
+
+                            // Draw a faint divider between the two lines
+                            borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 40);
+                            float divY = bgTop + lineH + 2;
+                            canvas.DrawLine(boxX + 6, divY, boxX + boxW - 6, divY, borderPaint);
+
+                            // Draw text centered in the pill
+                            canvas.DrawText(item.Text,       item.X - b1.Width / 2f - b1.Left, line1Y, font, paint);
+                            canvas.DrawText(item.SecondLine, item.X - b2.Width / 2f - b2.Left, line2Y, font, paint);
+                            continue;
+                        }
+
                         font.MeasureText(item.Text, out var textBounds);
+                        float drawX = item.CenterOnPoint ? item.X - textBounds.Width / 2f - textBounds.Left : item.X;
                         // Tinted backgrounds (measurement/area labels) get a faint wash of the annotation color
                         if (item.TintBackground)
                             bgPaint.Color = new SKColor(
@@ -5134,7 +5260,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         else
                             bgPaint.Color = new SKColor(255, 255, 255, 200);
                         canvas.DrawRoundRect(
-                            item.X + textBounds.Left - 4,
+                            drawX + textBounds.Left - 4,
                             item.Y + textBounds.Top - 3,
                             textBounds.Width + 8,
                             textBounds.Height + 6,
@@ -5143,11 +5269,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 60);
                         borderPaint.StrokeWidth = 1f;
                         canvas.DrawRoundRect(
-                            item.X + textBounds.Left - 4,
+                            drawX + textBounds.Left - 4,
                             item.Y + textBounds.Top - 3,
                             textBounds.Width + 8,
                             textBounds.Height + 6,
                             3, 3, borderPaint);
+
+                        canvas.DrawText(item.Text, drawX, item.Y, font, paint);
+                        continue;
                     }
 
                     canvas.DrawText(item.Text, item.X, item.Y, font, paint);

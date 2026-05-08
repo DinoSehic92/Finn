@@ -168,6 +168,77 @@ public partial class PreView
             paint.PathEffect?.Dispose();
         }
 
+        // Render area-measure labels on closed polylines
+        foreach (var stroke in strokes)
+        {
+            if (!stroke.IsAreaMeasure || stroke.Points.Count < 3) continue;
+
+            var pts = stroke.Points;
+            float z = (float)renderZoom;
+
+            // Centroid
+            double cx = 0, cy = 0;
+            foreach (var p in pts) { cx += p.X; cy += p.Y; }
+            cx /= pts.Count; cy /= pts.Count;
+            float lx = (float)(cx * z), ly = (float)(cy * z);
+
+            double scaleMmPerPt = stroke.AreaScale;
+
+            // Area
+            int n = pts.Count;
+            double areaPt2 = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var a = pts[i]; var b = pts[(i + 1) % n];
+                areaPt2 += a.X * b.Y - b.X * a.Y;
+            }
+            areaPt2 = Math.Abs(areaPt2) * 0.5;
+            double areaMm2 = areaPt2 * scaleMmPerPt * scaleMmPerPt;
+
+            // Perimeter
+            double perimPt = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var a = pts[i]; var b = pts[(i + 1) % n];
+                double dx = b.X - a.X, dy = b.Y - a.Y;
+                perimPt += Math.Sqrt(dx * dx + dy * dy);
+            }
+            double perimMm = perimPt * scaleMmPerPt;
+
+            string areaStr  = FormatAreaExport(areaMm2);
+            string perimStr = "⊙ " + FormatLengthExport(perimMm);
+
+            using var labelFont = new SKFont(SKTypeface.Default, (float)(10 * renderZoom));
+            using var labelPaint = new SKPaint { Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B), IsAntialias = true };
+
+            labelFont.MeasureText(areaStr,  out var b1);
+            labelFont.MeasureText(perimStr, out var b2);
+            float lineH = (float)(10 * renderZoom) * 1.3f;
+            float boxW  = Math.Max(b1.Width, b2.Width) + 16;
+            float boxH  = lineH * 2 + 6;
+            float boxX  = lx - boxW / 2f;
+            float line1Y = ly - lineH * 0.5f;
+            float line2Y = line1Y + lineH;
+            float bgTop  = line1Y + b1.Top - 4;
+
+            var bgColor = new SKColor(
+                (byte)(200 + stroke.Color.R / 5),
+                (byte)(200 + stroke.Color.G / 5),
+                (byte)(200 + stroke.Color.B / 5), 220);
+            using var bgPaint  = new SKPaint { Color = bgColor, Style = SKPaintStyle.Fill,   IsAntialias = true };
+            using var brdPaint = new SKPaint { Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, 80),
+                                               Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true };
+            canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, bgPaint);
+            canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, brdPaint);
+
+            // Divider
+            brdPaint.Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, 40);
+            canvas.DrawLine(boxX + 6, bgTop + lineH + 2, boxX + boxW - 6, bgTop + lineH + 2, brdPaint);
+
+            canvas.DrawText(areaStr,  lx - b1.Width / 2f - b1.Left, line1Y, labelFont, labelPaint);
+            canvas.DrawText(perimStr, lx - b2.Width / 2f - b2.Left, line2Y, labelFont, labelPaint);
+        }
+
         // Render shapes
         var shapes = MuPDFRenderer.GetShapes(page);
         foreach (var shape in shapes)
@@ -826,18 +897,119 @@ public partial class PreView
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel?.Clipboard == null) return;
 
-        // Write to a temp file and place it on the clipboard as a file drop.
-        // This is the most reliable way to paste images into Word, Teams, etc.
         string tempPath = Path.Combine(Path.GetTempPath(), "finn_annotation.png");
-        using (var fs = File.Create(tempPath))
-            data.SaveTo(fs);
-
-        var storageFile = await topLevel.StorageProvider
-            .TryGetFileFromPathAsync(new Uri("file:///" + tempPath.Replace('\\', '/')));
-        if (storageFile == null) return;
-
-        await topLevel.Clipboard.SetFilesAsync(new[] { storageFile });
+        await CopyPngToClipboard(topLevel, tempPath, data.ToArray());
         pwr.StatusMessage = "Annotation copied to clipboard";
+    }
+
+    /// <summary>
+    /// Renders a sub-region of the current PDF page (in PDF-space coordinates)
+    /// at 3× screen resolution, composites any visible annotations, then copies
+    /// the result to the system clipboard as a PNG file-drop so it can be
+    /// pasted directly into Teams, Word, Outlook, etc.
+    /// </summary>
+    internal async Task CaptureRegionAsync(Rect pdfRect, int page)
+    {
+        if (pwr?.MainPreviewFile == null || pwr.Pagecount <= 0) return;
+        if (page < 0 || page >= pwr.Pagecount) return;
+
+        const double renderZoom = 3.0;
+
+        pwr.StatusMessage = "Capturing…";
+
+        try
+        {
+            // Render the full page off-thread (MuPDF is not thread-safe per context,
+            // but WriteImage uses an internal lock inside MuPDFMultiThreadedPageRenderer)
+            SKData? pngData = await System.Threading.Tasks.Task.Run(() =>
+            {
+                using var ms = new System.IO.MemoryStream();
+                pwr.MainPreviewFile.WriteImage(page, renderZoom, PixelFormats.RGBA,
+                    ms, RasterOutputFileTypes.PNG, true);
+                ms.Position = 0;
+                using var pageBitmap = SKBitmap.Decode(ms);
+                if (pageBitmap == null) return null;
+
+                // Determine the pixel bounds of the requested PDF region
+                var pageBounds = pwr.MainPreviewFile.Pages[page].Bounds;
+                double pdfW = pageBounds.Width;
+                double pdfH = pageBounds.Height;
+                if (pdfW <= 0 || pdfH <= 0) return null;
+
+                double imgW = pageBitmap.Width;
+                double imgH = pageBitmap.Height;
+
+                int cropX = (int)Math.Max(0, pdfRect.X     / pdfW * imgW);
+                int cropY = (int)Math.Max(0, pdfRect.Y     / pdfH * imgH);
+                int cropW = (int)Math.Min(imgW - cropX, pdfRect.Width  / pdfW * imgW);
+                int cropH = (int)Math.Min(imgH - cropY, pdfRect.Height / pdfH * imgH);
+                if (cropW <= 0 || cropH <= 0) return null;
+
+                // Surface for the cropped region
+                using var surface = SKSurface.Create(new SKImageInfo(cropW, cropH));
+                var canvas = surface.Canvas;
+                canvas.Clear(SKColors.White);
+
+                // Draw only the crop area of the full page bitmap
+                canvas.DrawBitmap(pageBitmap,
+                    new SKRect(cropX, cropY, cropX + cropW, cropY + cropH),
+                    new SKRect(0, 0, cropW, cropH));
+
+                // Composite diff overlay if active
+                if (pwr.DiffOverlayActive)
+                {
+                    var diffPath = pwr.GetDiffImagePath(page);
+                    if (diffPath != null && File.Exists(diffPath))
+                    {
+                        using var diffBitmap = SKBitmap.Decode(diffPath);
+                        if (diffBitmap != null)
+                        {
+                            using var diffPaint = new SKPaint
+                            {
+                                Color = SKColors.White.WithAlpha((byte)(MuPDFRenderer.DiffOverlayOpacity * 255))
+                            };
+                            canvas.DrawBitmap(diffBitmap,
+                                new SKRect(cropX, cropY, cropX + cropW, cropY + cropH),
+                                new SKRect(0, 0, cropW, cropH),
+                                diffPaint);
+                        }
+                    }
+                }
+
+                // Composite annotations: translate canvas so PDF-space coords map correctly
+                canvas.Save();
+                canvas.Translate(-cropX, -cropY);
+                DrawAnnotationsToCanvas(canvas, page, renderZoom);
+                canvas.Restore();
+
+                using var image = surface.Snapshot();
+                return image.Encode(SKEncodedImageFormat.Png, 100);
+            });
+
+            if (pngData == null)
+            {
+                pwr.StatusMessage = "Screenshot failed";
+                return;
+            }
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel?.Clipboard == null || topLevel.StorageProvider == null)
+            {
+                pwr.StatusMessage = "Clipboard unavailable";
+                return;
+            }
+
+            string tempPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "finn_screenshot.png");
+
+            byte[] pngBytes = pngData.ToArray();
+            await CopyPngToClipboard(topLevel, tempPath, pngBytes);
+            pwr.StatusMessage = "Screenshot copied — press Ctrl+V to paste";
+        }
+        catch (Exception ex)
+        {
+            Finn.Utils.ErrorLogger.Log(ex, "CaptureRegionAsync");
+            pwr.StatusMessage = "Screenshot failed";
+        }
     }
 
     private void OnAnnotateExportReview(object sender, RoutedEventArgs e)
@@ -1430,6 +1602,129 @@ public partial class PreView
         }
         if (result.Count == 0) result.Add("");
         return result;
+    }
+
+    // ── Clipboard helper ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Copies a PNG image to the clipboard in multiple formats in a single
+    /// Win32 session so all apps see a consistent clipboard:
+    ///   • CF_DIB  (8)  – Excel, Word, PowerPoint, Paint
+    ///   • CF_BITMAP(2) – legacy Win32 apps
+    ///   • "PNG"  (reg) – Teams, Discord, Chrome, modern apps
+    /// </summary>
+    private static async Task CopyPngToClipboard(TopLevel topLevel, string tempPngPath, byte[] pngBytes)
+    {
+        await System.IO.File.WriteAllBytesAsync(tempPngPath, pngBytes);
+
+        try
+        {
+            SetWin32BitmapClipboard(pngBytes);
+        }
+        catch
+        {
+            // Non-Windows / interop unavailable: fall back to Avalonia file-drop.
+            try
+            {
+                var storageFile = await topLevel.StorageProvider
+                    .TryGetFileFromPathAsync(new Uri("file:///" + tempPngPath.Replace('\\', '/')));
+                if (storageFile != null)
+                    await topLevel.Clipboard!.SetFilesAsync(new[] { storageFile });
+            }
+            catch { /* best effort */ }
+        }
+    }
+
+    /// <summary>
+    /// Opens the Win32 clipboard once and sets three image formats atomically:
+    /// CF_DIB, CF_BITMAP, and the registered "PNG" format.
+    /// </summary>
+    private static void SetWin32BitmapClipboard(byte[] pngBytes)
+    {
+        using var ms = new System.IO.MemoryStream(pngBytes);
+        using var bmp = new System.Drawing.Bitmap(ms);
+
+        if (!Win32Clipboard.OpenClipboard(IntPtr.Zero)) return;
+        try
+        {
+            Win32Clipboard.EmptyClipboard();
+
+            // CF_DIB (8): device-independent bitmap – required by Excel/Word
+            using var bmpMs = new System.IO.MemoryStream();
+            bmp.Save(bmpMs, System.Drawing.Imaging.ImageFormat.Bmp);
+            byte[] bmpBytes = bmpMs.ToArray();
+            const int bmpFileHeaderSize = 14;
+            IntPtr hDib = AllocGlobalFromBytes(bmpBytes, bmpFileHeaderSize, bmpBytes.Length - bmpFileHeaderSize);
+            if (hDib != IntPtr.Zero)
+                Win32Clipboard.SetClipboardData(8 /* CF_DIB */, hDib);
+
+            // CF_BITMAP (2): device-dependent bitmap – legacy Win32 apps
+            IntPtr hBitmap = bmp.GetHbitmap(System.Drawing.Color.White);
+            Win32Clipboard.SetClipboardData(2 /* CF_BITMAP */, hBitmap);
+
+            // Registered "PNG" format – Teams, Discord, Chrome, modern apps
+            uint cfPng = Win32Clipboard.RegisterClipboardFormat("PNG");
+            if (cfPng != 0)
+            {
+                IntPtr hPng = AllocGlobalFromBytes(pngBytes, 0, pngBytes.Length);
+                if (hPng != IntPtr.Zero)
+                    Win32Clipboard.SetClipboardData(cfPng, hPng);
+            }
+        }
+        finally
+        {
+            Win32Clipboard.CloseClipboard();
+        }
+    }
+
+    private static IntPtr AllocGlobalFromBytes(byte[] data, int offset, int count)
+    {
+        IntPtr hGlobal = Win32Clipboard.GlobalAlloc(0x0042 /* GMEM_MOVEABLE | GMEM_ZEROINIT */, (UIntPtr)count);
+        if (hGlobal == IntPtr.Zero) return IntPtr.Zero;
+        IntPtr ptr = Win32Clipboard.GlobalLock(hGlobal);
+        if (ptr == IntPtr.Zero) { Win32Clipboard.GlobalFree(hGlobal); return IntPtr.Zero; }
+        System.Runtime.InteropServices.Marshal.Copy(data, offset, ptr, count);
+        Win32Clipboard.GlobalUnlock(hGlobal);
+        return hGlobal;
+    }
+
+    private static class Win32Clipboard
+    {
+        [System.Runtime.InteropServices.DllImport("user32.dll",   SetLastError = true)]
+        internal static extern bool   OpenClipboard(IntPtr hWndNewOwner);
+        [System.Runtime.InteropServices.DllImport("user32.dll",   SetLastError = true)]
+        internal static extern bool   CloseClipboard();
+        [System.Runtime.InteropServices.DllImport("user32.dll",   SetLastError = true)]
+        internal static extern bool   EmptyClipboard();
+        [System.Runtime.InteropServices.DllImport("user32.dll",   SetLastError = true)]
+        internal static extern IntPtr SetClipboardData(uint uFormat, IntPtr hMem);
+        [System.Runtime.InteropServices.DllImport("user32.dll",   SetLastError = true)]
+        internal static extern uint   RegisterClipboardFormat(string lpszFormat);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr GlobalAlloc(uint uFlags, UIntPtr dwBytes);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr GlobalLock(IntPtr hMem);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern bool   GlobalUnlock(IntPtr hMem);
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        internal static extern IntPtr GlobalFree(IntPtr hMem);
+    }
+
+    // ── Area/perimeter label formatting (export-side mirrors of renderer helpers) ──
+
+    private static string FormatAreaExport(double mm2)
+    {
+        if (mm2 >= 1_000_000) return $"{mm2 / 1_000_000:F2} m²";
+        if (mm2 >= 10_000)    return $"{mm2 / 10_000:F2} dm²";
+        if (mm2 >= 100)       return $"{mm2 / 100:F2} cm²";
+        return $"{mm2:F1} mm²";
+    }
+
+    private static string FormatLengthExport(double mm)
+    {
+        if (mm >= 1000) return $"{mm / 1000:F2} m";
+        if (mm >= 10)   return $"{mm:F1} mm";
+        return $"{mm:F2} mm";
     }
 
     #endregion

@@ -705,6 +705,8 @@ public partial class PreView
     private void ActivateAnnotateMode()
     {
         if (_annotateMode) return;
+        // If screenshot mode is active, cancel it cleanly before entering annotation mode
+        if (_screenshotMode) DeactivateScreenshotMode();
         // Block activation while in dual-file mode (ambiguous annotation target)
         if (pwr.DualFileMode && !pwr.WhiteboardMode) return;
 
@@ -919,6 +921,12 @@ public partial class PreView
         }
         else if (e.Key == Key.Escape)
         {
+            if (_screenshotMode)
+            {
+                DeactivateScreenshotMode();
+                e.Handled = true;
+                return;
+            }
             if (AnnotateShortcutsCanvas.IsVisible)
             {
                 AnnotateShortcutsCanvas.IsVisible = false;
@@ -1108,6 +1116,7 @@ public partial class PreView
         InlineAnnotationTool.StickyNote => CursorIbeam,
         InlineAnnotationTool.Select => CursorArrow,
         InlineAnnotationTool.Polyline => CursorCross,
+        InlineAnnotationTool.Screenshot => CursorCross,
         _ => CursorCross
     };
 

@@ -397,6 +397,7 @@ namespace Finn.ViewModels
                     secondaryRenderer.IsVisible = false;
                 }
                 SetProperty(ref twopageMode, value, () => FireAndForget(ToggleDualViewAsync(), nameof(ToggleDualViewAsync)));
+                OnPropertyChanged(nameof(CanUseScreenshotTool));
             }
         }
 
@@ -416,6 +417,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(IsUserDualFileMode));
                     OnPropertyChanged(nameof(CanSearch));
                     OnPropertyChanged(nameof(CanAnnotate));
+                    OnPropertyChanged(nameof(CanUseScreenshotTool));
                     // Auto-close search when entering a mode that blocks it
                     if (value && searchMode) SearchMode = false;
                     if (value)
@@ -502,6 +504,12 @@ namespace Finn.ViewModels
         /// ambiguous.
         /// </summary>
         public bool CanAnnotate => !dualFileMode;
+
+        /// <summary>
+        /// True when the screenshot region tool may be activated.
+        /// Only supported in single-page, single-file view.
+        /// </summary>
+        public bool CanUseScreenshotTool => !dualFileMode && !twopageMode;
 
         private double rotation = 0;
         public double Rotation

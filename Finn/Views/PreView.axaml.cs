@@ -151,6 +151,7 @@ public partial class PreView : UserControl
             case "CurrentFile" when !pwr.WhiteboardMode:
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
+                    if (_screenshotMode) DeactivateScreenshotMode();
                     DeactivateAnnotateMode();
                     if (pwr.DiffOverlayActive)
                     {
@@ -234,6 +235,7 @@ public partial class PreView : UserControl
 
             case "DiffOverlayActive":
             case "DiffViewMode":
+                if (_screenshotMode) DeactivateScreenshotMode();
                 SyncDiffOverlay();
                 break;
 
@@ -315,6 +317,15 @@ public partial class PreView : UserControl
                         DeactivateAnnotateMode();
                     }
                 });
+                break;
+
+            case nameof(pwr.TwopageMode):
+            case nameof(pwr.DualFileMode):
+            case nameof(pwr.IsViewingVersion):
+            case nameof(pwr.Rotation):
+                // These modes change the renderer layout or document in ways
+                // incompatible with an active screenshot selection.
+                if (_screenshotMode) DeactivateScreenshotMode();
                 break;
         }
     }
@@ -750,6 +761,12 @@ public partial class PreView : UserControl
         if (e.Key == Key.Escape && !_annotateMode
             && !PropertyPanelCanvas.IsVisible && !CalibrationCanvas.IsVisible && !ColorInputCanvas.IsVisible)
         {
+            if (_screenshotMode)
+            {
+                DeactivateScreenshotMode();
+                e.Handled = true;
+                return;
+            }
             if (pwr.SearchMode)
             {
                 pwr.SearchMode = false;
@@ -778,6 +795,14 @@ public partial class PreView : UserControl
         }
 
         if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+
+        // Ctrl+Shift+S: screenshot region capture
+        if (e.Key == Key.S && e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            OnScreenshotToolClick(this, new RoutedEventArgs());
+            e.Handled = true;
+            return;
+        }
 
         // All remaining Ctrl+ shortcuts are handled by KeyBindings in PreView.axaml.
         // The annotation handler (OnAnnotateKeyDown) takes priority via Tunnel routing.

@@ -25,7 +25,8 @@ public enum InlineAnnotationTool
     MeasureArea,
     RevisionCloud,
     Eraser,
-    Dot
+    Dot,
+    Screenshot
 }
 
 /// <summary>

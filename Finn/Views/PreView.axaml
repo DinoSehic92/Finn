@@ -184,6 +184,27 @@
 				</Border>
 			</Border>
 
+			<!-- Mode banner: Screenshot capture -->
+			<Border Name="ScreenshotModeBanner" Classes="shadow" IsVisible="False" IsHitTestVisible="True"
+					HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,8,0,0">
+				<Border Classes="clip-inner" Padding="10,6">
+				<StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+					<ic:SymbolIcon Symbol="Screenshot" IconVariant="Regular" FontSize="14" Opacity="0.7"/>
+					<TextBlock Text="Drag to capture — Esc to cancel" FontSize="11" VerticalAlignment="Center" Opacity="0.7"/>
+					<Button Padding="6,3" MinWidth="0" MinHeight="0"
+							ToolTip.Tip="Cancel screenshot (Esc)" Click="OnScreenshotToolClick"
+							Background="{DynamicResource AppControlSurfaceBrush}"
+							BorderThickness="1" BorderBrush="{DynamicResource AppControlBorderBrush}"
+							CornerRadius="4">
+						<StackPanel Orientation="Horizontal" Spacing="5">
+							<ic:SymbolIcon Symbol="Dismiss" FontSize="11"/>
+							<TextBlock Text="Cancel" FontSize="11" VerticalAlignment="Center"/>
+						</StackPanel>
+					</Button>
+				</StackPanel>
+				</Border>
+			</Border>
+
 			<!-- Annotation toolbar + status hint: stacked vertically at top of preview -->
 			<StackPanel HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,6,0,0" Spacing="4">
 			<Border Name="AnnotateToolbar" Classes="shadow" IsVisible="False" IsHitTestVisible="True"
@@ -441,6 +462,9 @@
 								</Button>
 								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
 								<!-- Export -->
+									<Button ToolTip.Tip="Screenshot region (Ctrl+Shift+S)" Width="26" Height="26" Padding="0" Click="OnScreenshotToolClick" BorderThickness="0" IsEnabled="{Binding PreviewVM.CanUseScreenshotTool}">
+										<ic:SymbolIcon Symbol="Screenshot" IconVariant="Regular" FontSize="14"/>
+									</Button>
 								<Button ToolTip.Tip="Copy (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Clipboard" IconVariant="Regular" FontSize="14"/>
 								</Button>
@@ -895,6 +919,10 @@
 
 						<ToggleButton Classes="ghost" Name="AnnotateToggle" ToolTip.Tip="Annotate (Esc to exit)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Click="OnToggleAnnotate" IsEnabled="{Binding CanAnnotate}">
 							<ic:SymbolIcon Symbol="Pen" IconVariant="Regular" FontSize="16"/>
+						</ToggleButton>
+
+						<ToggleButton Classes="ghost" Name="ScreenshotToggle" ToolTip.Tip="Screenshot region (Ctrl+Shift+S)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" Click="OnScreenshotToolClick" IsEnabled="{Binding CanUseScreenshotTool}">
+							<ic:SymbolIcon Symbol="Screenshot" IconVariant="Regular" FontSize="16"/>
 						</ToggleButton>
 
 						<Button Classes="ghost" Name="CompareVersionsBtn" ToolTip.Tip="Compare Versions" Width="30" Height="30" FontWeight="Normal" ToolTip.Placement="Right" BorderThickness="0" Click="OnOpenVersionCompareDialog">
