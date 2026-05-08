@@ -40,6 +40,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // Rubber-band marquee selection rectangle (PDF-space)
     private Point? _rubberBandStart;
     private Point? _rubberBandEnd;
+    /// <summary>True when the current rubber-band drag was initiated right-to-left (crossing/touching mode).</summary>
+    private bool _rubberBandCrossing;
     // When true the rubber-band is used for screenshot selection: render a dim veil
     // over the area outside the selection instead of the standard translucent fill.
     private bool _screenshotMode;
@@ -85,6 +87,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
         new SolidColorBrush(Color.FromArgb(25, 59, 130, 217)).ToImmutable();
     private static readonly IBrush s_rubberBandBorderBrush =
         new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable();
+    // Crossing selection (right-to-left drag) — green tint
+    private static readonly IBrush s_rubberBandCrossingFillBrush =
+        new SolidColorBrush(Color.FromArgb(25, 34, 160, 80)).ToImmutable();
+    private static readonly IBrush s_rubberBandCrossingBorderBrush =
+        new SolidColorBrush(Color.FromArgb(180, 34, 160, 80)).ToImmutable();
     private static readonly IBrush s_screenshotVeilBrush =
         new SolidColorBrush(Color.FromArgb(100, 0, 0, 0)).ToImmutable();
     private static readonly IBrush s_screenshotSelectionBrush =
@@ -105,6 +112,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         new Pen(s_snapVertexPenBrush, 1.4, lineCap: PenLineCap.Round);
     private static readonly IPen s_rubberBandPen =
         new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
+            1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
+    private static readonly IPen s_rubberBandCrossingPen =
+        new Pen(new SolidColorBrush(Color.FromArgb(180, 34, 160, 80)).ToImmutable(),
             1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
     private static readonly IPen s_screenshotBorderPen =
         new Pen(new SolidColorBrush(Color.FromArgb(220, 220, 50, 50)).ToImmutable(),
@@ -1934,11 +1944,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Cross);
     }
 
-    /// <summary>Update the rubber-band rectangle (PDF coordinates).</summary>
-    public void SetRubberBand(Point start, Point end)
+    /// <summary>Update the rubber-band rectangle (PDF coordinates).
+    /// <paramref name="crossing"/> is true when the drag is right-to-left (crossing/touching mode).</summary>
+    public void SetRubberBand(Point start, Point end, bool crossing = false)
     {
         _rubberBandStart = start;
         _rubberBandEnd = end;
+        _rubberBandCrossing = crossing;
         InvalidateVisual();
     }
 
@@ -1957,34 +1969,38 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// Find all annotations on the current page (active layer) whose bounds
     /// intersect the given PDF-space rectangle.
     /// </summary>
-    public List<object> FindAnnotationsInRect(Rect pdfRect)
+    /// <param name="crossing">When true, includes annotations that are even partially inside the rectangle (crossing mode).
+    /// When false (default), only fully-enclosed annotations are selected (window mode).</param>
+    public List<object> FindAnnotationsInRect(Rect pdfRect, bool crossing = false)
     {
         var results = new List<object>();
         if (_activeLayer == null) return results;
         int page = _currentPage;
 
+        bool Matches(Rect b) => crossing ? pdfRect.Intersects(b) : pdfRect.Contains(b);
+
         if (_activeLayer.PageStrokes.TryGetValue(page, out var strokes))
         {
             foreach (var s in strokes)
-                if (GetAnnotationBounds(s) is { Width: > 0 } b && pdfRect.Contains(b))
+                if (GetAnnotationBounds(s) is { Width: > 0 } b && Matches(b))
                     results.Add(s);
         }
         if (_activeLayer.PageShapes.TryGetValue(page, out var shapes))
         {
             foreach (var s in shapes)
-                if (GetAnnotationBounds(s) is var b && b != default && pdfRect.Contains(b))
+                if (GetAnnotationBounds(s) is var b && b != default && Matches(b))
                     results.Add(s);
         }
         if (_activeLayer.PageTexts.TryGetValue(page, out var texts))
         {
             foreach (var t in texts)
-                if (GetAnnotationBounds(t) is var b && b != default && pdfRect.Contains(b))
+                if (GetAnnotationBounds(t) is var b && b != default && Matches(b))
                     results.Add(t);
         }
         if (_activeLayer.PageMeasurements.TryGetValue(page, out var measurements))
         {
             foreach (var m in measurements)
-                if (GetAnnotationBounds(m) is var b && b != default && pdfRect.Contains(b))
+                if (GetAnnotationBounds(m) is var b && b != default && Matches(b))
                     results.Add(m);
         }
         return results;
@@ -4066,7 +4082,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
             else
             {
-                context.DrawRectangle(s_rubberBandFillBrush, s_rubberBandPen, rect);
+                var fillBrush = _rubberBandCrossing ? s_rubberBandCrossingFillBrush : s_rubberBandFillBrush;
+                var borderPen = _rubberBandCrossing ? s_rubberBandCrossingPen : s_rubberBandPen;
+                context.DrawRectangle(fillBrush, borderPen, rect);
             }
         }
 
@@ -4962,10 +4980,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         double scaleMmPerPt = stroke.AreaScale;   // mm/pt
 
-        // Area label
+        // Area label — ⊟ (U+22DF filled square) prefix to identify the value as area
         double areaPt2 = ComputePolygonAreaPt2(pts);
         double areaMm2 = areaPt2 * scaleMmPerPt * scaleMmPerPt;
-        string areaLabel = FormatArea(areaMm2);
+        string areaLabel = "\u25A0 " + FormatArea(areaMm2);
 
         // Perimeter label
         double perimPt = ComputePolygonPerimeterPt(pts);

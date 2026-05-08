@@ -88,6 +88,8 @@ public partial class PreView
     private bool _rubberBandActive;
     private bool _rubberBandAdditive;
     private bool _rubberBandSubtractive;
+    /// <summary>True when the rubber-band drag was initiated right-to-left (crossing/touching mode).</summary>
+    private bool _rubberBandCrossing;
     /// <summary>PDF-space start point of the rubber-band rectangle.</summary>
     private Point _rubberBandStartPdf;
     /// <summary>The annotation currently being edited via the property panel (double-click).</summary>
@@ -96,6 +98,12 @@ public partial class PreView
     private bool _matchStyleArmed;
     /// <summary>The annotation whose style should be applied to the next clicked target.</summary>
     private object? _matchStyleSource;
+    /// <summary>
+    /// The last non-Select tool the user explicitly activated (or that was active when a
+    /// shape/polyline completed and auto-switched to Select).
+    /// Enter key re-activates this tool — "repeat last command" like AutoCAD.
+    /// </summary>
+    private InlineAnnotationTool? _lastUsedTool;
     /// <summary>Whether the centered helper text below the toolbar is visible.</summary>
     private bool _showAnnotationStatusHints = true;
     /// <summary>Cached reference to the status hint border control.</summary>
@@ -131,6 +139,7 @@ public partial class PreView
         _resizingTextAnnotation = null;
         _selectDragItem = null;
         _rubberBandActive = false;
+        _rubberBandCrossing = false;
         _groupResizing = false;
         _groupResizeStates = null;
         _preDragSnapshot = null;
@@ -854,8 +863,24 @@ public partial class PreView
         // Enter: close active polyline
         if (e.Key == Key.Enter && MuPDFRenderer.HasActivePolyline)
         {
-            MuPDFRenderer.EndPolyline(close: true);
+            // Area measurement needs at least 3 points to form a valid polygon.
+            // If the user presses Enter with fewer, cancel silently instead of leaving a line.
+            if (MuPDFRenderer.IsActivePolylineAreaMeasure && MuPDFRenderer.ActivePolylinePointCount < 3)
+                MuPDFRenderer.CancelPolyline();
+            else
+                MuPDFRenderer.EndPolyline(close: true);
             ApplyToolSwitch(InlineAnnotationTool.Select);
+            e.Handled = true;
+            return;
+        }
+
+        // Enter (no active polyline): repeat last tool — re-activate the tool used before
+        // the automatic switch to Select, like AutoCAD's "Enter = repeat last command".
+        if (e.Key == Key.Enter
+            && MuPDFRenderer.ActiveTool == InlineAnnotationTool.Select
+            && _lastUsedTool.HasValue)
+        {
+            ApplyToolSwitch(_lastUsedTool.Value);
             e.Handled = true;
             return;
         }
@@ -964,6 +989,7 @@ public partial class PreView
             else if (_rubberBandActive)
             {
                 _rubberBandActive = false;
+                _rubberBandCrossing = false;
                 _inkDrawing = false;
                 MuPDFRenderer.ClearRubberBand();
             }
@@ -1193,6 +1219,10 @@ public partial class PreView
     {
         var previousTool = MuPDFRenderer.ActiveTool;
 
+        // Track the last non-Select tool so Enter can re-activate it.
+        if (tool != InlineAnnotationTool.Select)
+            _lastUsedTool = tool;
+
         // Reset drawing/drag state to prevent stale flags from blocking new tools
         ResetDragState();
 
@@ -1225,6 +1255,7 @@ public partial class PreView
             CancelMatchStyle(restoreCursor: false);
 
         MuPDFRenderer.ActiveTool = tool;
+        MuPDFRenderer.ClearSnapGuides();
         MuPDFRenderer.ClearEraserHover();
         MuPDFRenderer.ClearStickyNoteHover();
         MuPDFRenderer.UpdateCursorPreview(null);

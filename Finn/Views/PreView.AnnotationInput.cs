@@ -52,7 +52,11 @@ public partial class PreView
             }
             if (MuPDFRenderer.HasActivePolyline)
             {
-                MuPDFRenderer.EndPolyline();
+                // For area measurements with too few points, cancel rather than commit a degenerate shape
+                if (MuPDFRenderer.IsActivePolylineAreaMeasure && MuPDFRenderer.ActivePolylinePointCount < 3)
+                    MuPDFRenderer.CancelPolyline();
+                else
+                    MuPDFRenderer.EndPolyline();
                 ApplyToolSwitch(InlineAnnotationTool.Select);
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
@@ -442,11 +446,12 @@ public partial class PreView
             case InlineAnnotationTool.Select:
                 // Empty space — start rubber-band marquee selection
                 _rubberBandActive = true;
+                _rubberBandCrossing = false;
                 _rubberBandAdditive = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
                 _rubberBandSubtractive = e.KeyModifiers.HasFlag(KeyModifiers.Control);
                 _rubberBandStartPdf = pdfPoint.Value;
                 _inkDrawing = true;
-                MuPDFRenderer.SetRubberBand(pdfPoint.Value, pdfPoint.Value);
+                MuPDFRenderer.SetRubberBand(pdfPoint.Value, pdfPoint.Value, false);
                 break;
 
             case InlineAnnotationTool.Rectangle:
@@ -497,7 +502,11 @@ public partial class PreView
                     if (e.ClickCount >= 2)
                     {
                         MuPDFRenderer.RemoveLastPolylinePoint();
-                        MuPDFRenderer.EndPolyline(close: true);
+                        // Need at least 3 points for a valid area. Cancel if insufficient.
+                        if (MuPDFRenderer.ActivePolylinePointCount < 3)
+                            MuPDFRenderer.CancelPolyline();
+                        else
+                            MuPDFRenderer.EndPolyline(close: true);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else if (autoClose)
@@ -850,7 +859,8 @@ public partial class PreView
         // Rubber-band marquee: update rectangle while dragging
         if (_rubberBandActive)
         {
-            MuPDFRenderer.SetRubberBand(_rubberBandStartPdf, pdfPoint.Value);
+            _rubberBandCrossing = pdfPoint.Value.X < _rubberBandStartPdf.X;
+            MuPDFRenderer.SetRubberBand(_rubberBandStartPdf, pdfPoint.Value, _rubberBandCrossing);
             return;
         }
 
@@ -922,6 +932,8 @@ public partial class PreView
         if (_rubberBandActive)
         {
             _rubberBandActive = false;
+            bool crossing = _rubberBandCrossing;
+            _rubberBandCrossing = false;
             var endPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
             MuPDFRenderer.ClearRubberBand();
             if (endPdf.HasValue)
@@ -933,7 +945,7 @@ public partial class PreView
                 if (w > 2 || h > 2) // ignore tiny accidental drags
                 {
                     var rect = new Rect(x, y, w, h);
-                    var found = MuPDFRenderer.FindAnnotationsInRect(rect);
+                    var found = MuPDFRenderer.FindAnnotationsInRect(rect, crossing);
                     if (found.Count > 0)
                     {
                         if (_rubberBandSubtractive)
