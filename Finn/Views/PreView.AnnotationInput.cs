@@ -53,6 +53,7 @@ public partial class PreView
             if (MuPDFRenderer.HasActivePolyline)
             {
                 MuPDFRenderer.EndPolyline();
+                ApplyToolSwitch(InlineAnnotationTool.Select);
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
@@ -143,6 +144,7 @@ public partial class PreView
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
             MuPDFRenderer.UpdateShape(pdfPoint.Value, shift);
             MuPDFRenderer.EndShape();
+            ApplyToolSwitch(InlineAnnotationTool.Select);
             e.Pointer.Capture(null);
             return;
         }
@@ -163,6 +165,11 @@ public partial class PreView
                 CenterCalibrationDialog();
                 CalibrationCanvas.IsVisible = true;
                 CalibrationValueBox.Focus();
+            }
+            else
+            {
+                // Non-calibration measurement: return to Select so the result label is selectable
+                ApplyToolSwitch(InlineAnnotationTool.Select);
             }
             return;
         }
@@ -464,10 +471,12 @@ public partial class PreView
                         // remove it so we don't get a duplicate node at the end.
                         MuPDFRenderer.RemoveLastPolylinePoint();
                         MuPDFRenderer.EndPolyline(close: autoClose);
+                        ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else if (autoClose)
                     {
                         MuPDFRenderer.EndPolyline(close: true);
+                        ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else
                         MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
@@ -489,10 +498,12 @@ public partial class PreView
                     {
                         MuPDFRenderer.RemoveLastPolylinePoint();
                         MuPDFRenderer.EndPolyline(close: true);
+                        ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else if (autoClose)
                     {
                         MuPDFRenderer.EndPolyline(close: true);
+                        ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else
                         MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
@@ -628,6 +639,29 @@ public partial class PreView
                 }
                 else
                     MuPDFRenderer.ClearTextPlacementPreview();
+
+                // Shape/polyline/measurement creation tools: show snap guides on first-click hover
+                // so the user can see snapping feedback before committing the first point.
+                if (hoverPdf.HasValue && at is InlineAnnotationTool.Rectangle
+                        or InlineAnnotationTool.Ellipse
+                        or InlineAnnotationTool.Line
+                        or InlineAnnotationTool.Arrow
+                        or InlineAnnotationTool.RevisionCloud
+                        or InlineAnnotationTool.Polyline
+                        or InlineAnnotationTool.MeasureArea
+                        or InlineAnnotationTool.MeasureDistance
+                        or InlineAnnotationTool.Draw
+                        or InlineAnnotationTool.Highlight)
+                {
+                    if (hoverMoved)
+                        MuPDFRenderer.UpdateSnapPreview(hoverPdf.Value);
+                }
+                else if (at is not (InlineAnnotationTool.Text or InlineAnnotationTool.StickyNote
+                                 or InlineAnnotationTool.ArrowText or InlineAnnotationTool.Select
+                                 or InlineAnnotationTool.Eraser))
+                {
+                    MuPDFRenderer.ClearSnapGuides();
+                }
 
                 // Hover outline + cursor: show only for tools that can grab annotations
                 if (hoverMoved && hoverPdf.HasValue

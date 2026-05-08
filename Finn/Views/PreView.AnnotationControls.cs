@@ -19,6 +19,13 @@ public partial class PreView
     private StackPanel? _propertyOpacityRow;
     private Button? _propertyClosePolyBtn;
 
+    // Font-size undo coalescing: track the annotation and time of the last
+    // size change so rapid +/- taps collapse into a single undo step.
+    private TextAnnotation? _fontSizeUndoTarget;
+    private object? _fontSizeUndoSnapshot;
+    private DateTime _fontSizeLastChange = DateTime.MinValue;
+    private const double FontSizeCoalesceMs = 800;
+
     private void OnAnnotateColor(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string colorName)
@@ -452,36 +459,104 @@ public partial class PreView
             LayerVisBtn.Opacity = layer.IsVisible ? 1.0 : 0.35;
         if (LayerLockBtn != null)
             LayerLockBtn.Opacity = layer.IsLocked ? 1.0 : 0.35;
+        // Disable remove button when only one layer remains
+        var removeBtn = this.FindControl<Button>("LayerRemoveBtn");
+        if (removeBtn != null)
+            removeBtn.IsEnabled = MuPDFRenderer.Layers.Count > 1;
+    }
+
+    /// <summary>Adds a new annotation layer with an auto-incremented name and makes it active.</summary>
+    private void OnAddLayer(object? sender, RoutedEventArgs e)
+    {
+        int n = MuPDFRenderer.Layers.Count + 1;
+        // Pick a cycling accent color for the new layer
+        var palette = new[]
+        {
+            Avalonia.Media.Color.FromRgb(59, 130, 217),   // blue
+            Avalonia.Media.Color.FromRgb(61, 163, 95),    // green
+            Avalonia.Media.Color.FromRgb(232, 125, 47),   // orange
+            Avalonia.Media.Color.FromRgb(139, 92, 246),   // purple
+            Avalonia.Media.Color.FromRgb(38, 166, 154),   // teal
+        };
+        var color = palette[(n - 1) % palette.Length];
+        MuPDFRenderer.AddLayer($"Layer {n}", color);
+        UpdateActiveLayerLabel();
+        MuPDFRenderer.NotifyAnnotationChanged();
+        MuPDFRenderer.Focus();
+    }
+
+    /// <summary>Removes the active annotation layer after confirmation when it contains annotations.</summary>
+    private async void OnRemoveLayer(object? sender, RoutedEventArgs e)
+    {
+        var layer = MuPDFRenderer.ActiveLayer;
+        if (layer == null || MuPDFRenderer.Layers.Count <= 1) return;
+
+        bool hasAnnotations = layer.StrokeCount > 0 || layer.ShapeCount > 0
+                           || layer.TextCount > 0 || layer.MeasurementCount > 0;
+        if (hasAnnotations)
+        {
+            var owner = Avalonia.Controls.TopLevel.GetTopLevel(this) as Avalonia.Controls.Window;
+            if (owner == null) return;
+            // Reuse the app's standard confirm/delete dialog
+            var mainVm = this.DataContext as Finn.ViewModels.MainViewModel
+                      ?? owner.DataContext as Finn.ViewModels.MainViewModel;
+            if (mainVm == null) return;
+            await mainVm.ConfirmDeleteDia(owner);
+            if (!mainVm.Confirmed) return;
+        }
+
+        MuPDFRenderer.RemoveLayer(layer);
+        UpdateActiveLayerLabel();
+        MuPDFRenderer.Focus();
     }
 
     private void OnFontSizeDecrease(object sender, RoutedEventArgs e)
-    {
-        MuPDFRenderer.TextFontSize = Math.Max(6, MuPDFRenderer.TextFontSize - 2);
-        UpdateFontSizeLabel();
-        if (_selectedAnnotation is TextAnnotation t)
-        {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(t);
-            t.FontSize = MuPDFRenderer.TextFontSize;
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
-            MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged();
-        }
-    }
+        => AdjustFontSize(-2);
 
     private void OnFontSizeIncrease(object sender, RoutedEventArgs e)
+        => AdjustFontSize(+2);
+
+    /// <summary>
+    /// Applies a font-size delta and coalesces rapid consecutive taps on the
+    /// same annotation into a single undo entry (within <see cref="FontSizeCoalesceMs"/> ms).
+    /// Only the snapshot taken at the START of the tap-burst is pushed to the
+    /// undo stack, so Ctrl+Z rolls back the whole burst in one step.
+    /// </summary>
+    private void AdjustFontSize(int delta)
     {
-        MuPDFRenderer.TextFontSize = Math.Min(72, MuPDFRenderer.TextFontSize + 2);
+        MuPDFRenderer.TextFontSize = Math.Clamp(MuPDFRenderer.TextFontSize + delta, 6, 72);
         UpdateFontSizeLabel();
-        if (_selectedAnnotation is TextAnnotation t)
+
+        if (_selectedAnnotation is not TextAnnotation t) return;
+
+        var now = DateTime.UtcNow;
+        bool sameTarget = ReferenceEquals(_fontSizeUndoTarget, t);
+        bool withinWindow = (now - _fontSizeLastChange).TotalMilliseconds < FontSizeCoalesceMs;
+
+        if (!sameTarget || !withinWindow)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(t);
+            // Begin a new coalesce window: capture the pre-change snapshot.
+            _fontSizeUndoSnapshot = MuPDFRenderer.CapturePropertySnapshot(t);
+            _fontSizeUndoTarget = t;
+            // Update size AFTER capture so the snapshot holds the old value.
             t.FontSize = MuPDFRenderer.TextFontSize;
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
-            MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged();
+            if (_fontSizeUndoSnapshot != null)
+                MuPDFRenderer.PushPropertyUndo(_fontSizeUndoSnapshot);
         }
+        else
+        {
+            // Still within the coalesce window — just move the annotation forward,
+            // no new undo entry is pushed.
+            t.FontSize = MuPDFRenderer.TextFontSize;
+        }
+
+        _fontSizeLastChange = now;
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
     }
 
-    private void OnPropertyFontSizeDecrease(object sender, RoutedEventArgs e) => OnFontSizeDecrease(sender, e);
-    private void OnPropertyFontSizeIncrease(object sender, RoutedEventArgs e) => OnFontSizeIncrease(sender, e);
+    private void OnPropertyFontSizeDecrease(object sender, RoutedEventArgs e) => AdjustFontSize(-2);
+    private void OnPropertyFontSizeIncrease(object sender, RoutedEventArgs e) => AdjustFontSize(+2);
 
     private void OnToggleFill(object sender, RoutedEventArgs e)
     {
@@ -670,7 +745,13 @@ public partial class PreView
             }
         }
 
+        // Capture flags before CloseTextInput() nulls them.
+        bool isNewPlacement = _editingTextAnnotation == null && _textPlacementPdfPoint.HasValue;
         CloseTextInput();
+        // For new annotations (not edits) return to Select so the placed annotation is
+        // immediately selectable without an extra click.
+        if (isNewPlacement)
+            ApplyToolSwitch(InlineAnnotationTool.Select);
         MuPDFRenderer.InvalidateVisual();
         UpdateAnnotationStatusHint();
     }
@@ -719,6 +800,7 @@ public partial class PreView
                 MuPDFRenderer.NormalizeMeasurementScales();
         }
         CalibrationCanvas.IsVisible = false;
+        ApplyToolSwitch(InlineAnnotationTool.Select);
         UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
     }
@@ -978,7 +1060,11 @@ public partial class PreView
         PropertyPanelCanvas.IsVisible = true;
 
         if (isText)
+        {
             PropertyTextBox.Focus();
+            // Pre-select the existing text so the user can immediately replace it by typing
+            PropertyTextBox.SelectAll();
+        }
     }
 
     private void ClosePropertyPanel()

@@ -1644,7 +1644,15 @@ public partial class PreView
         using var ms = new System.IO.MemoryStream(pngBytes);
         using var bmp = new System.Drawing.Bitmap(ms);
 
-        if (!Win32Clipboard.OpenClipboard(IntPtr.Zero)) return;
+        // Retry up to 5 times with a short delay — another process (e.g. a
+        // password manager or Teams) may briefly hold the clipboard open.
+        bool opened = false;
+        for (int attempt = 0; attempt < 5 && !opened; attempt++)
+        {
+            opened = Win32Clipboard.OpenClipboard(IntPtr.Zero);
+            if (!opened) System.Threading.Thread.Sleep(50);
+        }
+        if (!opened) return;
         try
         {
             Win32Clipboard.EmptyClipboard();

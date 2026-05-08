@@ -855,6 +855,7 @@ public partial class PreView
         if (e.Key == Key.Enter && MuPDFRenderer.HasActivePolyline)
         {
             MuPDFRenderer.EndPolyline(close: true);
+            ApplyToolSwitch(InlineAnnotationTool.Select);
             e.Handled = true;
             return;
         }

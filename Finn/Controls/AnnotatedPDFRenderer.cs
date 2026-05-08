@@ -68,13 +68,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static readonly IBrush s_eraserHoverPenBrush =
         new SolidColorBrush(Color.FromArgb(140, 255, 50, 50)).ToImmutable();
     private static readonly IBrush s_selectPenBrush =
-        new SolidColorBrush(Color.FromArgb(80, 120, 120, 120)).ToImmutable();
+        new SolidColorBrush(Color.FromArgb(190, 80, 110, 180)).ToImmutable();
     private static readonly IBrush s_vertexBrush =
         new SolidColorBrush(Color.FromRgb(255, 255, 255)).ToImmutable();
     private static readonly IBrush s_vertexPenBrush =
         new SolidColorBrush(Color.FromArgb(160, 60, 60, 60)).ToImmutable();
     private static readonly IBrush s_cornerBrush =
-        new SolidColorBrush(Color.FromArgb(60, 120, 120, 120)).ToImmutable();
+        new SolidColorBrush(Color.FromArgb(160, 80, 110, 180)).ToImmutable();
     private static readonly IBrush s_snapBrush =
         new SolidColorBrush(Color.FromArgb(180, 16, 185, 129)).ToImmutable();
     private static readonly IBrush s_snapVertexBrush =
@@ -2296,6 +2296,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
             foreach (var ink in strokes) { if (!ReferenceEquals(ink, dragging)) SnapAgainst(ink, dL, dCx, dR, dT, dCy, dB, rawDx, rawDy, ref bestDx, ref bestDy, ref bestSnapDistX, ref bestSnapDistY); }
     }
 
+    /// <summary>
+    /// Updates snap guide visuals for the given cursor position without committing any point.
+    /// Used to give the user first-click snapping feedback during idle hover over creation tools.
+    /// </summary>
+    public void UpdateSnapPreview(Point pdfPoint)
+    {
+        ComputeVertexSnap(null!, pdfPoint);
+        InvalidateVisual();
+    }
+
     /// <summary>Rounds a point to the nearest grid intersection when <see cref="SnapToGrid"/> is active.</summary>
     public Point SnapPointToGrid(Point pt)
     {
@@ -3696,7 +3706,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             _cachedSelectHoverPen = new Pen(s_selectHoverBrush,
                 1.0 * penScale, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Round);
             _cachedSelectionPen = new Pen(s_selectPenBrush,
-                1.0, dashStyle: s_dashStyle5_4,
+                1.5, dashStyle: s_dashStyle5_4,
                 lineCap: PenLineCap.Round);
             _cachedEraserHoverPen = new Pen(s_eraserHoverPenBrush,
                 2 * penScale, lineCap: PenLineCap.Round);
@@ -4074,7 +4084,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var vertexPen = s_vertexPen;
         bool single = _selectHighlightItems.Count == 1;
         const double vtxSize = 7.0;     // constant screen pixels
-        const double cornerSize = 3.0;  // constant screen pixels
+        const double cornerSize = 4.5;  // constant screen pixels
         const double padSize = 4.0;     // constant screen pixels
         double ox = da.X, oy = da.Y;
 
