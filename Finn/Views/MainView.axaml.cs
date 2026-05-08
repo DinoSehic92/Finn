@@ -208,10 +208,11 @@ public partial class MainView : UserControl
                         int width  = (int)(mainWindow.Width  > 0 ? mainWindow.Width  : mainWindow.Bounds.Width);
                         int height = (int)(mainWindow.Height > 0 ? mainWindow.Height : mainWindow.Bounds.Height);
                         mainWindow.Position = new PixelPoint(
-                            workArea.X + (workArea.Width  - width)  / 2,
-                            workArea.Y + (workArea.Height - height) / 2);
-                    }
-                    mainWindow.Activate();
+                                workArea.X + (workArea.Width  - width)  / 2,
+                                workArea.Y + (workArea.Height - height) / 2);
+                        }
+                        mainWindow.Opacity = 1;
+                        mainWindow.Activate();
                     splash.Close();
                     _ctx.SplashWindow = null;
                 }

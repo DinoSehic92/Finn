@@ -44,7 +44,8 @@ public partial class App : Application
                 DataContext = vm,
                 WindowStartupLocation = WindowStartupLocation.Manual,
                 Position = new PixelPoint(-30000, -30000),
-                ShowActivated = false
+                ShowActivated = false,
+                Opacity = 0
             };
 
             desktop.MainWindow = main;
