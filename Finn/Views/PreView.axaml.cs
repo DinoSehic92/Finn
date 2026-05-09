@@ -73,6 +73,8 @@ public partial class PreView : UserControl
 
         MuPDFRenderer.AnnotationChanged += OnAnnotationDirty;
 
+        InitLayerPickerFlyout();
+
         if (Avalonia.Application.Current is { } app)
         {
             app.ActualThemeVariantChanged += (_, _) =>

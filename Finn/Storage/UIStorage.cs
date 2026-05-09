@@ -37,7 +37,6 @@ namespace Finn.Storage
         public bool TrayRecent { get; set; }
         public bool TrayVersions { get; set; }
         public bool TrayOtherFiles { get; set; }
-        public bool TrayAnnotations { get; set; }
         public bool TrayTodo { get; set; }
         public bool ShowIcons { get; set; }
         public bool ColorTagDot { get; set; }

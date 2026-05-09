@@ -238,7 +238,6 @@ public partial class MainView : UserControl
             case nameof(MainViewModel.CurrentFile):
                 UpdateOtherFilesEmptyState();
                 UpdateVersionsEmptyHint();
-                UpdateLayersEmptyHint();
                 UpdateBookmarksEmptyHint();
                 SyncLayerList();
                 break;
@@ -619,7 +618,6 @@ public partial class MainView : UserControl
         UpdateOtherFilesEmptyState();
         UpdateFolderEmptyState();
         UpdateVersionsEmptyHint();
-        UpdateLayersEmptyHint();
         UpdateCollectionsEmptyHint();
         UpdateBookmarksEmptyHint();
         UpdateRecentEmptyHint();
@@ -641,12 +639,6 @@ public partial class MainView : UserControl
     {
         var versions = _ctx.CurrentFile?.Versions;
         VersionsEmptyHint.IsVisible = versions == null || versions.Count == 0;
-    }
-
-    private void UpdateLayersEmptyHint()
-    {
-        var rendererLayers = AnnotationRenderer?.Layers;
-        LayersEmptyHint.IsVisible = rendererLayers == null || rendererLayers.Count == 0;
     }
 
     private void UpdateCollectionsEmptyHint()

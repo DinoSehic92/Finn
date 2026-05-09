@@ -150,7 +150,6 @@ public class UISettingsViewModel : ObservableObject
             TrayRecent = true;
             TrayVersions = false;
             TrayOtherFiles = false;
-            TrayAnnotations = false;
             TrayTodo = true;
 
             TreeViewWidth = Defaults.DefaultTreeViewWidth;
@@ -317,9 +316,6 @@ public class UISettingsViewModel : ObservableObject
 
         private bool trayOtherFiles;
         public bool TrayOtherFiles { get => trayOtherFiles; set { trayOtherFiles = value; OnPropertyChanged(nameof(TrayOtherFiles)); } }
-
-        private bool trayAnnotations;
-        public bool TrayAnnotations { get => trayAnnotations; set { trayAnnotations = value; OnPropertyChanged(nameof(TrayAnnotations)); } }
 
         private bool trayTodo;
         public bool TrayTodo { get => trayTodo; set { trayTodo = value; OnPropertyChanged(nameof(TrayTodo)); } }
@@ -692,7 +688,6 @@ public class UISettingsViewModel : ObservableObject
                 TrayRecent = this.TrayRecent,
                 TrayVersions = this.TrayVersions,
                 TrayOtherFiles = this.TrayOtherFiles,
-                TrayAnnotations = this.TrayAnnotations,
                     TrayTodo = this.TrayTodo,
                     ShowIcons = this.ShowIcons,
                     TreeViewOpen = this.TreeViewOpen,
@@ -749,7 +744,6 @@ public class UISettingsViewModel : ObservableObject
                 this.TrayRecent = ui.TrayRecent;
                 this.TrayVersions = ui.TrayVersions;
                 this.TrayOtherFiles = ui.TrayOtherFiles;
-                this.TrayAnnotations = ui.TrayAnnotations;
                 this.TrayTodo = ui.TrayTodo;
                 this.ShowIcons = ui.ShowIcons;
 

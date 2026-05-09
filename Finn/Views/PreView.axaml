@@ -475,23 +475,16 @@
 								<TextBlock Name="AnnotationCountBadge" Text="" FontSize="9" VerticalAlignment="Center" Margin="3,0"
 									Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
-								<Button Name="LayerPickerBtn" ToolTip.Tip="Active layer — click to switch" Height="26" Padding="4,0" Click="OnLayerPickerClick" BorderThickness="0">
-									<StackPanel Orientation="Horizontal" Spacing="3">
-										<ic:SymbolIcon Symbol="Layer" IconVariant="Regular" FontSize="12"/>
-									<TextBlock Name="ActiveLayerLabel" Text="Layer 1" FontSize="9" VerticalAlignment="Center" Foreground="{DynamicResource AppMutedForegroundBrush}" MaxWidth="60" TextTrimming="CharacterEllipsis"/>
-									</StackPanel>
-								</Button>
-								<Button Name="LayerVisBtn" ToolTip.Tip="Toggle active layer visibility" Width="26" Height="26" Padding="0" Click="OnToggleLayerVisibility" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Eye" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Button Name="LayerLockBtn" ToolTip.Tip="Toggle active layer lock" Width="26" Height="26" Padding="0" Click="OnToggleLayerLock" BorderThickness="0">
-										<ic:SymbolIcon Symbol="LockOpen" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Button ToolTip.Tip="Add new layer" Width="26" Height="26" Padding="0" Click="OnAddLayer" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Add" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Button Name="LayerRemoveBtn" ToolTip.Tip="Remove active layer" Width="26" Height="26" Padding="0" Click="OnRemoveLayer" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Subtract" IconVariant="Regular" FontSize="14"/>
+									<Button Name="LayerPickerBtn" ToolTip.Tip="Manage annotation layers" Height="26" Padding="8,0" BorderThickness="0">
+										<StackPanel Orientation="Horizontal" Spacing="4">
+											<ic:SymbolIcon Symbol="Layer" IconVariant="Regular" FontSize="14"/>
+											<TextBlock Name="ActiveLayerLabel" Text="Layer 1" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppMutedForegroundBrush}" MaxWidth="80" TextTrimming="CharacterEllipsis"/>
+										</StackPanel>
+										<Button.Flyout>
+											<Flyout Placement="Top" ShowMode="TransientWithDismissOnPointerMoveAway" HorizontalOffset="0" VerticalOffset="-2">
+												<StackPanel Name="LayerPickerPanel" Spacing="0" MinWidth="200"/>
+											</Flyout>
+										</Button.Flyout>
 									</Button>
 							</StackPanel>
 								 </Grid>

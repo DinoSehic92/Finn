@@ -399,70 +399,243 @@ public partial class PreView
         ctx?.MarkDirty();
     }
 
-    /// <summary>Shows a context menu listing all layers; clicking one sets it as the active layer.</summary>
-    private void OnLayerPickerClick(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// Populates the XAML-declared LayerPickerPanel inside the LayerPickerBtn flyout.
+    /// Called each time the flyout opens. The flyout itself handles open/close and
+    /// background/border styling via the global FlyoutPresenter styles in App.axaml.
+    /// </summary>
+    private void RebuildLayerPanel()
     {
-        if (sender is not Button btn) return;
-        var layers = MuPDFRenderer.Layers;
-        if (layers.Count == 0) return;
-        var menu = new ContextMenu();
-        foreach (var layer in layers.ToList())
+        var panel = this.FindControl<StackPanel>("LayerPickerPanel");
+        var renderer = MuPDFRenderer;
+        if (panel == null || renderer.Layers.Count == 0) return;
+
+        panel.Children.Clear();
+
+        var layerList = renderer.Layers.ToList();
+        var allSyncRows = new List<Action>();
+
+        void SyncAllHighlights()
+        {
+            foreach (var sync in allSyncRows) sync();
+        }
+
+        foreach (var layer in layerList)
         {
             var capturedLayer = layer;
-            var suffix = capturedLayer.IsLocked ? " \U0001F512" : "";
-            var item = new MenuItem
+            bool canRemove = layerList.Count > 1;
+
+            // Colour accent bar on the left — shows the layer colour and active state at a glance
+            var accentBar = new Border
             {
-                Header = capturedLayer.Name + suffix,
-                IsChecked = capturedLayer == MuPDFRenderer.ActiveLayer
+                Width = 3,
+                CornerRadius = new CornerRadius(2),
+                Margin = new Thickness(0, 0, 6, 0),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
+                Background = new SolidColorBrush(capturedLayer.Color)
             };
-            item.Click += (_, _) =>
+
+            var nameBlock = new TextBlock
             {
-                MuPDFRenderer.ActiveLayer = capturedLayer;
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                MinWidth = 70,
+                FontSize = 12
+            };
+
+            var countBlock = new TextBlock
+            {
+                FontSize = 10, Opacity = 0.45,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                MinWidth = 16,
+                TextAlignment = Avalonia.Media.TextAlignment.Right,
+                Margin = new Thickness(0, 0, 2, 0)
+            };
+
+            var visIcon    = new FluentIcons.Avalonia.SymbolIcon { FontSize = 12 };
+            var lockIcon   = new FluentIcons.Avalonia.SymbolIcon { FontSize = 12 };
+            var clearIcon  = new FluentIcons.Avalonia.SymbolIcon { Symbol = FluentIcons.Common.Symbol.Delete,  FontSize = 12 };
+            var removeIcon = new FluentIcons.Avalonia.SymbolIcon { Symbol = FluentIcons.Common.Symbol.Dismiss, FontSize = 12 };
+
+            var visBtn    = MakeIconButton(visIcon);
+            var lockBtn   = MakeIconButton(lockIcon);
+            var clearBtn  = MakeIconButton(clearIcon);
+            var removeBtn = MakeIconButton(removeIcon);
+
+            ToolTip.SetTip(visBtn,    "Toggle visibility");
+            ToolTip.SetTip(lockBtn,   "Toggle lock");
+            ToolTip.SetTip(clearBtn,  "Clear annotations");
+            ToolTip.SetTip(removeBtn, "Remove layer");
+
+            // Active row: layer-coloured tinted background + full-opacity accent bar
+            // Inactive row: transparent background + dimmed accent bar
+            var activeRowBrush = new SolidColorBrush(
+                Avalonia.Media.Color.FromArgb(40,
+                    capturedLayer.Color.R, capturedLayer.Color.G, capturedLayer.Color.B));
+
+            Border? rowBorder = null;
+
+            void SyncRow()
+            {
+                bool active = capturedLayer == renderer.ActiveLayer;
+                nameBlock.Text       = capturedLayer.Name;
+                nameBlock.FontWeight = active ? Avalonia.Media.FontWeight.SemiBold : Avalonia.Media.FontWeight.Normal;
+                countBlock.Text      = capturedLayer.TotalCount > 0 ? capturedLayer.TotalCount.ToString() : "";
+
+                accentBar.Opacity    = active ? 1.0 : 0.25;
+                if (rowBorder != null)
+                    rowBorder.Background = active ? activeRowBrush : Brushes.Transparent;
+
+                visIcon.Symbol       = FluentIcons.Common.Symbol.Eye;
+                visIcon.Opacity      = capturedLayer.IsVisible ? 1.0 : 0.3;
+                lockIcon.Symbol      = capturedLayer.IsLocked ? FluentIcons.Common.Symbol.LockClosed : FluentIcons.Common.Symbol.LockOpen;
+                lockIcon.Opacity     = capturedLayer.IsLocked ? 1.0 : 0.3;
+                clearIcon.Opacity    = capturedLayer.TotalCount > 0 ? 0.7 : 0.2;
+                removeIcon.Opacity   = canRemove ? 0.7 : 0.2;
+            }
+
+            allSyncRows.Add(SyncRow);
+
+            visBtn.Click += (_, ev) =>
+            {
+                ev.Handled = true;
+                capturedLayer.IsVisible = !capturedLayer.IsVisible;
+                renderer.InvalidateVisual();
                 UpdateActiveLayerLabel();
-                MuPDFRenderer.Focus();
+                SyncRow();
             };
-            menu.Items.Add(item);
+            lockBtn.Click += (_, ev) =>
+            {
+                ev.Handled = true;
+                capturedLayer.IsLocked = !capturedLayer.IsLocked;
+                renderer.InvalidateVisual();
+                UpdateActiveLayerLabel();
+                SyncRow();
+            };
+            clearBtn.Click += (_, ev) =>
+            {
+                ev.Handled = true;
+                if (capturedLayer.TotalCount > 0)
+                {
+                    renderer.ClearLayer(capturedLayer);
+                    UpdateActiveLayerLabel();
+                    SyncRow();
+                }
+            };
+            removeBtn.Click += (_, ev) =>
+            {
+                ev.Handled = true;
+                if (canRemove)
+                {
+                    renderer.RemoveLayer(capturedLayer);
+                    UpdateActiveLayerLabel();
+                    RebuildLayerPanel();
+                }
+            };
+
+            var iconRow = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 0,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Children = { visBtn, lockBtn, clearBtn, removeBtn }
+            };
+
+            var rowGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto") };
+            Grid.SetColumn(accentBar,  0);
+            Grid.SetColumn(nameBlock,  1);
+            Grid.SetColumn(countBlock, 2);
+            Grid.SetColumn(iconRow,    3);
+            rowGrid.Children.Add(accentBar);
+            rowGrid.Children.Add(nameBlock);
+            rowGrid.Children.Add(countBlock);
+            rowGrid.Children.Add(iconRow);
+
+            rowBorder = new Border
+            {
+                Child = rowGrid,
+                Padding = new Thickness(6, 3),
+                CornerRadius = new CornerRadius(3),
+                Cursor = new Cursor(StandardCursorType.Hand)
+            };
+
+            SyncRow(); // now rowBorder is set, initial sync applies background
+
+            rowBorder.PointerPressed += (_, pev) =>
+            {
+                if (pev.Source is FluentIcons.Avalonia.SymbolIcon || pev.Source is Button)
+                    return;
+                renderer.ActiveLayer = capturedLayer;
+                if (!renderer.IsHighlighterMode)
+                    renderer.StrokeColor = capturedLayer.Color;
+                UpdateActiveLayerLabel();
+                renderer.InvalidateVisual();
+                renderer.Focus();
+                SyncAllHighlights();
+            };
+
+            panel.Children.Add(rowBorder);
         }
-        menu.Open(btn);
+
+        panel.Children.Add(new Separator { Margin = new Thickness(4, 3) });
+
+        var addBtn = new Button
+        {
+            Classes = { "ghost" },
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Left,
+            Padding = new Thickness(6, 3),
+            Content = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 5,
+                Children =
+                {
+                    new FluentIcons.Avalonia.SymbolIcon { Symbol = FluentIcons.Common.Symbol.Add, FontSize = 12, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center },
+                    new TextBlock { Text = "Add Layer", FontSize = 12, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center }
+                }
+            }
+        };
+        addBtn.Click += (_, _) =>
+        {
+            OnAddLayer(null, new RoutedEventArgs());
+            RebuildLayerPanel();
+        };
+        panel.Children.Add(addBtn);
     }
 
-    /// <summary>Toggles the visibility of the active annotation layer.</summary>
-    private void OnToggleLayerVisibility(object? sender, RoutedEventArgs e)
+    private void InitLayerPickerFlyout()
     {
-        var layer = MuPDFRenderer.ActiveLayer;
-        if (layer == null) return;
-        layer.IsVisible = !layer.IsVisible;
-        MuPDFRenderer.InvalidateVisual();
-        UpdateActiveLayerLabel();
-        MuPDFRenderer.Focus();
+        var btn = this.FindControl<Button>("LayerPickerBtn");
+        if (btn?.Flyout is Flyout flyout)
+            flyout.Opened += (_, _) => RebuildLayerPanel();
     }
 
-    /// <summary>Toggles the lock state of the active annotation layer.</summary>
-    private void OnToggleLayerLock(object? sender, RoutedEventArgs e)
+    /// <summary>Creates a small ghost icon-only button used inside the layer picker rows.</summary>
+    private static Button MakeIconButton(Control icon)
     {
-        var layer = MuPDFRenderer.ActiveLayer;
-        if (layer == null) return;
-        layer.IsLocked = !layer.IsLocked;
-        MuPDFRenderer.InvalidateVisual();
-        UpdateActiveLayerLabel();
-        MuPDFRenderer.Focus();
+        var btn = new Button
+        {
+            Width = 22, Height = 22,
+            Padding = new Thickness(0),
+            Content = icon
+        };
+        btn.Classes.Add("ghost");
+        return btn;
     }
 
-    /// <summary>Syncs the layer label, visibility and lock button state to the current active layer.</summary>
+    /// <summary>
+    /// Called by MainView after it syncs the renderer so the taskbar label
+    /// stays current when switching files.
+    /// </summary>
+    internal void RefreshLayerLabel() => UpdateActiveLayerLabel();
+
+    /// <summary>Syncs the layer label to the current active layer.</summary>
     private void UpdateActiveLayerLabel()
     {
         var layer = MuPDFRenderer.ActiveLayer;
         if (layer == null) return;
         if (ActiveLayerLabel != null)
             ActiveLayerLabel.Text = layer.IsLocked ? $"{layer.Name} \U0001F512" : layer.Name;
-        if (LayerVisBtn != null)
-            LayerVisBtn.Opacity = layer.IsVisible ? 1.0 : 0.35;
-        if (LayerLockBtn != null)
-            LayerLockBtn.Opacity = layer.IsLocked ? 1.0 : 0.35;
-        // Disable remove button when only one layer remains
-        var removeBtn = this.FindControl<Button>("LayerRemoveBtn");
-        if (removeBtn != null)
-            removeBtn.IsEnabled = MuPDFRenderer.Layers.Count > 1;
     }
 
     /// <summary>Adds a new annotation layer with an auto-incremented name and makes it active.</summary>

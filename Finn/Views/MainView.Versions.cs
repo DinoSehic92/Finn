@@ -205,15 +205,6 @@ public partial class MainView
             Dispatcher.UIThread.Post(() => SyncLayerList(), DispatcherPriority.Background);
     }
 
-    private static readonly Avalonia.Media.Color[] LayerColors =
-    [
-        Avalonia.Media.Color.FromRgb(214, 64, 69),
-        Avalonia.Media.Color.FromRgb(59, 130, 217),
-        Avalonia.Media.Color.FromRgb(61, 163, 95),
-        Avalonia.Media.Color.FromRgb(229, 168, 32),
-        Avalonia.Media.Color.FromRgb(155, 95, 192),
-    ];
-
     private Controls.AnnotatedPDFRenderer? AnnotationRenderer
         => (EmbeddedPreview as Views.PreView)?.MuPDFRenderer;
 
@@ -221,79 +212,10 @@ public partial class MainView
     {
         var renderer = AnnotationRenderer;
         if (renderer == null) return;
-        // Ensure at least the default layer exists so the tray is never empty
         renderer.EnsureDefaultLayer();
-        if (LayerList.ItemsSource != renderer.Layers)
-            LayerList.ItemsSource = renderer.Layers;
-        if (renderer.ActiveLayer != null)
-            LayerList.SelectedItem = renderer.ActiveLayer;
-        UpdateLayersEmptyHint();
-    }
-
-    private void OnLayerContextMenuOpening(object? sender, CancelEventArgs e)
-    {
-        if (sender is not ContextMenu menu) return;
-        bool hasSelection = LayerList.SelectedItem is Model.AnnotationLayer;
-        bool canRemove = hasSelection && (AnnotationRenderer?.Layers.Count ?? 0) > 1;
-        foreach (var child in menu.Items)
-        {
-            if (child is MenuItem mi)
-            {
-                if (mi.Name == "ClearLayerMenuItem")  mi.IsVisible = hasSelection;
-                if (mi.Name == "RemoveLayerMenuItem") mi.IsVisible = canRemove;
-            }
-        }
-    }
-
-    private void OnAnnotateNewLayer(object? sender, RoutedEventArgs e)
-    {
-        SyncLayerList();
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        renderer.EnsureDefaultLayer();
-        int index = renderer.Layers.Count;
-        var color = LayerColors[index % LayerColors.Length];
-        string prefix = _ctx.CurrentProject?.IsViewer == true ? "Viewer: " : "";
-        var layer = renderer.AddLayer($"{prefix}Layer {index + 1}", color);
-        renderer.StrokeColor = color;
-        LayerList.SelectedItem = layer;
-        UpdateLayersEmptyHint();
-    }
-
-    private void OnLayerSelected(object? sender, SelectionChangedEventArgs e)
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
-        {
-            renderer.ActiveLayer = layer;
-            // Only update stroke color if not in highlighter mode
-            if (!renderer.IsHighlighterMode)
-                renderer.StrokeColor = layer.Color;
-        }
-        renderer.InvalidateVisual();
-    }
-
-    private void OnLayerVisibilityToggled(object? sender, RoutedEventArgs e)
-    {
-        AnnotationRenderer?.InvalidateVisual();
-    }
-
-    private void OnClearSelectedLayer(object? sender, RoutedEventArgs e)
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null) return;
-        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
-            renderer.ClearLayer(layer);
-    }
-
-    private void OnRemoveSelectedLayer(object? sender, RoutedEventArgs e)
-    {
-        var renderer = AnnotationRenderer;
-        if (renderer == null || renderer.Layers.Count <= 1) return;
-        if (LayerList.SelectedItem is Model.AnnotationLayer layer)
-            renderer.RemoveLayer(layer);
-        UpdateLayersEmptyHint();
+        // Keep the taskbar layer label in sync after a file switch.
+        if (EmbeddedPreview is Views.PreView preview)
+            preview.RefreshLayerLabel();
     }
 
     #endregion

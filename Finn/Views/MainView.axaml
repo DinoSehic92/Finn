@@ -367,8 +367,7 @@
 											<CheckBox Classes="TrayToggle" Content="Recent Files" Height="28" IsChecked="{Binding UI.TrayRecent, Mode=TwoWay}" ToolTip.Tip="Recently viewed files"/>
 											<CheckBox Classes="TrayToggle" Content="Other Files"  Height="28" IsChecked="{Binding UI.TrayOtherFiles, Mode=TwoWay}" ToolTip.Tip="Other files attached to this project" IsVisible="{Binding UI.SuperuserMode}"/>
 											<CheckBox Classes="TrayToggle" Content="Versions"     Height="28" IsChecked="{Binding UI.TrayVersions, Mode=TwoWay}" ToolTip.Tip="File version history"/>
-												<CheckBox Classes="TrayToggle" Content="Annotations"  Height="28" IsChecked="{Binding UI.TrayAnnotations, Mode=TwoWay}" ToolTip.Tip="Annotation layers for the current file" IsVisible="{Binding UI.SuperuserMode}"/>
-															<CheckBox Classes="TrayToggle" Content="To-Do"        Height="28" IsChecked="{Binding UI.TrayTodo, Mode=TwoWay}" ToolTip.Tip="Task list for the current project"/>
+														<CheckBox Classes="TrayToggle" Content="To-Do"        Height="28" IsChecked="{Binding UI.TrayTodo, Mode=TwoWay}" ToolTip.Tip="Task list for the current project"/>
 									</StackPanel>
 								</Flyout>
 							</Button.Flyout>
@@ -1366,15 +1365,6 @@
 						</RowDefinition.Height>
 					</RowDefinition>
 					<RowDefinition Height="{Binding UI.TrayVersions,    Converter={StaticResource GridDefConverter}, ConverterParameter=0.6}"/>
-					<!-- Annotations (superuser) -->
-					<RowDefinition>
-						<RowDefinition.Height>
-							<MultiBinding Converter="{StaticResource GridDefConverter}" ConverterParameter="0.5">
-								<Binding Path="UI.TrayAnnotations"/>
-								<Binding Path="UI.SuperuserMode"/>
-							</MultiBinding>
-						</RowDefinition.Height>
-					</RowDefinition>
 					<RowDefinition Height="{Binding UI.TrayTodo, Converter={StaticResource GridDefConverter}, ConverterParameter=0.8}"/>
 				</Grid.RowDefinitions>
 
@@ -1742,73 +1732,8 @@
 										Title="No versions" Subtitle="Drop version folders onto the grid to track revisions"/>
 								</Grid>
 
-								<!-- Annotation Layers panel -->
-									<Panel Grid.Row="9">
-										<Panel.IsVisible>
-											<MultiBinding Converter="{x:Static BoolConverters.And}">
-												<Binding Path="UI.TrayAnnotations"/>
-												<Binding Path="UI.SuperuserMode"/>
-											</MultiBinding>
-										</Panel.IsVisible>
-										<Border Classes="shadow">
-										<DataGrid Name="LayerList"
-												  SelectionMode="Single" SelectionChanged="OnLayerSelected"
-												  AutoGenerateColumns="False" IsReadOnly="True"
-												  GridLinesVisibility="None">
-											<DataGrid.ContextMenu>
-												<ContextMenu Opening="OnLayerContextMenuOpening">
-													<MenuItem Header="Add Layer" Click="OnAnnotateNewLayer">
-														<MenuItem.Icon><ic:SymbolIcon Symbol="Add"/></MenuItem.Icon>
-													</MenuItem>
-													<Separator/>
-													<MenuItem Name="ClearLayerMenuItem" Header="Clear Layer" Click="OnClearSelectedLayer">
-														<MenuItem.Icon><ic:SymbolIcon Symbol="Delete"/></MenuItem.Icon>
-													</MenuItem>
-													<MenuItem Name="RemoveLayerMenuItem" Header="Remove Layer" Click="OnRemoveSelectedLayer">
-														<MenuItem.Icon><ic:SymbolIcon Symbol="Dismiss"/></MenuItem.Icon>
-													</MenuItem>
-												</ContextMenu>
-											</DataGrid.ContextMenu>
-											<DataGrid.Columns>
-												<DataGridTemplateColumn Width="*">
-													<DataGridTemplateColumn.Header>
-														<StackPanel Orientation="Horizontal" Spacing="5">
-															<ic:SymbolIcon Symbol="Layer" FontSize="13" VerticalAlignment="Center"/>
-															<TextBlock Text="Annotation Layers" VerticalAlignment="Center"/>
-														</StackPanel>
-													</DataGridTemplateColumn.Header>
-													<DataGridTemplateColumn.CellTemplate>
-														<DataTemplate x:DataType="model:AnnotationLayer">
-															<StackPanel Orientation="Horizontal" Spacing="7" Margin="6,0">
-																<CheckBox IsChecked="{Binding IsVisible, Mode=TwoWay}"
-																		  Click="OnLayerVisibilityToggled"/>
-																<Ellipse Width="8" Height="8" VerticalAlignment="Center">
-																	<Ellipse.Fill>
-																		<SolidColorBrush Color="{Binding Color}"/>
-																	</Ellipse.Fill>
-																</Ellipse>
-																<TextBlock Text="{Binding Name}" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}" VerticalAlignment="Center"/>
-															</StackPanel>
-														</DataTemplate>
-													</DataGridTemplateColumn.CellTemplate>
-												</DataGridTemplateColumn>
-												<DataGridTemplateColumn Width="30" CanUserResize="False">
-													<DataGridTemplateColumn.CellTemplate>
-														<DataTemplate x:DataType="model:AnnotationLayer">
-															<TextBlock Text="{Binding TotalCount}" FontSize="11"
-																	   Opacity="0.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,4,0"/>
-														</DataTemplate>
-													</DataGridTemplateColumn.CellTemplate>
-												</DataGridTemplateColumn>
-											</DataGrid.Columns>
-										</DataGrid>
-										</Border>
-										<controls:EmptyHint Name="LayersEmptyHint" Icon="Layer"
-													Title="No annotation layers" Subtitle="Right-click to add a layer, then draw on the preview"/>
-									</Panel>
-
-										<!-- To-Do List -->
-									<Panel Grid.Row="10" IsVisible="{Binding UI.TrayTodo}">
+									<!-- To-Do List -->
+									<Panel Grid.Row="9" IsVisible="{Binding UI.TrayTodo}">
 									<Border Classes="shadow">
 										<DataGrid Name="TodoGrid"
 												  ItemsSource="{Binding CurrentProject.TodoItems}" SelectionMode="Single"
