@@ -26,6 +26,20 @@ public partial class PreView
         {
         var point = e.GetCurrentPoint(MuPDFRenderer);
 
+        // Mouse side-buttons: XButton1 = back = Undo, XButton2 = forward = Redo
+        if (point.Properties.IsXButton1Pressed)
+        {
+            MuPDFRenderer.Undo();
+            e.Handled = true;
+            return;
+        }
+        if (point.Properties.IsXButton2Pressed)
+        {
+            MuPDFRenderer.Redo();
+            e.Handled = true;
+            return;
+        }
+
         // Space+left-click: pan (Figma-style)
         if (_spaceHeld && point.Properties.IsLeftButtonPressed)
         {

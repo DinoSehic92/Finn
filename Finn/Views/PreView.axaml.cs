@@ -38,7 +38,6 @@ public partial class PreView : UserControl
         // Escape and annotation shortcuts stay here because they require priority
         // chains and mode guards that KeyBindings cannot express.
         this.AddHandler(KeyDownEvent, OnPreviewShortcutKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-
         this.AddHandler(LoadedEvent, InitSetup);
         this.DetachedFromVisualTree += OnDetachedFromVisualTree;
     }

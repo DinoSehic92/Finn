@@ -42,6 +42,7 @@ public partial class PreView
     private static readonly Avalonia.Input.Cursor CursorSizeWE = new(Avalonia.Input.StandardCursorType.SizeWestEast);
 
     private bool _annotateMode;
+    internal bool IsAnnotating => _annotateMode;
     private bool _inkDrawing;
     private Avalonia.Controls.ContextMenu? _savedContextMenu;
     private Button? _activeToolButton;

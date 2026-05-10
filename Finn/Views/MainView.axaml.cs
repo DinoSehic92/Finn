@@ -94,6 +94,9 @@ public partial class MainView : UserControl
 
         BookmarkGrid.AddHandler(DataGrid.SelectionChangedEvent, BookmarkSelected);
 
+        // Side buttons navigate recent files globally (annotation mode handles them separately in PreView)
+        this.AddHandler(PointerPressedEvent, OnXButtonPressed, RoutingStrategies.Tunnel);
+
         VersionsGrid.AddHandler(DataGrid.DoubleTappedEvent, OnVersionDoubleTapped);
         VersionsGrid.AddHandler(DataGrid.SelectionChangedEvent, SelectVersion);
 
@@ -1581,6 +1584,38 @@ public partial class MainView : UserControl
 
             SelectAuxiliaryFile(target, files, addRecentForTopLevel: false, addRecentForChild: false);
         }
+    }
+
+    /// <summary>
+    /// Moves the RecentGrid selection by <paramref name="delta"/> rows (+1 = older, -1 = newer)
+    /// and lets the existing SelectRecent handler load the file naturally.
+    /// </summary>
+    internal void StepRecentFile(int delta)
+    {
+        var items = _ctx.PreviewVM.RecentFiles;
+        if (items.Count == 0) return;
+
+        // When nothing is explicitly selected in the grid, start from index 1 so the
+        // first press immediately moves away from the current file (which lives at index 0).
+        int current = RecentGrid.SelectedItem is FileData sel
+            ? items.IndexOf(sel)
+            : 0;
+        int next = Math.Clamp(current + delta, 0, items.Count - 1);
+        if (next == current) return;
+
+        RecentGrid.SelectedItem = items[next];
+        RecentGrid.ScrollIntoView(items[next], null);
+    }
+
+    private void OnXButtonPressed(object? sender, PointerPressedEventArgs e)
+    {
+        // Let annotation mode handle XButtons for Undo/Redo
+        if (EmbeddedPreview.IsAnnotating) return;
+        var props = e.GetCurrentPoint(this).Properties;
+        int delta = props.IsXButton1Pressed ? 1 : props.IsXButton2Pressed ? -1 : 0;
+        if (delta == 0) return;
+        StepRecentFile(delta);
+        e.Handled = true;
     }
 
     private void SelectAuxiliaryFile(FileData target, IReadOnlyList<FileData> selection, bool addRecentForTopLevel, bool addRecentForChild)

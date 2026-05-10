@@ -4925,13 +4925,47 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void CollectMeasurementLabel(MeasurementAnnotation m, Rect da, Size boundsSize,
                                          double penScale, List<TextOverlayDrawOp.TextItem> items)
     {
-        var labelPos = PdfToScreen(m.GetLabelPosition(), da, boundsSize);
+        if (m.Points.Count < 2) return;
+
+        // Convert both endpoints to screen space so we can compute the
+        // perpendicular direction in screen coordinates (pixel-accurate offset).
+        var s0 = PdfToScreen(m.Points[0], da, boundsSize);
+        var s1 = PdfToScreen(m.Points[1], da, boundsSize);
+
+        double dx = s1.X - s0.X;
+        double dy = s1.Y - s0.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+
+        // Midpoint in screen space
+        double midX = (s0.X + s1.X) * 0.5;
+        double midY = (s0.Y + s1.Y) * 0.5;
+
+        // Perpendicular unit vector (rotated 90°). Then bias toward screen-up
+        // (negative Y) so the label consistently floats above the line.
+        double perpX, perpY;
+        if (len > 0.5)
+        {
+            perpX = -dy / len;
+            perpY =  dx / len;
+            // Flip if pointing downward (positive Y in screen space)
+            if (perpY > 0) { perpX = -perpX; perpY = -perpY; }
+        }
+        else
+        {
+            perpX = 0; perpY = -1; // degenerate: just go up
+        }
+
+        // Offset = font height + a small gap so the label clears the line and its end-marks
         float fontSize = (float)(10 * penScale);
+        double offset = fontSize * 1.4 + 4 * penScale;
+        double labelX = midX + perpX * offset;
+        double labelY = midY + perpY * offset;
+
         var color = new SKColor(m.Color.R, m.Color.G, m.Color.B);
         items.Add(new TextOverlayDrawOp.TextItem(
-            (float)labelPos.X, (float)labelPos.Y, m.GetLabel(), fontSize, color,
+            (float)labelX, (float)labelY, m.GetLabel(), fontSize, color,
             HasBackground: true, HasBorder: false, IsTextAnnotation: false,
-            TintBackground: true));
+            TintBackground: true, CenterOnPoint: true));
     }
 
     /// <summary>Computes the signed area (PDF-space pt²) of a polygon using the shoelace formula.</summary>
@@ -5292,7 +5326,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         }
 
                         font.MeasureText(item.Text, out var textBounds);
-                        float drawX = item.CenterOnPoint ? item.X - textBounds.Width / 2f - textBounds.Left : item.X;
+                        // CenterOnPoint: item.X/Y is the target center — offset so the pill
+                        // is both horizontally and vertically centered on that point.
+                        float drawX = item.CenterOnPoint
+                            ? item.X - textBounds.Width / 2f - textBounds.Left
+                            : item.X;
+                        float drawY = item.CenterOnPoint
+                            ? item.Y - (textBounds.Top + textBounds.Height / 2f)
+                            : item.Y;
                         // Tinted backgrounds (measurement/area labels) get a faint wash of the annotation color
                         if (item.TintBackground)
                             bgPaint.Color = new SKColor(
@@ -5304,7 +5345,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             bgPaint.Color = new SKColor(255, 255, 255, 200);
                         canvas.DrawRoundRect(
                             drawX + textBounds.Left - 4,
-                            item.Y + textBounds.Top - 3,
+                            drawY + textBounds.Top - 3,
                             textBounds.Width + 8,
                             textBounds.Height + 6,
                             3, 3, bgPaint);
@@ -5313,12 +5354,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         borderPaint.StrokeWidth = 1f;
                         canvas.DrawRoundRect(
                             drawX + textBounds.Left - 4,
-                            item.Y + textBounds.Top - 3,
+                            drawY + textBounds.Top - 3,
                             textBounds.Width + 8,
                             textBounds.Height + 6,
                             3, 3, borderPaint);
 
-                        canvas.DrawText(item.Text, drawX, item.Y, font, paint);
+                        canvas.DrawText(item.Text, drawX, drawY, font, paint);
                         continue;
                     }
 
