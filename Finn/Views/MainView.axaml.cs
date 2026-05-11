@@ -1587,13 +1587,17 @@ public partial class MainView : UserControl
     }
 
     /// <summary>
-    /// Moves the RecentGrid selection by <paramref name="delta"/> rows (+1 = older, -1 = newer)
+    /// Moves the RecentFiles selection by <paramref name="delta"/> rows (+1 = older, -1 = newer)
     /// and lets the existing SelectRecent handler load the file naturally.
+    /// Also ensures the recent-files grid is visible so the user gets feedback.
     /// </summary>
     internal void StepRecentFile(int delta)
     {
         var items = _ctx.PreviewVM.RecentFiles;
         if (items.Count == 0) return;
+
+        // Ensure the recent-files panel is open so the user can see navigation feedback.
+        _ctx.UI.TrayRecent = true;
 
         // When nothing is explicitly selected in the grid, start from index 1 so the
         // first press immediately moves away from the current file (which lives at index 0).
