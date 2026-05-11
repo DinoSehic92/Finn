@@ -643,17 +643,13 @@ public partial class PreView
                     Text = src.Text, FontSize = src.FontSize, Color = src.Color,
                     Opacity = src.Opacity, FontFamily = src.FontFamily,
                     IsStickyNote = src.IsStickyNote,
+                    IsLabel = src.IsLabel,
                     MaxWidth = src.MaxWidth,
                     ArrowOrigin = src.ArrowOrigin.HasValue
                         ? new Point(src.ArrowOrigin.Value.X + offset, src.ArrowOrigin.Value.Y + offset)
                         : null
                 };
-                if (copy.IsStickyNote)
-                    MuPDFRenderer.PlaceStickyNote(copy.Position, copy.Text);
-                else if (copy.ArrowOrigin.HasValue)
-                    MuPDFRenderer.PlaceArrowText(copy.ArrowOrigin.Value, copy.Position, copy.Text);
-                else
-                    MuPDFRenderer.PlaceText(copy.Position, copy.Text);
+                MuPDFRenderer.PlaceTextAnnotation(copy);
                 break;
             }
             case ShapeAnnotation src:
@@ -739,7 +735,23 @@ public partial class PreView
         MuPDFRenderer.PointerEventHandlersType = PDFRenderer.PointerEventHandlers.Pan;
         MuPDFRenderer.ActiveTool = InlineAnnotationTool.Draw;
 
+        // Clear any residual selection state from a previous session
+        _selectedAnnotations.Clear();
+        _selectedAnnotation = null;
+        _hasPreSelectState = false;
+        _calibrationMode = false;
+        _rubberBandActive = false;
+
         MuPDFRenderer.EnsureDefaultLayer();
+        // Remove before adding to guard against double-registration if ActivateAnnotateMode
+        // is called while already active (e.g. fast toggle or mode-switch edge cases).
+        MuPDFRenderer.RemoveHandler(PointerPressedEvent, OnInkPointerPressed);
+        MuPDFRenderer.RemoveHandler(PointerMovedEvent, OnInkPointerMoved);
+        MuPDFRenderer.RemoveHandler(PointerReleasedEvent, OnInkPointerReleased);
+        this.RemoveHandler(KeyDownEvent, OnAnnotateKeyDown);
+        this.RemoveHandler(KeyUpEvent, OnAnnotateKeyUp);
+        MuPDFRenderer.AnnotationChanged -= OnAnnotationChanged;
+
         MuPDFRenderer.AddHandler(PointerPressedEvent, OnInkPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         MuPDFRenderer.AddHandler(PointerMovedEvent, OnInkPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         MuPDFRenderer.AddHandler(PointerReleasedEvent, OnInkPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -785,7 +797,11 @@ public partial class PreView
         PropertyPanelCanvas.Background = Avalonia.Media.Brushes.Transparent;
         ResetDragState();
         CancelMatchStyle(restoreCursor: false);
+        _selectedAnnotations.Clear();
         _selectedAnnotation = null;
+        _hasPreSelectState = false;
+        _rubberBandActive = false;
+        _rubberBandCrossing = false;
         _calibrationMode = false;
         _arrowTextOrigin = null;
         _pendingStickyNote = false;
@@ -1281,6 +1297,8 @@ public partial class PreView
 
         MuPDFRenderer.Cursor = GetToolCursor(tool);
         SetActiveToolButton(FindToolbarButtonByTag(tool.ToString()));
+        UpdateCornerRadiusVisibility();
+        UpdateFontSizeVisibility();
         UpdateAnnotationStatusHint();
     }
 

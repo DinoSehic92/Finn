@@ -26,6 +26,15 @@ public partial class PreView
     private DateTime _fontSizeLastChange = DateTime.MinValue;
     private const double FontSizeCoalesceMs = 800;
 
+    // Opacity slider undo coalescing: same approach — capture snapshot on first
+    // movement, coalesce subsequent moves within the window into a single undo step.
+    // _opacityUndoSelection tracks which items were snapshotted so a selection change
+    // always starts a fresh window even within the time threshold.
+    private List<object>? _opacityUndoSnapshots;
+    private HashSet<object>? _opacityUndoSelection;
+    private DateTime _opacityLastChange = DateTime.MinValue;
+    private const double OpacityCoalesceMs = 600;
+
     private void OnAnnotateColor(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string colorName)
@@ -151,6 +160,12 @@ public partial class PreView
     }
 
     private Button? _activeCornerRadiusButton;
+    private Button? _cornerRadiusBtn;
+    private StackPanel? _fontSizeGroup;
+
+    // Cached control references to avoid repeated FindControl tree walks
+    private TextBlock? _propertyFontSizeLabel;
+    private Button? _layerPickerBtn;
 
     private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
     {
@@ -158,20 +173,29 @@ public partial class PreView
         {
             MuPDFRenderer.ShapeCornerRadius = r;
 
-            // Apply to currently selected annotations
+            // Apply to currently selected annotations using the same immediate
+            // capture→mutate→push pattern as OnAnnotateWidth / OnAnnotateDashPattern.
+            // StagePropertyUndoSnapshot is deferred (only flushed on panel close) so
+            // it must not be used here.
+            var snaps = new List<object>();
             foreach (var selItem in _selectedAnnotations)
             {
                 if (selItem is ShapeAnnotation sh && sh.ShapeType == InlineAnnotationTool.Rectangle)
                 {
+                    var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    if (snap != null) snaps.Add(snap);
                     sh.CornerRadius = r;
                     sh.InvalidatePen();
                 }
                 else if (selItem is InkStroke { IsPolyline: true } ink)
                 {
+                    var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    if (snap != null) snaps.Add(snap);
                     ink.CornerRadius = r;
                     ink.InvalidatePen();
                 }
             }
+            if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
             if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
 
             SetActiveButton(ref _activeCornerRadiusButton, btn);
@@ -234,6 +258,8 @@ public partial class PreView
         SetActiveWidthButton(FindToolbarButtonByTag(((int)MuPDFRenderer.StrokeWidth).ToString()));
         SetActiveDashButton(FindToolbarButtonByTag(MuPDFRenderer.StrokeDashPattern.ToString()));
         SyncFlyoutIndicators();
+        UpdateCornerRadiusVisibility();
+        UpdateFontSizeVisibility();
     }
 
     /// <summary>
@@ -308,22 +334,41 @@ public partial class PreView
     {
         if (OpacitySlider == null) return;
         MuPDFRenderer.StrokeOpacity = OpacitySlider.Value;
-        if (_selectedAnnotations.Count > 0)
+        if (_selectedAnnotations.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        bool sameSelection = _opacityUndoSelection != null
+            && _opacityUndoSelection.SetEquals(_selectedAnnotations);
+        bool withinWindow = sameSelection
+            && (now - _opacityLastChange).TotalMilliseconds < OpacityCoalesceMs;
+
+        if (!withinWindow)
         {
+            // Begin a new coalesce window: capture pre-change snapshots for all selected items.
+            _opacityUndoSnapshots = new List<object>(_selectedAnnotations.Count);
+            _opacityUndoSelection = new HashSet<object>(_selectedAnnotations);
             foreach (var selItem in _selectedAnnotations)
             {
                 var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
-                switch (selItem)
-                {
-                    case InkStroke s: s.Opacity = OpacitySlider.Value; s.InvalidatePen(); break;
-                    case ShapeAnnotation sh: sh.Opacity = OpacitySlider.Value; sh.InvalidatePen(); break;
-                    case TextAnnotation t: t.Opacity = OpacitySlider.Value; break;
-                }
-                if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+                if (snap != null) _opacityUndoSnapshots.Add(snap);
             }
-            MuPDFRenderer.InvalidateVisual();
-            MuPDFRenderer.NotifyAnnotationChanged();
+            if (_opacityUndoSnapshots.Count > 0)
+                MuPDFRenderer.PushGroupPropertyUndo(_opacityUndoSnapshots);
         }
+
+        _opacityLastChange = now;
+
+        foreach (var selItem in _selectedAnnotations)
+        {
+            switch (selItem)
+            {
+                case InkStroke s: s.Opacity = OpacitySlider.Value; s.InvalidatePen(); break;
+                case ShapeAnnotation sh: sh.Opacity = OpacitySlider.Value; sh.InvalidatePen(); break;
+                case TextAnnotation t: t.Opacity = OpacitySlider.Value; break;
+            }
+        }
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
     }
 
     private void OnAnnotateCustomColor(object sender, RoutedEventArgs e)
@@ -379,7 +424,7 @@ public partial class PreView
     {
         FontSizeLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
         // Also sync the property panel label if it is open
-        var propLabel = this.FindControl<TextBlock>("PropertyFontSizeLabel");
+        var propLabel = _propertyFontSizeLabel ??= this.FindControl<TextBlock>("PropertyFontSizeLabel");
         if (propLabel != null) propLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
     }
 
@@ -564,8 +609,14 @@ public partial class PreView
             {
                 if (pev.Source is FluentIcons.Avalonia.SymbolIcon || pev.Source is Button)
                     return;
+                var prevLayer = renderer.ActiveLayer;
                 renderer.ActiveLayer = capturedLayer;
-                if (!renderer.IsHighlighterMode)
+                // Only sync the stroke color to the new layer's default if the user has
+                // not overridden it — detected by checking whether the current color still
+                // matches the previously active layer's color.
+                bool colorWasDefault = prevLayer == null
+                    || renderer.StrokeColor == prevLayer.Color;
+                if (!renderer.IsHighlighterMode && colorWasDefault)
                     renderer.StrokeColor = capturedLayer.Color;
                 UpdateActiveLayerLabel();
                 renderer.InvalidateVisual();
@@ -605,7 +656,7 @@ public partial class PreView
 
     private void InitLayerPickerFlyout()
     {
-        var btn = this.FindControl<Button>("LayerPickerBtn");
+        var btn = _layerPickerBtn ??= this.FindControl<Button>("LayerPickerBtn");
         if (btn?.Flyout is Flyout flyout)
             flyout.Opened += (_, _) => RebuildLayerPanel();
     }
@@ -1086,6 +1137,55 @@ public partial class PreView
     /// its color, width, dash, opacity, font size, and fill state.
     /// This gives Figma-style "inspect on select" feedback.
     /// </summary>
+    /// <summary>
+    /// Shows the corner-radius flyout only for tools/selections that support it
+    /// (Rectangle shape, closed polyline). Hides it otherwise.
+    /// </summary>
+    private void UpdateCornerRadiusVisibility()
+    {
+        _cornerRadiusBtn ??= this.FindControl<Button>("CornerRadiusBtn");
+        if (_cornerRadiusBtn == null) return;
+
+        bool visible;
+        if (_selectedAnnotations.Count > 0)
+        {
+            // Show only for rectangles and non-area polylines; area-measure polylines don't support corner radius
+            visible = _selectedAnnotations.Any(a =>
+                a is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
+                || a is InkStroke { IsPolyline: true, IsAreaMeasure: false });
+        }
+        else
+        {
+            var tool = MuPDFRenderer.ActiveTool;
+            // Area measure tool creates area polylines — exclude it
+            visible = tool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Polyline;
+        }
+        _cornerRadiusBtn.IsVisible = visible;
+    }
+
+    /// <summary>
+    /// Shows the font-size group only when the active tool or selection is text-based.
+    /// </summary>
+    private void UpdateFontSizeVisibility()
+    {
+        _fontSizeGroup ??= this.FindControl<StackPanel>("FontSizeGroup");
+        if (_fontSizeGroup == null) return;
+
+        bool visible;
+        if (_selectedAnnotations.Count > 0)
+        {
+            visible = _selectedAnnotations.Any(a => a is TextAnnotation);
+        }
+        else
+        {
+            var tool = MuPDFRenderer.ActiveTool;
+            visible = tool is InlineAnnotationTool.Text
+                           or InlineAnnotationTool.ArrowText
+                           or InlineAnnotationTool.StickyNote;
+        }
+        _fontSizeGroup.IsVisible = visible;
+    }
+
     private void SyncToolbarToSelection()
     {
         if (_selectedAnnotation == null) return;
@@ -1157,6 +1257,9 @@ public partial class PreView
             MuPDFRenderer.IsFilledMode = shape.IsFilled;
             SyncFillToggleButton(shape.IsFilled);
         }
+
+        UpdateCornerRadiusVisibility();
+        UpdateFontSizeVisibility();
     }
 
     private static string? MatchColorTag(Color c) =>

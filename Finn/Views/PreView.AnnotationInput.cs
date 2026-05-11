@@ -19,6 +19,10 @@ public partial class PreView
     private Point _lastHoverPdf;
     private const double HoverThresholdSq = 1.0; // ~1 PDF pt ≈ sub-pixel at most zooms
 
+    // Throttle swipe-to-erase: skip EraseAt when pointer hasn't moved far enough
+    private Point _lastErasePdf;
+    private const double EraseThresholdSq = 4.0; // ~2 PDF pts between erase samples
+
     private void OnInkPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (!_annotateMode) return;
@@ -422,6 +426,7 @@ public partial class PreView
         {
             case InlineAnnotationTool.Eraser:
                 MuPDFRenderer.EraseAt(pdfPoint.Value);
+                _lastErasePdf = pdfPoint.Value;
                 _inkDrawing = true;
                 break;
 
@@ -715,7 +720,13 @@ public partial class PreView
         // Swipe-to-erase: continuously erase while dragging with eraser tool
         if (MuPDFRenderer.ActiveTool == InlineAnnotationTool.Eraser)
         {
-            MuPDFRenderer.EraseAt(pdfPoint.Value);
+            double edx = pdfPoint.Value.X - _lastErasePdf.X;
+            double edy = pdfPoint.Value.Y - _lastErasePdf.Y;
+            if (edx * edx + edy * edy >= EraseThresholdSq)
+            {
+                MuPDFRenderer.EraseAt(pdfPoint.Value);
+                _lastErasePdf = pdfPoint.Value;
+            }
             return;
         }
 
@@ -799,7 +810,10 @@ public partial class PreView
         // Handle arrow origin (tip) dragging — moves only ArrowOrigin
         if (_draggingArrowOrigin != null)
         {
-            _draggingArrowOrigin.ArrowOrigin = pdfPoint.Value;
+            var target = e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                ? AnnotatedPDFRenderer.ConstrainToFineAngle(_draggingArrowOrigin.Position, pdfPoint.Value)
+                : MuPDFRenderer.ComputeVertexSnap(_draggingArrowOrigin, pdfPoint.Value);
+            _draggingArrowOrigin.ArrowOrigin = target;
             _dragStartPdf = pdfPoint.Value;
             MuPDFRenderer.InvalidateVisual();
             return;
@@ -988,6 +1002,14 @@ public partial class PreView
                         if (_selectedAnnotation != null)
                             SyncToolbarToSelection();
                     }
+                }
+                else if (!_rubberBandAdditive && !_rubberBandSubtractive)
+                {
+                    // Zero-size drag on empty space = deselect all.
+                    // DeselectAnnotation handles RestorePreSelectState so the toolbar
+                    // color/width/dash/opacity revert correctly after deselecting.
+                    if (PropertyPanelCanvas.IsVisible) ClosePropertyPanel();
+                    DeselectAnnotation();
                 }
             }
             _rubberBandAdditive = false;

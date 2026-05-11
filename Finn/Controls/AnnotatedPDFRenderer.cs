@@ -1575,6 +1575,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
+    /// <summary>Place a pre-built text annotation (used by paste to preserve all style properties).</summary>
+    public void PlaceTextAnnotation(TextAnnotation annotation)
+    {
+        if (IsActiveLayerLocked) return;
+        EnsureDefaultLayer();
+        if (ActiveLayer == null) return;
+        if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
+        { texts = []; ActiveLayer.PageTexts[_currentPage] = texts; }
+        texts.Add(annotation);
+        ActiveLayer.TextCount++;
+        _totalTextCount++;
+        _undoStack.Push((UndoType.Text, _currentPage, null, ActiveLayer));
+        _redoStack.Clear();
+        LastPlacedAnnotation = annotation;
+        ActiveLayer.RefreshStatus();
+        NotifyAnnotationChanged();
+        InvalidateVisual();
+    }
+
     /// <summary>
     /// Find a non-sticky text annotation at the given PDF-space point (for edit-on-click).
     /// Searches the active layer on the current page, topmost first.
@@ -2060,7 +2079,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // InkStroke / ShapeAnnotation
         double StrokeWidth, LineDashPattern DashPattern,
         // ShapeAnnotation
-        bool IsFilled,
+        bool IsFilled, double CornerRadius,
         // TextAnnotation
         double FontSize, string Text, double MaxWidth);
 
@@ -2070,10 +2089,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public object? CapturePropertySnapshot(object item) => item switch
     {
-        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, 0, "", 0),
-        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, 0, "", 0),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, t.FontSize, t.Text, t.MaxWidth),
-        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, "", 0),
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, 0, "", 0),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, 0, "", 0),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, 0, t.FontSize, t.Text, t.MaxWidth),
+        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, 0, "", 0),
         _ => null
     };
 
@@ -2085,12 +2104,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case InkStroke s:
                 s.Color = snap.Color; s.Opacity = snap.Opacity;
                 s.Width = snap.StrokeWidth; s.DashPattern = snap.DashPattern;
+                s.CornerRadius = snap.CornerRadius;
                 s.InvalidatePen();
                 break;
             case ShapeAnnotation sh:
                 sh.Color = snap.Color; sh.Opacity = snap.Opacity;
                 sh.StrokeWidth = snap.StrokeWidth; sh.DashPattern = snap.DashPattern;
                 sh.IsFilled = snap.IsFilled;
+                sh.CornerRadius = snap.CornerRadius;
                 sh.InvalidatePen();
                 break;
             case TextAnnotation t:

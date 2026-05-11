@@ -242,8 +242,8 @@
 									</Button>
 									<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
 									<Button ToolTip.Tip="Polyline (P)" Width="26" Height="26" Padding="0" Tag="Polyline" Click="OnAnnotateToolSelect" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Flowchart" IconVariant="Regular" FontSize="14"/>
-									</Button>
+											<ic:SymbolIcon Symbol="BezierCurveSquare" IconVariant="Regular" FontSize="14"/>
+										</Button>
 									<Button ToolTip.Tip="Rectangle (3)" Width="26" Height="26" Padding="0" Tag="Rectangle" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Square" IconVariant="Regular" FontSize="14"/>
 									</Button>
@@ -256,10 +256,10 @@
 									<Button ToolTip.Tip="Arrow (6)" Width="26" Height="26" Padding="0" Tag="Arrow" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="ArrowRight" IconVariant="Regular" FontSize="14"/>
 									</Button>
-									<Button ToolTip.Tip="Revision Cloud" Width="26" Height="26" Padding="0" Tag="RevisionCloud" Click="OnAnnotateToolSelect" BorderThickness="0">
+									<Button ToolTip.Tip="Revision Cloud (no shortcut)" Width="26" Height="26" Padding="0" Tag="RevisionCloud" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Cloud" IconVariant="Regular" FontSize="14"/>
 									</Button>
-									<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+									<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 									<Button ToolTip.Tip="Comment (7)" Width="26" Height="26" Padding="0" Tag="Text" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="TextFont" IconVariant="Regular" FontSize="14"/>
 									</Button>
@@ -269,26 +269,27 @@
 									<Button ToolTip.Tip="Sticky Note" Width="26" Height="26" Padding="0" Tag="StickyNote" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Note" IconVariant="Regular" FontSize="14"/>
 									</Button>
-									<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+									<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 									<Button ToolTip.Tip="Measure (9)" Width="26" Height="26" Padding="0" Tag="MeasureDistance" Click="OnAnnotateToolSelect" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Button ToolTip.Tip="Area Measure (A)" Width="26" Height="26" Padding="0" Tag="MeasureArea" Click="OnAnnotateToolSelect" BorderThickness="0">
-										<ic:SymbolIcon Symbol="SelectObject" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Button ToolTip.Tip="Eraser (0)" Width="26" Height="26" Padding="0" Tag="Eraser" Click="OnAnnotateToolSelect" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Eraser" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
-									<Button ToolTip.Tip="Start measurement calibration" Width="26" Height="26" Padding="0" Click="OnMeasureCalibrate" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Options" IconVariant="Regular" FontSize="14"/>
-									</Button>
-									<Button Name="GridToggleBtn" ToolTip.Tip="Toggle snap to grid (G)" Width="26" Height="26" Padding="0" Click="OnToggleGrid" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Grid" IconVariant="Regular" FontSize="14"/>
-									</Button>
-								  <Button Name="StatusHintsToggleBtn" ToolTip.Tip="Toggle annotation status hints" Width="26" Height="26" Padding="0" Click="OnToggleStatusHints" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Info" IconVariant="Regular" FontSize="14"/>
-									</Button>
+											<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
+										</Button>
+										<Button ToolTip.Tip="Area Measure (A)" Width="26" Height="26" Padding="0" Tag="MeasureArea" Click="OnAnnotateToolSelect" BorderThickness="0">
+											<ic:SymbolIcon Symbol="SelectObject" IconVariant="Regular" FontSize="14"/>
+										</Button>
+										<Button ToolTip.Tip="Measurement calibration" Width="26" Height="26" Padding="0" Click="OnMeasureCalibrate" BorderThickness="0">
+											<ic:SymbolIcon Symbol="Scales" IconVariant="Regular" FontSize="14"/>
+										</Button>
+										<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
+										<Button ToolTip.Tip="Eraser (0)" Width="26" Height="26" Padding="0" Tag="Eraser" Click="OnAnnotateToolSelect" BorderThickness="0">
+											<ic:SymbolIcon Symbol="Eraser" IconVariant="Regular" FontSize="14"/>
+										</Button>
+										<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
+										<Button Name="GridToggleBtn" ToolTip.Tip="Toggle snap to grid (G)" Width="26" Height="26" Padding="0" Click="OnToggleGrid" BorderThickness="0">
+											<ic:SymbolIcon Symbol="Grid" IconVariant="Regular" FontSize="14"/>
+										</Button>
+									  <Button Name="StatusHintsToggleBtn" ToolTip.Tip="Toggle annotation status hints" Width="26" Height="26" Padding="0" Click="OnToggleStatusHints" BorderThickness="0">
+											<ic:SymbolIcon Symbol="Info" IconVariant="Regular" FontSize="14"/>
+										</Button>
 								</StackPanel>
 
 							<!-- Row 1: Properties & Actions -->
@@ -397,7 +398,7 @@
 								</Button>
 
 								<!-- Corner radius flyout -->
-                             <Button ToolTip.Tip="Open corner radius menu" Width="26" Height="26" Padding="0" BorderThickness="0">
+								 <Button Name="CornerRadiusBtn" ToolTip.Tip="Open corner radius menu" Width="26" Height="26" Padding="0" BorderThickness="0">
 									<Button.Flyout>
 										<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway"
 												FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
@@ -427,54 +428,52 @@
 									<Border Name="CornerIndicator" Width="14" Height="14" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="0"/>
 								</Button>
 
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 								<!-- Fill toggle -->
                              <Button Name="FillToggleBtn" ToolTip.Tip="Toggle fill for the current tool or selection" Width="26" Height="26" Padding="0" Click="OnToggleFill" BorderThickness="0">
 									<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>
 								</Button>
 								<!-- Opacity -->
-								<Slider Name="OpacitySlider" ToolTip.Tip="Opacity" Minimum="0.1" Maximum="1" Value="1" Width="60"
-									VerticalAlignment="Top" Padding="0" Height="35" Margin="0,-10,0,0"/>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
-								<!-- Font size -->
-								<Button ToolTip.Tip="Decrease font size (−)" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0" Click="OnFontSizeDecrease" BorderThickness="0" FontSize="12" Content="−"/>
-								<TextBlock Name="FontSizeLabel" Text="10pt" FontSize="12" VerticalAlignment="Center" Margin="2,0"
-									ToolTip.Tip="Text font size (−/+ to adjust)" Opacity="0.6"/>
-								<Button ToolTip.Tip="Increase font size (+)" Width="18" Height="18" Padding="0" MinWidth="0" MinHeight="0" Click="OnFontSizeIncrease" BorderThickness="0" FontSize="12" Content="+"/>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+									<Slider Name="OpacitySlider" ToolTip.Tip="Opacity" Minimum="0.1" Maximum="1" Value="1" Width="60"
+										VerticalAlignment="Top" Padding="0" Height="35" Margin="0,-10,0,0"/>
+									<!-- Font size group — hidden unless a text tool/selection is active -->
+									<StackPanel Name="FontSizeGroup" Orientation="Horizontal" Spacing="1" IsVisible="False">
+										<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
+										<Button ToolTip.Tip="Decrease font size (−)" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnFontSizeDecrease" BorderThickness="0" FontSize="12" Content="−"/>
+										<TextBlock Name="FontSizeLabel" Text="10pt" FontSize="12" VerticalAlignment="Center" Margin="2,0"
+											ToolTip.Tip="Text font size (−/+ to adjust)" Opacity="0.6"/>
+										<Button ToolTip.Tip="Increase font size (+)" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnFontSizeIncrease" BorderThickness="0" FontSize="12" Content="+"/>
+										<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
+									</StackPanel>
 								<!-- Undo / Redo / Clear -->
-								<Button Name="UndoBtn" ToolTip.Tip="Undo (Ctrl+Z)" Width="26" Height="26" Padding="0" Click="OnAnnotateUndo" BorderThickness="0">
-									<ic:SymbolIcon Symbol="ArrowUndo" IconVariant="Regular" FontSize="14"/>
-								</Button>
-								<Button Name="SaveSketchBtn" ToolTip.Tip="Save Sketch" Width="26" Height="26" Padding="0" Click="OnSaveSketch" BorderThickness="0" IsVisible="{Binding PreviewVM.WhiteboardMode}">
-									<ic:SymbolIcon Symbol="Save" IconVariant="Regular" FontSize="14"/>
-								</Button>
-								<Button Name="RedoBtn" ToolTip.Tip="Redo (Ctrl+Y)" Width="26" Height="26" Padding="0" Click="OnAnnotateRedo" BorderThickness="0">
-									<ic:SymbolIcon Symbol="ArrowRedo" IconVariant="Regular" FontSize="14"/>
-								</Button>
+									<Button Name="UndoBtn" ToolTip.Tip="Undo (Ctrl+Z)" Width="26" Height="26" Padding="0" Click="OnAnnotateUndo" BorderThickness="0">
+										<ic:SymbolIcon Symbol="ArrowUndo" IconVariant="Regular" FontSize="14"/>
+									</Button>
+									<Button Name="RedoBtn" ToolTip.Tip="Redo (Ctrl+Y)" Width="26" Height="26" Padding="0" Click="OnAnnotateRedo" BorderThickness="0">
+										<ic:SymbolIcon Symbol="ArrowRedo" IconVariant="Regular" FontSize="14"/>
+									</Button>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 								<Button ToolTip.Tip="Clear Page" Width="26" Height="26" Padding="0" Click="OnAnnotateClear" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14"/>
 								</Button>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
-								<!-- Annotated pages list -->
-                             <Button Name="AnnotationPagesBtn" ToolTip.Tip="Show annotated pages list" Width="26" Height="26" Padding="0" Click="OnToggleAnnotationPageList" BorderThickness="0">
-									<ic:SymbolIcon Symbol="DocumentBulletList" IconVariant="Regular" FontSize="14"/>
-								</Button>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 								<!-- Export -->
-									<Button ToolTip.Tip="Screenshot region — drag to capture (Ctrl+Shift+S, single-page only)" Width="26" Height="26" Padding="0" Click="OnScreenshotToolClick" BorderThickness="0" IsEnabled="{Binding PreviewVM.CanUseScreenshotTool}">
-										<ic:SymbolIcon Symbol="Screenshot" IconVariant="Regular" FontSize="14"/>
+								<Button ToolTip.Tip="Copy page as image (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
+										<ic:SymbolIcon Symbol="ImageCopy" IconVariant="Regular" FontSize="14"/>
 									</Button>
-								<Button ToolTip.Tip="Copy (Ctrl+C)" Width="26" Height="26" Padding="0" Click="OnAnnotateCopy" BorderThickness="0">
-									<ic:SymbolIcon Symbol="Clipboard" IconVariant="Regular" FontSize="14"/>
-								</Button>
-								<Button ToolTip.Tip="Export Review" Width="26" Height="26" Padding="0" Click="OnAnnotateExportReview" BorderThickness="0">
-									<ic:SymbolIcon Symbol="ArrowExportUp" IconVariant="Regular" FontSize="14"/>
-								</Button>
-								<Border Width="2" Background="#50888888" Margin="3,4" CornerRadius="1"/>
+									<Button ToolTip.Tip="Export Review" Width="26" Height="26" Padding="0" Click="OnAnnotateExportReview" BorderThickness="0">
+										<ic:SymbolIcon Symbol="ArrowExportUp" IconVariant="Regular" FontSize="14"/>
+									</Button>
+									<Button Name="SaveSketchBtn" ToolTip.Tip="Save Sketch" Width="26" Height="26" Padding="0" Click="OnSaveSketch" BorderThickness="0" IsVisible="{Binding PreviewVM.WhiteboardMode}">
+										<ic:SymbolIcon Symbol="Save" IconVariant="Regular" FontSize="14"/>
+									</Button>
+								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 								<TextBlock Name="AnnotationCountBadge" Text="" FontSize="9" VerticalAlignment="Center" Margin="3,0"
 									Foreground="{DynamicResource AppMutedForegroundBrush}"/>
 								<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
+									<Button Name="AnnotationPagesBtn" ToolTip.Tip="Show annotated pages list" Width="26" Height="26" Padding="0" Click="OnToggleAnnotationPageList" BorderThickness="0">
+										<ic:SymbolIcon Symbol="DocumentBulletList" IconVariant="Regular" FontSize="14"/>
+									</Button>
 									<Button Name="LayerPickerBtn" ToolTip.Tip="Manage annotation layers" Height="26" Padding="8,0" BorderThickness="0">
 										<StackPanel Orientation="Horizontal" Spacing="4">
 											<ic:SymbolIcon Symbol="Layer" IconVariant="Regular" FontSize="14"/>
