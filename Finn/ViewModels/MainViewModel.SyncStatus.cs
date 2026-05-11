@@ -792,15 +792,13 @@ namespace Finn.ViewModels
                 {
                     try
                     {
-                        // For TopDirectoryOnly folders, verify with file count
-                        // to filter out false positives from temp files.
-                        // For AllDirectories (version folders), skip the
-                        // expensive recursive count — the watcher already
-                        // confirmed a filesystem event, and CountDiskFiles
-                        // with AllDirectories is too slow for a callback.
-                        var (_, search) = GetFileFilter(folder);
-                        if (search == SearchOption.TopDirectoryOnly
-                            && !IsFolderOutOfSync(folder))
+                        // Always verify with IsFolderOutOfSync before raising a notification.
+                        // CountDiskFiles only enumerates PDFs so it is fast even for deep
+                        // version folder trees, and the 500 ms debounce already coalesces
+                        // burst events. Without this check every filesystem event in an
+                        // AllDirectories folder (e.g. temp files, antivirus, Explorer
+                        // metadata) would unconditionally raise a false sync alert.
+                        if (!IsFolderOutOfSync(folder))
                             continue;
                     }
                     catch (Exception ex)

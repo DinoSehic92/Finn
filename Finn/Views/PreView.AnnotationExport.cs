@@ -92,6 +92,7 @@ public partial class PreView
                 StrokeCap = stroke.IsHighlighter ? SKStrokeCap.Square : SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round,
                 IsAntialias = true,
+                BlendMode = stroke.IsHighlighter ? SKBlendMode.Multiply : SKBlendMode.SrcOver,
                 PathEffect = CreateDashEffect(stroke.DashPattern, (float)(stroke.Width * renderZoom))
             };
 
@@ -132,12 +133,15 @@ public partial class PreView
                     if (closed) path.Close();
                 }
 
-                // Fill closed polylines with a translucent tint (matches in-app alpha 40)
-                if (closed)
+                // Fill closed polylines with a translucent tint \u2014 only when IsFilled is set,
+                // matching the in-app renderer (closed && IsFilled && not override).
+                // Alpha matches in-app GetOrCreateFillBrush: 55 for area measures, 30 for regular.
+                if (closed && stroke.IsFilled)
                 {
+                    byte fillAlpha = stroke.IsAreaMeasure ? (byte)55 : (byte)30;
                     using var closedFill = new SKPaint
                     {
-                        Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, 40),
+                        Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, fillAlpha),
                         Style = SKPaintStyle.Fill,
                         IsAntialias = true
                     };
@@ -205,7 +209,7 @@ public partial class PreView
             }
             double perimMm = perimPt * scaleMmPerPt;
 
-            string areaStr  = FormatAreaExport(areaMm2);
+            string areaStr  = "■ " + FormatAreaExport(areaMm2);
             string perimStr = "⊙ " + FormatLengthExport(perimMm);
 
             using var labelFont = new SKFont(SKTypeface.Default, (float)(10 * renderZoom));
@@ -259,9 +263,11 @@ public partial class PreView
             SKPaint? fillPaint = null;
             if (shape.IsFilled)
             {
+                // Alpha 45 matches ShapeAnnotation.GetOrCreateFillBrush(); scale by opacity.
+                byte fillAlpha = shape.Opacity < 1.0 ? (byte)(45 * shape.Opacity) : (byte)45;
                 fillPaint = new SKPaint
                 {
-                    Color = new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, 80),
+                    Color = new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, fillAlpha),
                     Style = SKPaintStyle.Fill,
                     IsAntialias = true
                 };
@@ -291,6 +297,10 @@ public partial class PreView
                         canvas.DrawLine(sx, sy, ex - shortenX, ey - shortenY, paint);
                     }
                     RenderSkiaArrowhead(canvas, paint, sx, sy, ex, ey, renderZoom);
+                    // Tail dot at origin — matches in-app DrawTailDot
+                    float tailR = MathF.Max(2f * (float)renderZoom, paint.StrokeWidth * 0.9f);
+                    using var tailPaint = new SKPaint { Color = paint.Color, Style = SKPaintStyle.Fill, IsAntialias = true };
+                    canvas.DrawCircle(sx, sy, tailR, tailPaint);
                     break;
                 }
 
@@ -335,6 +345,7 @@ public partial class PreView
 
                 case InlineAnnotationTool.Dot:
                 {
+                    // In-app renders dots as a pure filled circle with no outline.
                     float r = (float)(shape.StrokeWidth * renderZoom);
                     byte dotAlpha = shape.Opacity < 1.0 ? (byte)(shape.Opacity * 255) : (byte)255;
                     using var dotPaint = new SKPaint
@@ -344,7 +355,6 @@ public partial class PreView
                         IsAntialias = true
                     };
                     canvas.DrawCircle(sx, sy, r, dotPaint);
-                    canvas.DrawCircle(sx, sy, r, paint);
                     break;
                 }
             }
@@ -512,8 +522,8 @@ public partial class PreView
                 float x1 = (float)(pts[1].X * renderZoom), y1 = (float)(pts[1].Y * renderZoom);
                 canvas.DrawLine(x0, y0, x1, y1, mPaint);
 
-                // End-marks: perpendicular ticks at both endpoints
-                float emLen = (float)(6 * renderZoom);
+                // End-marks: perpendicular ticks at both endpoints (5 * zoom, matches in-app DrawEndMark)
+                float emLen = (float)(5 * renderZoom);
                 float ddx = x1 - x0, ddy = y1 - y0;
                 float dlen = MathF.Sqrt(ddx * ddx + ddy * ddy);
                 if (dlen > 1)
@@ -527,19 +537,51 @@ public partial class PreView
                 // Arrowheads at both endpoints
                 RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x0, y0, x1, y1, renderZoom);
                 RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x1, y1, x0, y0, renderZoom);
-            }
 
-            // Draw label
-            var labelPos = m.GetLabelPosition();
-            float lx = (float)(labelPos.X * renderZoom), ly = (float)(labelPos.Y * renderZoom);
-            using var labelFont = new SKFont(SKTypeface.Default, (float)(10 * renderZoom));
-            using var labelPaint = new SKPaint { Color = new SKColor(m.Color.R, m.Color.G, m.Color.B), IsAntialias = true };
-            using var labelBg = new SKPaint { Color = new SKColor(255, 255, 255, 200), Style = SKPaintStyle.Fill, IsAntialias = true };
-            string label = m.GetLabel();
-            float labelWidth = labelFont.MeasureText(label, out var labelBounds);
-            canvas.DrawRoundRect(lx + labelBounds.Left - 3, ly + labelBounds.Top - 2,
-                labelBounds.Width + 6, labelBounds.Height + 4, 3, 3, labelBg);
-            canvas.DrawText(label, lx, ly, labelFont, labelPaint);
+                // Label: offset perpendicularly above the line, centered on the offset midpoint.
+                // Matches in-app: perpendicular unit vector biased toward screen-up, offset = fontSize*1.4 + gap.
+                float fontSize = (float)(10 * renderZoom);
+                float midX = (x0 + x1) * 0.5f;
+                float midY = (y0 + y1) * 0.5f;
+                float perpX = -ddy / dlen;
+                float perpY =  ddx / dlen;
+                // Flip so label floats above the line (negative Y = screen-up)
+                if (perpY > 0) { perpX = -perpX; perpY = -perpY; }
+                float offset = fontSize * 1.4f + (float)(4 * renderZoom);
+                float lx = midX + perpX * offset;
+                float ly = midY + perpY * offset;
+
+                using var labelFont = new SKFont(SKTypeface.Default, fontSize);
+                string label = m.GetLabel();
+                labelFont.MeasureText(label, out var labelBounds);
+
+                // Center on the offset point (CenterOnPoint: true in-app)
+                float drawX = lx - labelBounds.Width / 2f - labelBounds.Left;
+                float drawY = ly - (labelBounds.Top + labelBounds.Height / 2f);
+
+                // Tinted background + faint colored border — matches in-app TintBackground single-line pill
+                var tintColor = new SKColor(
+                    (byte)(200 + m.Color.R / 5),
+                    (byte)(200 + m.Color.G / 5),
+                    (byte)(200 + m.Color.B / 5), 210);
+                using var labelBg = new SKPaint { Color = tintColor, Style = SKPaintStyle.Fill, IsAntialias = true };
+                using var labelBorder = new SKPaint
+                {
+                    Color = new SKColor(m.Color.R, m.Color.G, m.Color.B, 60),
+                    Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true
+                };
+                canvas.DrawRoundRect(
+                    drawX + labelBounds.Left - 4, drawY + labelBounds.Top - 3,
+                    labelBounds.Width + 8, labelBounds.Height + 6,
+                    3, 3, labelBg);
+                canvas.DrawRoundRect(
+                    drawX + labelBounds.Left - 4, drawY + labelBounds.Top - 3,
+                    labelBounds.Width + 8, labelBounds.Height + 6,
+                    3, 3, labelBorder);
+
+                using var labelPaint = new SKPaint { Color = new SKColor(m.Color.R, m.Color.G, m.Color.B), IsAntialias = true };
+                canvas.DrawText(label, drawX, drawY, labelFont, labelPaint);
+            }
         }
     }
 
@@ -1191,7 +1233,7 @@ public partial class PreView
             var color = XColor.FromArgb(alpha, shape.Color.R, shape.Color.G, shape.Color.B);
             var pen = new XPen(color, shape.StrokeWidth) { LineCap = XLineCap.Round, LineJoin = XLineJoin.Round };
             XBrush? fill = shape.IsFilled
-                ? new XSolidBrush(XColor.FromArgb((byte)(80 * opFactor), shape.Color.R, shape.Color.G, shape.Color.B))
+                ? new XSolidBrush(XColor.FromArgb((byte)(45 * opFactor), shape.Color.R, shape.Color.G, shape.Color.B))
                 : null;
 
             double sx = shape.Start.X, sy = shape.Start.Y;
@@ -1218,6 +1260,9 @@ public partial class PreView
                         gfx.DrawLine(pen, sx, sy, ex - shX, ey - shY);
                     }
                     DrawArrowheadPdfSharp(gfx, sx, sy, ex, ey, color);
+                    // Tail dot at origin — matches in-app DrawTailDot
+                    double tailR = Math.Max(2.0, shape.StrokeWidth * 0.9);
+                    gfx.DrawEllipse(new XSolidBrush(color), sx - tailR, sy - tailR, tailR * 2, tailR * 2);
                     break;
                 }
 

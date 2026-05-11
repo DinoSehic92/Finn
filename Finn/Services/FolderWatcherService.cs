@@ -110,8 +110,22 @@ namespace Finn.Services
             }
         }
 
+        private static readonly HashSet<string> _transientExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".tmp", ".crdownload", ".part", ".partial", ".download"
+        };
+
         private void OnFileEvent(object sender, FileSystemEventArgs e)
         {
+            // Ignore transient/temp files that are never sync-relevant.
+            // Also ignore hidden dot-files and Office lock files (~filename).
+            var name = System.IO.Path.GetFileName(e.Name ?? string.Empty);
+            if (name.StartsWith('~') || name.StartsWith('.'))
+                return;
+            var ext = System.IO.Path.GetExtension(name);
+            if (_transientExtensions.Contains(ext))
+                return;
+
             if (sender is FileSystemWatcher watcher)
             {
                 lock (_lock)
