@@ -72,6 +72,14 @@ public class TextAnnotation
     /// </summary>
     public bool IsLabel { get; set; }
 
+    /// <summary>
+    /// When true (default), the annotation is rendered with a white background, a colored
+    /// left-accent bar, and a subtle border — the standard "stamp" look.
+    /// When false, only the text is drawn with no background or border, so it appears as
+    /// plain text overlaid directly on the page.
+    /// </summary>
+    public bool HasFrame { get; set; } = true;
+
     // ── Cached measured bounds (set by renderer, used for accurate hit-testing) ──
 
     /// <summary>

@@ -435,47 +435,37 @@ public partial class PreView
 
             if (lineInfos.Count > 0)
             {
-                // Stamp-style frame: padding matches the in-app renderer.
-                float s   = (float)renderZoom;
-                float pad = 5 * s;
-                float accentW = 4 * s;
-                float radius  = 4 * s;
-                var textArea = new SKRect(frameMinX - pad, frameMinY - pad,
+                if (t.HasFrame)
+                {
+                // Tinted-glass frame: soft color wash + matching border, no accent bar
+                float s    = (float)renderZoom;
+                float pad  = 6 * s;
+                float radius = 5 * s;
+                var fullArea = new SKRect(frameMinX - pad, frameMinY - pad,
                                           frameMaxX + pad, frameMaxY + pad);
-                var fullArea = new SKRect(textArea.Left - accentW, textArea.Top,
-                                          textArea.Right, textArea.Bottom);
                 var frameRRect = new SKRoundRect(fullArea, radius, radius);
 
-                // Subtle drop shadow
-                bgPaint.Color = new SKColor(0, 0, 0, 25);
-                canvas.DrawRoundRect(new SKRoundRect(
-                    new SKRect(fullArea.Left + s, fullArea.Top + s,
-                               fullArea.Right + s, fullArea.Bottom + 2 * s), radius, radius), bgPaint);
-
-                // White background
-                bgPaint.Color = new SKColor(255, 255, 255, 245);
+                // Tinted background
+                bgPaint.Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, 30);
                 canvas.DrawRoundRect(frameRRect, bgPaint);
 
-                // Subtle gray border
-                framePaint.Color = new SKColor(0, 0, 0, 30);
+                // Matching border
+                framePaint.Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, 110);
+                framePaint.StrokeWidth = 1.2f * s;
                 canvas.DrawRoundRect(frameRRect, framePaint);
+                } // end HasFrame
 
-                // Colored left accent bar
-                var accentRRect = new SKRoundRect();
-                accentRRect.SetRectRadii(
-                    new SKRect(fullArea.Left, fullArea.Top,
-                               fullArea.Left + accentW, fullArea.Bottom),
-                    [new SKPoint(radius, radius), new SKPoint(0, 0),
-                     new SKPoint(0, 0), new SKPoint(radius, radius)]);
-                bgPaint.Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, 210);
-                canvas.DrawRoundRect(accentRRect, bgPaint);
-
-                // Arrow connecting to the closest side center of the frame
+                // Arrow connecting to the closest side center of the text area
+                // (works for both framed and frameless annotations)
                 if (t.ArrowOrigin.HasValue)
                 {
+                    float s2 = (float)renderZoom;
+                    // Use the tight text bounds as the connection area regardless of frame
+                    var connArea = new SKRect(frameMinX - 4 * s2, frameMinY - 4 * s2,
+                                             frameMaxX + 4 * s2, frameMaxY + 4 * s2);
                     float arrowTipX = (float)(t.ArrowOrigin.Value.X * renderZoom);
                     float arrowTipY = (float)(t.ArrowOrigin.Value.Y * renderZoom);
-                    var conn = ClosestSideCenterF(fullArea, arrowTipX, arrowTipY);
+                    var conn = ClosestSideCenterF(connArea, arrowTipX, arrowTipY);
                     using var arrowLinePaint = new SKPaint
                     {
                         Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha),

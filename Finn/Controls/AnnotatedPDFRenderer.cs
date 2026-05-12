@@ -2165,7 +2165,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // ShapeAnnotation
         bool IsFilled, double CornerRadius,
         // TextAnnotation
-        double FontSize, string Text, double MaxWidth);
+        double FontSize, string Text, double MaxWidth, bool HasFrame);
 
     /// <summary>
     /// Captures a snapshot of all visual properties of an annotation.
@@ -2173,10 +2173,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public object? CapturePropertySnapshot(object item) => item switch
     {
-        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, 0, "", 0),
-        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, 0, "", 0),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, 0, t.FontSize, t.Text, t.MaxWidth),
-        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, 0, "", 0),
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, 0, "", 0, false),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, 0, "", 0, false),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, 0, t.FontSize, t.Text, t.MaxWidth, t.HasFrame),
+        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, 0, "", 0, false),
         _ => null
     };
 
@@ -2201,7 +2201,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case TextAnnotation t:
                 t.Color = snap.Color; t.Opacity = snap.Opacity;
                 t.FontSize = snap.FontSize; t.Text = snap.Text;
-                t.MaxWidth = snap.MaxWidth;
+                t.MaxWidth = snap.MaxWidth; t.HasFrame = snap.HasFrame;
                 break;
             case MeasurementAnnotation m:
                 m.Color = snap.Color;
@@ -2321,8 +2321,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// Compares against all other annotations on the current page and returns a
     /// snap-corrected delta plus sets guide lines for rendering.
     /// </summary>
-    public (double dx, double dy) ComputeSnapDelta(object dragging, double rawDx, double rawDy, double threshold = 5.0)
+    public (double dx, double dy) ComputeSnapDelta(object dragging, double rawDx, double rawDy, double threshold = -1)
     {
+        // -1 = auto: same zoom-adaptive radius as ComputeVertexSnap so move snapping
+        // feels consistent with point-placement snapping at every zoom level.
+        if (threshold < 0)
+        {
+            const double snapScreenPx  = 8.0;
+            const double snapMinPdfPts = 1.5;
+            threshold = Math.Max(snapMinPdfPts, ScreenToPdfDistance(snapScreenPx));
+        }
         _snapGuideX = null;
         _snapGuideY = null;
         _snapKindX = SnapKind.None;
@@ -5113,7 +5121,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 items.Add(new TextOverlayDrawOp.TextItem(
                     (float)screenPos.X, y, line, fontSize, color,
                     HasBackground: true, HasBorder: first, IsTextAnnotation: true,
-                    FontFamily: fontFamily));
+                    FontFamily: fontFamily, HasFrame: t.HasFrame));
                 first = false;
             }
             y += lineHeight;
@@ -5460,7 +5468,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                        float PopupFontSize = 0f, bool IsPopupOnly = false,
                                        bool TintBackground = false,
                                        string SecondLine = "",
-                                       bool CenterOnPoint = false);
+                                       bool CenterOnPoint = false,
+                                       bool HasFrame = true);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -5762,7 +5771,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             while (i < _items.Count)
             {
                 var item = _items[i];
-                if (!item.IsTextAnnotation) { i++; continue; }
+                // Skip non-text-annotation items and frameless text annotations
+                if (!item.IsTextAnnotation || !item.HasFrame) { i++; continue; }
 
                 float minX = float.MaxValue, minY = float.MaxValue;
                 float maxX = float.MinValue, maxY = float.MinValue;
@@ -5789,37 +5799,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     if (j < _items.Count && _items[j].HasBorder) break;
                 }
 
-                // Stamp-style frame: accent bar + shadow + white body
-                float pad = 5;
-                float accentW = 4;
-                var textArea = new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
-                var fullArea = new SKRect(textArea.Left - accentW, textArea.Top,
-                                          textArea.Right, textArea.Bottom);
-                var frameRRect = new SKRoundRect(fullArea, 4, 4);
+                // Tinted-glass frame: soft color wash + matching border, no accent bar
+                float pad = 6;
+                float radius = 5;
+                var fullArea = new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
+                var frameRRect = new SKRoundRect(fullArea, radius, radius);
 
-                // Subtle drop shadow
-                bgPaint.Color = new SKColor(0, 0, 0, 25);
-                canvas.DrawRoundRect(new SKRoundRect(
-                    new SKRect(fullArea.Left + 1, fullArea.Top + 1,
-                               fullArea.Right + 1, fullArea.Bottom + 2), 4, 4), bgPaint);
-
-                // White background (nearly opaque)
-                bgPaint.Color = new SKColor(255, 255, 255, 245);
+                // Tinted background — faint wash of the annotation color
+                bgPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 30);
                 canvas.DrawRoundRect(frameRRect, bgPaint);
 
-                // Subtle gray border
-                borderPaint.Color = new SKColor(0, 0, 0, 30);
+                // Matching border at moderate opacity
+                borderPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 110);
+                borderPaint.StrokeWidth = 1.2f;
                 canvas.DrawRoundRect(frameRRect, borderPaint);
-
-                // Colored left accent bar (rounded only on left corners)
-                var accentRRect = new SKRoundRect();
-                accentRRect.SetRectRadii(
-                    new SKRect(fullArea.Left, fullArea.Top,
-                               fullArea.Left + accentW, fullArea.Bottom),
-                    [new SKPoint(4, 4), new SKPoint(0, 0),
-                     new SKPoint(0, 0), new SKPoint(4, 4)]);
-                bgPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 210);
-                canvas.DrawRoundRect(accentRRect, bgPaint);
 
                 i = j;
             }

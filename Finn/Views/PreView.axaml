@@ -626,8 +626,9 @@
 						PointerPressed="OnPropertyPanelBackgroundClick">
 					<Border Name="PropertyPanelBorder" Classes="shadow" Padding="8,6">
 						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8,-6" Padding="8,6" BorderThickness="1" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" CornerRadius="4">
-                        <StackPanel Spacing="4" KeyboardNavigation.TabNavigation="Cycle">
-							<StackPanel Orientation="Horizontal" Spacing="2">
+						<StackPanel Spacing="5" KeyboardNavigation.TabNavigation="Cycle">
+							<!-- Color swatches -->
+							<StackPanel Orientation="Horizontal" Spacing="3">
 								<Button ToolTip.Tip="Red" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
 									Background="#D64045" Opacity="0.85" Tag="Red" Click="OnPropertyColor" CornerRadius="11"/>
 								<Button ToolTip.Tip="Blue" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
@@ -649,96 +650,106 @@
 								<Button ToolTip.Tip="Brown" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
 									Background="#8D6E63" Opacity="0.85" Tag="Brown" Click="OnPropertyColor" CornerRadius="11"/>
 							</StackPanel>
-							<StackPanel Name="PropertyStrokeRow" Orientation="Horizontal" Spacing="1">
-							<Button Classes="ghost" ToolTip.Tip="Thin" Width="20" Height="20" Padding="0" Tag="1" Click="OnPropertyWidth" BorderThickness="0">
+							<!-- Stroke width + dash + fill -->
+							<StackPanel Name="PropertyStrokeRow" Orientation="Horizontal" Spacing="2">
+								<Button Classes="ghost" ToolTip.Tip="Thin" Width="26" Height="26" Padding="0" Tag="1" Click="OnPropertyWidth" BorderThickness="0">
 									<Ellipse Width="4" Height="4" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Medium" Width="20" Height="20" Padding="0" Tag="2" Click="OnPropertyWidth" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Medium" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyWidth" BorderThickness="0">
 									<Ellipse Width="6" Height="6" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Thick" Width="20" Height="20" Padding="0" Tag="4" Click="OnPropertyWidth" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Thick" Width="26" Height="26" Padding="0" Tag="4" Click="OnPropertyWidth" BorderThickness="0">
 									<Ellipse Width="9" Height="9" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
-									<StackPanel Name="PropertyDashRow" Orientation="Horizontal" Spacing="1">
+								<StackPanel Name="PropertyDashRow" Orientation="Horizontal" Spacing="2">
 									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-								<Button Classes="ghost" ToolTip.Tip="Solid" Width="24" Height="20" Padding="0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
-										</Button>
-								<Button Classes="ghost" ToolTip.Tip="Dashed" Width="24" Height="20" Padding="0" Tag="Dashed" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,3" VerticalAlignment="Center"/>
-										</Button>
-								<Button Classes="ghost" ToolTip.Tip="Dotted" Width="24" Height="20" Padding="0" Tag="Dotted" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="1,2" VerticalAlignment="Center"/>
-										</Button>
-								<Button Classes="ghost" ToolTip.Tip="Dash-Dot" Width="24" Height="20" Padding="0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-											<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
-										</Button>
-									</StackPanel>
+									<Button Classes="ghost" ToolTip.Tip="Solid" Width="28" Height="26" Padding="2,0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+									</Button>
+									<Button Classes="ghost" ToolTip.Tip="Dashed" Width="28" Height="26" Padding="2,0" Tag="Dashed" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,3" VerticalAlignment="Center"/>
+									</Button>
+									<Button Classes="ghost" ToolTip.Tip="Dotted" Width="28" Height="26" Padding="2,0" Tag="Dotted" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="1,2" VerticalAlignment="Center"/>
+									</Button>
+									<Button Classes="ghost" ToolTip.Tip="Dash-Dot" Width="28" Height="26" Padding="2,0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
+									</Button>
+								</StackPanel>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-                         <Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">
+								<Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">
 									<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>
 								</Button>
-								</StackPanel>
-								<StackPanel Name="PropertyCornerRadiusRow" Orientation="Horizontal" Spacing="1">
-							<Button Classes="ghost" ToolTip.Tip="Sharp corners" Width="26" Height="26" Padding="0" Tag="0" Click="OnPropertyCornerRadius" BorderThickness="0">
+							</StackPanel>
+							<!-- Corner radius -->
+							<StackPanel Name="PropertyCornerRadiusRow" Orientation="Horizontal" Spacing="2">
+								<Button Classes="ghost" ToolTip.Tip="Sharp corners" Width="26" Height="26" Padding="0" Tag="0" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="0"/>
 								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Small radius" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyCornerRadius" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Small radius" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="2"/>
 								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Medium radius" Width="26" Height="26" Padding="0" Tag="5" Click="OnPropertyCornerRadius" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Medium radius" Width="26" Height="26" Padding="0" Tag="5" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="3"/>
 								</Button>
-							<Button Classes="ghost" ToolTip.Tip="Large radius" Width="26" Height="26" Padding="0" Tag="10" Click="OnPropertyCornerRadius" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Large radius" Width="26" Height="26" Padding="0" Tag="10" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="4"/>
 								</Button>
+							</StackPanel>
+							<!-- Opacity -->
+							<StackPanel Name="PropertyOpacityRow" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+								<TextBlock Text="Opacity" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+								<Slider Name="PropertyOpacitySlider" Minimum="0.1" Maximum="1" Value="1" Width="90" VerticalAlignment="Center"/>
+							</StackPanel>
+							<!-- Inline text editor (visible for text annotations and new text placement) -->
+							<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="4">
+								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,1" Opacity="0.5"/>
+								<!-- Font size + frame toggle -->
+								<StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+									<Button Name="PropertyFontDecreaseBtn" Classes="ghost" ToolTip.Tip="Decrease font size" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeDecrease" BorderThickness="0">
+										<ic:SymbolIcon Symbol="Subtract" IconVariant="Regular" FontSize="12"/>
+									</Button>
+									<TextBlock Name="PropertyFontSizeLabel" Text="10pt" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" MinWidth="32" TextAlignment="Center"/>
+									<Button Name="PropertyFontIncreaseBtn" Classes="ghost" ToolTip.Tip="Increase font size" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeIncrease" BorderThickness="0">
+										<ic:SymbolIcon Symbol="Add" IconVariant="Regular" FontSize="12"/>
+									</Button>
+									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,3" CornerRadius="1" Opacity="0.7"/>
+									<Button Name="PropertyFrameToggleBtn" Classes="ghost" ToolTip.Tip="Toggle background &amp; border" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFrameToggle" BorderThickness="0">
+										<ic:SymbolIcon Symbol="TextBox" IconVariant="Regular" FontSize="14"/>
+									</Button>
 								</StackPanel>
-								<StackPanel Name="PropertyOpacityRow" Orientation="Horizontal" Spacing="4">
-									<TextBlock Text="Opacity" FontSize="9" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
-									<Slider Name="PropertyOpacitySlider" Minimum="0.1" Maximum="1" Value="1" Width="80"
-										VerticalAlignment="Top" Padding="0" Height="35" Margin="0,-10,0,0"/>
-								</StackPanel>
-								<!-- Inline text editor (visible for text annotations and new text placement) -->
-									<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="2">
-									<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,2" Opacity="0.5"/>
-									<!-- Font size controls for text annotations -->
-									<StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-										<TextBlock Text="Size" FontSize="9" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
-										<Button Name="PropertyFontDecreaseBtn" ToolTip.Tip="Decrease font size" Width="20" Height="20" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeDecrease" BorderThickness="0" FontSize="12" Content="−" Classes="ghost"/>
-										<TextBlock Name="PropertyFontSizeLabel" Text="10pt" FontSize="12" VerticalAlignment="Center" Opacity="0.8" MinWidth="28" TextAlignment="Center"/>
-										<Button Name="PropertyFontIncreaseBtn" ToolTip.Tip="Increase font size" Width="20" Height="20" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeIncrease" BorderThickness="0" FontSize="12" Content="+" Classes="ghost"/>
-									</StackPanel>
-										<TextBox Name="PropertyTextBox" MinWidth="180" MinHeight="34" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text..." HorizontalAlignment="Stretch"/>
-									</StackPanel>
-								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,2" Opacity="0.5"/>
-								<StackPanel Name="PropertyActionsRow" Orientation="Horizontal" Spacing="1">
-                            <Button Classes="ghost" Name="PropertyClosePolyBtn" ToolTip.Tip="Close polyline" Width="26" Height="26" Padding="0" Click="OnPropertyClosePolyline" BorderThickness="0">
+								<TextBox Name="PropertyTextBox" MinWidth="190" MinHeight="38" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text…" HorizontalAlignment="Stretch"/>
+							</StackPanel>
+							<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,1" Opacity="0.5"/>
+							<!-- Action buttons -->
+							<StackPanel Name="PropertyActionsRow" Orientation="Horizontal" Spacing="2">
+								<Button Classes="ghost" Name="PropertyClosePolyBtn" ToolTip.Tip="Close polyline" Width="26" Height="26" Padding="0" Click="OnPropertyClosePolyline" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Flowchart" IconVariant="Regular" FontSize="14"/>
 								</Button>
-								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-                          <Button Classes="ghost" ToolTip.Tip="Match style" Width="26" Height="26" Padding="0" Click="OnPropertyMatchStyle" BorderThickness="0">
+								<Border Name="PropertyClosePolySeparator" Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
+								<Button Classes="ghost" ToolTip.Tip="Match style" Width="26" Height="26" Padding="0" Click="OnPropertyMatchStyle" BorderThickness="0">
 									<ic:SymbolIcon Symbol="ColorLine" IconVariant="Regular" FontSize="14"/>
 								</Button>
-                         <Button Classes="ghost" ToolTip.Tip="Duplicate annotation" Width="26" Height="26" Padding="0" Click="OnPropertyDuplicate" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Duplicate annotation" Width="26" Height="26" Padding="0" Click="OnPropertyDuplicate" BorderThickness="0">
 									<ic:SymbolIcon Symbol="Copy" IconVariant="Regular" FontSize="14"/>
 								</Button>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-                         <Button Classes="ghost" ToolTip.Tip="Bring annotation to front" Width="26" Height="26" Padding="0" Click="OnPropertyBringToFront" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Bring annotation to front" Width="26" Height="26" Padding="0" Click="OnPropertyBringToFront" BorderThickness="0">
 									<ic:SymbolIcon Symbol="ArrowCircleUp" IconVariant="Regular" FontSize="14"/>
 								</Button>
-                         <Button Classes="ghost" ToolTip.Tip="Send annotation to back" Width="26" Height="26" Padding="0" Click="OnPropertySendToBack" BorderThickness="0">
+								<Button Classes="ghost" ToolTip.Tip="Send annotation to back" Width="26" Height="26" Padding="0" Click="OnPropertySendToBack" BorderThickness="0">
 									<ic:SymbolIcon Symbol="ArrowCircleDown" IconVariant="Regular" FontSize="14"/>
 								</Button>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-						   <Button Classes="ghost" ToolTip.Tip="Delete annotation" Width="26" Height="26" Padding="0" Click="OnPropertyDelete" BorderThickness="0">
-								<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14" Foreground="#E05050"/>
-							</Button>
-							<Border Name="PropertyCalibrateSeperator" Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7" IsVisible="False"/>
-							<Button Classes="ghost" Name="PropertyCalibrateBtn" IsVisible="False" ToolTip.Tip="Calibrate scale from this measurement" Width="26" Height="26" Padding="0" Click="OnPropertyCalibrate" BorderThickness="0">
-								<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
-							</Button>
-								</StackPanel>
+								<Button Classes="ghost" ToolTip.Tip="Delete annotation" Width="26" Height="26" Padding="0" Click="OnPropertyDelete" BorderThickness="0">
+									<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14" Foreground="#E05050"/>
+								</Button>
+								<Border Name="PropertyCalibrateSeperator" Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7" IsVisible="False"/>
+								<Button Classes="ghost" Name="PropertyCalibrateBtn" IsVisible="False" ToolTip.Tip="Calibrate scale from this measurement" Width="26" Height="26" Padding="0" Click="OnPropertyCalibrate" BorderThickness="0">
+									<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
+								</Button>
 							</StackPanel>
+						</StackPanel>
 						</Border>
 					</Border>
 				</Canvas>

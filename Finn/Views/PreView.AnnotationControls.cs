@@ -18,6 +18,7 @@ public partial class PreView
     private StackPanel? _propertyDashRow;
     private StackPanel? _propertyOpacityRow;
     private Button? _propertyClosePolyBtn;
+    private Border? _propertyClosePolySeparator;
     private Button? _propertyCalibrateBtn;
     private Border? _propertyCalibrateSeparator;
     private MeasurementAnnotation? _calibrationReferenceMeasurement;
@@ -73,7 +74,7 @@ public partial class PreView
             {
                 case InkStroke s: s.Color = color; s.InvalidatePen(); break;
                 case ShapeAnnotation sh: sh.Color = color; sh.InvalidatePen(); break;
-                case TextAnnotation t: t.Color = color; break;
+                case TextAnnotation t: t.Color = color; t.InvalidateArrowPen(); break;
                 case MeasurementAnnotation m: m.Color = color; break;
             }
         }
@@ -168,6 +169,7 @@ public partial class PreView
 
     // Cached control references to avoid repeated FindControl tree walks
     private TextBlock? _propertyFontSizeLabel;
+    private Button? _propertyFrameToggleBtn;
     private Button? _layerPickerBtn;
 
     private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
@@ -1392,7 +1394,9 @@ public partial class PreView
         _propertyOpacityRow ??= this.FindControl<StackPanel>("PropertyOpacityRow");
         if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = true;
         _propertyClosePolyBtn ??= this.FindControl<Button>("PropertyClosePolyBtn");
+        _propertyClosePolySeparator ??= this.FindControl<Border>("PropertyClosePolySeparator");
         if (_propertyClosePolyBtn != null) _propertyClosePolyBtn.IsVisible = isPolyline || isAreaPolyline;
+        if (_propertyClosePolySeparator != null) _propertyClosePolySeparator.IsVisible = isPolyline || isAreaPolyline;
 
         _propertyCalibrateBtn ??= this.FindControl<Button>("PropertyCalibrateBtn");
         _propertyCalibrateSeparator ??= this.FindControl<Border>("PropertyCalibrateSeperator");
@@ -1427,7 +1431,10 @@ public partial class PreView
         // Show inline text editor for text annotations
         PropertyTextRow.IsVisible = isText;
         if (isText && item is TextAnnotation textItem)
+        {
             PropertyTextBox.Text = textItem.Text;
+            SyncFrameToggleButton(textItem.HasFrame);
+        }
 
         PropertyPanelCanvas.IsVisible = true;
 
@@ -1517,6 +1524,25 @@ public partial class PreView
         MuPDFRenderer.InvalidateVisual();
         MuPDFRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
+    }
+
+    private void SyncFrameToggleButton(bool hasFrame)
+    {
+        _propertyFrameToggleBtn ??= this.FindControl<Button>("PropertyFrameToggleBtn");
+        if (_propertyFrameToggleBtn == null) return;
+        _propertyFrameToggleBtn.BorderThickness = hasFrame ? new Thickness(2) : new Thickness(0);
+        _propertyFrameToggleBtn.BorderBrush = hasFrame ? Brushes.White : null;
+        ToolTip.SetTip(_propertyFrameToggleBtn, hasFrame ? "Remove background & border" : "Add background & border");
+    }
+
+    private void OnPropertyFrameToggle(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not TextAnnotation t) return;
+        StagePropertyUndoSnapshot(t);
+        t.HasFrame = !t.HasFrame;
+        SyncFrameToggleButton(t.HasFrame);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
     }
 
     private void OnPropertyFill(object sender, RoutedEventArgs e)
