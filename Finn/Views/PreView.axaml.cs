@@ -29,6 +29,7 @@ public partial class PreView : UserControl
         ScrollSliderSecondary.AddHandler(Slider.ValueChangedEvent, SecondaryPageNrSlider);
         PreviewGrid.AddHandler(Grid.SizeChangedEvent, PreviewSizeChanged);
         PropertyTextBox.AddHandler(KeyDownEvent, OnTextInputKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        CalibrationValueBox.AddHandler(KeyDownEvent, OnCalibrationKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, OnOpacitySliderChanged);
         PropertyOpacitySlider.AddHandler(Slider.ValueChangedEvent, OnPropertyOpacityChanged);
 

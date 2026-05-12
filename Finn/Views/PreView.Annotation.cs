@@ -879,8 +879,8 @@ public partial class PreView
             return;
         }
 
-        // Enter: close active polyline
-        if (e.Key == Key.Enter && MuPDFRenderer.HasActivePolyline)
+        // Enter: close active polyline (only when no overlay dialog is open)
+        if (e.Key == Key.Enter && MuPDFRenderer.HasActivePolyline && !CalibrationCanvas.IsVisible && !ColorInputCanvas.IsVisible)
         {
             // Area measurement needs at least 3 points to form a valid polygon.
             // If the user presses Enter with fewer, cancel silently instead of leaving a line.
@@ -897,7 +897,9 @@ public partial class PreView
         // the automatic switch to Select, like AutoCAD's "Enter = repeat last command".
         if (e.Key == Key.Enter
             && MuPDFRenderer.ActiveTool == InlineAnnotationTool.Select
-            && _lastUsedTool.HasValue)
+            && _lastUsedTool.HasValue
+            && !CalibrationCanvas.IsVisible
+            && !ColorInputCanvas.IsVisible)
         {
             ApplyToolSwitch(_lastUsedTool.Value);
             e.Handled = true;

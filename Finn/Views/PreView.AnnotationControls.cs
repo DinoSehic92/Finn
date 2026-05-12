@@ -18,6 +18,9 @@ public partial class PreView
     private StackPanel? _propertyDashRow;
     private StackPanel? _propertyOpacityRow;
     private Button? _propertyClosePolyBtn;
+    private Button? _propertyCalibrateBtn;
+    private Border? _propertyCalibrateSeparator;
+    private MeasurementAnnotation? _calibrationReferenceMeasurement;
 
     // Font-size undo coalescing: track the annotation and time of the last
     // size change so rapid +/- taps collapse into a single undo step.
@@ -1063,17 +1066,27 @@ public partial class PreView
         if (!double.TryParse(CalibrationValueBox.Text, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out double realMm) || realMm <= 0)
         {
-            // Keep dialog open and highlight the input field so the user can correct it
             CalibrationValueBox.BorderBrush = Avalonia.Media.Brushes.OrangeRed;
             CalibrationValueBox.Focus();
             CalibrationValueBox.SelectAll();
             return;
         }
-        CalibrationValueBox.BorderBrush = null; // restore default border
-        MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
+        CalibrationValueBox.BorderBrush = null;
+
+        if (_calibrationReferenceMeasurement != null)
+        {
+            MuPDFRenderer.CalibrateFromMeasurement(_calibrationReferenceMeasurement, realMm);
+            _calibrationReferenceMeasurement = null;
+        }
+        else
+        {
+            MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
+        }
+
         if (MuPDFRenderer.HasInconsistentMeasurementScales())
             MuPDFRenderer.NormalizeMeasurementScales();
         CalibrationCanvas.IsVisible = false;
+        _calibrationMode = false;
         ApplyToolSwitch(InlineAnnotationTool.Select);
         UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
@@ -1083,8 +1096,31 @@ public partial class PreView
     {
         CalibrationCanvas.IsVisible = false;
         _calibrationMode = false;
+        _calibrationReferenceMeasurement = null;
         UpdateAnnotationStatusHint();
         MuPDFRenderer.Focus();
+    }
+
+    private void OnPropertyCalibrate(object? sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not MeasurementAnnotation m) return;
+
+        // Pre-fill the input with the measurement's current displayed distance
+        // as a starting hint so the user can see what they're overriding.
+        double currentMm = m.GetDistance();
+        CalibrationPromptText.Text = "Enter the real-world distance for this measurement:";
+        CalibrationValueBox.Text = currentMm > 0
+            ? currentMm.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)
+            : "";
+
+        // Store the reference measurement so OnCalibrationApply knows which one to use.
+        _calibrationReferenceMeasurement = m;
+
+        ClosePropertyPanel(restoreFocus: false);
+        CenterCalibrationDialog();
+        CalibrationCanvas.IsVisible = true;
+        CalibrationValueBox.Focus();
+        CalibrationValueBox.SelectAll();
     }
 
     /// <summary>Centers the calibration dialog overlay in the preview area.</summary>
@@ -1358,6 +1394,11 @@ public partial class PreView
         _propertyClosePolyBtn ??= this.FindControl<Button>("PropertyClosePolyBtn");
         if (_propertyClosePolyBtn != null) _propertyClosePolyBtn.IsVisible = isPolyline || isAreaPolyline;
 
+        _propertyCalibrateBtn ??= this.FindControl<Button>("PropertyCalibrateBtn");
+        _propertyCalibrateSeparator ??= this.FindControl<Border>("PropertyCalibrateSeperator");
+        if (_propertyCalibrateBtn != null) _propertyCalibrateBtn.IsVisible = isMeasure;
+        if (_propertyCalibrateSeparator != null) _propertyCalibrateSeparator.IsVisible = isMeasure;
+
         if ((isPolyline || isAreaPolyline) && _propertyClosePolyBtn != null)
         {
             var poly = (InkStroke)item;
@@ -1398,7 +1439,7 @@ public partial class PreView
         }
     }
 
-    private void ClosePropertyPanel()
+    private void ClosePropertyPanel(bool restoreFocus = true)
     {
         PropertyPanelCanvas.IsVisible = false;
         // Restore the transparent background for normal (non-text-edit) usage
@@ -1406,7 +1447,7 @@ public partial class PreView
         _propertyPanelTarget = null;
         FlushPropertySessionUndo();
         UpdateAnnotationStatusHint();
-        MuPDFRenderer.Focus();
+        if (restoreFocus) MuPDFRenderer.Focus();
     }
 
     private void OnPropertyPanelBackgroundClick(object? sender, PointerPressedEventArgs e)

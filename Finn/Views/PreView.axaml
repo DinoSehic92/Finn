@@ -276,10 +276,7 @@
 										<Button ToolTip.Tip="Area Measure (A)" Width="26" Height="26" Padding="0" Tag="MeasureArea" Click="OnAnnotateToolSelect" BorderThickness="0">
 											<ic:SymbolIcon Symbol="SelectObject" IconVariant="Regular" FontSize="14"/>
 										</Button>
-										<Button ToolTip.Tip="Measurement calibration" Width="26" Height="26" Padding="0" Click="OnMeasureCalibrate" BorderThickness="0">
-											<ic:SymbolIcon Symbol="Scales" IconVariant="Regular" FontSize="14"/>
-										</Button>
-										<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
+
 										<Button ToolTip.Tip="Eraser (0)" Width="26" Height="26" Padding="0" Tag="Eraser" Click="OnAnnotateToolSelect" BorderThickness="0">
 											<ic:SymbolIcon Symbol="Eraser" IconVariant="Regular" FontSize="14"/>
 										</Button>
@@ -594,7 +591,7 @@
 					<StackPanel Spacing="6">
 						<TextBlock Name="CalibrationPromptText" Classes="body" Text="Enter real-world distance for the last measurement:" TextWrapping="Wrap" MaxWidth="220"/>
 						<StackPanel Orientation="Horizontal" Spacing="4">
-							<TextBox Name="CalibrationValueBox" Width="120" PlaceholderText="e.g. 210" KeyDown="OnCalibrationKeyDown"/>
+							<TextBox Name="CalibrationValueBox" Width="120" PlaceholderText="e.g. 210"/>
 							<TextBlock Classes="body" Text="mm" VerticalAlignment="Center"/>
 						</StackPanel>
 						<StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
@@ -733,9 +730,13 @@
 									<ic:SymbolIcon Symbol="ArrowCircleDown" IconVariant="Regular" FontSize="14"/>
 								</Button>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-                           <Button Classes="ghost" ToolTip.Tip="Delete annotation" Width="26" Height="26" Padding="0" Click="OnPropertyDelete" BorderThickness="0">
-									<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14" Foreground="#E05050"/>
-								</Button>
+						   <Button Classes="ghost" ToolTip.Tip="Delete annotation" Width="26" Height="26" Padding="0" Click="OnPropertyDelete" BorderThickness="0">
+								<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="14" Foreground="#E05050"/>
+							</Button>
+							<Border Name="PropertyCalibrateSeperator" Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7" IsVisible="False"/>
+							<Button Classes="ghost" Name="PropertyCalibrateBtn" IsVisible="False" ToolTip.Tip="Calibrate scale from this measurement" Width="26" Height="26" Padding="0" Click="OnPropertyCalibrate" BorderThickness="0">
+								<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
+							</Button>
 								</StackPanel>
 							</StackPanel>
 						</Border>

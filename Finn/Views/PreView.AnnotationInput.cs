@@ -679,9 +679,7 @@ public partial class PreView
                         or InlineAnnotationTool.RevisionCloud
                         or InlineAnnotationTool.Polyline
                         or InlineAnnotationTool.MeasureArea
-                        or InlineAnnotationTool.MeasureDistance
-                        or InlineAnnotationTool.Draw
-                        or InlineAnnotationTool.Highlight)
+                        or InlineAnnotationTool.MeasureDistance)
                 {
                     if (hoverMoved)
                         MuPDFRenderer.UpdateSnapPreview(hoverPdf.Value);
@@ -765,7 +763,7 @@ public partial class PreView
                     if (constrain)
                     {
                         var anchor = mv.Points[_draggingVertexIndex == 0 ? 1 : 0];
-                        target = AnnotatedPDFRenderer.ConstrainToAxis(anchor, target);
+                        target = AnnotatedPDFRenderer.ConstrainToFineAngle(anchor, target);
                     }
                     else
                     {
@@ -783,7 +781,7 @@ public partial class PreView
                         int adjIdx = _draggingVertexIndex > 0 ? _draggingVertexIndex - 1
                                                                 : (_draggingVertexIndex < pv.Points.Count - 1 ? _draggingVertexIndex + 1 : -1);
                         if (adjIdx >= 0)
-                            target = AnnotatedPDFRenderer.ConstrainToAxis(pv.Points[adjIdx], target);
+                            target = AnnotatedPDFRenderer.ConstrainToFineAngle(pv.Points[adjIdx], target);
                     }
                     else
                     {
@@ -904,13 +902,24 @@ public partial class PreView
         switch (tool)
         {
             case InlineAnnotationTool.MeasureDistance:
+                MuPDFRenderer.SetPolarCursorScreen(e.GetPosition(MuPDFRenderer));
                 MuPDFRenderer.UpdateMeasurementPreview(pdfPoint.Value, shift);
+                break;
+
+            case InlineAnnotationTool.Polyline:
+            case InlineAnnotationTool.MeasureArea:
+                MuPDFRenderer.SetPolarCursorScreen(e.GetPosition(MuPDFRenderer));
+                MuPDFRenderer.UpdatePolylinePreview(pdfPoint.Value, shift);
+                break;
+
+            case InlineAnnotationTool.Line:
+            case InlineAnnotationTool.Arrow:
+                MuPDFRenderer.SetPolarCursorScreen(e.GetPosition(MuPDFRenderer));
+                MuPDFRenderer.UpdateShape(pdfPoint.Value, shift);
                 break;
 
             case InlineAnnotationTool.Rectangle:
             case InlineAnnotationTool.Ellipse:
-            case InlineAnnotationTool.Line:
-            case InlineAnnotationTool.Arrow:
             case InlineAnnotationTool.RevisionCloud:
                 MuPDFRenderer.UpdateShape(pdfPoint.Value, shift);
                 break;

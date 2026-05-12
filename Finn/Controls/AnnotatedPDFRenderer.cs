@@ -110,6 +110,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             1.0, dashStyle: new DashStyle([3, 3], 0), lineCap: PenLineCap.Flat);
     private static readonly IPen s_snapVertexPen =
         new Pen(s_snapVertexPenBrush, 1.4, lineCap: PenLineCap.Round);
+    private static readonly IBrush s_polarBgBrush =
+        new SolidColorBrush(Color.FromArgb(200, 25, 30, 40)).ToImmutable();
+    private static readonly IPen s_polarBorderPen =
+        new Pen(new SolidColorBrush(Color.FromArgb(160, 16, 185, 129)).ToImmutable(), 0.8);
     private static readonly IPen s_rubberBandPen =
         new Pen(new SolidColorBrush(Color.FromArgb(160, 59, 130, 217)).ToImmutable(),
             1.0, dashStyle: new DashStyle([4, 3], 0), lineCap: PenLineCap.Flat);
@@ -175,19 +179,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private double? _snapGuideY;
     private const double DefaultMeasurementScale = 25.4 / 72.0;
 
-    private enum SnapKind { None, Vertex, Endpoint, Center, Bounds, Grid }
+    private enum SnapKind { None, Vertex, Endpoint, Center, Bounds, Grid, Midpoint }
     private SnapKind _snapKindX;
     private SnapKind _snapKindY;
     /// <summary>The vertex position being snapped (for indicator dot rendering).</summary>
     private Point? _snapVertexPos;
+
+    // Polar tracking: live angle + distance shown near the cursor while drawing
+    private double? _polarAngleDeg;
+    private double? _polarDistancePdf;
+    private Point? _polarCursorScreen; // screen-space cursor position for label placement
 
     private static int SnapPriority(SnapKind k) => k switch
     {
         SnapKind.Vertex => 1,
         SnapKind.Endpoint => 2,
         SnapKind.Center => 3,
-        SnapKind.Bounds => 4,
-        SnapKind.Grid => 5,
+        SnapKind.Midpoint => 4,
+        SnapKind.Bounds => 5,
+        SnapKind.Grid => 6,
         _ => 99
     };
 
@@ -731,21 +741,6 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <paramref name="origin"/> snaps to the nearest 0°/45°/90° axis.
     /// For rectangles/ellipses this produces perfect squares/circles.
     /// </summary>
-    internal static Point ConstrainToAxis(Point origin, Point end)
-    {
-        double dx = end.X - origin.X;
-        double dy = end.Y - origin.Y;
-        double len = Math.Sqrt(dx * dx + dy * dy);
-        if (len < 1) return end;
-
-        double angle = Math.Atan2(dy, dx);
-        // Snap to nearest 45° increment
-        double snapped = Math.Round(angle / (Math.PI / 4)) * (Math.PI / 4);
-        return new Point(
-            origin.X + len * Math.Cos(snapped),
-            origin.Y + len * Math.Sin(snapped));
-    }
-
     /// <summary>
     /// When Shift is held on lines/arrows, constrain the endpoint so the line
     /// snaps to the nearest 15° increment (0°, 15°, 30°, 45°, …).
@@ -931,7 +926,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (_activePolyline == null) return;
         if (constrainAxis && _activePolyline.Points.Count > 0)
-            pdfPoint = ConstrainToAxis(_activePolyline.Points[^1], pdfPoint);
+            pdfPoint = ConstrainToFineAngle(_activePolyline.Points[^1], pdfPoint);
         else
             pdfPoint = ComputeVertexSnap(_activePolyline, pdfPoint);
         _activePolyline.Points.Add(pdfPoint);
@@ -942,10 +937,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void UpdatePolylinePreview(Point pdfPoint, bool constrainAxis = false)
     {
         if (constrainAxis && _activePolyline != null && _activePolyline.Points.Count > 0)
-            pdfPoint = ConstrainToAxis(_activePolyline.Points[^1], pdfPoint);
+            pdfPoint = ConstrainToFineAngle(_activePolyline.Points[^1], pdfPoint);
         else if (_activePolyline != null)
             pdfPoint = ComputeVertexSnap(_activePolyline, pdfPoint);
         _polylinePreviewEnd = pdfPoint;
+        // Polar tracking: distance and angle from the last committed point
+        if (_activePolyline != null && _activePolyline.Points.Count > 0)
+            ComputePolar(_activePolyline.Points[^1], pdfPoint);
+        else
+            _polarAngleDeg = _polarDistancePdf = null;
         InvalidateVisual();
     }
 
@@ -994,6 +994,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _snapGuideX = null;
         _snapGuideY = null;
         _snapVertexPos = null;
+        _polarAngleDeg = null; _polarDistancePdf = null; _polarCursorScreen = null;
         InvalidateVisual();
     }
 
@@ -1281,6 +1282,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             pdfPoint = ComputeVertexSnap(_activeShape, pdfPoint);
         }
         _activeShape.End = pdfPoint;
+        // Polar tracking for line/arrow
+        if (_activeShape.ShapeType is InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
+                                   or InlineAnnotationTool.MeasureDistance)
+            ComputePolar(_activeShape.Start, pdfPoint);
+        else
+            _polarAngleDeg = _polarDistancePdf = null;
         InvalidateVisual();
     }
 
@@ -1313,6 +1320,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _snapGuideX = null;
         _snapGuideY = null;
         _snapVertexPos = null;
+        _polarAngleDeg = null; _polarDistancePdf = null; _polarCursorScreen = null;
         InvalidateVisual();
     }
 
@@ -1710,18 +1718,37 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             Point target;
             if (constrainAxis)
-                target = ConstrainToAxis(_activeMeasurement.Points[0], pdfPoint);
+                target = ConstrainToFineAngle(_activeMeasurement.Points[0], pdfPoint);
             else
-            {
                 target = ComputeVertexSnap(_activeMeasurement, pdfPoint);
-            }
             _activeMeasurement.Points[^1] = target;
+            ComputePolar(_activeMeasurement.Points[0], target);
+        }
+        else
+        {
+            _polarAngleDeg = _polarDistancePdf = null;
         }
         InvalidateVisual();
     }
 
+    /// <summary>Stores the current screen-space cursor position so the polar readout
+    /// label can be placed near the cursor during drawing.</summary>
+    public void SetPolarCursorScreen(Point screenPt) => _polarCursorScreen = screenPt;
+
+    private void ComputePolar(Point origin, Point end)
+    {
+        double dx = end.X - origin.X;
+        double dy = end.Y - origin.Y;
+        _polarDistancePdf = Math.Sqrt(dx * dx + dy * dy);
+        // 0° = right, positive = counter-clockwise (negate PDF's downward Y)
+        double angleDeg = Math.Atan2(-dy, dx) * 180.0 / Math.PI;
+        if (angleDeg < 0) angleDeg += 360.0;
+        _polarAngleDeg = angleDeg;
+    }
+
     public void EndMeasurement()
     {
+        _polarAngleDeg = null; _polarDistancePdf = null; _polarCursorScreen = null;
         if (_activeMeasurement != null && ActiveLayer != null && _activeMeasurement.Points.Count >= 2)
         {
             // Keep measurement scale consistent with calibrated project scale.
@@ -1754,8 +1781,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// and all future (and existing) measurements are rescaled accordingly.
     /// </summary>
     public void CalibrateFromLastMeasurement(double realDistanceMm)
-    {
-        // Find the last committed measurement on the current page.
+    {        // Find the last committed measurement on the current page.
         // Prefer the active layer (where the user just drew), then fall back to any layer.
         MeasurementAnnotation? last = null;
         if (ActiveLayer != null
@@ -1802,6 +1828,32 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                 }
             }
+        }
+        InvalidateVisual();
+        NotifyAnnotationChanged();
+    }
+
+    /// <summary>Calibrates the measurement scale using a specific existing measurement annotation
+    /// as the reference, rather than the last committed one.</summary>
+    public void CalibrateFromMeasurement(MeasurementAnnotation reference, double realDistanceMm)
+    {
+        if (reference.Points.Count < 2 || realDistanceMm <= 0) return;
+        double dx = reference.Points[1].X - reference.Points[0].X;
+        double dy = reference.Points[1].Y - reference.Points[0].Y;
+        double pdfDist = Math.Sqrt(dx * dx + dy * dy);
+        if (pdfDist < 0.01) return;
+
+        double newScale = realDistanceMm / pdfDist;
+        MeasurementScale = newScale;
+
+        foreach (var layer in Layers)
+        {
+            foreach (var list in layer.PageMeasurements.Values)
+                foreach (var m in list)
+                    m.Scale = newScale;
+            foreach (var list in layer.PageStrokes.Values)
+                foreach (var s in list)
+                    if (s.IsAreaMeasure) { s.AreaScale = newScale; s.InvalidatePen(); }
         }
         InvalidateVisual();
         NotifyAnnotationChanged();
@@ -2349,6 +2401,50 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    /// <summary>Draws a small icon
+    /// square = Bounds/Center, diamond = Vertex, triangle = Midpoint, circle = Grid.</summary>
+    private static void DrawSnapIcon(DrawingContext ctx, Point center, SnapKind kind,
+        double r, IBrush fill, IPen pen)
+    {
+        switch (kind)
+        {
+            case SnapKind.Vertex:
+                // Diamond
+                var dg = new StreamGeometry();
+                using (var dgc = dg.Open())
+                {
+                    dgc.BeginFigure(new Point(center.X, center.Y - r), true);
+                    dgc.LineTo(new Point(center.X + r, center.Y));
+                    dgc.LineTo(new Point(center.X, center.Y + r));
+                    dgc.LineTo(new Point(center.X - r, center.Y));
+                    dgc.EndFigure(true);
+                }
+                ctx.DrawGeometry(fill, pen, dg);
+                break;
+            case SnapKind.Midpoint:
+                // Upward-pointing triangle
+                var tg = new StreamGeometry();
+                using (var tgc = tg.Open())
+                {
+                    tgc.BeginFigure(new Point(center.X, center.Y - r), true);
+                    tgc.LineTo(new Point(center.X + r, center.Y + r));
+                    tgc.LineTo(new Point(center.X - r, center.Y + r));
+                    tgc.EndFigure(true);
+                }
+                ctx.DrawGeometry(fill, pen, tg);
+                break;
+            case SnapKind.Grid:
+                // Small circle
+                ctx.DrawEllipse(fill, pen, center, r * 0.75, r * 0.75);
+                break;
+            default:
+                // Square for Bounds / Center / None
+                ctx.DrawRectangle(fill, pen,
+                    new Rect(center.X - r, center.Y - r, r * 2, r * 2));
+                break;
+        }
+    }
+
     private void CollectSnapTargets(AnnotationLayer layer, object dragging,
         double dL, double dCx, double dR, double dT, double dCy, double dB,
         double rawDx, double rawDy,
@@ -2459,7 +2555,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private void SnapVertexAgainst(object target, double vx, double vy,
         ref double snapX, ref double snapY, ref double bestDistX, ref double bestDistY)
     {
-        // For polylines, snap to every individual vertex point.
+        // For polylines, snap to every individual vertex point AND segment midpoints.
         if (target is InkStroke ink && ink.IsPolyline && ink.Points.Count > 0)
         {
             foreach (var pt in ink.Points)
@@ -2468,6 +2564,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 if (IsBetterSnap(dx, bestDistX, SnapKind.Vertex, _snapKindX)) { bestDistX = dx; snapX = pt.X; _snapGuideX = pt.X; _snapKindX = SnapKind.Vertex; }
                 double dy = Math.Abs(vy - pt.Y);
                 if (IsBetterSnap(dy, bestDistY, SnapKind.Vertex, _snapKindY)) { bestDistY = dy; snapY = pt.Y; _snapGuideY = pt.Y; _snapKindY = SnapKind.Vertex; }
+            }
+            // Midpoints of each segment
+            int count = ink.IsClosed ? ink.Points.Count : ink.Points.Count - 1;
+            for (int i = 0; i < count; i++)
+            {
+                var a = ink.Points[i]; var b = ink.Points[(i + 1) % ink.Points.Count];
+                double mx = (a.X + b.X) * 0.5, my = (a.Y + b.Y) * 0.5;
+                double dx = Math.Abs(vx - mx);
+                if (IsBetterSnap(dx, bestDistX, SnapKind.Midpoint, _snapKindX)) { bestDistX = dx; snapX = mx; _snapGuideX = mx; _snapKindX = SnapKind.Midpoint; }
+                double dy = Math.Abs(vy - my);
+                if (IsBetterSnap(dy, bestDistY, SnapKind.Midpoint, _snapKindY)) { bestDistY = dy; snapY = my; _snapGuideY = my; _snapKindY = SnapKind.Midpoint; }
             }
             return;
         }
@@ -2492,7 +2599,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             var kind = i == 1 ? SnapKind.Center : SnapKind.Bounds;
             if (IsBetterSnap(dist, bestDistY, kind, _snapKindY)) { bestDistY = dist; snapY = ty; _snapGuideY = ty; _snapKindY = kind; }
         }
-    }
+        }
 
     private void SnapAgainst(object target, double dL, double dCx, double dR, double dT, double dCy, double dB,
         double rawDx, double rawDy, ref double bestDx, ref double bestDy,
@@ -4117,7 +4224,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             var guidePen = s_snapGuidePen;
             double dotRadius = 3.5;
-            double snapVertexRadius = 5.5;
+            double snapIconR = 5.5;
             if (_snapGuideX.HasValue)
             {
                 var sx = PdfToScreen(new Point(_snapGuideX.Value, 0), da, boundsSize).X;
@@ -4128,7 +4235,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 var sy = PdfToScreen(new Point(0, _snapGuideY.Value), da, boundsSize).Y;
                 context.DrawLine(guidePen, new Point(0, sy), new Point(boundsSize.Width, sy));
             }
-            // Draw indicator dots at snap intersection points
+            // Intersection dot at snap point
             if (_snapGuideX.HasValue && _snapGuideY.HasValue)
             {
                 var dotPos = PdfToScreen(new Point(_snapGuideX.Value, _snapGuideY.Value), da, boundsSize);
@@ -4145,11 +4252,37 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 context.DrawEllipse(s_snapBrush, null, dotPos, dotRadius, dotRadius);
             }
 
-            if (_snapVertexPos.HasValue && (_snapKindX == SnapKind.Vertex || _snapKindY == SnapKind.Vertex || _snapKindX == SnapKind.Grid || _snapKindY == SnapKind.Grid))
+            // ── Snap type indicator icon at the snapped vertex position ──
+            if (_snapVertexPos.HasValue)
             {
-                var snappedVertex = PdfToScreen(_snapVertexPos.Value, da, boundsSize);
-                context.DrawEllipse(s_snapVertexBrush, s_snapVertexPen, snappedVertex, snapVertexRadius, snapVertexRadius);
+                var sv = PdfToScreen(_snapVertexPos.Value, da, boundsSize);
+                var snapKind = _snapKindX != SnapKind.None ? _snapKindX : _snapKindY;
+                DrawSnapIcon(context, sv, snapKind, snapIconR, s_snapVertexBrush, s_snapVertexPen);
             }
+        }
+
+        // ── Polar tracking readout: distance + angle near the cursor ──
+        if (_polarAngleDeg.HasValue && _polarDistancePdf.HasValue && _polarCursorScreen.HasValue)
+        {
+            double distMm = _polarDistancePdf.Value * MeasurementScale;
+            string distStr = distMm >= 1000.0 ? $"{distMm / 1000.0:F2} m" : $"{distMm:F1} mm";
+            string label = $"{distStr}  ∠{_polarAngleDeg.Value:F1}°";
+
+            var typeface = new Avalonia.Media.Typeface(
+                Avalonia.Media.FontFamily.Default, Avalonia.Media.FontStyle.Normal,
+                Avalonia.Media.FontWeight.Normal);
+            var ft = new Avalonia.Media.FormattedText(label, System.Globalization.CultureInfo.InvariantCulture,
+                Avalonia.Media.FlowDirection.LeftToRight, typeface, 11, Avalonia.Media.Brushes.White);
+
+            double pw = ft.Width + 10, ph = ft.Height + 6;
+            double lx = _polarCursorScreen.Value.X + 14;
+            double ly = _polarCursorScreen.Value.Y - ph - 6;
+            if (lx + pw > boundsSize.Width) lx = _polarCursorScreen.Value.X - pw - 6;
+            if (ly < 0) ly = _polarCursorScreen.Value.Y + 14;
+
+            context.DrawRectangle(s_polarBgBrush, s_polarBorderPen,
+                new Rect(lx, ly, pw, ph), 3, 3);
+            context.DrawText(ft, new Point(lx + 5, ly + 3));
         }
 
         // Rubber-band marquee selection rectangle
