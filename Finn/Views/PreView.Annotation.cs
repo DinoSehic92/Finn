@@ -193,7 +193,7 @@ public partial class PreView
             InlineAnnotationTool.Draw => "Draw: drag to sketch freehand, right-click or Esc to cancel.",
             InlineAnnotationTool.Highlight => "Highlight: drag to mark up content, right-click or Esc to cancel.",
             InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
-            InlineAnnotationTool.Dot => "Dot: click once to place a dot annotation.",
+            InlineAnnotationTool.Dot => "Dot: click to place a dot annotation.",
             InlineAnnotationTool.Rectangle => "Rectangle: click once to start, move the mouse, click again to finish. Hold Shift for a square.",
             InlineAnnotationTool.Ellipse => "Ellipse: click once to start, move the mouse, click again to finish. Hold Shift for a circle.",
             InlineAnnotationTool.Line => "Line: click once to start, move the mouse, click again to finish. Hold Shift to constrain angles.",
@@ -221,8 +221,8 @@ public partial class PreView
                     ? "Arrow Comment: choose where the text box should go."
                     : MuPDFRenderer.HasActivePolyline
                         ? MuPDFRenderer.ActiveTool == InlineAnnotationTool.MeasureArea
-                            ? "Area Measure: keep clicking to add vertices, then click the first point or press Enter to close."
-                            : "Polyline: keep clicking to add vertices, then click the first point or press Enter to close."
+                            ? $"Area Measure: keep clicking to add vertices (min. 3), then click the first point or press Enter to close ({MuPDFRenderer.ActivePolylinePointCount} so far)."
+                            : "Polyline: keep clicking to add vertices, then click the first point or press Enter to close, right-click to finish open."
                         : MuPDFRenderer.HasActiveMeasurement
                             ? (_calibrationMode
                                 ? "Calibration: finish the reference line to enter the known distance."
@@ -621,8 +621,10 @@ public partial class PreView
         if (_annotationClipboard == null) return;
         if (_annotationClipboard is List<object> multiClipboard)
         {
+            MuPDFRenderer.BeginGroupAdd();
             foreach (var item in multiClipboard)
                 PasteSingleAnnotation(item);
+            MuPDFRenderer.EndGroupAdd();
         }
         else
         {

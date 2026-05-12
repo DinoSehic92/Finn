@@ -418,6 +418,7 @@ public partial class PreView
         // Block creation/mutation when the active layer is locked
         if (MuPDFRenderer.IsActiveLayerLocked)
         {
+            SetAnnotationStatusText("Active layer is locked — unlock it in the layer panel or choose another layer to annotate.");
             e.Pointer.Capture(null);
             return;
         }
@@ -545,6 +546,7 @@ public partial class PreView
 
             case InlineAnnotationTool.Dot:
                 MuPDFRenderer.PlaceDot(pdfPoint.Value);
+                ApplyToolSwitch(InlineAnnotationTool.Select);
                 e.Pointer.Capture(null);
                 break;
 

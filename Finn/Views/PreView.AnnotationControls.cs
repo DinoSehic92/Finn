@@ -323,10 +323,17 @@ public partial class PreView
 
     private void OnAnnotateRedo(object sender, RoutedEventArgs e) { MuPDFRenderer.Redo(); MuPDFRenderer.Focus(); }
 
-    private void OnAnnotateClear(object sender, RoutedEventArgs e)
+    private async void OnAnnotateClear(object sender, RoutedEventArgs e)
     {
         int count = MuPDFRenderer.CurrentPageAnnotationCount;
         if (count == 0) return;
+        var owner = Avalonia.Controls.TopLevel.GetTopLevel(this) as Avalonia.Controls.Window;
+        if (owner == null) return;
+        var mainVm = this.DataContext as Finn.ViewModels.MainViewModel
+                  ?? owner.DataContext as Finn.ViewModels.MainViewModel;
+        if (mainVm == null) return;
+        await mainVm.ConfirmDeleteDia(owner);
+        if (!mainVm.Confirmed) return;
         MuPDFRenderer.ClearPage();
     }
 
@@ -390,6 +397,11 @@ public partial class PreView
             MuPDFRenderer.StrokeColor = c;
             if (MuPDFRenderer.ActiveLayer != null)
                 MuPDFRenderer.ActiveLayer.Color = c;
+            // Apply to any selected annotations (same as palette color path)
+            ApplyColorToSelection(c);
+            // Clear any active palette highlight — custom color doesn't match a preset
+            SetActiveColorButton(null);
+            UpdateColorIndicator(c);
         }
         ColorInputCanvas.IsVisible = false;
         MuPDFRenderer.Focus();
@@ -556,21 +568,42 @@ public partial class PreView
                 UpdateActiveLayerLabel();
                 SyncRow();
             };
-            clearBtn.Click += (_, ev) =>
+            clearBtn.Click += async (_, ev) =>
             {
                 ev.Handled = true;
                 if (capturedLayer.TotalCount > 0)
                 {
+                    var owner2 = Avalonia.Controls.TopLevel.GetTopLevel(this) as Avalonia.Controls.Window;
+                    var mainVm2 = owner2 != null
+                        ? (this.DataContext as Finn.ViewModels.MainViewModel ?? owner2.DataContext as Finn.ViewModels.MainViewModel)
+                        : null;
+                    if (mainVm2 != null)
+                    {
+                        await mainVm2.ConfirmDeleteDia(owner2!);
+                        if (!mainVm2.Confirmed) return;
+                    }
                     renderer.ClearLayer(capturedLayer);
                     UpdateActiveLayerLabel();
                     SyncRow();
                 }
             };
-            removeBtn.Click += (_, ev) =>
+            removeBtn.Click += async (_, ev) =>
             {
                 ev.Handled = true;
                 if (canRemove)
                 {
+                    if (capturedLayer.TotalCount > 0)
+                    {
+                        var owner2 = Avalonia.Controls.TopLevel.GetTopLevel(this) as Avalonia.Controls.Window;
+                        var mainVm2 = owner2 != null
+                            ? (this.DataContext as Finn.ViewModels.MainViewModel ?? owner2.DataContext as Finn.ViewModels.MainViewModel)
+                            : null;
+                        if (mainVm2 != null)
+                        {
+                            await mainVm2.ConfirmDeleteDia(owner2!);
+                            if (!mainVm2.Confirmed) return;
+                        }
+                    }
                     renderer.RemoveLayer(capturedLayer);
                     UpdateActiveLayerLabel();
                     RebuildLayerPanel();
@@ -786,29 +819,33 @@ public partial class PreView
     {
         MuPDFRenderer.IsFilledMode = !MuPDFRenderer.IsFilledMode;
 
-        // Apply to selected closed shape (rect / ellipse / cloud)
-        if (_selectedAnnotation is ShapeAnnotation sh
-            && sh.ShapeType is InlineAnnotationTool.Rectangle
-                            or InlineAnnotationTool.Ellipse
-                            or InlineAnnotationTool.RevisionCloud)
+        // Apply to all fillable items in the current selection (matches color/width/dash multi-select behaviour)
+        var snaps = new List<object>();
+        bool anyChanged = false;
+        foreach (var selItem in _selectedAnnotations)
         {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
-            sh.IsFilled = MuPDFRenderer.IsFilledMode;
-            sh.InvalidatePen();
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
-            MuPDFRenderer.InvalidateVisual();
-            MuPDFRenderer.NotifyAnnotationChanged();
+            if (selItem is ShapeAnnotation sh
+                && sh.ShapeType is InlineAnnotationTool.Rectangle
+                                or InlineAnnotationTool.Ellipse
+                                or InlineAnnotationTool.RevisionCloud)
+            {
+                var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                if (snap != null) snaps.Add(snap);
+                sh.IsFilled = MuPDFRenderer.IsFilledMode;
+                sh.InvalidatePen();
+                anyChanged = true;
+            }
+            else if (selItem is InkStroke { IsPolyline: true, IsClosed: true } poly)
+            {
+                var snap = MuPDFRenderer.CapturePropertySnapshot(poly);
+                if (snap != null) snaps.Add(snap);
+                poly.IsFilled = MuPDFRenderer.IsFilledMode;
+                poly.InvalidatePen();
+                anyChanged = true;
+            }
         }
-        // Apply to selected closed polyline
-        else if (_selectedAnnotation is InkStroke { IsPolyline: true, IsClosed: true } poly)
-        {
-            var snap = MuPDFRenderer.CapturePropertySnapshot(poly);
-            poly.IsFilled = MuPDFRenderer.IsFilledMode;
-            poly.InvalidatePen();
-            if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
-            MuPDFRenderer.InvalidateVisual();
-            MuPDFRenderer.NotifyAnnotationChanged();
-        }
+        if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
+        if (anyChanged) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
 
         SyncFillToggleButton(MuPDFRenderer.IsFilledMode);
     }
@@ -941,39 +978,46 @@ public partial class PreView
 
     private void OnTextInputCommit(object sender, RoutedEventArgs e)
     {
-        if (_textPlacementPdfPoint.HasValue && !string.IsNullOrWhiteSpace(PropertyTextBox.Text))
+        if (_textPlacementPdfPoint.HasValue)
         {
             if (_editingTextAnnotation != null)
             {
+                // Allow empty text for edits — treat it as a delete request
+                if (string.IsNullOrWhiteSpace(PropertyTextBox.Text))
+                {
+                    bool isNewPlacement2 = false;
+                    CloseTextInput();
+                    MuPDFRenderer.DeleteAnnotation(_editingTextAnnotation);
+                    _selectedAnnotation = null;
+                    _selectedAnnotations.Clear();
+                    MuPDFRenderer.ClearSelectHighlight();
+                    MuPDFRenderer.InvalidateVisual();
+                    UpdateAnnotationStatusHint();
+                    return;
+                }
                 var snap = MuPDFRenderer.CapturePropertySnapshot(_editingTextAnnotation);
                 _editingTextAnnotation.Text = PropertyTextBox.Text;
-                // Reset to the default wrap width before auto-sizing so that
-                // editing with more text can wrap correctly, and editing with
-                // less text still shrinks the box to fit.
                 _editingTextAnnotation.MaxWidth = MuPDFRenderer.TextMaxWidth;
                 MuPDFRenderer.AutoSizeTextWidth(_editingTextAnnotation);
                 if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
             }
-            else if (_pendingStickyNote)
+            else if (!string.IsNullOrWhiteSpace(PropertyTextBox.Text))
             {
-                MuPDFRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
-            }
-            else if (_pendingArrowOrigin.HasValue)
-            {
-                MuPDFRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
-                    _textPlacementPdfPoint.Value, PropertyTextBox.Text);
-            }
-            else
-            {
-                MuPDFRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                // New placement: ignore empty input
+                if (_pendingStickyNote)
+                    MuPDFRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                else if (_pendingArrowOrigin.HasValue)
+                    MuPDFRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
+                        _textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                else
+                    MuPDFRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
             }
         }
 
         // Capture flags before CloseTextInput() nulls them.
-        bool isNewPlacement = _editingTextAnnotation == null && _textPlacementPdfPoint.HasValue;
+        bool isNewPlacement = _editingTextAnnotation == null && _textPlacementPdfPoint.HasValue
+                              && !string.IsNullOrWhiteSpace(PropertyTextBox.Text);
         CloseTextInput();
-        // For new annotations (not edits) return to Select so the placed annotation is
-        // immediately selectable without an extra click.
         if (isNewPlacement)
             ApplyToolSwitch(InlineAnnotationTool.Select);
         MuPDFRenderer.InvalidateVisual();
@@ -1016,13 +1060,19 @@ public partial class PreView
 
     private void OnCalibrationApply(object sender, RoutedEventArgs e)
     {
-        if (double.TryParse(CalibrationValueBox.Text, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out double realMm) && realMm > 0)
+        if (!double.TryParse(CalibrationValueBox.Text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double realMm) || realMm <= 0)
         {
-            MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
-            if (MuPDFRenderer.HasInconsistentMeasurementScales())
-                MuPDFRenderer.NormalizeMeasurementScales();
+            // Keep dialog open and highlight the input field so the user can correct it
+            CalibrationValueBox.BorderBrush = Avalonia.Media.Brushes.OrangeRed;
+            CalibrationValueBox.Focus();
+            CalibrationValueBox.SelectAll();
+            return;
         }
+        CalibrationValueBox.BorderBrush = null; // restore default border
+        MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
+        if (MuPDFRenderer.HasInconsistentMeasurementScales())
+            MuPDFRenderer.NormalizeMeasurementScales();
         CalibrationCanvas.IsVisible = false;
         ApplyToolSwitch(InlineAnnotationTool.Select);
         UpdateAnnotationStatusHint();
@@ -1248,7 +1298,7 @@ public partial class PreView
             UpdateFontSizeLabel();
         }
 
-        // Sync fill toggle for closed shapes
+        // Sync fill toggle for closed shapes and closed polylines
         if (_selectedAnnotation is ShapeAnnotation shape
             && shape.ShapeType is InlineAnnotationTool.Rectangle
                                or InlineAnnotationTool.Ellipse
@@ -1256,6 +1306,11 @@ public partial class PreView
         {
             MuPDFRenderer.IsFilledMode = shape.IsFilled;
             SyncFillToggleButton(shape.IsFilled);
+        }
+        else if (_selectedAnnotation is InkStroke { IsPolyline: true, IsClosed: true } closedPoly)
+        {
+            MuPDFRenderer.IsFilledMode = closedPoly.IsFilled;
+            SyncFillToggleButton(closedPoly.IsFilled);
         }
 
         UpdateCornerRadiusVisibility();
@@ -1299,7 +1354,7 @@ public partial class PreView
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
         _propertyOpacityRow ??= this.FindControl<StackPanel>("PropertyOpacityRow");
-        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = !isText;
+        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = true;
         _propertyClosePolyBtn ??= this.FindControl<Button>("PropertyClosePolyBtn");
         if (_propertyClosePolyBtn != null) _propertyClosePolyBtn.IsVisible = isPolyline || isAreaPolyline;
 

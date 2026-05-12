@@ -143,7 +143,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private IPen? _cachedCrosshairPen;
     private Color _cachedCursorColor;
 
-    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange, GroupMove }
+    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange, GroupMove, GroupAdd }
     private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> _redoStack = new();
 
@@ -154,6 +154,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private record ClearPageSnapshot(
         List<InkStroke>? Strokes, List<ShapeAnnotation>? Shapes,
         List<TextAnnotation>? Texts, List<MeasurementAnnotation>? Measurements);
+
+    /// <summary>Items collected during a <see cref="BeginGroupAdd"/>/<see cref="EndGroupAdd"/> batch.</summary>
+    private record GroupAddSnapshot(List<object> Items);
+
+    // Batch-add support: when active, Place* methods append to this list instead of pushing individual undo entries.
+    private bool _groupAddActive;
+    private List<object>? _groupAddItems;
 
     // Cursor preview position for pen-size visualization
     private Point? _cursorPdfPos;
@@ -1529,8 +1536,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         shapes.Add(shape);
         ActiveLayer.ShapeCount++;
         _totalShapeCount++;
-        _undoStack.Push((UndoType.Shape, _currentPage, null, ActiveLayer));
-        _redoStack.Clear();
+        if (_groupAddActive) { _groupAddItems?.Add(shape); }
+        else { _undoStack.Push((UndoType.Shape, _currentPage, null, ActiveLayer)); _redoStack.Clear(); }
         LastPlacedAnnotation = shape;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
@@ -1548,8 +1555,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         strokes.Add(stroke);
         ActiveLayer.StrokeCount++;
         _totalStrokeCount++;
-        _undoStack.Push((UndoType.Stroke, _currentPage, null, ActiveLayer));
-        _redoStack.Clear();
+        if (_groupAddActive) { _groupAddItems?.Add(stroke); }
+        else { _undoStack.Push((UndoType.Stroke, _currentPage, null, ActiveLayer)); _redoStack.Clear(); }
         LastPlacedAnnotation = stroke;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
@@ -1567,8 +1574,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         ms.Add(measurement);
         ActiveLayer.MeasurementCount++;
         _totalMeasurementCount++;
-        _undoStack.Push((UndoType.Measurement, _currentPage, null, ActiveLayer));
-        _redoStack.Clear();
+        if (_groupAddActive) { _groupAddItems?.Add(measurement); }
+        else { _undoStack.Push((UndoType.Measurement, _currentPage, null, ActiveLayer)); _redoStack.Clear(); }
         LastPlacedAnnotation = measurement;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
@@ -1586,12 +1593,37 @@ public class AnnotatedPDFRenderer : PDFRenderer
         texts.Add(annotation);
         ActiveLayer.TextCount++;
         _totalTextCount++;
-        _undoStack.Push((UndoType.Text, _currentPage, null, ActiveLayer));
-        _redoStack.Clear();
+        if (_groupAddActive) { _groupAddItems?.Add(annotation); }
+        else { _undoStack.Push((UndoType.Text, _currentPage, null, ActiveLayer)); _redoStack.Clear(); }
         LastPlacedAnnotation = annotation;
         ActiveLayer.RefreshStatus();
         NotifyAnnotationChanged();
         InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Begins a group-add batch. All <c>Place*</c> calls until <see cref="EndGroupAdd"/> are
+    /// collected into a single <see cref="UndoType.GroupAdd"/> undo entry so that Ctrl+Z
+    /// removes all pasted items at once.
+    /// </summary>
+    public void BeginGroupAdd()
+    {
+        _groupAddActive = true;
+        _groupAddItems = [];
+    }
+
+    /// <summary>
+    /// Ends a group-add batch and pushes a single undo entry for all items collected since
+    /// <see cref="BeginGroupAdd"/>. Does nothing if no items were placed.
+    /// </summary>
+    public void EndGroupAdd()
+    {
+        _groupAddActive = false;
+        var items = _groupAddItems;
+        _groupAddItems = null;
+        if (items == null || items.Count == 0) return;
+        _undoStack.Push((UndoType.GroupAdd, _currentPage, new GroupAddSnapshot(items), ActiveLayer));
+        _redoStack.Clear();
     }
 
     /// <summary>
@@ -2935,6 +2967,31 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    private void RemoveAnnotationFromLayer(int page, object item, AnnotationLayer? targetLayer = null)
+    {
+        var layer = targetLayer ?? ActiveLayer;
+        if (layer == null) return;
+        switch (item)
+        {
+            case TextAnnotation t:
+                if (layer.PageTexts.TryGetValue(page, out var texts) && texts.Remove(t))
+                { layer.TextCount = Math.Max(0, layer.TextCount - 1); _totalTextCount = Math.Max(0, _totalTextCount - 1); }
+                break;
+            case ShapeAnnotation s:
+                if (layer.PageShapes.TryGetValue(page, out var shapes) && shapes.Remove(s))
+                { layer.ShapeCount = Math.Max(0, layer.ShapeCount - 1); _totalShapeCount = Math.Max(0, _totalShapeCount - 1); }
+                break;
+            case MeasurementAnnotation m:
+                if (layer.PageMeasurements.TryGetValue(page, out var ms) && ms.Remove(m))
+                { layer.MeasurementCount = Math.Max(0, layer.MeasurementCount - 1); _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1); }
+                break;
+            case InkStroke ink:
+                if (layer.PageStrokes.TryGetValue(page, out var strokes) && strokes.Remove(ink))
+                { layer.StrokeCount = Math.Max(0, layer.StrokeCount - 1); _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1); }
+                break;
+        }
+    }
+
     private static bool HitTestStroke(InkStroke stroke, Point pt, double threshold)
     {
         // Polylines have sparse points with straight segments — test segment proximity
@@ -3212,6 +3269,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     item = new GroupMoveSnapshot(redoItems);
                     removed = true;
+                }
+                break;
+            case UndoType.GroupAdd:
+                if (data is GroupAddSnapshot groupAddSnap && groupAddSnap.Items.Count > 0)
+                {
+                    // Remove every item that was placed as part of the group
+                    foreach (var addedItem in groupAddSnap.Items)
+                        RemoveAnnotationFromLayer(page, addedItem, layer);
+                    item = groupAddSnap;
+                    removed = true;
+                    ClearSelectHighlight();
                 }
                 break;
             case UndoType.Delete:
@@ -3535,6 +3603,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         }
                     }
                     _undoStack.Push((UndoType.GroupPropertyChange, page, undoGroupSnaps, entryLayer));
+                    layer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.GroupAdd:
+                if (item is GroupAddSnapshot groupAddRedo && groupAddRedo.Items.Count > 0)
+                {
+                    foreach (var addedItem in groupAddRedo.Items)
+                        RestoreDeletedAnnotation(page, addedItem, layer);
+                    _undoStack.Push((UndoType.GroupAdd, page, groupAddRedo, entryLayer));
                     layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
