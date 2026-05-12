@@ -2389,8 +2389,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// and applies grid-snap when <see cref="SnapToGrid"/> is enabled.
     /// Returns the snapped position. Sets _snapGuideX/_snapGuideY for guide rendering.
     /// </summary>
-    public Point ComputeVertexSnap(object owner, Point vertex, double threshold = 5.0)
+    public Point ComputeVertexSnap(object owner, Point vertex, double threshold = -1)
     {
+        // -1 = auto: compute a zoom-adaptive threshold from a fixed screen-pixel radius.
+        // This keeps the snap "bubble" a constant visual size regardless of zoom level,
+        // so snapping feels less aggressive when zoomed out and more precise when zoomed in.
+        if (threshold < 0)
+        {
+            const double snapScreenPx  = 8.0;  // desired snap radius in screen pixels
+            const double snapMinPdfPts = 1.5;  // never go below this in PDF units (prevents snap disappearing when very zoomed out)
+            threshold = Math.Max(snapMinPdfPts, ScreenToPdfDistance(snapScreenPx));
+        }
         _snapGuideX = null;
         _snapGuideY = null;
         _snapKindX = SnapKind.None;
