@@ -31,8 +31,21 @@ public class TextAnnotation
         set { _fontSize = value; InvalidateCachedBounds(); }
     }
 
-    public Color Color { get; set; } = Color.FromRgb(214, 64, 69);
-    public double Opacity { get; set; } = 1.0;
+    private Color _color = Color.FromRgb(214, 64, 69);
+    private double _opacity = 1.0;
+    private Point? _arrowOrigin;
+
+    public Color Color
+    {
+        get => _color;
+        set { _color = value; InvalidateArrowPen(); }
+    }
+
+    public double Opacity
+    {
+        get => _opacity;
+        set { _opacity = value; InvalidateArrowPen(); }
+    }
 
     /// <summary>Font family name. Empty or null uses the system default.</summary>
     public string FontFamily
@@ -45,7 +58,11 @@ public class TextAnnotation
     /// When set, an arrow is drawn from this anchor point to <see cref="Position"/>.
     /// Used by the ArrowText tool. Null for plain text annotations.
     /// </summary>
-    public Point? ArrowOrigin { get; set; }
+    public Point? ArrowOrigin
+    {
+        get => _arrowOrigin;
+        set { _arrowOrigin = value; InvalidateArrowPen(); }
+    }
 
     /// <summary>
     /// Maximum width (PDF units) for word wrapping. 0 = no wrapping (single line).
@@ -73,8 +90,8 @@ public class TextAnnotation
     public bool IsLabel { get; set; }
 
     /// <summary>
-    /// When true (default), the annotation is rendered with a white background, a colored
-    /// left-accent bar, and a subtle border — the standard "stamp" look.
+    /// When true (default), the annotation is rendered with a tinted-glass background
+    /// (semi-transparent fill derived from the annotation color) and a colored border frame.
     /// When false, only the text is drawn with no background or border, so it appears as
     /// plain text overlaid directly on the page.
     /// </summary>

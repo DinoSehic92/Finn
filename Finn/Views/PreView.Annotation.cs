@@ -317,6 +317,11 @@ public partial class PreView
             TextAnnotation t => t.FontSize,
             _ => null
         };
+        bool? sourceHasFrame = source switch
+        {
+            TextAnnotation t => t.HasFrame,
+            _ => null
+        };
 
         var snapshot = MuPDFRenderer.CapturePropertySnapshot(target);
         if (snapshot != null)
@@ -351,6 +356,7 @@ public partial class PreView
             case TextAnnotation text:
                 if (sourceColor.HasValue) text.Color = sourceColor.Value;
                 if (sourceOpacity.HasValue) text.Opacity = sourceOpacity.Value;
+                if (sourceHasFrame.HasValue) text.HasFrame = sourceHasFrame.Value;
                 if (sourceFontSize.HasValue)
                 {
                     text.FontSize = sourceFontSize.Value;
@@ -646,6 +652,7 @@ public partial class PreView
                     Opacity = src.Opacity, FontFamily = src.FontFamily,
                     IsStickyNote = src.IsStickyNote,
                     IsLabel = src.IsLabel,
+                    HasFrame = src.HasFrame,
                     MaxWidth = src.MaxWidth,
                     ArrowOrigin = src.ArrowOrigin.HasValue
                         ? new Point(src.ArrowOrigin.Value.X + offset, src.ArrowOrigin.Value.Y + offset)

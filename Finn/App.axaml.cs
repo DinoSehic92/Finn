@@ -88,7 +88,7 @@ public partial class App : Application
                     vm.UI.FromStorage(ui);
             }
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to load UISettings: {ex}"); }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "Failed to load UISettings"); }
 
         // Suppress individual property-changed theme updates while we apply the
         // full theme once — avoids N redundant ApplyTheme calls during FromStorage.

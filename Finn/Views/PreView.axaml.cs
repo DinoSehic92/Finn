@@ -346,6 +346,7 @@ public partial class PreView : UserControl
         if (layers != MuPDFRenderer.Layers)
         {
             MuPDFRenderer.SetLayers(layers);
+            MuPDFRenderer.ValidateAndRepairAnnotations();
             return true;
         }
         return false;

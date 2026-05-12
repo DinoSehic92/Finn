@@ -1704,7 +1704,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeMeasurement = new MeasurementAnnotation
         {
-            Color = Color.FromRgb(214, 64, 69),
+            Color = StrokeColor,
             Scale = MeasurementScale,
             Points = [pdfPoint, pdfPoint]
         };
@@ -2202,6 +2202,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 t.Color = snap.Color; t.Opacity = snap.Opacity;
                 t.FontSize = snap.FontSize; t.Text = snap.Text;
                 t.MaxWidth = snap.MaxWidth; t.HasFrame = snap.HasFrame;
+                t.InvalidateArrowPen();
                 break;
             case MeasurementAnnotation m:
                 m.Color = snap.Color;
@@ -4954,10 +4955,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         if (minX >= maxX) return; // no measurable text
 
-        float pad = 5;
-        float accentW = 4;
-        var boxRect = new Rect(minX - pad - accentW, minY - pad,
-            (maxX - minX) + pad * 2 + accentW, (maxY - minY) + pad * 2);
+        // Use the same pad as the tinted-glass frame so the arrow connects to the frame edge
+        float pad = 6;
+        var boxRect = new Rect(minX - pad, minY - pad,
+            (maxX - minX) + pad * 2, (maxY - minY) + pad * 2);
 
         var connection = ClosestSideCenter(boxRect, arrowTip);
 
