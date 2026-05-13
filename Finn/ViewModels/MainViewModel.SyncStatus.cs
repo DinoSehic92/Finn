@@ -296,10 +296,13 @@ namespace Finn.ViewModels
                             {
                                 // 1. App-side check: has the user removed files from the app
                                 //    since the last sync? (disk untouched, so count check would miss this)
-                                bool appChanged = currentAppPaths.Count != baselinePaths.Count
-                                    || currentAppPaths.Any(p => !baselinePaths.Contains(p));
+                                //    If currentAppPaths is a strict superset of baselinePaths it means
+                                //    version paths were added (e.g. by auto-grouping) that the old
+                                //    baseline didn't record — treat as in-sync, baseline will heal below.
+                                bool appRemoved = currentAppPaths.Count < baselinePaths.Count
+                                    || baselinePaths.Any(p => !currentAppPaths.Contains(p));
 
-                                if (appChanged)
+                                if (appRemoved)
                                 {
                                     int diff = currentAppPaths.Count - baselinePaths.Count;
                                     string appSummary = diff < 0
@@ -374,6 +377,20 @@ namespace Finn.ViewModels
 
                 foreach (var (projectName, folder, summary) in outOfSync)
                     TryAddPendingSyncEntry(SyncStatusEntry.FromFolder(folder, projectName, summary));
+
+                // Heal baselines where auto-grouping added version paths that the old
+                // baseline didn't record. currentAppPaths is already a superset so the
+                // folder is in-sync — just update SyncedPaths so next startup is clean.
+                foreach (var (_, folder, baselinePaths, currentAppPaths, _) in pairs)
+                {
+                    if (baselinePaths == null || currentAppPaths == null) continue;
+                    if (currentAppPaths.Count > baselinePaths.Count
+                        && baselinePaths.All(p => currentAppPaths.Contains(p)))
+                    {
+                        folder.SyncedPaths = currentAppPaths.ToList();
+                    }
+                }
+
                 RaiseSyncStatusChanged();
             }
 
@@ -695,9 +712,19 @@ namespace Finn.ViewModels
                 return folder.Mode switch
                 {
                     SyncFolderMode.ProjectFiles =>
-                        project.StoredFiles.Count(f =>
-                            f.IsFromFolder
-                            && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase)),
+                        project.StoredFiles
+                            .Where(f => f.IsFromFolder
+                                && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
+                            .SelectMany(f =>
+                            {
+                                string root = folderPath.EndsWith(Path.DirectorySeparatorChar)
+                                    ? folderPath : folderPath + Path.DirectorySeparatorChar;
+                                return new[] { f.Sökväg }.Concat(
+                                    f.Versions
+                                        .Select(v => v.Sökväg)
+                                        .Where(p => p.StartsWith(root, StringComparison.OrdinalIgnoreCase)));
+                            })
+                            .Count(),
 
                     SyncFolderMode.AttachedFiles =>
                         project.StoredFiles.Count(f =>
@@ -730,13 +757,23 @@ namespace Finn.ViewModels
             private static List<string> CollectSyncedPaths(FolderData folder, Model.ProjectData project)
             {
                 string folderPath = folder.Path;
+                string folderRoot = folderPath.EndsWith(Path.DirectorySeparatorChar)
+                    ? folderPath
+                    : folderPath + Path.DirectorySeparatorChar;
+
                 return folder.Mode switch
                 {
                     SyncFolderMode.ProjectFiles =>
                         project.StoredFiles
                             .Where(f => f.IsFromFolder
                                 && string.Equals(f.SyncFolder, folderPath, StringComparison.OrdinalIgnoreCase))
-                            .Select(f => f.Sökväg)
+                            .SelectMany(f =>
+                                // Include the canonical path plus any version paths that
+                                // live inside the same folder (auto-grouped versions).
+                                new[] { f.Sökväg }.Concat(
+                                    f.Versions
+                                        .Select(v => v.Sökväg)
+                                        .Where(p => p.StartsWith(folderRoot, StringComparison.OrdinalIgnoreCase))))
                             .ToList(),
 
                     SyncFolderMode.AttachedFiles =>

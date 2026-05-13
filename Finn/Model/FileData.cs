@@ -125,6 +125,18 @@ namespace Finn.Model
         private bool _isCached;
         private bool _isGroup;
         private bool _isDesignatedParent;
+        private bool _isAutoGrouped;
+
+        /// <summary>
+        /// True when this file's version group was created automatically by the
+        /// version-suffix import logic. Persisted so Reset remains reliable after
+        /// save and reload. False for manually created version groups.
+        /// </summary>
+        public bool IsAutoGrouped
+        {
+            get => _isAutoGrouped;
+            set => SetProperty(ref _isAutoGrouped, value);
+        }
 
         /// <summary>
         /// Name of the parent file this is attached to (serialized).
@@ -803,6 +815,10 @@ namespace Finn.Model
                 OnPropertyChanged(nameof(OriginalPath));
                 OnPropertyChanged(nameof(IsOnOriginalVersion));
             }
+
+            // When no auto-grouped versions remain the canonical flag is stale — clear it.
+            if (IsAutoGrouped && !_versions.Any(v => v.IsAutoGrouped))
+                IsAutoGrouped = false;
         }
 
         public bool IsValidPdf()
@@ -939,7 +955,31 @@ namespace Finn.Model
             {
                 var order = FileVersionData.LabelOrder;
                 var sorted = _versions
-                    .OrderBy(v => order.TryGetValue(v.Label, out int idx) ? idx : int.MaxValue)
+                    .OrderBy(v =>
+                    {
+                        // Known predefined labels sort first by their fixed index
+                        if (order.TryGetValue(v.Label, out int idx)) return (0, idx, 0, string.Empty);
+
+                        // Auto-generated labels: detect a pattern of <prefix><number> or <prefix><letter>
+                        // e.g. "v1", "v2", "v10", "RevA", "RevB"
+                        var m = System.Text.RegularExpressions.Regex.Match(
+                            v.Label, @"^(?<pfx>.*?)(?<num>\d+|[A-Z])$",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (m.Success)
+                        {
+                            string pfx = m.Groups["pfx"].Value;
+                            string raw = m.Groups["num"].Value;
+                            int num = raw.Length == 1 && char.IsLetter(raw[0])
+                                ? char.ToUpperInvariant(raw[0]) - 'A' + 1
+                                : int.Parse(raw);
+                            // Group by prefix (so v* and Rev* each sort within themselves),
+                            // then numerically within the group
+                            return (1, 0, num, pfx);
+                        }
+
+                        // Unrecognised labels sort last, alphabetically
+                        return (2, 0, 0, v.Label);
+                    })
                     .ThenBy(v => v.Label, StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 for (int i = 0; i < sorted.Count; i++)

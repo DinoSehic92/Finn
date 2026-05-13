@@ -210,7 +210,13 @@ namespace Finn.ViewModels
                         }
 
                         if (newFiles.Count > 0)
+                        {
                             CurrentProject!.AddFiles(newFiles);
+                            var newPaths = new HashSet<string>(
+                                newFiles.Select(f => f.Sökväg),
+                                StringComparer.OrdinalIgnoreCase);
+                            AutoGroupVersions(CurrentProject!, newPaths);
+                        }
                     }
                     else
                     {
@@ -239,6 +245,267 @@ namespace Finn.ViewModels
             }
 
             // Theme/resource updates handled by UIService
+
+            /// <summary>
+            /// Scans eligible top-level files in <paramref name="project"/> and groups
+            /// those that share a base name and differ only by a version suffix.
+            /// Files are only ever grouped within the same directory — cross-directory
+            /// merges are never performed regardless of name similarity.
+            /// When <paramref name="newFilePaths"/> is supplied (import / folder sync)
+            /// only directories that contain at least one newly-added file are considered,
+            /// so an import cannot reshuffle pre-existing files in unrelated directories.
+            /// Pass <c>null</c> for Reapply, which is intentionally project-wide.
+            /// </summary>
+            private static void AutoGroupVersions(ProjectData project,
+                IReadOnlySet<string>? newFilePaths = null)
+            {
+                string prefix = project.VersionSuffix;
+                if (string.IsNullOrEmpty(prefix)) return;
+
+                // Build regex: <base><separator><prefix><digits|single-letter>  (case-insensitive)
+                // A separator (space, dash, or underscore) is required before the prefix.
+                var suffixPattern = new System.Text.RegularExpressions.Regex(
+                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d+|[A-Z])$",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // Only consider top-level, non-grouped, not-yet-versioned files.
+                var candidates = project.StoredFiles
+                    .Where(f => !f.IsAppendedFile && !f.IsGroup && !f.HasVersions)
+                    .ToList();
+
+                // When a new-file set is provided restrict to directories that contain
+                // at least one newly-added file.  This prevents a small import from
+                // reshuffling pre-existing files in unrelated parts of the project.
+                if (newFilePaths != null && newFilePaths.Count > 0)
+                {
+                    var allowedDirs = new HashSet<string>(
+                        newFilePaths.Select(p => System.IO.Path.GetDirectoryName(p) ?? string.Empty),
+                        StringComparer.OrdinalIgnoreCase);
+
+                    candidates = candidates
+                        .Where(f => allowedDirs.Contains(
+                            System.IO.Path.GetDirectoryName(f.Sökväg) ?? string.Empty))
+                        .ToList();
+                }
+
+                // Group candidates by directory — files in different directories are
+                // never auto-grouped together regardless of base-name similarity.
+                var byDirectory = candidates
+                    .GroupBy(f => System.IO.Path.GetDirectoryName(f.Sökväg) ?? string.Empty,
+                        StringComparer.OrdinalIgnoreCase);
+
+                bool anyGrouped = false;
+
+                foreach (var dirGroup in byDirectory)
+                {
+                    var dirCandidates = dirGroup.ToList();
+
+                    // Map base-name → list of (file, version-number) within this directory
+                    var groups = new Dictionary<string, List<(FileData File, int Version)>>(
+                        StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var file in dirCandidates)
+                    {
+                        var m = suffixPattern.Match(file.Namn);
+                        if (!m.Success) continue;
+
+                        string baseName = m.Groups["base"].Value.TrimEnd();
+                        string raw = m.Groups["num"].Value;
+                        // Letters → 1-based index (A=1, B=2, …, Z=26); digits → parsed directly
+                        int ver = raw.Length == 1 && char.IsLetter(raw[0])
+                            ? char.ToUpperInvariant(raw[0]) - 'A' + 1
+                            : int.Parse(raw);
+
+                        if (!groups.TryGetValue(baseName, out var list))
+                        {
+                            list = new List<(FileData, int)>();
+                            groups[baseName] = list;
+                        }
+                        list.Add((file, ver));
+                    }
+
+                    if (groups.Count == 0) continue;
+
+                    // Build a name→files grouped lookup for unsuffixed-original detection.
+                    // Grouped rather than a flat dictionary so duplicate display names
+                    // (files with the same name in different sub-paths) never crash.
+                    var candidatesByName = dirCandidates
+                        .GroupBy(f => f.Namn, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var kvp in groups)
+                    {
+                        string baseName = kvp.Key;
+                        var group = kvp.Value;
+
+                        // Only treat as unsuffixed canonical when there is exactly one match —
+                        // ambiguous duplicates are skipped rather than guessed.
+                        candidatesByName.TryGetValue(baseName, out var unsuffixedMatches);
+                        bool hasUnsuffixed = unsuffixedMatches?.Count == 1;
+                        FileData? unsuffixedFile = hasUnsuffixed ? unsuffixedMatches![0] : null;
+
+                        // Need at least 2 suffixed files, OR 1 suffixed + an unambiguous unsuffixed sibling
+                        if (group.Count < 2 && !hasUnsuffixed) continue;
+
+                        // Unsuffixed file always wins as canonical; otherwise highest version wins
+                        FileData canonicalFile = hasUnsuffixed
+                            ? unsuffixedFile!
+                            : group.OrderByDescending(x => x.Version).First().File;
+
+                        // Tag the canonical so Reset can distinguish auto groups from manual ones
+                        canonicalFile.IsAutoGrouped = true;
+
+                        foreach (var (otherFile, _) in group)
+                        {
+                            if (otherFile == canonicalFile) continue;
+
+                            // Re-derive the label from the actual file name so it exactly
+                            // matches what is on disk (preserves letter casing, e.g. "RevA")
+                            var labelMatch = suffixPattern.Match(otherFile.Namn);
+                            string label = labelMatch.Success
+                                ? prefix + labelMatch.Groups["num"].Value
+                                : prefix + "?";
+
+                            canonicalFile.AddVersion(otherFile.Sökväg, label);
+
+                            // Mark the version so ResetVersionGrouping can distinguish it
+                            // from manually-added versions and only dissolve auto-grouped ones.
+                            var addedVersion = canonicalFile.Versions
+                                .FirstOrDefault(v => string.Equals(v.Sökväg, otherFile.Sökväg,
+                                    StringComparison.OrdinalIgnoreCase));
+                            if (addedVersion != null)
+                                addedVersion.IsAutoGrouped = true;
+
+                            project.StoredFiles.Remove(otherFile);
+                        }
+
+                        anyGrouped = true;
+                    }
+                }
+
+                if (anyGrouped)
+                    project.SetFiletypeList();
+            }
+
+            /// <summary>
+            /// Returns the number of unversioned top-level files that match the project's
+            /// current version suffix and would be eligible for auto-grouping on Reapply.
+            /// </summary>
+            public static int CountAutoGroupCandidates(ProjectData project)
+            {
+                string prefix = project.VersionSuffix;
+                if (string.IsNullOrEmpty(prefix)) return 0;
+
+                var pattern = new System.Text.RegularExpressions.Regex(
+                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d+|[A-Z])$",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                return project.StoredFiles
+                    .Count(f => !f.IsAppendedFile && !f.IsGroup && !f.HasVersions
+                                && pattern.IsMatch(f.Namn));
+            }
+
+            /// <summary>
+            /// Returns the number of canonical files that carry auto-grouped (or legacy
+            /// pre-flag) versions and would be dissolved by <see cref="ResetVersionGrouping"/>.
+            /// </summary>
+            public static int CountAutoGroupReset(ProjectData project) =>
+                project.StoredFiles.Count(f =>
+                    !f.IsAppendedFile && !f.IsGroup && f.HasVersions &&
+                    // Flagged auto groups
+                    (f.IsAutoGrouped ||
+                    // Legacy pre-flag groups: no flags set on file or any version
+                     (!f.IsAutoGrouped && f.Versions.All(v => !v.IsAutoGrouped))));
+
+            /// <summary>
+            /// Re-applies version grouping to all flat (unversioned) top-level files
+            /// in <paramref name="project"/> using the current <see cref="ProjectData.VersionSuffix"/>.
+            /// Operates across the whole project (no directory restriction).
+            /// Already-versioned files are left untouched.
+            /// </summary>
+            public void ReapplyVersionGrouping(ProjectData project)
+            {
+                AutoGroupVersions(project, newFilePaths: null); // null = project-wide
+                UpdateFilter();
+                BuildTreeData();
+                MarkDirty();
+            }
+
+            /// <summary>
+            /// Dissolves auto-grouped versions in <paramref name="project"/>: each version
+            /// entry flagged with <see cref="FileVersionData.IsAutoGrouped"/> is re-instated
+            /// as its own top-level <see cref="FileData"/> entry. Manually added versions on
+            /// the same canonical file are left intact.
+            /// <para>
+            /// Legacy groups created before the <c>IsAutoGrouped</c> flag was introduced
+            /// (both the canonical file and all its version entries carry <c>false</c>) are
+            /// also dissolved, because no manual versions could have existed in that era.
+            /// </para>
+            /// <see cref="FileData.IsAutoGrouped"/> is cleared only when no auto-grouped
+            /// version entries remain on the canonical file.
+            /// </summary>
+            public void ResetVersionGrouping(ProjectData project)
+            {
+                // Legacy retag pass: files that have versions but neither the canonical flag
+                // nor any individual version flag set predate the IsAutoGrouped feature.
+                // Since manual version groups did not exist before the feature, it is safe to
+                // treat all of their version entries as auto-grouped so they can be dissolved.
+                foreach (var f in project.StoredFiles
+                    .Where(f => !f.IsAppendedFile && !f.IsGroup && f.HasVersions
+                                && !f.IsAutoGrouped
+                                && f.Versions.All(v => !v.IsAutoGrouped))
+                    .ToList())
+                {
+                    f.IsAutoGrouped = true;
+                    foreach (var v in f.Versions)
+                        v.IsAutoGrouped = true;
+                }
+
+                var filesToProcess = project.StoredFiles
+                    .Where(f => !f.IsAppendedFile && !f.IsGroup && f.HasVersions && f.IsAutoGrouped)
+                    .ToList();
+
+                foreach (var canonical in filesToProcess)
+                {
+                    // Only dissolve versions that were created by auto-grouping.
+                    // Manual versions attached by the user are left in place.
+                    var autoVersions = canonical.Versions
+                        .Where(v => v.IsAutoGrouped)
+                        .ToList();
+
+                    if (autoVersions.Count == 0) continue;
+
+                    // Restore each auto-grouped version as a separate flat FileData
+                    foreach (var ver in autoVersions)
+                    {
+                        var restored = new FileData
+                        {
+                            Namn         = System.IO.Path.GetFileNameWithoutExtension(ver.Sökväg),
+                            Sökväg       = ver.Sökväg,
+                            Filtyp       = canonical.Filtyp,
+                            Uppdrag      = canonical.Uppdrag,
+                            Tagg         = canonical.Tagg,
+                            Datum        = canonical.Datum,
+                            SyncFolder   = canonical.SyncFolder,
+                            IsFromFolder = canonical.IsFromFolder,
+                        };
+                        project.StoredFiles.Add(restored);
+                    }
+
+                    foreach (var ver in autoVersions)
+                        canonical.RemoveVersion(ver);
+
+                    // Clear the canonical flag only when all auto-grouped versions are gone.
+                    // If manual versions remain, the file stays versioned.
+                    if (!canonical.Versions.Any(v => v.IsAutoGrouped))
+                        canonical.IsAutoGrouped = false;
+                }
+
+                project.SetFiletypeList();
+                UpdateFilter();
+                BuildTreeData();
+                MarkDirty();
+            }
 
             public void SetCategory(string category)
             {

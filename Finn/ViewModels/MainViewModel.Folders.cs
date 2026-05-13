@@ -494,6 +494,13 @@ namespace Finn.ViewModels
 
                 // Classify additions: skip duplicates (adopt orphans), match
                 // existing names as version candidates, or treat as new files.
+                // Also skip paths that are already registered as versions on any
+                // project file — they were auto-grouped on import and are tracked
+                // even though they don't appear as top-level StoredFiles entries.
+                var versionPaths = new HashSet<string>(
+                    CurrentProject!.StoredFiles.SelectMany(f => f.Versions.Select(v => v.Sökväg)),
+                    StringComparer.OrdinalIgnoreCase);
+
                 var additions = new List<FileData>();
                 var versionCandidates = new List<VersionImportEntry>();
                 var filesByName = BuildFileNameLookup();
@@ -501,6 +508,13 @@ namespace Finn.ViewModels
 
                 foreach (var file in filesToAdd)
                 {
+                    // Already tracked as a version — silently skip
+                    if (versionPaths.Contains(file.Sökväg))
+                    {
+                        skippedCount++;
+                        continue;
+                    }
+
                     var alreadyTracked = CurrentProject!.StoredFiles.FirstOrDefault(
                         x => string.Equals(x.Sökväg, file.Sökväg, StringComparison.OrdinalIgnoreCase));
                     if (alreadyTracked != null)
@@ -612,7 +626,13 @@ namespace Finn.ViewModels
                             f.Filtyp = assignedType;
 
                         if (confirmed.Count > 0)
+                        {
                             CurrentProject!.StoredFiles.AddRange(confirmed);
+                            var newPaths = new HashSet<string>(
+                                confirmed.Select(f => f.Sökväg),
+                                StringComparer.OrdinalIgnoreCase);
+                            AutoGroupVersions(CurrentProject!, newPaths);
+                        }
                     }
                     else
                     {

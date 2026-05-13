@@ -30,6 +30,18 @@ namespace Finn.Model
         private string _label = string.Empty;
         private string _addedDate = string.Empty;
         private bool _isActive;
+        private bool _isAutoGrouped;
+
+        /// <summary>
+        /// True when this version was created automatically by the version-suffix
+        /// grouping logic on import. False for manually added versions.
+        /// Persisted so that Reset remains reliable after save and reload.
+        /// </summary>
+        public bool IsAutoGrouped
+        {
+            get => _isAutoGrouped;
+            set { _isAutoGrouped = value; }
+        }
 
         /// <summary>
         /// Annotation layers for this version. Each version keeps its own strokes

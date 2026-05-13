@@ -7,7 +7,7 @@
 		MinWidth="300"
 	 MinHeight="300"
 		MaxWidth="340"
-	 MaxHeight="480"
+	 MaxHeight="820"
 		SizeToContent="Height"
 		xmlns:ic="using:FluentIcons.Avalonia"
 		x:Class="Finn.Dialogs.xEditDia"
@@ -23,7 +23,7 @@
 		<Panel Grid.Row="0" IsHitTestVisible="False"/>
 		<StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Top">
 			<controls:DialogHeader Icon="Edit" Title="Edit Project"/>
-			<Grid ColumnDefinitions="100,160" RowDefinitions="40,40,40,40" HorizontalAlignment="Center">
+			<Grid ColumnDefinitions="100,160" RowDefinitions="40,40,40,40,40" HorizontalAlignment="Center">
 				<Label Grid.Row="2" Grid.Column="0" Content="Name" VerticalAlignment="Center"/>
 				<Label Grid.Row="1" Grid.Column="0" Content="Group" VerticalAlignment="Center"/>
 				<Label Grid.Row="0" Grid.Column="0" Content="Category" VerticalAlignment="Center"/>
@@ -45,11 +45,84 @@
 				<Border Classes="shadow" Grid.Row="3" Grid.Column="1" Width="160" >
 					<TextBox Name="ReviewFolder" Text="{Binding CurrentProject.ReviewFolder, Mode=OneTime}" Width="160" VerticalAlignment="Center" PlaceholderText="C:\Finn\Reviews"/>
 				</Border>
+				<Label Grid.Row="4" Grid.Column="0" Content="Version suffix" VerticalAlignment="Center" ToolTip.Tip="Prefix used to detect version files. A separator (space, dash, or underscore) is required before the prefix — e.g. 'v' matches 'report v1', 'report-v2', 'report_v3'."/>
+				<Border Classes="shadow" Grid.Row="4" Grid.Column="1" Width="160" >
+					<TextBox Name="VersionSuffixBox" Text="{Binding CurrentProject.VersionSuffix, Mode=OneTime}" Width="160" VerticalAlignment="Center" PlaceholderText="v"/>
+				</Border>
 			</Grid>
 			<StackPanel Name="SharedInfoPanel" IsVisible="False" Orientation="Vertical" Spacing="2" HorizontalAlignment="Center" Margin="0,6,0,0">
 				<TextBlock Name="SharedPathText" FontSize="10" Opacity="0.5" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="260"/>
 				<TextBlock Name="SharedSyncText" FontSize="10" Opacity="0.6" HorizontalAlignment="Center"/>
 			</StackPanel>
+
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+				<Button Name="ReapplyVersionsButton" Width="30" Height="30" Padding="0" Classes="normal"
+						Click="OnReapplyVersionGrouping"
+						ToolTip.Tip="Re-apply auto-grouping across all unversioned files in the project using the current suffix. Already-versioned files are not affected.">
+					<ic:SymbolIcon Symbol="ArrowSync" FontSize="16"/>
+				</Button>
+				<Button Name="ResetVersionsButton" Width="30" Height="30" Padding="0" Classes="normal"
+						Click="OnResetVersionGrouping"
+						ToolTip.Tip="Dissolve auto-grouped version sets — each version file is restored as a standalone entry. Manually added versions are preserved.">
+					<ic:SymbolIcon Symbol="ArrowUndo" FontSize="16"/>
+				</Button>
+				<TextBlock FontSize="10" Opacity="0.5" VerticalAlignment="Center" Text="Version grouping"/>
+				<Button Name="VersionInfoToggle" Width="20" Height="20" Padding="0" Classes="normal"
+						Click="OnToggleVersionInfo"
+						ToolTip.Tip="How does version grouping work?">
+					<ic:SymbolIcon Symbol="Info" FontSize="12"/>
+				</Button>
+			</StackPanel>
+
+			<Border Name="VersionInfoPanel" IsVisible="False"
+					Background="{DynamicResource AppPanelSurfaceBrush}"
+					BorderBrush="{DynamicResource AppPanelBorderBrush}"
+					BorderThickness="{DynamicResource AppBorderThickness}"
+					CornerRadius="{DynamicResource AppCornerRadius}"
+					Padding="12,10" MaxWidth="280" HorizontalAlignment="Center">
+				<StackPanel Orientation="Vertical" Spacing="6">
+					<StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+						<ic:SymbolIcon Symbol="Info" FontSize="13" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+						<TextBlock Text="Version grouping" FontSize="11" FontWeight="SemiBold"
+								   Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+					</StackPanel>
+					<Rectangle Height="1" Fill="{DynamicResource AppPanelBorderBrush}" Margin="0,0,0,2"/>
+					<TextBlock FontSize="10" Foreground="{DynamicResource AppMutedForegroundBrush}"
+							   TextWrapping="Wrap" LineHeight="16">
+						Files are grouped automatically on import when they share the same base name, differ only by a version suffix, and live in the same folder. Files in different folders are never merged.
+					</TextBlock>
+					<TextBlock FontSize="10" Foreground="{DynamicResource AppMutedForegroundBrush}"
+							   TextWrapping="Wrap" LineHeight="16">
+						<Run>The suffix field sets the marker. A separator (space, dash, or underscore) is always required before it — e.g.</Run>
+						<Run FontWeight="SemiBold" Foreground="{DynamicResource AppSubtleForegroundBrush}">v</Run>
+						<Run>matches</Run>
+						<Run FontStyle="Italic">report v1</Run><Run>,</Run>
+						<Run FontStyle="Italic">report-v2</Run><Run>,</Run>
+						<Run FontStyle="Italic">report_v3</Run><Run>.</Run>
+					</TextBlock>
+					<TextBlock FontSize="10" Foreground="{DynamicResource AppMutedForegroundBrush}"
+							   TextWrapping="Wrap" LineHeight="16">
+						<Run>Both numbers and letters work:</Run>
+						<Run FontStyle="Italic">v1 / v2</Run>
+						<Run>or</Run>
+						<Run FontStyle="Italic">Rev-A / Rev-B</Run><Run>.</Run>
+					</TextBlock>
+					<TextBlock FontSize="10" Foreground="{DynamicResource AppMutedForegroundBrush}"
+							   TextWrapping="Wrap" LineHeight="16">
+						<Run>The</Run>
+						<Run FontWeight="SemiBold" Foreground="{DynamicResource AppSubtleForegroundBrush}">highest</Run>
+						<Run>version becomes the original. If an unsuffixed file exists (e.g.</Run>
+						<Run FontStyle="Italic">report</Run><Run>) it is always treated as the original.</Run>
+					</TextBlock>
+					<TextBlock FontSize="10" Foreground="{DynamicResource AppMutedForegroundBrush}"
+							   TextWrapping="Wrap" LineHeight="16">
+						<Run FontWeight="SemiBold" Foreground="{DynamicResource AppSubtleForegroundBrush}">Reapply</Run>
+						<Run>scans all unversioned files project-wide.</Run>
+						<Run FontWeight="SemiBold" Foreground="{DynamicResource AppSubtleForegroundBrush}">Reset</Run>
+						<Run>dissolves only auto-grouped sets — manually added versions are kept.</Run>
+					</TextBlock>
+				</StackPanel>
+			</Border>
 
 			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,16" Spacing="8">
 				<Button Name="IntegrityCheckButton" Width="30" Height="30" Padding="0" Classes="normal" Click="OnRunIntegrityCheck" ToolTip.Tip="Run integrity check">

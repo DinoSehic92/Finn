@@ -141,6 +141,17 @@ namespace Finn.Model
             set { reviewFolder = value ?? string.Empty; RaisePropertyChanged(nameof(ReviewFolder)); }
         }
 
+        private string versionSuffix = "v";
+        /// <summary>
+        /// Gets or sets the prefix used to detect version suffixes in file names.
+        /// Defaults to "v" so files ending in e.g. "v1", "v2" are grouped automatically on import.
+        /// </summary>
+        public string VersionSuffix
+        {
+            get => versionSuffix;
+            set { versionSuffix = string.IsNullOrWhiteSpace(value) ? "v" : value.Trim(); RaisePropertyChanged(nameof(VersionSuffix)); }
+        }
+
         private List<string> filetypes = new List<string>();
         /// <summary>
         /// Gets or sets the list of file types in the project.

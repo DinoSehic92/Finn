@@ -32,6 +32,10 @@ public partial class xEditDia : Window
                              ?? ctx.CurrentProject?.Category ?? string.Empty;
                 RefreshGroupPicker(cat, null);
             };
+
+            // Inject live candidate counts into Reapply/Reset button tooltips so
+            // the user knows what will be affected before clicking.
+            UpdateVersionGroupCounts(ctx);
         };
 
         KeyDown += CloseKey!;
@@ -120,6 +124,28 @@ public partial class xEditDia : Window
             : $"Never pushed  •  {status}";
     }
 
+    private void UpdateVersionGroupCounts(MainViewModel ctx)
+    {
+        if (ctx.CurrentProject == null) return;
+
+        var reapplyBtn = this.FindControl<Button>("ReapplyVersionsButton");
+        var resetBtn   = this.FindControl<Button>("ResetVersionsButton");
+
+        int candidates = MainViewModel.CountAutoGroupCandidates(ctx.CurrentProject);
+        int autoGroups = MainViewModel.CountAutoGroupReset(ctx.CurrentProject);
+
+        string reapplyTip = candidates == 0
+            ? "Re-apply auto-grouping project-wide — no ungrouped candidates found with the current suffix."
+            : $"Re-apply auto-grouping project-wide using the current suffix. {candidates} ungrouped file{(candidates == 1 ? "" : "s")} are eligible. Already-versioned files are not affected.";
+
+        string resetTip = autoGroups == 0
+            ? "Dissolve auto-grouped version sets — no auto-grouped sets found. Manually added versions are always preserved."
+            : $"Dissolve {autoGroups} auto-grouped set{(autoGroups == 1 ? "" : "s")} — each version file is restored as a standalone entry. Manually added versions are preserved.";
+
+        if (reapplyBtn != null) ToolTip.SetTip(reapplyBtn, reapplyTip);
+        if (resetBtn   != null) ToolTip.SetTip(resetBtn,   resetTip);
+    }
+
     private void OnEditProject(object sender, RoutedEventArgs e)
     {
         if (DataContext is not MainViewModel ctx) return;
@@ -138,6 +164,11 @@ public partial class xEditDia : Window
             ctx.SetCategory(selectedCombo.Content?.ToString() ?? "Project");
 
         ctx.CurrentProject!.ReviewFolder = ReviewFolder.Text?.Trim() ?? string.Empty;
+
+        var versionSuffixBox = this.FindControl<TextBox>("VersionSuffixBox");
+        if (versionSuffixBox != null)
+            ctx.CurrentProject!.VersionSuffix = versionSuffixBox.Text?.Trim() ?? "v";
+
         ctx.MarkDirty();
         ctx.UpdateTreeview();
 
@@ -148,6 +179,32 @@ public partial class xEditDia : Window
     {
         if (DataContext is MainViewModel ctx)
             await ctx.ShowIntegrityReportAsync(this);
+    }
+
+    private void OnReapplyVersionGrouping(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel ctx || ctx.CurrentProject == null) return;
+
+        // Save the current suffix value first so grouping uses whatever is in the box
+        var versionSuffixBox = this.FindControl<TextBox>("VersionSuffixBox");
+        if (versionSuffixBox != null)
+            ctx.CurrentProject.VersionSuffix = versionSuffixBox.Text?.Trim() ?? "v";
+
+        ctx.ReapplyVersionGrouping(ctx.CurrentProject);
+        UpdateVersionGroupCounts(ctx);
+    }
+
+    private void OnResetVersionGrouping(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainViewModel ctx || ctx.CurrentProject == null) return;
+        ctx.ResetVersionGrouping(ctx.CurrentProject);
+        UpdateVersionGroupCounts(ctx);
+    }
+
+    private void OnToggleVersionInfo(object? sender, RoutedEventArgs e)
+    {
+        var panel = this.FindControl<Border>("VersionInfoPanel");
+        if (panel != null) panel.IsVisible = !panel.IsVisible;
     }
 
     private void OnCancel(object? sender, RoutedEventArgs e) => this.Close();
