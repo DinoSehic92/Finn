@@ -20,6 +20,11 @@ using System.Threading.Tasks;
 using Avalonia.VisualTree;
 using Avalonia.Threading;
 using Finn.Dialogs;
+using iText.Kernel.Pdf;
+using iText.Kernel.Utils;
+using ITextPdfReader = iText.Kernel.Pdf.PdfReader;
+using ITextPdfDocument = iText.Kernel.Pdf.PdfDocument;
+using ITextPdfWriter = iText.Kernel.Pdf.PdfWriter;
 
 namespace Finn.Views;
 
@@ -1025,6 +1030,87 @@ public partial class MainView : UserControl
             }
         }
         catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRemoveFiles)); }
+    }
+
+    private async void OnBindSelected(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // Collect distinct local PDFs from the selection, silently ignoring anything else.
+            var pdfs = FileGrid.SelectedItems
+                .Cast<FileData>()
+                .Where(f => f.HasPdfExtension() && File.Exists(f.Sökväg))
+                .GroupBy(f => f.Sökväg, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .ToList();
+
+            if (pdfs.Count < 2)
+            {
+                _ctx.PreviewVM.StatusMessage = "Select at least 2 local PDF files to bind.";
+                return;
+            }
+
+            // Pre-flight: iText opens owner-locked PDFs fine; only open-password files throw.
+            _ctx.PreviewVM.StatusMessage = $"Scanning {pdfs.Count} file(s)…";
+            var failures = await Task.Run(() =>
+            {
+                var bad = new List<string>();
+                foreach (var file in pdfs)
+                {
+                    try
+                    {
+                        using var reader = new ITextPdfReader(file.Sökväg);
+                        using var doc = new ITextPdfDocument(reader);
+                        if (doc.GetNumberOfPages() == 0)
+                            bad.Add($"{Path.GetFileName(file.Sökväg)} (no pages)");
+                    }
+                    catch (Exception ex) when (
+                        ex.Message.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+                        ex.Message.Contains("encrypted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        bad.Add($"{Path.GetFileName(file.Sökväg)} (password protected)");
+                    }
+                    catch
+                    {
+                        bad.Add($"{Path.GetFileName(file.Sökväg)} (unreadable)");
+                    }
+                }
+                return bad;
+            });
+
+            if (failures.Count > 0)
+            {
+                var detail = failures.Count > 3
+                    ? $"{string.Join(", ", failures.Take(3))} and {failures.Count - 3} more"
+                    : string.Join(", ", failures);
+                _ctx.PreviewVM.StatusMessage = $"Bind cancelled — {detail}";
+                return;
+            }
+
+            var binderDir = Path.Combine(MainViewModel.SavePath, "Binder");
+            Directory.CreateDirectory(binderDir);
+            var outputPath = Path.Combine(binderDir, $"Binder_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+
+            await Task.Run(() =>
+            {
+                using var writer = new ITextPdfWriter(outputPath);
+                using var output = new ITextPdfDocument(writer);
+                var merger = new PdfMerger(output);
+                foreach (var file in pdfs)
+                {
+                    using var reader = new ITextPdfReader(file.Sökväg);
+                    using var src = new ITextPdfDocument(reader);
+                    merger.Merge(src, 1, src.GetNumberOfPages());
+                }
+            });
+
+            _ctx.PreviewVM.StatusMessage = $"{pdfs.Count} file(s) bound → {outputPath}";
+        }
+        catch (Exception ex)
+        {
+            _ctx.PreviewVM.StatusMessage = $"Bind failed: {ex.Message}";
+            Utils.ErrorLogger.Log(ex, nameof(OnBindSelected));
+        }
     }
 
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)

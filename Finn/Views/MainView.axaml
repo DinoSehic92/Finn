@@ -926,9 +926,13 @@
 										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSwap"/></MenuItem.Icon>
 									</MenuItem>
 									<MenuItem Header="Cache Locally" IsVisible="{Binding CanCacheSelectedFiles}" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
-										<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
-									</MenuItem>
+											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 										</MenuItem>
+										<Separator/>
+										<MenuItem Header="Bind Selected" Click="OnBindSelected" ToolTip.Tip="Merge selected PDFs into Finn/Binder">
+											<MenuItem.Icon><ic:SymbolIcon Symbol="Merge"/></MenuItem.Icon>
+										</MenuItem>
+											</MenuItem>
 
                        <MenuItem Header="Organize">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="GroupList"/></MenuItem.Icon>
