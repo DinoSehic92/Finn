@@ -972,8 +972,8 @@ public partial class MainView : UserControl
         // Update the toggle label to reflect the current state of the selected file.
         bool isDesignated = _ctx.CurrentFile?.IsDesignatedParent == true;
         ToggleDesignatedParentMenuItem.Header = isDesignated ? "Unmark as Parent" : "Mark as Parent";
-        // Hide for groups — they are already always in the parent list.
-        ToggleDesignatedParentMenuItem.IsVisible = _ctx.SelectedFileIsTopLevel && !(_ctx.CurrentFile?.IsGroup == true);
+        // Hide for groups and files that already have children (they are already parents).
+        ToggleDesignatedParentMenuItem.IsVisible = _ctx.SelectedFileCanMarkAsParent;
     }
 
     private void ReselectFile(FileData? file)

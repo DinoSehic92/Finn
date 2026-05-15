@@ -389,6 +389,7 @@ namespace Finn.ViewModels
                         }
 
                         CurrentProject.RefreshHasChildren();
+                        NotifyCurrentSelectionStructureChanged();
                     }
                     else if (folder.Mode == SyncFolderMode.OtherFiles)
                     {

@@ -320,7 +320,10 @@ namespace Finn.Model
             Filetypes.Clear();
             FiletypesTree.Clear();
 
-            var topLevel = StoredFiles.Where(x => !x.IsAppendedFile);
+            // Matches the badge-count predicate in MainViewModel.TreeView.cs:
+            // group children are real files and must be included; group headers
+            // and directly-attached appended children are excluded.
+            var topLevel = StoredFiles.Where(x => !x.IsGroup && !x.IsStyledAsAttached);
             List<string> filetypes = topLevel.Select(x=>x.Filtyp).Distinct().ToList();
 
             filetypes.Sort();

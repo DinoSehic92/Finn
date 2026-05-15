@@ -257,7 +257,11 @@ namespace Finn.ViewModels
             var children = new List<TreeNodeData>();
             string? colorTag = !string.IsNullOrEmpty(project.ColorTag) ? project.ColorTag : null;
             bool isCurrent = project == CurrentProject;
-            var topLevel = project.StoredFiles.Where(f => !f.IsAppendedFile);
+            // Count real files: group children (IsGroupChild) are genuine files that happen
+            // to be organised under a group header, so include them. Exclude group headers
+            // themselves (they are containers, not files) and directly-attached supplementary
+            // child files (IsStyledAsAttached) so those don't inflate the per-type badge.
+            var topLevel = project.StoredFiles.Where(f => !f.IsGroup && !f.IsStyledAsAttached);
 
             foreach (string filetype in topLevel.Select(x => x.Filtyp).Distinct())
             {

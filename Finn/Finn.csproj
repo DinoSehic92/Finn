@@ -12,22 +12,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.0.2" />
-    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.0.2" />
+    <PackageReference Include="Avalonia" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.0.3" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.2" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.2" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.3" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.3" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 
-    <PackageReference Include="FluentIcons.Avalonia" Version="2.1.325" />
-    <PackageReference Include="Avalonia.Skia" Version="12.0.2" />
-    <PackageReference Include="Avalonia.HarfBuzz" Version="12.0.2" />
+    <PackageReference Include="FluentIcons.Avalonia" Version="2.1.326" />
+    <PackageReference Include="Avalonia.Skia" Version="12.0.3" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.0.3" />
     <PackageReference Include="PDFsharp" Version="6.2.4" />
     <PackageReference Include="itext" Version="9.6.0" />
     <PackageReference Include="itext.bouncy-castle-adapter" Version="9.6.0" />
     <PackageReference Include="MuPDFCore" Version="2.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="System.Drawing.Common" Version="10.0.7" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>
@@ -113,5 +113,9 @@
     <Compile Update="Views\PreWindow.axaml.cs">
       <DependentUpon>PreWindow.axaml</DependentUpon>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Finn\Model\" />
   </ItemGroup>
 </Project>

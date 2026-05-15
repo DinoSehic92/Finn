@@ -337,7 +337,9 @@ namespace Finn.ViewModels
                             file.HasPlainText = file.AllPdfPaths(checkExists: false).Any(indexedPaths.Contains);
                 });
 
-                SaveIndexFile(indexPath);
+                // Serialize the local snapshot — not the UI-bound TextContent property —
+                // so there is no cross-thread access of the ObservableCollection.
+                SaveIndexFile(indexPath, newContent);
             }, cancellationToken);
 
             _markDirty?.Invoke();
@@ -355,14 +357,15 @@ namespace Finn.ViewModels
                 var toRemove = TextContent?.Where(x => paths.Contains(x.Filepath)).ToList();
                 if (toRemove != null)
                 {
-                    foreach (var content in toRemove)
-                        TextContent!.Remove(content);
-                }
-            }
+                        foreach (var content in toRemove)
+                                    TextContent!.Remove(content);
+                            }
+                        }
 
-            SaveIndexFile(indexPath);
-            _markDirty?.Invoke();
-        }
+                        // ClearIndexedContent runs on the UI thread, so reading TextContent here is safe.
+                        SaveIndexFile(indexPath, TextContent);
+                        _markDirty?.Invoke();
+                    }
 
         public void SyncPlainText()
         {
@@ -414,12 +417,12 @@ namespace Finn.ViewModels
                 return JsonHelper.Deserialize<ObservableCollection<ContentData>>(json);
             });
 
-            TextContent = content;
+            TextContent = content ?? new ObservableCollection<ContentData>();
 
             // Sync HasPlainText flags on the UI thread. AllPdfPaths(checkExists: false)
             // does no disk I/O so this is fast enough to run inline.
             var indexedFiles = new HashSet<string>(
-                TextContent!.Select(c => c.Filepath),
+                TextContent.Select(c => c.Filepath),
                 StringComparer.OrdinalIgnoreCase);
 
             foreach (ProjectData project in Storage.StoredProjects)
@@ -427,7 +430,7 @@ namespace Finn.ViewModels
                     file.HasPlainText = file.AllPdfPaths(checkExists: false).Any(indexedFiles.Contains);
         }
 
-        private void SaveIndexFile(string indexPath)
+        private void SaveIndexFile(string indexPath, IEnumerable<ContentData>? content)
         {
             if (!Directory.Exists(_savePath))
                 Directory.CreateDirectory(_savePath);
@@ -436,7 +439,7 @@ namespace Finn.ViewModels
             // truncated if the process crashes or the disk fills mid-write.
             string tempPath = indexPath + ".tmp";
             using (var stream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                System.Text.Json.JsonSerializer.Serialize(stream, TextContent, JsonHelper.Options);
+                System.Text.Json.JsonSerializer.Serialize(stream, content, JsonHelper.Options);
 
             File.Move(tempPath, indexPath, overwrite: true);
         }

@@ -120,6 +120,7 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(SelectedFileIsTopLevel));
             OnPropertyChanged(nameof(SelectedFileIsChild));
             OnPropertyChanged(nameof(SelectedFileIsGroup));
+            OnPropertyChanged(nameof(SelectedFileCanMarkAsParent));
             OnPropertyChanged(nameof(HasAvailableGroups));
             OnPropertyChanged(nameof(HasAvailableParents));
             OnPropertyChanged(nameof(CanMoveSelectedFiles));
@@ -152,7 +153,7 @@ namespace Finn.ViewModels
         /// </summary>
         public void ToggleDesignatedParent(FileData file)
         {
-            if (file == null || file.IsChild || file.IsGroup) return;
+            if (file == null || file.IsChild || file.IsGroup || file.HasChildren) return;
 
             file.IsDesignatedParent = !file.IsDesignatedParent;
 
@@ -316,20 +317,20 @@ namespace Finn.ViewModels
 
             var children = CurrentProject!.GetChildren(group).ToList();
 
-            // Synced children
-            // as free-standing top-level files — they belong to the folder's set
-            // and detaching them individually would orphan them.
-            // Remove them along with the group header instead.
-            var syncedChildren = children.Where(c => c.IsFromFolder).ToList();
-            var freeChildren  = children.Where(c => !c.IsFromFolder).ToList();
+            // AttachedFiles-mode synced children must stay together as a set and
+            // cannot be independently detached — remove them and let the next sync
+            // re-import them. All other children (free or ProjectFiles-synced) can
+            // simply be detached back to top-level since they track individual paths.
+            var removableChildren = children.Where(c => IsAttachedFolderFile(c)).ToList();
+            var detachableChildren = children.Where(c => !IsAttachedFolderFile(c)).ToList();
 
-            // Detach ordinary children — they become top-level files
-            foreach (var child in freeChildren)
+            // Detach children that can stand alone as top-level files
+            foreach (var child in detachableChildren)
                 DetachChild(child, detachedType: null);
 
-            // Remove synced children entirely; the source folder will re-import
-            // them on the next sync if they still exist on disk.
-            foreach (var child in syncedChildren)
+            // Remove AttachedFiles-mode synced children; the source folder will
+            // re-import them on the next sync if they still exist on disk.
+            foreach (var child in removableChildren)
             {
                 child.PartOfCollections.Clear();
                 CurrentProject!.StoredFiles.Remove(child);
@@ -339,8 +340,8 @@ namespace Finn.ViewModels
             CurrentProject!.StoredFiles.Remove(group);
             PreviewVM.RecentFiles.Remove(group);
 
-            // Flag affected sync folders so the user sees them as pending re-sync.
-            var affectedFolders = syncedChildren
+            // Flag only the folders whose synced children were removed.
+            var affectedFolders = removableChildren
                 .Where(c => !string.IsNullOrEmpty(c.SyncFolder))
                 .Select(c => c.SyncFolder!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);

@@ -224,6 +224,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(SelectedFileIsChild));
                     OnPropertyChanged(nameof(SelectedFileIsGroup));
                     OnPropertyChanged(nameof(SelectedFileIsDesignatedParent));
+                    OnPropertyChanged(nameof(SelectedFileCanMarkAsParent));
                     OnPropertyChanged(nameof(HasAvailableGroups));
                     OnPropertyChanged(nameof(CanMoveSelectedFiles));
                     OnPropertyChanged(nameof(SelectedFileIsLocal));
@@ -278,6 +279,14 @@ namespace Finn.ViewModels
             /// </summary>
             public bool SelectedFileIsDesignatedParent =>
                 CurrentFile?.IsDesignatedParent == true;
+
+            /// <summary>
+            /// True when the "Mark as Parent" context menu item should be visible.
+            /// Hidden when the file already has attached children (it is already a parent)
+            /// and when it is a group header or a child file.
+            /// </summary>
+            public bool SelectedFileCanMarkAsParent =>
+                CurrentFile?.IsTopLevel == true && CurrentFile.HasChildren == false;
 
             /// <summary>
             /// True when there are parent targets in the project to move files into.

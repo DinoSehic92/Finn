@@ -954,7 +954,7 @@
 								</MenuItem>
 								<MenuItem Header="Mark as Parent" Click="OnToggleDesignatedParent"
 											  Name="ToggleDesignatedParentMenuItem"
-											  IsVisible="{Binding SelectedFileIsTopLevel}">
+											  IsVisible="{Binding SelectedFileCanMarkAsParent}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="LinkMultiple" IconVariant="Regular"/></MenuItem.Icon>
 									</MenuItem>
 								<MenuItem Header="Rename Group" Click="OnRenameGroup" IsVisible="{Binding SelectedFileIsGroup}">

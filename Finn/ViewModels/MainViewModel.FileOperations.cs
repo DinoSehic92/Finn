@@ -825,6 +825,7 @@ namespace Finn.ViewModels
 
                     CurrentProject.StoredFiles.Add(appended);
                     CurrentFile.HasChildren = true;
+                    NotifyCurrentSelectionStructureChanged();
                     if (!CurrentFile.IsExpanded)
                     {
                         CurrentFile.IsExpanded = true;
