@@ -423,11 +423,6 @@ namespace Finn.ViewModels
             if (CurrentProject == null) return;
             CurrentProject.Category = name;
 
-            if (name != PROJECT_CATEGORY)
-            {
-                CurrentProject.Parent = null;
-            }
-
             SortProjects();
             MarkDirty();
         }

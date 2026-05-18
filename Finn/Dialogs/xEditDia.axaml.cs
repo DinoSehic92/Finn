@@ -154,14 +154,14 @@ public partial class xEditDia : Window
         if (ctx.CurrentProject?.IsShared == false)
             ctx.RenameProject(ProjectName.Text!.ToString());
 
-        // Read selected group from the picker
-        int groupIdx = _projectGroupCombo?.SelectedIndex ?? -1;
-        if (groupIdx >= 0 && groupIdx < _groupItems.Count)
-            ctx.CurrentProject!.Parent = _groupItems[groupIdx].GroupName;
-
         // Category is always set from the Category ComboBox
         if (ProjectCategory.SelectedItem is ComboBoxItem selectedCombo)
             ctx.SetCategory(selectedCombo.Content?.ToString() ?? "Project");
+
+        // Read selected group from the picker (must be after SetCategory)
+        int groupIdx = _projectGroupCombo?.SelectedIndex ?? -1;
+        if (groupIdx >= 0 && groupIdx < _groupItems.Count)
+            ctx.CurrentProject!.Parent = _groupItems[groupIdx].GroupName;
 
         ctx.CurrentProject!.ReviewFolder = ReviewFolder.Text?.Trim() ?? string.Empty;
 
