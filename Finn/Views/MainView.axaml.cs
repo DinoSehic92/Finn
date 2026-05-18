@@ -1060,6 +1060,7 @@ public partial class MainView : UserControl
                     try
                     {
                         using var reader = new ITextPdfReader(file.Sökväg);
+                        reader.SetUnethicalReading(true);
                         using var doc = new ITextPdfDocument(reader);
                         if (doc.GetNumberOfPages() == 0)
                             bad.Add($"{Path.GetFileName(file.Sökväg)} (no pages)");
@@ -1099,6 +1100,7 @@ public partial class MainView : UserControl
                 foreach (var file in pdfs)
                 {
                     using var reader = new ITextPdfReader(file.Sökväg);
+                    reader.SetUnethicalReading(true);
                     using var src = new ITextPdfDocument(reader);
                     merger.Merge(src, 1, src.GetNumberOfPages());
                 }
