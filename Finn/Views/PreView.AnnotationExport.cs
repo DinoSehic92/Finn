@@ -214,6 +214,8 @@ public partial class PreView
 
             using var labelFont = new SKFont(SKTypeface.Default, (float)(10 * renderZoom));
             using var labelPaint = new SKPaint { Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B), IsAntialias = true };
+            float areaRenderRotation = (float)AnnotationRotation.GetRenderRotation(stroke.CreatedAtRotation);
+            bool rotateAreaLabel = Math.Abs(areaRenderRotation) > 0.01f;
 
             labelFont.MeasureText(areaStr,  out var b1);
             labelFont.MeasureText(perimStr, out var b2);
@@ -232,6 +234,11 @@ public partial class PreView
             using var bgPaint  = new SKPaint { Color = bgColor, Style = SKPaintStyle.Fill,   IsAntialias = true };
             using var brdPaint = new SKPaint { Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, 80),
                                                Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true };
+            if (rotateAreaLabel)
+            {
+                canvas.Save();
+                canvas.RotateDegrees(areaRenderRotation, lx, ly);
+            }
             canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, bgPaint);
             canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, brdPaint);
 
@@ -241,6 +248,8 @@ public partial class PreView
 
             canvas.DrawText(areaStr,  lx - b1.Width / 2f - b1.Left, line1Y, labelFont, labelPaint);
             canvas.DrawText(perimStr, lx - b2.Width / 2f - b2.Left, line2Y, labelFont, labelPaint);
+            if (rotateAreaLabel)
+                canvas.Restore();
         }
 
         // Render shapes
@@ -398,6 +407,11 @@ public partial class PreView
             using var bgPaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true };
             using var framePaint = new SKPaint { Style = SKPaintStyle.Stroke, StrokeWidth = (float)(1.2 * renderZoom), IsAntialias = true };
 
+            float renderRotation = (float)AnnotationRotation.GetRenderRotation(t.CreatedAtRotation);
+            float pivotX = (float)(t.Position.X * renderZoom);
+            float pivotY = (float)(t.Position.Y * renderZoom);
+            bool hasRotation = Math.Abs(renderRotation) > 0.01f;
+
             float tx = (float)(t.Position.X * renderZoom);
             float lineHeight = (float)(t.FontSize * renderZoom * 1.3);
             float ty = (float)(t.Position.Y * renderZoom) + (float)(t.FontSize * renderZoom);
@@ -435,6 +449,37 @@ public partial class PreView
 
             if (lineInfos.Count > 0)
             {
+                float arrowTipX = 0;
+                float arrowTipY = 0;
+                float arrowDrawX = 0;
+                float arrowDrawY = 0;
+                bool drawArrow = false;
+
+                if (t.ArrowOrigin.HasValue)
+                {
+                    float s2 = (float)renderZoom;
+                    var connArea = new SKRect(frameMinX - 4 * s2, frameMinY - 4 * s2,
+                                             frameMaxX + 4 * s2, frameMaxY + 4 * s2);
+                    arrowTipX = (float)(t.ArrowOrigin.Value.X * renderZoom);
+                    arrowTipY = (float)(t.ArrowOrigin.Value.Y * renderZoom);
+                    (float x, float y) localArrow = hasRotation
+                        ? RotateExportPoint(arrowTipX, arrowTipY, pivotX, pivotY, -renderRotation)
+                        : (arrowTipX, arrowTipY);
+                    var connLocal = ClosestSideCenterF(connArea, localArrow.x, localArrow.y);
+                    var conn = hasRotation
+                        ? RotateExportPoint(connLocal.x, connLocal.y, pivotX, pivotY, renderRotation)
+                        : connLocal;
+                    arrowDrawX = conn.x;
+                    arrowDrawY = conn.y;
+                    drawArrow = true;
+                }
+
+                if (hasRotation)
+                {
+                    canvas.Save();
+                    canvas.RotateDegrees(renderRotation, pivotX, pivotY);
+                }
+
                 if (t.HasFrame)
                 {
                 // Tinted-glass frame: soft color wash + matching border, no accent bar
@@ -455,17 +500,14 @@ public partial class PreView
                 canvas.DrawRoundRect(frameRRect, framePaint);
                 } // end HasFrame
 
-                // Arrow connecting to the closest side center of the text area
-                // (works for both framed and frameless annotations)
-                if (t.ArrowOrigin.HasValue)
+                foreach (var (text, y, _) in lineInfos)
+                    canvas.DrawText(text, tx, y, font, textPaint);
+
+                if (hasRotation)
+                    canvas.Restore();
+
+                if (drawArrow)
                 {
-                    float s2 = (float)renderZoom;
-                    // Use the tight text bounds as the connection area regardless of frame
-                    var connArea = new SKRect(frameMinX - 4 * s2, frameMinY - 4 * s2,
-                                             frameMaxX + 4 * s2, frameMaxY + 4 * s2);
-                    float arrowTipX = (float)(t.ArrowOrigin.Value.X * renderZoom);
-                    float arrowTipY = (float)(t.ArrowOrigin.Value.Y * renderZoom);
-                    var conn = ClosestSideCenterF(connArea, arrowTipX, arrowTipY);
                     using var arrowLinePaint = new SKPaint
                     {
                         Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha),
@@ -474,21 +516,17 @@ public partial class PreView
                         StrokeCap = SKStrokeCap.Round,
                         IsAntialias = true
                     };
-                    // Shorten line to arrowhead base to prevent round-cap protrusion
-                    float aadx = arrowTipX - conn.x, aady = arrowTipY - conn.y;
+                    float aadx = arrowTipX - arrowDrawX, aady = arrowTipY - arrowDrawY;
                     float aalen = MathF.Sqrt(aadx * aadx + aady * aady);
                     if (aalen > 1)
                     {
                         float headLen = MathF.Min(8f * (float)renderZoom, aalen * 0.4f);
                         float shX = aadx / aalen * headLen;
                         float shY = aady / aalen * headLen;
-                        canvas.DrawLine(conn.x, conn.y, arrowTipX - shX, arrowTipY - shY, arrowLinePaint);
+                        canvas.DrawLine(arrowDrawX, arrowDrawY, arrowTipX - shX, arrowTipY - shY, arrowLinePaint);
                     }
-                    RenderSkiaArrowhead(canvas, arrowLinePaint, conn.x, conn.y, arrowTipX, arrowTipY, renderZoom);
+                    RenderSkiaArrowhead(canvas, arrowLinePaint, arrowDrawX, arrowDrawY, arrowTipX, arrowTipY, renderZoom);
                 }
-
-                foreach (var (text, y, _) in lineInfos)
-                    canvas.DrawText(text, tx, y, font, textPaint);
             }
         }
 
@@ -544,6 +582,8 @@ public partial class PreView
                 using var labelFont = new SKFont(SKTypeface.Default, fontSize);
                 string label = m.GetLabel();
                 labelFont.MeasureText(label, out var labelBounds);
+                float measureRenderRotation = (float)AnnotationRotation.GetRenderRotation(m.CreatedAtRotation);
+                bool rotateMeasureLabel = Math.Abs(measureRenderRotation) > 0.01f;
 
                 // Center on the offset point (CenterOnPoint: true in-app)
                 float drawX = lx - labelBounds.Width / 2f - labelBounds.Left;
@@ -560,6 +600,11 @@ public partial class PreView
                     Color = new SKColor(m.Color.R, m.Color.G, m.Color.B, 60),
                     Style = SKPaintStyle.Stroke, StrokeWidth = 1f, IsAntialias = true
                 };
+                if (rotateMeasureLabel)
+                {
+                    canvas.Save();
+                    canvas.RotateDegrees(measureRenderRotation, lx, ly);
+                }
                 canvas.DrawRoundRect(
                     drawX + labelBounds.Left - 4, drawY + labelBounds.Top - 3,
                     labelBounds.Width + 8, labelBounds.Height + 6,
@@ -571,6 +616,8 @@ public partial class PreView
 
                 using var labelPaint = new SKPaint { Color = new SKColor(m.Color.R, m.Color.G, m.Color.B), IsAntialias = true };
                 canvas.DrawText(label, drawX, drawY, labelFont, labelPaint);
+                if (rotateMeasureLabel)
+                    canvas.Restore();
             }
         }
     }
@@ -1231,6 +1278,72 @@ public partial class PreView
                 }
                 gfx.DrawPath(pen, path);
             }
+
+            if (stroke.IsAreaMeasure && stroke.Points.Count >= 3)
+            {
+                double cx = 0, cy = 0;
+                foreach (var p in pts) { cx += p.X; cy += p.Y; }
+                cx /= pts.Count; cy /= pts.Count;
+
+                double scaleMmPerPt = stroke.AreaScale;
+                int n = pts.Count;
+                double areaPt2 = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    var a = pts[i];
+                    var b = pts[(i + 1) % n];
+                    areaPt2 += a.X * b.Y - b.X * a.Y;
+                }
+                areaPt2 = Math.Abs(areaPt2) * 0.5;
+                double areaMm2 = areaPt2 * scaleMmPerPt * scaleMmPerPt;
+
+                double perimPt = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    var a = pts[i];
+                    var b = pts[(i + 1) % n];
+                    double dx = b.X - a.X, dy = b.Y - a.Y;
+                    perimPt += Math.Sqrt(dx * dx + dy * dy);
+                }
+                double perimMm = perimPt * scaleMmPerPt;
+
+                string areaStr = "■ " + FormatAreaExport(areaMm2);
+                string perimStr = "⊙ " + FormatLengthExport(perimMm);
+                var labelFont = new XFont("Arial", 10, XFontStyleEx.Regular);
+                var areaSize = gfx.MeasureString(areaStr, labelFont);
+                var perimSize = gfx.MeasureString(perimStr, labelFont);
+                double lineH = 10 * 1.35;
+                double boxW = Math.Max(areaSize.Width, perimSize.Width) + 16;
+                double boxH = lineH * 2 + 6;
+                double boxX = cx - boxW / 2;
+                double line1Y = cy - lineH * 0.5;
+                double line2Y = line1Y + lineH;
+                double bgTop = line1Y - 10 * 0.8;
+
+                double areaRenderRotation = AnnotationRotation.GetRenderRotation(stroke.CreatedAtRotation);
+                bool rotateAreaLabel = Math.Abs(areaRenderRotation) > 0.01;
+                if (rotateAreaLabel)
+                {
+                    gfx.Save();
+                    gfx.RotateAtTransform(areaRenderRotation, new XPoint(cx, cy));
+                }
+
+                var bgBrush = new XSolidBrush(XColor.FromArgb(220,
+                    (byte)(200 + stroke.Color.R / 5),
+                    (byte)(200 + stroke.Color.G / 5),
+                    (byte)(200 + stroke.Color.B / 5)));
+                var borderPen = new XPen(XColor.FromArgb(80, stroke.Color.R, stroke.Color.G, stroke.Color.B), 1);
+                gfx.DrawRoundedRectangle(bgBrush, new XRect(boxX, bgTop, boxW, boxH), new XSize(4, 4));
+                gfx.DrawRoundedRectangle(borderPen, new XRect(boxX, bgTop, boxW, boxH), new XSize(4, 4));
+                gfx.DrawLine(new XPen(XColor.FromArgb(40, stroke.Color.R, stroke.Color.G, stroke.Color.B), 1),
+                    boxX + 6, bgTop + lineH + 2, boxX + boxW - 6, bgTop + lineH + 2);
+                var textBrush = new XSolidBrush(XColor.FromArgb(255, stroke.Color.R, stroke.Color.G, stroke.Color.B));
+                gfx.DrawString(areaStr, labelFont, textBrush, cx, line1Y, XStringFormats.Center);
+                gfx.DrawString(perimStr, labelFont, textBrush, cx, line2Y, XStringFormats.Center);
+
+                if (rotateAreaLabel)
+                    gfx.Restore();
+            }
         }
     }
 
@@ -1334,6 +1447,14 @@ public partial class PreView
             double fh = totalH + pad * 2;
             var frameRect = new XRect(fx, fy, fw, fh);
             var corner = new XSize(r, r);
+            double renderRotation = AnnotationRotation.GetRenderRotation(t.CreatedAtRotation);
+            bool hasRotation = Math.Abs(renderRotation) > 0.01;
+
+            if (hasRotation)
+            {
+                gfx.Save();
+                gfx.RotateAtTransform(renderRotation, new XPoint(t.Position.X, t.Position.Y));
+            }
 
             // Shadow
             gfx.DrawRoundedRectangle(
@@ -1352,9 +1473,15 @@ public partial class PreView
                 new XPen(XColor.FromArgb(40, 0, 0, 0), 0.8), frameRect, corner);
 
             // Arrow for ArrowText — Euclidean distance to side centres (matches Skia)
+            double arrowTipX = 0, arrowTipY = 0;
+            double arrowDrawX = 0, arrowDrawY = 0;
+            bool drawArrow = false;
             if (t.ArrowOrigin.HasValue)
             {
-                double ax = t.ArrowOrigin.Value.X, ay = t.ArrowOrigin.Value.Y;
+                arrowTipX = t.ArrowOrigin.Value.X;
+                arrowTipY = t.ArrowOrigin.Value.Y;
+                double localArrowX = arrowTipX;
+                double localArrowY = arrowTipY;
                 double midX = fx + fw / 2, midY = fy + fh / 2;
                 (double cx, double cy)[] sides =
                 [
@@ -1363,25 +1490,24 @@ public partial class PreView
                     (fx, midY),           // left
                     (fx + fw, midY)       // right
                 ];
+                if (hasRotation)
+                {
+                    (localArrowX, localArrowY) = RotateExportPoint(localArrowX, localArrowY, t.Position.X, t.Position.Y, -renderRotation);
+                }
                 double bestDist = double.MaxValue;
                 double attX = midX, attY = fy;
                 foreach (var (cx, cy) in sides)
                 {
-                    double d = (cx - ax) * (cx - ax) + (cy - ay) * (cy - ay);
+                    double d = (cx - localArrowX) * (cx - localArrowX) + (cy - localArrowY) * (cy - localArrowY);
                     if (d < bestDist) { bestDist = d; attX = cx; attY = cy; }
                 }
-                // Shorten line to arrowhead base to prevent round-cap protrusion
-                var arrowPen = new XPen(annColor, 1.2) { LineCap = XLineCap.Round };
-                double aadx = ax - attX, aady = ay - attY;
-                double aalen = Math.Sqrt(aadx * aadx + aady * aady);
-                if (aalen > 1)
+                if (hasRotation)
                 {
-                    double headLen = Math.Min(8.0, aalen * 0.4);
-                    double shX = aadx / aalen * headLen;
-                    double shY = aady / aalen * headLen;
-                    gfx.DrawLine(arrowPen, attX, attY, ax - shX, ay - shY);
+                    (attX, attY) = RotateExportPoint(attX, attY, t.Position.X, t.Position.Y, renderRotation);
                 }
-                DrawArrowheadPdfSharp(gfx, attX, attY, ax, ay, annColor);
+                arrowDrawX = attX;
+                arrowDrawY = attY;
+                drawArrow = true;
             }
 
             // Text lines (shifted by yOff to match Skia)
@@ -1394,7 +1520,45 @@ public partial class PreView
                     gfx.DrawString(line, font, textBrush, tx, ty, XStringFormats.TopLeft);
                 ty += lineHeight;
             }
+
+            if (hasRotation)
+                gfx.Restore();
+
+            if (drawArrow)
+            {
+                var arrowPen = new XPen(annColor, 1.2) { LineCap = XLineCap.Round };
+                double aadx = arrowTipX - arrowDrawX, aady = arrowTipY - arrowDrawY;
+                double aalen = Math.Sqrt(aadx * aadx + aady * aady);
+                if (aalen > 1)
+                {
+                    double headLen = Math.Min(8.0, aalen * 0.4);
+                    double shX = aadx / aalen * headLen;
+                    double shY = aady / aalen * headLen;
+                    gfx.DrawLine(arrowPen, arrowDrawX, arrowDrawY, arrowTipX - shX, arrowTipY - shY);
+                }
+                DrawArrowheadPdfSharp(gfx, arrowDrawX, arrowDrawY, arrowTipX, arrowTipY, annColor);
+            }
         }
+    }
+
+    private static (float x, float y) RotateExportPoint(float x, float y, float pivotX, float pivotY, float degrees)
+    {
+        double rad = degrees * Math.PI / 180.0;
+        double cos = Math.Cos(rad);
+        double sin = Math.Sin(rad);
+        double dx = x - pivotX;
+        double dy = y - pivotY;
+        return ((float)(pivotX + dx * cos - dy * sin), (float)(pivotY + dx * sin + dy * cos));
+    }
+
+    private static (double x, double y) RotateExportPoint(double x, double y, double pivotX, double pivotY, double degrees)
+    {
+        double rad = degrees * Math.PI / 180.0;
+        double cos = Math.Cos(rad);
+        double sin = Math.Sin(rad);
+        double dx = x - pivotX;
+        double dy = y - pivotY;
+        return (pivotX + dx * cos - dy * sin, pivotY + dx * sin + dy * cos);
     }
 
     /// <summary>
@@ -1475,12 +1639,21 @@ public partial class PreView
             var labelSize = gfx.MeasureString(label, labelFont);
             double lx = labelPos.X - labelSize.Width / 2;
             double ly = labelPos.Y - labelSize.Height / 2;
+            double measureRenderRotation = AnnotationRotation.GetRenderRotation(m.CreatedAtRotation);
+            bool rotateMeasureLabel = Math.Abs(measureRenderRotation) > 0.01;
+            if (rotateMeasureLabel)
+            {
+                gfx.Save();
+                gfx.RotateAtTransform(measureRenderRotation, new XPoint(labelPos.X, labelPos.Y));
+            }
             gfx.DrawRoundedRectangle(
                 new XSolidBrush(XColor.FromArgb(200, 255, 255, 255)),
                 new XRect(lx - 3, ly - 2, labelSize.Width + 6, labelSize.Height + 4),
                 new XSize(3, 3));
             gfx.DrawString(label, labelFont, new XSolidBrush(XColor.FromArgb(255, m.Color.R, m.Color.G, m.Color.B)),
                 labelPos.X, labelPos.Y, XStringFormats.Center);
+            if (rotateMeasureLabel)
+                gfx.Restore();
         }
     }
 

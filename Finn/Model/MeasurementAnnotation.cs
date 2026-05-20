@@ -24,6 +24,12 @@ public class MeasurementAnnotation
     /// </summary>
     public double Scale { get; set; } = 25.4 / 72.0;
 
+    /// <summary>
+    /// Page rotation in degrees at the time this measurement was created.
+    /// Used to preserve the label orientation relative to its creation view.
+    /// </summary>
+    public double CreatedAtRotation { get; set; }
+
     public double GetDistance()
     {
         if (Points.Count < 2) return 0;

@@ -412,6 +412,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // ── Dark-mode inversion (applied between PDF content and annotations) ──
     /// <summary>When true, PDF content is inverted via Difference + tint before annotations are drawn.</summary>
     public bool IsInverted { get; set; }
+
+    /// <summary>Current page rotation in degrees for text-annotation orientation calculations.</summary>
+    public double ViewRotation { get; set; }
     /// <summary>Background color whose alpha channel is preserved through inversion.</summary>
     public Color InvertBackgroundColor { get; set; } = Colors.Transparent;
     /// <summary>Tint color applied additively after inversion. Black = no tint.</summary>
@@ -915,7 +918,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             CornerRadius = ShapeCornerRadius,
             IsAreaMeasure = asAreaMeasure,
             IsFilled = asAreaMeasure,
-            AreaScale = MeasurementScale
+            AreaScale = MeasurementScale,
+            CreatedAtRotation = ViewRotation
         };
         _activePolyline.Points.Add(pdfPoint);
         _polylinePreviewEnd = pdfPoint;
@@ -1443,7 +1447,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             Opacity = StrokeOpacity,
             FontFamily = TextFontFamily,
-            MaxWidth = TextMaxWidth
+            MaxWidth = TextMaxWidth,
+            CreatedAtRotation = ViewRotation
         };
         AutoSizeTextWidth(annotation);
 
@@ -1478,7 +1483,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = Color.FromRgb(255, 235, 59),  // always notepad yellow
             Opacity = StrokeOpacity,
             FontFamily = TextFontFamily,
-            IsStickyNote = true
+            IsStickyNote = true,
+            CreatedAtRotation = ViewRotation
         };
 
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
@@ -1513,7 +1519,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Opacity = StrokeOpacity,
             FontFamily = TextFontFamily,
             ArrowOrigin = arrowOrigin,
-            MaxWidth = TextMaxWidth
+            MaxWidth = TextMaxWidth,
+            CreatedAtRotation = ViewRotation
         };
         AutoSizeTextWidth(annotation);
 
@@ -1706,6 +1713,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             Color = StrokeColor,
             Scale = MeasurementScale,
+            CreatedAtRotation = ViewRotation,
             Points = [pdfPoint, pdfPoint]
         };
         InvalidateVisual();
@@ -2791,6 +2799,124 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return new Rect(t.Position.X, t.Position.Y, w, h);
     }
 
+    private static double GetTextRenderRotation(TextAnnotation t)
+        => AnnotationRotation.GetRenderRotation(t.CreatedAtRotation);
+
+    private static double GetMeasurementRenderRotation(MeasurementAnnotation m)
+        => AnnotationRotation.GetRenderRotation(m.CreatedAtRotation);
+
+    private static double GetAreaMeasureRenderRotation(InkStroke stroke)
+        => AnnotationRotation.GetRenderRotation(stroke.CreatedAtRotation);
+
+    private static Point RotateScreenPoint(Point point, Point pivot, double degrees)
+    {
+        double rad = degrees * Math.PI / 180.0;
+        double cos = Math.Cos(rad);
+        double sin = Math.Sin(rad);
+        double dx = point.X - pivot.X;
+        double dy = point.Y - pivot.Y;
+        return new Point(
+            pivot.X + (dx * cos) - (dy * sin),
+            pivot.Y + (dx * sin) + (dy * cos));
+    }
+
+    private static Rect GetAxisAlignedBounds(Point p0, Point p1, Point p2, Point p3)
+    {
+        double minX = Math.Min(Math.Min(p0.X, p1.X), Math.Min(p2.X, p3.X));
+        double minY = Math.Min(Math.Min(p0.Y, p1.Y), Math.Min(p2.Y, p3.Y));
+        double maxX = Math.Max(Math.Max(p0.X, p1.X), Math.Max(p2.X, p3.X));
+        double maxY = Math.Max(Math.Max(p0.Y, p1.Y), Math.Max(p2.Y, p3.Y));
+        return new Rect(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    private Rect GetScreenTextBounds(TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale)
+    {
+        var sp = PdfToScreen(t.Position, da.X, da.Y, scaleX, scaleY);
+        var tb = GetTextBounds(t);
+        return new Rect(sp.X, sp.Y, tb.Width * penScale, tb.Height * penScale);
+    }
+
+    private Rect? GetVisibleTextFrameBounds(TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale)
+    {
+        var boxOrigin = PdfToScreen(t.Position, da.X, da.Y, scaleX, scaleY);
+
+        float fontSize = (float)(t.FontSize * penScale);
+        float lineHeight = fontSize * 1.3f;
+        float x = (float)boxOrigin.X;
+        float y = (float)boxOrigin.Y + fontSize;
+
+        string fontFamily = t.FontFamily ?? "";
+        var typeface = GetCachedTypeface(fontFamily);
+        using var skFont = new SKFont(typeface, fontSize);
+
+        List<string> lines;
+        if (t.MaxWidth > 0)
+        {
+            float maxWidthPx = da.Width > 0 ? (float)(t.MaxWidth * (scaleX > 0 ? scaleX : penScale)) : (float)(t.MaxWidth * penScale);
+            lines = WrapTextLines(t.Text, maxWidthPx, skFont);
+        }
+        else
+        {
+            lines = [.. t.Text.Split('\n')];
+        }
+
+        float minX = float.MaxValue, minY = float.MaxValue;
+        float maxX = float.MinValue, maxY = float.MinValue;
+        foreach (var line in lines)
+        {
+            if (line.Length > 0)
+            {
+                skFont.MeasureText(line, out var tb);
+                minX = Math.Min(minX, x + tb.Left);
+                minY = Math.Min(minY, y + tb.Top);
+                maxX = Math.Max(maxX, x + tb.Left + tb.Width);
+                maxY = Math.Max(maxY, y + tb.Top + tb.Height);
+            }
+            y += lineHeight;
+        }
+
+        if (minX >= maxX)
+            return null;
+
+        const float framePad = 6f;
+        return new Rect(minX - framePad, minY - framePad,
+            (maxX - minX) + framePad * 2,
+            (maxY - minY) + framePad * 2);
+    }
+
+    private Rect GetVisibleTextBounds(TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale)
+    {
+        var bounds = GetVisibleTextFrameBounds(t, da, scaleX, scaleY, penScale)
+            ?? GetScreenTextBounds(t, da, scaleX, scaleY, penScale);
+        double rotation = GetTextRenderRotation(t);
+        if (Math.Abs(rotation) < 0.01)
+            return bounds;
+
+        var pivot = bounds.TopLeft;
+        var p0 = RotateScreenPoint(bounds.TopLeft, pivot, rotation);
+        var p1 = RotateScreenPoint(bounds.TopRight, pivot, rotation);
+        var p2 = RotateScreenPoint(bounds.BottomLeft, pivot, rotation);
+        var p3 = RotateScreenPoint(bounds.BottomRight, pivot, rotation);
+        return GetAxisAlignedBounds(p0, p1, p2, p3);
+    }
+
+    private (Point topLeft, Point topRight, Point bottomRight, Point bottomLeft) GetVisibleTextCorners(
+        TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale, double inflate = 0)
+    {
+        var bounds = (GetVisibleTextFrameBounds(t, da, scaleX, scaleY, penScale)
+            ?? GetScreenTextBounds(t, da, scaleX, scaleY, penScale)).Inflate(inflate);
+        double rotation = GetTextRenderRotation(t);
+        if (Math.Abs(rotation) < 0.01)
+            return (bounds.TopLeft, bounds.TopRight, bounds.BottomRight, bounds.BottomLeft);
+
+        var pivot = bounds.TopLeft;
+        return (
+            RotateScreenPoint(bounds.TopLeft, pivot, rotation),
+            RotateScreenPoint(bounds.TopRight, pivot, rotation),
+            RotateScreenPoint(bounds.BottomRight, pivot, rotation),
+            RotateScreenPoint(bounds.BottomLeft, pivot, rotation));
+    }
+
     private static int CountNewlines(string text)
     {
         int count = 0;
@@ -3254,8 +3380,32 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return new Rect(x, y, w, h);
     }
 
-    private static bool HitTestText(TextAnnotation text, Point pt)
-        => GetTextBounds(text).Contains(pt);
+    private bool HitTestText(TextAnnotation text, Point pt)
+    {
+        var da = DisplayArea;
+        var bounds = Bounds;
+        if (da.Width <= 0 || da.Height <= 0 || bounds.Width <= 0 || bounds.Height <= 0)
+            return GetTextBounds(text).Contains(pt);
+
+        double scaleX = bounds.Width / da.Width;
+        double scaleY = bounds.Height / da.Height;
+        double penScale = Math.Min(scaleX, scaleY);
+        var screenPt = PdfToScreen(pt, da.X, da.Y, scaleX, scaleY);
+
+        var frameBounds = GetVisibleTextFrameBounds(text, da, scaleX, scaleY, penScale);
+        if (frameBounds is null)
+            return GetTextBounds(text).Contains(pt);
+
+        double rotation = GetTextRenderRotation(text);
+        if (Math.Abs(rotation) > 0.01)
+        {
+            var pivot = frameBounds.Value.TopLeft;
+            var localPt = RotateScreenPoint(screenPt, pivot, -rotation);
+            return frameBounds.Value.Contains(localPt);
+        }
+
+        return frameBounds.Value.Contains(screenPt);
+    }
 
     private static bool HitTestMeasurement(MeasurementAnnotation m, Point pt, double threshold)
     {
@@ -4115,7 +4265,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 float baselineY = (float)ghostPos.Y + ghostFontSz;
                 textItems.Add(new TextOverlayDrawOp.TextItem(
                     (float)ghostPos.X, baselineY, "Aa", ghostFontSz, ghostColor,
-                    HasBackground: true, HasBorder: true, IsTextAnnotation: true));
+                    HasBackground: true, HasBorder: true, IsTextAnnotation: true,
+                    RotationDegrees: 0f));
             }
         }
 
@@ -4173,8 +4324,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     else
                     {
-                        var htb = GetTextBounds(hoverText);
-                        hoverBounds = new Rect(hp.X, hp.Y, htb.Width * penScale, htb.Height * penScale);
+                        hoverBounds = GetVisibleTextBounds(hoverText, da, scaleX, scaleY, penScale);
                     }
                     break;
                 }
@@ -4188,7 +4338,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
             }
             if (hoverBounds is { } hb)
-                context.DrawRectangle(null, hoverPen, hb.Inflate(5), 3, 3);
+            {
+                if (_selectHoverItem is TextAnnotation { IsStickyNote: false } hoverText
+                    && Math.Abs(GetTextRenderRotation(hoverText)) > 0.01)
+                {
+                    var (tl, tr, br, bl) = GetVisibleTextCorners(hoverText, da, scaleX, scaleY, penScale, 5);
+                    var geo = new StreamGeometry();
+                    using (var ctx2 = geo.Open())
+                    {
+                        ctx2.BeginFigure(tl, false);
+                        ctx2.LineTo(tr);
+                        ctx2.LineTo(br);
+                        ctx2.LineTo(bl);
+                        ctx2.EndFigure(true);
+                    }
+                    context.DrawGeometry(null, hoverPen, geo);
+                }
+                else
+                {
+                    context.DrawRectangle(null, hoverPen, hb.Inflate(5), 3, 3);
+                }
+            }
         }
 
         // Pen cursor preview: colored circle showing pen size at cursor position
@@ -4415,16 +4585,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     case TextAnnotation t:
                     {
-                        var sp = PdfToScreen(t.Position, ox, oy, scaleX, scaleY);
                         if (t.IsStickyNote)
                         {
+                            var sp = PdfToScreen(t.Position, ox, oy, scaleX, scaleY);
                             double sz = 13.0 * penScale;
                             bounds = new Rect(sp.X, sp.Y, sz, sz);
                         }
                         else
                         {
-                            var tb = GetTextBounds(t);
-                            bounds = new Rect(sp.X, sp.Y, tb.Width * penScale, tb.Height * penScale);
+                            bounds = GetVisibleTextBounds(t, da, scaleX, scaleY, penScale);
                         }
                         break;
                     }
@@ -4444,15 +4613,46 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
                 if (bounds is { } b)
                 {
+                    bool isRotatedText = highlightItem is TextAnnotation { IsStickyNote: false } textAnn
+                        && Math.Abs(GetTextRenderRotation(textAnn)) > 0.01;
                     var inflated = b.Inflate(padSize);
-                    context.DrawRectangle(null, selectPen, inflated);
+
+                    if (isRotatedText && highlightItem is TextAnnotation rt)
+                    {
+                        var (tl, tr, br, bl) = GetVisibleTextCorners(rt, da, scaleX, scaleY, penScale, padSize);
+                        var geo = new StreamGeometry();
+                        using (var ctx2 = geo.Open())
+                        {
+                            ctx2.BeginFigure(tl, false);
+                            ctx2.LineTo(tr);
+                            ctx2.LineTo(br);
+                            ctx2.LineTo(bl);
+                            ctx2.EndFigure(true);
+                        }
+                        context.DrawGeometry(null, selectPen, geo);
+                    }
+                    else
+                    {
+                        context.DrawRectangle(null, selectPen, inflated);
+                    }
 
                     if (single)
                     {
-                        context.DrawEllipse(s_cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
-                        context.DrawEllipse(s_cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
-                        context.DrawEllipse(s_cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
-                        context.DrawEllipse(s_cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
+                        if (isRotatedText && highlightItem is TextAnnotation rt2)
+                        {
+                            var (tl, tr, br, bl) = GetVisibleTextCorners(rt2, da, scaleX, scaleY, penScale, padSize);
+                            context.DrawEllipse(s_cornerBrush, null, tl, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, tr, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, bl, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, br, cornerSize, cornerSize);
+                        }
+                        else
+                        {
+                            context.DrawEllipse(s_cornerBrush, null, inflated.TopLeft, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, inflated.TopRight, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, inflated.BottomLeft, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, inflated.BottomRight, cornerSize, cornerSize);
+                        }
 
                         if (highlightItem is TextAnnotation { ArrowOrigin: { } ao })
                         {
@@ -4485,8 +4685,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         // Text width resize handle: right-center edge
                         if (highlightItem is TextAnnotation { IsStickyNote: false } selTextResize && bounds is { } tb2)
                         {
-                            var inf2 = tb2.Inflate(padSize);
-                            var midRight = new Point(inf2.Right, (inf2.Top + inf2.Bottom) / 2);
+                            Point midRight;
+                            if (Math.Abs(GetTextRenderRotation(selTextResize)) > 0.01)
+                            {
+                                var (_, tr, br, _) = GetVisibleTextCorners(selTextResize, da, scaleX, scaleY, penScale, padSize);
+                                midRight = new Point((tr.X + br.X) / 2, (tr.Y + br.Y) / 2);
+                            }
+                            else
+                            {
+                                var inf2 = tb2.Inflate(padSize);
+                                midRight = new Point(inf2.Right, (inf2.Top + inf2.Bottom) / 2);
+                            }
                             context.DrawEllipse(s_vertexBrush, vertexPen, midRight, vtxSize, vtxSize);
                         }
                     }
@@ -4914,53 +5123,22 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var arrowTip = PdfToScreen(t.ArrowOrigin.Value, da, boundsSize);
         var boxOrigin = PdfToScreen(t.Position, da, boundsSize);
 
-        // Use GetTextBounds which accounts for MaxWidth word-wrapping,
-        // then measure actual rendered lines with SkiaSharp for pixel accuracy.
-        float fontSize = (float)(t.FontSize * penScale);
-        float lineHeight = fontSize * 1.3f;
-        float x = (float)boxOrigin.X;
-        float y = (float)boxOrigin.Y + fontSize;
+        var boxRect = GetVisibleTextFrameBounds(t, da, boundsSize.Width > 0 && da.Width > 0 ? boundsSize.Width / da.Width : penScale,
+            boundsSize.Height > 0 && da.Height > 0 ? boundsSize.Height / da.Height : penScale, penScale);
+        if (boxRect is null) return;
 
-        string fontFamily = t.FontFamily ?? "";
-        var typeface = GetCachedTypeface(fontFamily);
-        using var skFont = new SKFont(typeface, fontSize);
-
-        // Word-wrap if MaxWidth is set, otherwise split on explicit newlines
-        List<string> lines;
-        if (t.MaxWidth > 0)
+        double rotation = GetTextRenderRotation(t);
+        Point connection;
+        if (Math.Abs(rotation) > 0.01)
         {
-            float scaleX = da.Width > 0 ? (float)(boundsSize.Width / da.Width) : (float)penScale;
-            float maxWidthPx = (float)(t.MaxWidth * scaleX);
-            lines = WrapTextLines(t.Text, maxWidthPx, skFont);
+            var arrowLocal = RotateScreenPoint(arrowTip, boxOrigin, -rotation);
+            var localConnection = ClosestSideCenter(boxRect.Value, arrowLocal);
+            connection = RotateScreenPoint(localConnection, boxOrigin, rotation);
         }
         else
         {
-            lines = [.. t.Text.Split('\n')];
+            connection = ClosestSideCenter(boxRect.Value, arrowTip);
         }
-
-        float minX = float.MaxValue, minY = float.MaxValue;
-        float maxX = float.MinValue, maxY = float.MinValue;
-        foreach (var line in lines)
-        {
-            if (line.Length > 0)
-            {
-                skFont.MeasureText(line, out var tb);
-                minX = Math.Min(minX, x + tb.Left);
-                minY = Math.Min(minY, y + tb.Top);
-                maxX = Math.Max(maxX, x + tb.Left + tb.Width);
-                maxY = Math.Max(maxY, y + tb.Top + tb.Height);
-            }
-            y += lineHeight;
-        }
-
-        if (minX >= maxX) return; // no measurable text
-
-        // Use the same pad as the tinted-glass frame so the arrow connects to the frame edge
-        float pad = 6;
-        var boxRect = new Rect(minX - pad, minY - pad,
-            (maxX - minX) + pad * 2, (maxY - minY) + pad * 2);
-
-        var connection = ClosestSideCenter(boxRect, arrowTip);
 
         byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
         var c = Color.FromArgb(alpha, t.Color.R, t.Color.G, t.Color.B);
@@ -5122,7 +5300,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 items.Add(new TextOverlayDrawOp.TextItem(
                     (float)screenPos.X, y, line, fontSize, color,
                     HasBackground: true, HasBorder: first, IsTextAnnotation: true,
-                    FontFamily: fontFamily, HasFrame: t.HasFrame));
+                    FontFamily: fontFamily, HasFrame: t.HasFrame,
+                    RotationDegrees: (float)GetTextRenderRotation(t)));
                 first = false;
             }
             y += lineHeight;
@@ -5217,7 +5396,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         items.Add(new TextOverlayDrawOp.TextItem(
             (float)labelX, (float)labelY, m.GetLabel(), fontSize, color,
             HasBackground: true, HasBorder: false, IsTextAnnotation: false,
-            TintBackground: true, CenterOnPoint: true));
+            TintBackground: true, CenterOnPoint: true,
+            RotationDegrees: (float)GetMeasurementRenderRotation(m)));
     }
 
     /// <summary>Computes the signed area (PDF-space pt²) of a polygon using the shoelace formula.</summary>
@@ -5285,7 +5465,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             HasBackground: true, HasBorder: false, IsTextAnnotation: false,
             TintBackground: true,
             SecondLine: perimLabel,
-            CenterOnPoint: true));
+            CenterOnPoint: true,
+            RotationDegrees: (float)GetAreaMeasureRenderRotation(stroke)));
     }
 
     private static string FormatArea(double mm2)
@@ -5470,7 +5651,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                        bool TintBackground = false,
                                        string SecondLine = "",
                                        bool CenterOnPoint = false,
-                                       bool HasFrame = true);
+                                       bool HasFrame = true,
+                                       float RotationDegrees = 0f);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -5516,12 +5698,66 @@ public class AnnotatedPDFRenderer : PDFRenderer
             string lastFamily = "";
             try
             {
-                foreach (var item in _items)
+                for (int i = 0; i < _items.Count; i++)
                 {
+                    var item = _items[i];
+
                     // Sticky notes are fully handled by DrawStickyNoteIcons; skip here
                     if (item.IsStickyNote) continue;
 
-                    var font = defaultFont;
+                    if (item.IsTextAnnotation)
+                    {
+                        int itemIndex = i;
+                        bool rotateGroup = Math.Abs(item.RotationDegrees) > 0.01f;
+                        if (rotateGroup)
+                        {
+                            canvas.Save();
+                            canvas.RotateDegrees(item.RotationDegrees, item.X, item.Y - item.FontSize);
+                        }
+
+                        for (; i < _items.Count; i++)
+                        {
+                            var lineItem = _items[i];
+                            if (!lineItem.IsTextAnnotation || (i != itemIndex && lineItem.HasBorder))
+                            {
+                                i--;
+                                break;
+                            }
+
+                            var font = defaultFont;
+                            if (!string.IsNullOrEmpty(lineItem.FontFamily))
+                            {
+                                if (lineItem.FontFamily != lastFamily)
+                                {
+                                    customFont?.Dispose();
+                                    var typeface = GetCachedTypeface(lineItem.FontFamily);
+                                    customFont = new SKFont(typeface);
+                                    lastFamily = lineItem.FontFamily;
+                                }
+                                if (customFont != null) font = customFont;
+                            }
+
+                            font.Size = lineItem.FontSize;
+                            paint.Color = lineItem.Color;
+                            canvas.DrawText(lineItem.Text, lineItem.X, lineItem.Y, font, paint);
+
+                            if (i + 1 >= _items.Count || !_items[i + 1].IsTextAnnotation || _items[i + 1].HasBorder)
+                                break;
+                        }
+
+                        if (rotateGroup) canvas.Restore();
+                        continue;
+                    }
+
+                    bool rotateItem = Math.Abs(item.RotationDegrees) > 0.01f;
+                    if (rotateItem)
+                    {
+                        canvas.Save();
+                        float pivotY = item.CenterOnPoint ? item.Y : item.Y - item.FontSize;
+                        canvas.RotateDegrees(item.RotationDegrees, item.X, pivotY);
+                    }
+
+                    var itemFont = defaultFont;
                     if (!string.IsNullOrEmpty(item.FontFamily))
                     {
                         if (item.FontFamily != lastFamily)
@@ -5531,78 +5767,70 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             customFont = new SKFont(typeface);
                             lastFamily = item.FontFamily;
                         }
-                        if (customFont != null) font = customFont;
+                        if (customFont != null) itemFont = customFont;
                     }
 
-                    font.Size = item.FontSize;
+                    itemFont.Size = item.FontSize;
                     paint.Color = item.Color;
 
-                    if (item.HasBackground && !item.IsTextAnnotation)
+                    if (item.HasBackground)
                     {
                         bool twoLine = !string.IsNullOrEmpty(item.SecondLine);
                         if (twoLine)
                         {
-                            // Measure both lines and draw one unified centered pill
-                            font.MeasureText(item.Text,       out var b1);
-                            font.MeasureText(item.SecondLine, out var b2);
-                            float lineH    = item.FontSize * 1.3f;
-                            float boxW     = Math.Max(b1.Width, b2.Width) + 16;
-                            float boxH     = lineH * 2 + 6;
-                            float boxX     = item.X - boxW / 2f;
-                            float line1Y   = item.Y - lineH * 0.5f;
-                            float line2Y   = line1Y + lineH;
-                            float bgTop    = line1Y + b1.Top - 4;
+                            itemFont.MeasureText(item.Text, out var b1);
+                            itemFont.MeasureText(item.SecondLine, out var b2);
+                            float lineH = item.FontSize * 1.3f;
+                            float boxW = Math.Max(b1.Width, b2.Width) + 16;
+                            float boxH = lineH * 2 + 6;
+                            float boxX = item.X - boxW / 2f;
+                            float line1Y = item.Y - lineH * 0.5f;
+                            float line2Y = line1Y + lineH;
+                            float bgTop = line1Y + b1.Top - 4;
 
-                            if (item.TintBackground)
-                                bgPaint.Color = new SKColor(
-                                    (byte)(200 + item.Color.Red   / 5),
+                            bgPaint.Color = item.TintBackground
+                                ? new SKColor(
+                                    (byte)(200 + item.Color.Red / 5),
                                     (byte)(200 + item.Color.Green / 5),
-                                    (byte)(200 + item.Color.Blue  / 5),
-                                    220);
-                            else
-                                bgPaint.Color = new SKColor(255, 255, 255, 200);
+                                    (byte)(200 + item.Color.Blue / 5),
+                                    220)
+                                : new SKColor(255, 255, 255, 200);
 
                             canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, bgPaint);
                             borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 80);
                             borderPaint.StrokeWidth = 1f;
                             canvas.DrawRoundRect(boxX, bgTop, boxW, boxH, 4, 4, borderPaint);
 
-                            // Draw a faint divider between the two lines
                             borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 40);
                             float divY = bgTop + lineH + 2;
                             canvas.DrawLine(boxX + 6, divY, boxX + boxW - 6, divY, borderPaint);
 
-                            // Draw text centered in the pill
-                            canvas.DrawText(item.Text,       item.X - b1.Width / 2f - b1.Left, line1Y, font, paint);
-                            canvas.DrawText(item.SecondLine, item.X - b2.Width / 2f - b2.Left, line2Y, font, paint);
+                            canvas.DrawText(item.Text, item.X - b1.Width / 2f - b1.Left, line1Y, itemFont, paint);
+                            canvas.DrawText(item.SecondLine, item.X - b2.Width / 2f - b2.Left, line2Y, itemFont, paint);
+                            if (rotateItem) canvas.Restore();
                             continue;
                         }
 
-                        font.MeasureText(item.Text, out var textBounds);
-                        // CenterOnPoint: item.X/Y is the target center — offset so the pill
-                        // is both horizontally and vertically centered on that point.
+                        itemFont.MeasureText(item.Text, out var textBounds);
                         float drawX = item.CenterOnPoint
                             ? item.X - textBounds.Width / 2f - textBounds.Left
                             : item.X;
                         float drawY = item.CenterOnPoint
                             ? item.Y - (textBounds.Top + textBounds.Height / 2f)
                             : item.Y;
-                        // Tinted backgrounds (measurement/area labels) get a faint wash of the annotation color
-                        if (item.TintBackground)
-                            bgPaint.Color = new SKColor(
-                                (byte)(200 + item.Color.Red   / 5),
+                        bgPaint.Color = item.TintBackground
+                            ? new SKColor(
+                                (byte)(200 + item.Color.Red / 5),
                                 (byte)(200 + item.Color.Green / 5),
-                                (byte)(200 + item.Color.Blue  / 5),
-                                210);
-                        else
-                            bgPaint.Color = new SKColor(255, 255, 255, 200);
+                                (byte)(200 + item.Color.Blue / 5),
+                                210)
+                            : new SKColor(255, 255, 255, 200);
                         canvas.DrawRoundRect(
                             drawX + textBounds.Left - 4,
                             drawY + textBounds.Top - 3,
                             textBounds.Width + 8,
                             textBounds.Height + 6,
                             3, 3, bgPaint);
-                        // Matching faint border
                         borderPaint.Color = new SKColor(item.Color.Red, item.Color.Green, item.Color.Blue, 60);
                         borderPaint.StrokeWidth = 1f;
                         canvas.DrawRoundRect(
@@ -5612,11 +5840,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             textBounds.Height + 6,
                             3, 3, borderPaint);
 
-                        canvas.DrawText(item.Text, drawX, drawY, font, paint);
+                        canvas.DrawText(item.Text, drawX, drawY, itemFont, paint);
+                        if (rotateItem) canvas.Restore();
                         continue;
                     }
 
-                    canvas.DrawText(item.Text, item.X, item.Y, font, paint);
+                    canvas.DrawText(item.Text, item.X, item.Y, itemFont, paint);
+                    if (rotateItem) canvas.Restore();
                 }
             }
             finally { customFont?.Dispose(); }
@@ -5806,6 +6036,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 var fullArea = new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
                 var frameRRect = new SKRoundRect(fullArea, radius, radius);
 
+                bool rotateGroup = Math.Abs(item.RotationDegrees) > 0.01f;
+                if (rotateGroup)
+                {
+                    canvas.Save();
+                    canvas.RotateDegrees(item.RotationDegrees, item.X, item.Y - item.FontSize);
+                }
+
                 // Tinted background — faint wash of the annotation color
                 bgPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 30);
                 canvas.DrawRoundRect(frameRRect, bgPaint);
@@ -5814,6 +6051,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 borderPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 110);
                 borderPaint.StrokeWidth = 1.2f;
                 canvas.DrawRoundRect(frameRRect, borderPaint);
+
+                if (rotateGroup) canvas.Restore();
 
                 i = j;
             }
@@ -5841,6 +6080,8 @@ public class InkStroke
     public bool IsAreaMeasure { get; set; }
     /// <summary>Measurement scale (mm/pt) captured at the time the area was drawn, matching the distance-measure scale.</summary>
     public double AreaScale { get; set; } = 25.4 / 72.0;
+    /// <summary>Page rotation in degrees at the time this stroke was created. Used for area-measure label orientation.</summary>
+    public double CreatedAtRotation { get; set; }
     /// <summary>Dash pattern applied to the stroke.</summary>
     public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
     /// <summary>

@@ -653,6 +653,7 @@ public partial class PreView
                     IsStickyNote = src.IsStickyNote,
                     IsLabel = src.IsLabel,
                     HasFrame = src.HasFrame,
+                    CreatedAtRotation = src.CreatedAtRotation,
                     MaxWidth = src.MaxWidth,
                     ArrowOrigin = src.ArrowOrigin.HasValue
                         ? new Point(src.ArrowOrigin.Value.X + offset, src.ArrowOrigin.Value.Y + offset)
@@ -687,6 +688,7 @@ public partial class PreView
                     IsFilled = src.IsFilled,
                     IsAreaMeasure = src.IsAreaMeasure,
                     AreaScale = src.AreaScale,
+                    CreatedAtRotation = src.CreatedAtRotation,
                     DashPattern = src.DashPattern,
                     CornerRadius = src.CornerRadius
                 };
@@ -699,7 +701,9 @@ public partial class PreView
             {
                 var copy = new MeasurementAnnotation
                 {
-                    Color = src.Color, Scale = src.Scale
+                    Color = src.Color,
+                    Scale = src.Scale,
+                    CreatedAtRotation = src.CreatedAtRotation
                 };
                 foreach (var p in src.Points)
                     copy.Points.Add(new Point(p.X + offset, p.Y + offset));

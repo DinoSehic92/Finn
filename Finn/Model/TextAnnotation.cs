@@ -97,6 +97,12 @@ public class TextAnnotation
     /// </summary>
     public bool HasFrame { get; set; } = true;
 
+    /// <summary>
+    /// Page rotation in degrees at the time this text annotation was created.
+    /// Used to preserve the textbox's visual orientation relative to its creation view.
+    /// </summary>
+    public double CreatedAtRotation { get; set; }
+
     // ── Cached measured bounds (set by renderer, used for accurate hit-testing) ──
 
     /// <summary>
