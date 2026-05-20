@@ -1014,8 +1014,30 @@ public partial class PreView
                 DrawAnnotationsToCanvas(canvas, page, renderZoom);
                 canvas.Restore();
 
-                using var image = surface.Snapshot();
-                return image.Encode(SKEncodedImageFormat.Png, 100);
+                // Apply the viewer's visual rotation so the screenshot matches what the user sees
+                int viewRotation = (int)(pwr?.Rotation ?? 0);
+                if (viewRotation == 0)
+                {
+                    using var image = surface.Snapshot();
+                    return image.Encode(SKEncodedImageFormat.Png, 100);
+                }
+                else
+                {
+                    bool swap = viewRotation == 90 || viewRotation == 270;
+                    int rotW = swap ? cropH : cropW;
+                    int rotH = swap ? cropW : cropH;
+                    using var rotSurface = SKSurface.Create(new SKImageInfo(rotW, rotH));
+                    var rotCanvas = rotSurface.Canvas;
+                    rotCanvas.Clear(SKColors.White);
+                    rotCanvas.Translate(rotW / 2f, rotH / 2f);
+                    rotCanvas.RotateDegrees(viewRotation);
+                    rotCanvas.Translate(-cropW / 2f, -cropH / 2f);
+                    using var unrotatedImage = surface.Snapshot();
+                    using var unrotatedBitmap = SKBitmap.FromImage(unrotatedImage);
+                    rotCanvas.DrawBitmap(unrotatedBitmap, 0, 0);
+                    using var rotatedImage = rotSurface.Snapshot();
+                    return rotatedImage.Encode(SKEncodedImageFormat.Png, 100);
+                }
             });
 
             if (pngData == null)
