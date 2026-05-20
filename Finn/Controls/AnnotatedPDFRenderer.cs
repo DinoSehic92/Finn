@@ -809,6 +809,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
             screenPos.Y / bounds.Height * da.Height + da.Y);
     }
 
+    /// <summary>Converts a PDF-space point to Avalonia screen coordinates within this control.</summary>
+    public Point? PdfToScreenPoint(Point pdfPos)
+    {
+        if (!IsViewerInitialized) return null;
+
+        var da = DisplayArea;
+        var bounds = Bounds;
+        if (da.Width <= 0 || da.Height <= 0 || bounds.Width <= 0 || bounds.Height <= 0)
+            return null;
+
+        double scaleX = bounds.Width / da.Width;
+        double scaleY = bounds.Height / da.Height;
+        return PdfToScreen(pdfPos, da.X, da.Y, scaleX, scaleY);
+    }
+
     private Point PdfToScreen(Point pdfPos, Rect da, Size boundsSize)
     {
         return new Point(
@@ -1675,9 +1690,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private static bool HitTestStickyNote(TextAnnotation t, Point pt)
     {
-        // The icon occupies a 13×13 PDF-unit square at the placement position
+        // The icon occupies a 13×13 PDF-unit square at the placement position.
+        // If the sticky note was created with a page rotation, rotate the test
+        // point back into the icon's local (unrotated) frame before testing.
         const double iconSize = 13.0;
         const double pad = 3.0;
+        double rotation = GetTextRenderRotation(t);
+        if (Math.Abs(rotation) > 0.01)
+        {
+            // Pivot in PDF space is the placement position
+            double rad = -rotation * Math.PI / 180.0;
+            double cos = Math.Cos(rad);
+            double sin = Math.Sin(rad);
+            double dx = pt.X - t.Position.X;
+            double dy = pt.Y - t.Position.Y;
+            pt = new Point(
+                t.Position.X + dx * cos - dy * sin,
+                t.Position.Y + dx * sin + dy * cos);
+        }
         return new Rect(t.Position.X - pad, t.Position.Y - pad,
                         iconSize + pad * 2, iconSize + pad * 2).Contains(pt);
     }
@@ -2829,6 +2859,44 @@ public class AnnotatedPDFRenderer : PDFRenderer
         return new Rect(minX, minY, maxX - minX, maxY - minY);
     }
 
+    /// <summary>
+    /// Returns the PDF-space position of the right-edge resize handle for a text annotation,
+    /// accounting for page rotation. Use this for hit-testing the drag handle.
+    /// </summary>
+    public Point? GetTextResizeHandlePdfPoint(TextAnnotation t)
+    {
+        if (!IsViewerInitialized) return null;
+        var da = DisplayArea;
+        var bounds = Bounds;
+        if (da.Width <= 0 || da.Height <= 0 || bounds.Width <= 0 || bounds.Height <= 0)
+            return null;
+
+        double scaleX = bounds.Width / da.Width;
+        double scaleY = bounds.Height / da.Height;
+        double penScale = Math.Min(scaleX, scaleY);
+        const double padSize = 4.0;
+
+        double rotation = GetTextRenderRotation(t);
+
+        Point handleScreen;
+        if (Math.Abs(rotation) > 0.01)
+        {
+            // For rotated text, the handle is the midpoint of the rotated right edge
+            var (_, tr, br, _) = GetVisibleTextCorners(t, da, scaleX, scaleY, penScale, padSize);
+            handleScreen = new Point((tr.X + br.X) / 2, (tr.Y + br.Y) / 2);
+        }
+        else
+        {
+            var frameBounds = GetVisibleTextFrameBounds(t, da, scaleX, scaleY, penScale);
+            if (frameBounds == null) return null;
+            var inf = frameBounds.Value.Inflate(padSize);
+            handleScreen = new Point(inf.Right, (inf.Top + inf.Bottom) / 2);
+        }
+
+        // Convert screen position back to PDF space
+        return ScreenToPdf(handleScreen);
+    }
+
     private Rect GetScreenTextBounds(TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale)
     {
         var sp = PdfToScreen(t.Position, da.X, da.Y, scaleX, scaleY);
@@ -2884,6 +2952,26 @@ public class AnnotatedPDFRenderer : PDFRenderer
             (maxY - minY) + framePad * 2);
     }
 
+    private (Point topLeft, Point topRight, Point bottomRight, Point bottomLeft) GetStickyNoteScreenCorners(
+        TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale, double inflate = 0)
+    {
+        var pivot = PdfToScreen(t.Position, da.X, da.Y, scaleX, scaleY);
+        double sz = 13.0 * penScale + inflate;
+        // Unrotated corners: top-left at pivot, growing right+down
+        var tl = new Point(pivot.X - inflate, pivot.Y - inflate);
+        var tr = new Point(pivot.X + sz,      pivot.Y - inflate);
+        var br = new Point(pivot.X + sz,      pivot.Y + sz);
+        var bl = new Point(pivot.X - inflate, pivot.Y + sz);
+        double rotation = GetTextRenderRotation(t);
+        if (Math.Abs(rotation) < 0.01)
+            return (tl, tr, br, bl);
+        return (
+            RotateScreenPoint(tl, pivot, rotation),
+            RotateScreenPoint(tr, pivot, rotation),
+            RotateScreenPoint(br, pivot, rotation),
+            RotateScreenPoint(bl, pivot, rotation));
+    }
+
     private Rect GetVisibleTextBounds(TextAnnotation t, Rect da, double scaleX, double scaleY, double penScale)
     {
         var bounds = GetVisibleTextFrameBounds(t, da, scaleX, scaleY, penScale)
@@ -2892,7 +2980,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (Math.Abs(rotation) < 0.01)
             return bounds;
 
-        var pivot = bounds.TopLeft;
+        // Rotate around the actual Skia rendering pivot: the text's position in screen space
+        var pivot = PdfToScreen(t.Position, da.X, da.Y, scaleX, scaleY);
         var p0 = RotateScreenPoint(bounds.TopLeft, pivot, rotation);
         var p1 = RotateScreenPoint(bounds.TopRight, pivot, rotation);
         var p2 = RotateScreenPoint(bounds.BottomLeft, pivot, rotation);
@@ -2909,7 +2998,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (Math.Abs(rotation) < 0.01)
             return (bounds.TopLeft, bounds.TopRight, bounds.BottomRight, bounds.BottomLeft);
 
-        var pivot = bounds.TopLeft;
+        // Rotate around the actual Skia rendering pivot: the text's position in screen space
+        var pivot = PdfToScreen(t.Position, da.X, da.Y, scaleX, scaleY);
         return (
             RotateScreenPoint(bounds.TopLeft, pivot, rotation),
             RotateScreenPoint(bounds.TopRight, pivot, rotation),
@@ -3399,7 +3489,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double rotation = GetTextRenderRotation(text);
         if (Math.Abs(rotation) > 0.01)
         {
-            var pivot = frameBounds.Value.TopLeft;
+            // Un-rotate around the actual Skia rendering pivot (text position in screen space)
+            var pivot = PdfToScreen(text.Position, da.X, da.Y, scaleX, scaleY);
             var localPt = RotateScreenPoint(screenPt, pivot, -rotation);
             return frameBounds.Value.Contains(localPt);
         }
@@ -4210,7 +4301,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     Points = pts,
                     Scale = _activeMeasurement.Scale,
-                    Color = _activeMeasurement.Color
+                    Color = _activeMeasurement.Color,
+                    CreatedAtRotation = _activeMeasurement.CreatedAtRotation
                 };
                 CollectMeasurementLabel(previewM, da, boundsSize, penScale, textItems);
             }
@@ -4252,21 +4344,24 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 float iconSz = (float)(13.0 * penScale);
                 var ghostColor = new SKColor(255, 235, 59, 120);
+                float ghostStickyRotation = (float)AnnotationRotation.GetRenderRotation(ViewRotation);
                 textItems.Add(new TextOverlayDrawOp.TextItem(
                     (float)ghostPos.X, (float)ghostPos.Y, "", iconSz, ghostColor,
                     HasBackground: false, HasBorder: false, IsTextAnnotation: false,
-                    IsStickyNote: true, IsExpandedStickyNote: false));
+                    IsStickyNote: true, IsExpandedStickyNote: false,
+                    RotationDegrees: ghostStickyRotation));
             }
             else
             {
-                // Ghost text box frame (empty "Aa" placeholder)
+                // Ghost text box frame (empty "Aa" placeholder), rotated to match the current page rotation
                 float ghostFontSz = (float)(TextFontSize * penScale);
                 var ghostColor = new SKColor(StrokeColor.R, StrokeColor.G, StrokeColor.B, 100);
                 float baselineY = (float)ghostPos.Y + ghostFontSz;
+                float ghostRotation = (float)AnnotationRotation.GetRenderRotation(ViewRotation);
                 textItems.Add(new TextOverlayDrawOp.TextItem(
                     (float)ghostPos.X, baselineY, "Aa", ghostFontSz, ghostColor,
                     HasBackground: true, HasBorder: true, IsTextAnnotation: true,
-                    RotationDegrees: 0f));
+                    RotationDegrees: ghostRotation));
             }
         }
 
@@ -4343,6 +4438,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     && Math.Abs(GetTextRenderRotation(hoverText)) > 0.01)
                 {
                     var (tl, tr, br, bl) = GetVisibleTextCorners(hoverText, da, scaleX, scaleY, penScale, 5);
+                    var geo = new StreamGeometry();
+                    using (var ctx2 = geo.Open())
+                    {
+                        ctx2.BeginFigure(tl, false);
+                        ctx2.LineTo(tr);
+                        ctx2.LineTo(br);
+                        ctx2.LineTo(bl);
+                        ctx2.EndFigure(true);
+                    }
+                    context.DrawGeometry(null, hoverPen, geo);
+                }
+                else if (_selectHoverItem is TextAnnotation { IsStickyNote: true } hoverSticky
+                    && Math.Abs(GetTextRenderRotation(hoverSticky)) > 0.01)
+                {
+                    var (tl, tr, br, bl) = GetStickyNoteScreenCorners(hoverSticky, da, scaleX, scaleY, penScale, 5);
                     var geo = new StreamGeometry();
                     using (var ctx2 = geo.Open())
                     {
@@ -4615,11 +4725,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     bool isRotatedText = highlightItem is TextAnnotation { IsStickyNote: false } textAnn
                         && Math.Abs(GetTextRenderRotation(textAnn)) > 0.01;
+                    bool isRotatedSticky = highlightItem is TextAnnotation { IsStickyNote: true } stickyAnn
+                        && Math.Abs(GetTextRenderRotation(stickyAnn)) > 0.01;
                     var inflated = b.Inflate(padSize);
 
                     if (isRotatedText && highlightItem is TextAnnotation rt)
                     {
                         var (tl, tr, br, bl) = GetVisibleTextCorners(rt, da, scaleX, scaleY, penScale, padSize);
+                        var geo = new StreamGeometry();
+                        using (var ctx2 = geo.Open())
+                        {
+                            ctx2.BeginFigure(tl, false);
+                            ctx2.LineTo(tr);
+                            ctx2.LineTo(br);
+                            ctx2.LineTo(bl);
+                            ctx2.EndFigure(true);
+                        }
+                        context.DrawGeometry(null, selectPen, geo);
+                    }
+                    else if (isRotatedSticky && highlightItem is TextAnnotation rs)
+                    {
+                        var (tl, tr, br, bl) = GetStickyNoteScreenCorners(rs, da, scaleX, scaleY, penScale, padSize);
                         var geo = new StreamGeometry();
                         using (var ctx2 = geo.Open())
                         {
@@ -4641,6 +4767,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         if (isRotatedText && highlightItem is TextAnnotation rt2)
                         {
                             var (tl, tr, br, bl) = GetVisibleTextCorners(rt2, da, scaleX, scaleY, penScale, padSize);
+                            context.DrawEllipse(s_cornerBrush, null, tl, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, tr, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, bl, cornerSize, cornerSize);
+                            context.DrawEllipse(s_cornerBrush, null, br, cornerSize, cornerSize);
+                        }
+                        else if (isRotatedSticky && highlightItem is TextAnnotation rs2)
+                        {
+                            var (tl, tr, br, bl) = GetStickyNoteScreenCorners(rs2, da, scaleX, scaleY, penScale, padSize);
                             context.DrawEllipse(s_cornerBrush, null, tl, cornerSize, cornerSize);
                             context.DrawEllipse(s_cornerBrush, null, tr, cornerSize, cornerSize);
                             context.DrawEllipse(s_cornerBrush, null, bl, cornerSize, cornerSize);
@@ -5256,7 +5390,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             (float)iconPos.X, (float)iconPos.Y, t.Text, iconSize, color,
             HasBackground: false, HasBorder: false, IsTextAnnotation: false,
             IsStickyNote: true, IsExpandedStickyNote: isExpanded,
-            PopupFontSize: (float)(t.FontSize * penScale)));
+            PopupFontSize: (float)(t.FontSize * penScale),
+            RotationDegrees: (float)GetTextRenderRotation(t)));
     }
 
     private void CollectTextAnnotation(TextAnnotation t, Rect da, Size boundsSize,
@@ -5861,10 +5996,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
             foreach (var item in _items)
             {
                 if (!item.IsStickyNote) continue;
+                bool rotated = Math.Abs(item.RotationDegrees) > 0.01f;
+                if (rotated)
+                {
+                    canvas.Save();
+                    canvas.RotateDegrees(item.RotationDegrees, item.X, item.Y);
+                }
                 if (!item.IsPopupOnly)
                     DrawStickyNoteIcon(canvas, item.X, item.Y, item.FontSize, item.Color, bgPaint, borderPaint);
                 if (item.IsExpandedStickyNote && !string.IsNullOrEmpty(item.Text))
                     DrawStickyNotePopup(canvas, item.X, item.Y, item.FontSize, item.Text, item.Color, bgPaint, borderPaint, item.PopupFontSize);
+                if (rotated)
+                    canvas.Restore();
             }
         }
 

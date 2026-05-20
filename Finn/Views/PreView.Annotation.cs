@@ -1224,9 +1224,8 @@ public partial class PreView
             // Text right-edge resize handle
             if (_selectedAnnotation is TextAnnotation { IsStickyNote: false, MaxWidth: > 0 } selText)
             {
-                var rtb = AnnotatedPDFRenderer.GetTextBounds(selText);
-                var handlePoint = new Point(rtb.Right, (rtb.Top + rtb.Bottom) / 2);
-                if (IsNear(pdfPoint, handlePoint, HitRadius(ResizeHandleHitScreenPx)))
+                var handlePdf = MuPDFRenderer.GetTextResizeHandlePdfPoint(selText);
+                if (handlePdf.HasValue && IsNear(pdfPoint, handlePdf.Value, HitRadius(ResizeHandleHitScreenPx)))
                     return CursorSizeWE;
             }
         }

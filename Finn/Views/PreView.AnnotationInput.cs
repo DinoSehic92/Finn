@@ -257,9 +257,8 @@ public partial class PreView
                 // Right-edge resize handle: check before generic drag
                 if (!hitText.IsStickyNote && hitText.MaxWidth > 0)
                 {
-                    var rtb = AnnotatedPDFRenderer.GetTextBounds(hitText);
-                    var handlePoint = new Point(rtb.Right, (rtb.Top + rtb.Bottom) / 2);
-                    if (IsNear(pdfPoint.Value, handlePoint, HitRadius(HandleHitScreenPxLarge)))
+                    var handlePdf = MuPDFRenderer.GetTextResizeHandlePdfPoint(hitText);
+                    if (handlePdf.HasValue && IsNear(pdfPoint.Value, handlePdf.Value, HitRadius(HandleHitScreenPxLarge)))
                     {
                         _resizingTextAnnotation = hitText;
                         _dragStartPdf = pdfPoint.Value;
@@ -389,9 +388,8 @@ public partial class PreView
                 // Text right-edge resize handle (outside text body but near the handle dot)
                 if (_selectedAnnotation is TextAnnotation { IsStickyNote: false, MaxWidth: > 0 } selText)
                 {
-                    var rtb = AnnotatedPDFRenderer.GetTextBounds(selText);
-                    var handlePoint = new Point(rtb.Right, (rtb.Top + rtb.Bottom) / 2);
-                    if (IsNear(pdfPoint.Value, handlePoint, HitRadius(ResizeHandleHitScreenPx)))
+                    var handlePdf = MuPDFRenderer.GetTextResizeHandlePdfPoint(selText);
+                    if (handlePdf.HasValue && IsNear(pdfPoint.Value, handlePdf.Value, HitRadius(ResizeHandleHitScreenPx)))
                     {
                         _resizingTextAnnotation = selText;
                         _dragStartPdf = pdfPoint.Value;
@@ -799,9 +797,34 @@ public partial class PreView
         // Handle text width resize — adjusts MaxWidth via right-edge drag
         if (_resizingTextAnnotation != null)
         {
-            var snapped = MuPDFRenderer.ComputeVertexSnap(_resizingTextAnnotation,
-                new Point(pdfPoint.Value.X, _resizingTextAnnotation.Position.Y));
-            double newWidth = Math.Max(30, snapped.X - _resizingTextAnnotation.Position.X);
+            double rotation = AnnotationRotation.GetRenderRotation(_resizingTextAnnotation.CreatedAtRotation);
+            double newWidth;
+            if (Math.Abs(rotation) > 0.01)
+            {
+                // Project the mouse position onto the text's local horizontal axis.
+                // The local X direction in screen space is (cos(angle), sin(angle)).
+                var originScreen = MuPDFRenderer.PdfToScreenPoint(_resizingTextAnnotation.Position);
+                var mouseScreen = MuPDFRenderer.PdfToScreenPoint(pdfPoint.Value);
+                if (originScreen.HasValue && mouseScreen.HasValue)
+                {
+                    double rad = rotation * Math.PI / 180.0;
+                    double lx = Math.Cos(rad), ly = Math.Sin(rad);
+                    double dx = mouseScreen.Value.X - originScreen.Value.X;
+                    double dy = mouseScreen.Value.Y - originScreen.Value.Y;
+                    double projectedPx = dx * lx + dy * ly;
+                    newWidth = Math.Max(30, MuPDFRenderer.ScreenToPdfDistance(projectedPx));
+                }
+                else
+                {
+                    newWidth = _resizingTextAnnotation.MaxWidth;
+                }
+            }
+            else
+            {
+                var snapped = MuPDFRenderer.ComputeVertexSnap(_resizingTextAnnotation,
+                    new Point(pdfPoint.Value.X, _resizingTextAnnotation.Position.Y));
+                newWidth = Math.Max(30, snapped.X - _resizingTextAnnotation.Position.X);
+            }
             _resizingTextAnnotation.MaxWidth = newWidth;
             MuPDFRenderer.InvalidateVisual();
             return;

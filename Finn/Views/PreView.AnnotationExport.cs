@@ -640,6 +640,14 @@ public partial class PreView
         var color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha);
         float fold = sz * 0.28f;
 
+        float renderRotation = (float)AnnotationRotation.GetRenderRotation(t.CreatedAtRotation);
+        bool hasRotation = Math.Abs(renderRotation) > 0.01f;
+        if (hasRotation)
+        {
+            canvas.Save();
+            canvas.RotateDegrees(renderRotation, x, y);
+        }
+
         using var bgPaint  = new SKPaint { Style = SKPaintStyle.Fill,   IsAntialias = true };
         using var brdPaint = new SKPaint { Style = SKPaintStyle.Stroke, IsAntialias = true, StrokeWidth = MathF.Max(0.8f, sz * 0.05f) };
 
@@ -682,6 +690,9 @@ public partial class PreView
         canvas.DrawLine(lx, ly,           lx + lw,          ly,           linesPaint);
         canvas.DrawLine(lx, ly + ls,      lx + lw,          ly + ls,      linesPaint);
         canvas.DrawLine(lx, ly + ls * 2f, lx + lw * 0.65f,  ly + ls * 2f, linesPaint);
+
+        if (hasRotation)
+            canvas.Restore();
     }
 
     private static void RenderSkiaArrowhead(SKCanvas canvas, SKPaint paint,
