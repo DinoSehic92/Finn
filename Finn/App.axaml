@@ -267,7 +267,7 @@
 			<Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
 		</Style>
 		<Style Selector="Button#PART_CloseButton:pointerover">
-			<Setter Property="Background" Value="#C42B1C"/>
+			<Setter Property="Background" Value="#99C42B1C"/>
 		</Style>
 		<Style Selector="Button#PART_MinimizeButton:pressed, Button#PART_MaximizeButton:pressed, Button#PART_FullScreenButton:pressed">
 			<Setter Property="Opacity" Value="1"/>
