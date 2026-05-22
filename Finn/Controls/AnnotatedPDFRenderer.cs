@@ -5213,7 +5213,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
 
-        double headLen = Math.Min(8 * penScale, len * 0.4);
+        double headLen = Math.Min((6 + pen.Thickness) * penScale, len * 0.4);
         double headAngle = Math.PI / 8; // 22.5 degrees
 
         double angle = Math.Atan2(dy, dx);
@@ -5330,18 +5330,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
         context.DrawLine(solidPen, s0, s1);
         DrawEndMark(context, solidPen, s0, s1, penScale);
         DrawEndMark(context, solidPen, s1, s0, penScale);
-        DrawMeasureArrowhead(context, c, s0, s1, penScale);
-        DrawMeasureArrowhead(context, c, s1, s0, penScale);
+        DrawMeasureArrowhead(context, c, s0, s1, penScale, solidPen.Thickness);
+        DrawMeasureArrowhead(context, c, s1, s0, penScale, solidPen.Thickness);
     }
 
     private static void DrawMeasureArrowhead(DrawingContext context, Color color,
-                                              Point tip, Point from, double penScale)
+                                              Point tip, Point from, double penScale, double strokeThickness = 1.5)
     {
         double dx = tip.X - from.X;
         double dy = tip.Y - from.Y;
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
-        double headLen = Math.Min(6 * penScale, len * 0.3);
+        double headLen = Math.Min((6 + strokeThickness) * penScale, len * 0.3);
         double angle = Math.Atan2(dy, dx);
         const double half = Math.PI / 7;
         var p1 = new Point(tip.X - headLen * Math.Cos(angle - half),

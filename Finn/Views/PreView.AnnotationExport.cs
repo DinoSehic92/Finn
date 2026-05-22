@@ -300,7 +300,7 @@ public partial class PreView
                     float alen = MathF.Sqrt(adx * adx + ady * ady);
                     if (alen > 1)
                     {
-                        float headLen = MathF.Min(8f * (float)renderZoom, alen * 0.4f);
+                        float headLen = MathF.Min((6f + (float)shape.StrokeWidth) * (float)renderZoom, alen * 0.4f);
                         float shortenX = adx / alen * headLen;
                         float shortenY = ady / alen * headLen;
                         canvas.DrawLine(sx, sy, ex - shortenX, ey - shortenY, paint);
@@ -458,8 +458,10 @@ public partial class PreView
                 if (t.ArrowOrigin.HasValue)
                 {
                     float s2 = (float)renderZoom;
-                    var connArea = new SKRect(frameMinX - 4 * s2, frameMinY - 4 * s2,
-                                             frameMaxX + 4 * s2, frameMaxY + 4 * s2);
+                    // Use the same pad as the drawn frame (6 * renderZoom) so the
+                    // attachment point lands exactly on the visible box edge.
+                    var connArea = new SKRect(frameMinX - 6 * s2, frameMinY - 6 * s2,
+                                             frameMaxX + 6 * s2, frameMaxY + 6 * s2);
                     arrowTipX = (float)(t.ArrowOrigin.Value.X * renderZoom);
                     arrowTipY = (float)(t.ArrowOrigin.Value.Y * renderZoom);
                     (float x, float y) localArrow = hasRotation
@@ -508,19 +510,21 @@ public partial class PreView
 
                 if (drawArrow)
                 {
+                    float arrowStrokeWidth = 0.9f * (float)renderZoom;
                     using var arrowLinePaint = new SKPaint
                     {
                         Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, alpha),
-                        StrokeWidth = 1.2f * (float)renderZoom,
+                        StrokeWidth = arrowStrokeWidth,
                         Style = SKPaintStyle.Stroke,
                         StrokeCap = SKStrokeCap.Round,
                         IsAntialias = true
                     };
+                    // Shorten shaft by exact head length so round cap ends at arrowhead base, not tip.
                     float aadx = arrowTipX - arrowDrawX, aady = arrowTipY - arrowDrawY;
                     float aalen = MathF.Sqrt(aadx * aadx + aady * aady);
                     if (aalen > 1)
                     {
-                        float headLen = MathF.Min(8f * (float)renderZoom, aalen * 0.4f);
+                        float headLen = MathF.Min((6f + arrowStrokeWidth / (float)renderZoom) * (float)renderZoom, aalen * 0.4f);
                         float shX = aadx / aalen * headLen;
                         float shY = aady / aalen * headLen;
                         canvas.DrawLine(arrowDrawX, arrowDrawY, arrowTipX - shX, arrowTipY - shY, arrowLinePaint);
@@ -563,8 +567,8 @@ public partial class PreView
                 }
 
                 // Arrowheads at both endpoints
-                RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x0, y0, x1, y1, renderZoom);
-                RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x1, y1, x0, y0, renderZoom);
+                RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x0, y0, x1, y1, renderZoom, mPaint.StrokeWidth);
+                RenderSkiaMeasureArrowhead(canvas, mPaint.Color, x1, y1, x0, y0, renderZoom, mPaint.StrokeWidth);
 
                 // Label: offset perpendicularly above the line, centered on the offset midpoint.
                 // Matches in-app: perpendicular unit vector biased toward screen-up, offset = fontSize*1.4 + gap.
@@ -704,7 +708,7 @@ public partial class PreView
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
 
-        double headLen = Math.Min(8 * renderZoom, len * 0.4);
+        double headLen = Math.Min((6 + paint.StrokeWidth / renderZoom) * renderZoom, len * 0.4);
         double headAngle = Math.PI / 8;
         double angle = Math.Atan2(dy, dx);
 
@@ -734,13 +738,13 @@ public partial class PreView
     private static void RenderSkiaMeasureArrowhead(SKCanvas canvas, SKColor color,
                                                     float tipX, float tipY,
                                                     float fromX, float fromY,
-                                                    double renderZoom)
+                                                    double renderZoom, float strokeThickness = 1.5f)
     {
         double dx = tipX - fromX;
         double dy = tipY - fromY;
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
-        double headLen = Math.Min(6 * renderZoom, len * 0.3);
+        double headLen = Math.Min((6 + strokeThickness / renderZoom) * renderZoom, len * 0.3);
         double angle = Math.Atan2(dy, dx);
         const double half = Math.PI / 7;
         float p1x = (float)(tipX - headLen * Math.Cos(angle - half));
@@ -1390,12 +1394,12 @@ public partial class PreView
                     double alen = Math.Sqrt(adx * adx + ady * ady);
                     if (alen > 1)
                     {
-                        double headLen = Math.Min(8.0, alen * 0.4);
+                        double headLen = Math.Min(6 + shape.StrokeWidth, alen * 0.4);
                         double shX = adx / alen * headLen;
                         double shY = ady / alen * headLen;
                         gfx.DrawLine(pen, sx, sy, ex - shX, ey - shY);
                     }
-                    DrawArrowheadPdfSharp(gfx, sx, sy, ex, ey, color);
+                    DrawArrowheadPdfSharp(gfx, sx, sy, ex, ey, color, shape.StrokeWidth);
                     // Tail dot at origin — matches in-app DrawTailDot
                     double tailR = Math.Max(2.0, shape.StrokeWidth * 0.9);
                     gfx.DrawEllipse(new XSolidBrush(color), sx - tailR, sy - tailR, tailR * 2, tailR * 2);
@@ -1493,20 +1497,22 @@ public partial class PreView
                 arrowTipY = t.ArrowOrigin.Value.Y;
                 double localArrowX = arrowTipX;
                 double localArrowY = arrowTipY;
-                double midX = fx + fw / 2, midY = fy + fh / 2;
+                // Use the same frame geometry that is actually drawn (frameRect)
+                double fMidX = frameRect.X + frameRect.Width / 2;
+                double fMidY = frameRect.Y + frameRect.Height / 2;
                 (double cx, double cy)[] sides =
                 [
-                    (midX, fy),          // top
-                    (midX, fy + fh),      // bottom
-                    (fx, midY),           // left
-                    (fx + fw, midY)       // right
+                    (fMidX, frameRect.Y),                        // top
+                    (fMidX, frameRect.Y + frameRect.Height),     // bottom
+                    (frameRect.X, fMidY),                        // left
+                    (frameRect.X + frameRect.Width, fMidY)       // right
                 ];
                 if (hasRotation)
                 {
                     (localArrowX, localArrowY) = RotateExportPoint(localArrowX, localArrowY, t.Position.X, t.Position.Y, -renderRotation);
                 }
                 double bestDist = double.MaxValue;
-                double attX = midX, attY = fy;
+                double attX = fMidX, attY = frameRect.Y;
                 foreach (var (cx, cy) in sides)
                 {
                     double d = (cx - localArrowX) * (cx - localArrowX) + (cy - localArrowY) * (cy - localArrowY);
@@ -1542,7 +1548,7 @@ public partial class PreView
                 double aalen = Math.Sqrt(aadx * aadx + aady * aady);
                 if (aalen > 1)
                 {
-                    double headLen = Math.Min(8.0, aalen * 0.4);
+                    double headLen = Math.Min(7.2, aalen * 0.4);
                     double shX = aadx / aalen * headLen;
                     double shY = aady / aalen * headLen;
                     gfx.DrawLine(arrowPen, arrowDrawX, arrowDrawY, arrowTipX - shX, arrowTipY - shY);
@@ -1639,8 +1645,8 @@ public partial class PreView
                 }
 
                 // Arrowheads at both endpoints
-                DrawMeasureArrowheadPdfSharp(gfx, x0, y0, x1, y1, color);
-                DrawMeasureArrowheadPdfSharp(gfx, x1, y1, x0, y0, color);
+                DrawMeasureArrowheadPdfSharp(gfx, x0, y0, x1, y1, color, 1.5);
+                DrawMeasureArrowheadPdfSharp(gfx, x1, y1, x0, y0, color, 1.5);
             }
 
             // Label
@@ -1669,12 +1675,13 @@ public partial class PreView
     }
 
     private static void DrawArrowheadPdfSharp(
-        XGraphics gfx, double fromX, double fromY, double tipX, double tipY, XColor color)
+        XGraphics gfx, double fromX, double fromY, double tipX, double tipY, XColor color,
+        double strokeWidth = 1.0)
     {
         double dx = tipX - fromX, dy = tipY - fromY;
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
-        double headLen = Math.Min(8.0, len * 0.4);
+        double headLen = Math.Min(6 + strokeWidth, len * 0.4);
         const double ang = Math.PI / 8;
         double angle = Math.Atan2(dy, dx);
         var path = new XGraphicsPath();
@@ -1693,12 +1700,12 @@ public partial class PreView
     /// Matches the in-app DrawMeasureArrowhead.
     /// </summary>
     private static void DrawMeasureArrowheadPdfSharp(
-        XGraphics gfx, double tipX, double tipY, double fromX, double fromY, XColor color)
+        XGraphics gfx, double tipX, double tipY, double fromX, double fromY, XColor color, double strokeThickness = 1.5)
     {
         double dx = tipX - fromX, dy = tipY - fromY;
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
-        double headLen = Math.Min(6.0, len * 0.3);
+        double headLen = Math.Min(6.0 + strokeThickness, len * 0.3);
         const double half = Math.PI / 7;
         double angle = Math.Atan2(dy, dx);
         var path = new XGraphicsPath();
