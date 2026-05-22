@@ -251,6 +251,33 @@
 			<Setter Property="Background" Value="{DynamicResource AppHoverSurfaceBrush}"/>
 		</Style>
 
+		<!-- Reset caption buttons (min/max/close) to Fluent defaults, undoing the broad Button style above -->
+		<Style Selector="Button#PART_MinimizeButton, Button#PART_MaximizeButton, Button#PART_FullScreenButton, Button#PART_CloseButton">
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="Height" Value="NaN"/>
+			<Setter Property="MinWidth" Value="0"/>
+			<Setter Property="Margin" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="CornerRadius" Value="0"/>
+			<Setter Property="Transitions" Value="{x:Null}"/>
+		</Style>
+		<Style Selector="Button#PART_MinimizeButton:pointerover, Button#PART_MaximizeButton:pointerover, Button#PART_FullScreenButton:pointerover">
+			<Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListLowBrush}"/>
+		</Style>
+		<Style Selector="Button#PART_CloseButton:pointerover">
+			<Setter Property="Background" Value="#C42B1C"/>
+		</Style>
+		<Style Selector="Button#PART_MinimizeButton:pressed, Button#PART_MaximizeButton:pressed, Button#PART_FullScreenButton:pressed">
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="Background" Value="{DynamicResource SystemControlBackgroundListMediumBrush}"/>
+		</Style>
+		<Style Selector="Button#PART_CloseButton:pressed">
+			<Setter Property="Opacity" Value="1"/>
+			<Setter Property="Background" Value="#B22015"/>
+		</Style>
+
 		<Style Selector="Button.dropdown-surface">
 				<Setter Property="Background" Value="{DynamicResource AppPanelSurfaceBrush}"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource AppControlBorderBrush}"/>
