@@ -221,8 +221,8 @@ public partial class PreView
                     ? "Arrow Comment: choose where the text box should go."
                     : MuPDFRenderer.HasActivePolyline
                         ? MuPDFRenderer.ActiveTool == InlineAnnotationTool.MeasureArea
-                            ? $"Area Measure: keep clicking to add vertices (min. 3), then click the first point or press Enter to close ({MuPDFRenderer.ActivePolylinePointCount} so far)."
-                            : "Polyline: keep clicking to add vertices, then click the first point or press Enter to close, right-click to finish open."
+                            ? $"Area Measure: keep clicking to add vertices (min. 3), then click the first point or press Enter to close ({MuPDFRenderer.ActivePolylinePointCount} so far). Ctrl+Z to undo last vertex."
+                            : "Polyline: keep clicking to add vertices, then click the first point or press Enter to close, right-click to finish open. Ctrl+Z to undo last vertex."
                         : MuPDFRenderer.HasActiveMeasurement
                             ? (_calibrationMode
                                 ? "Calibration: finish the reference line to enter the known distance."
@@ -928,7 +928,19 @@ public partial class PreView
 
         if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control))
         {
-            MuPDFRenderer.Undo();
+            if (MuPDFRenderer.HasActivePolyline)
+            {
+                // While drawing a polyline, Ctrl+Z removes the last placed vertex
+                // instead of undoing a committed annotation.
+                if (MuPDFRenderer.ActivePolylinePointCount > 1)
+                    MuPDFRenderer.RemoveLastPolylinePoint();
+                else
+                    MuPDFRenderer.CancelPolyline();
+            }
+            else
+            {
+                MuPDFRenderer.Undo();
+            }
             MuPDFRenderer.Focus();
             e.Handled = true;
         }
