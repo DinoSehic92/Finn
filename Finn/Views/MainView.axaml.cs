@@ -87,7 +87,6 @@ public partial class MainView : UserControl
         CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectFavorite);
 
         OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
-        OtherFilesGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenOtherFile);
 
         FolderGrid.AddHandler(DataGrid.DoubleTappedEvent, OnFolderDoubleClick);
         // The outer Grid (grandparent) has DragDrop.AllowDrop

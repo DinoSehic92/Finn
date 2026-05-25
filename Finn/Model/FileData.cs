@@ -589,21 +589,39 @@ namespace Finn.Model
         [JsonIgnore]
         public string ChildFileCountDisplay => _childFileCount > 0 ? $"({_childFileCount})" : string.Empty;
 
-        private bool _isExpanded = true;
+        private bool _isCollapsed;
         private bool _isLastChild;
 
         /// <summary>
         /// True when this file's appended children are shown inline in the main grid.
         /// Defaults to true so groups start expanded; user can collapse via chevron.
+        /// Serialized as IsCollapsed (omitted when false) to keep saves compact.
         /// </summary>
         [JsonIgnore]
         public bool IsExpanded
         {
-            get => _isExpanded;
+            get => !_isCollapsed;
             set
             {
-                if (_isExpanded == value) return;
-                _isExpanded = value;
+                var collapsed = !value;
+                if (_isCollapsed == collapsed) return;
+                _isCollapsed = collapsed;
+                OnPropertyChanged(nameof(IsExpanded));
+            }
+        }
+
+        /// <summary>
+        /// Persisted inverse of <see cref="IsExpanded"/>. Omitted from JSON when false
+        /// (i.e. when the group is expanded) to keep saves compact.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool IsCollapsed
+        {
+            get => _isCollapsed;
+            set
+            {
+                if (_isCollapsed == value) return;
+                _isCollapsed = value;
                 OnPropertyChanged(nameof(IsExpanded));
             }
         }

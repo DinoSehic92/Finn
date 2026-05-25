@@ -551,6 +551,7 @@ namespace Finn.ViewModels
         {
             if (file.IsAppendedFile) return;
             file.IsExpanded = !file.IsExpanded;
+            MarkDirty();
             UpdateFilter();
         }
 
@@ -566,6 +567,7 @@ namespace Finn.ViewModels
             if (file.IsAppendedFile || !file.HasChildren) return;
 
             file.IsExpanded = !file.IsExpanded;
+            MarkDirty();
 
             int parentIdx = FilteredFiles.IndexOf(file);
             if (parentIdx < 0) { UpdateFilter(); return; }

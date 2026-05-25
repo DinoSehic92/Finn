@@ -263,7 +263,13 @@ namespace Finn.ViewModels
             // child files (IsStyledAsAttached) so those don't inflate the per-type badge.
             var topLevel = project.StoredFiles.Where(f => !f.IsGroup && !f.IsStyledAsAttached);
 
-            foreach (string filetype in topLevel.Select(x => x.Filtyp).Distinct())
+            // Include group headers in the filetype scan so that empty groups still cause
+            // their category to appear as a tree node, even before any files are added.
+            var allFiletypes = topLevel.Select(x => x.Filtyp)
+                .Concat(project.StoredFiles.Where(f => f.IsGroup).Select(x => x.Filtyp))
+                .Distinct();
+
+            foreach (string filetype in allFiletypes)
             {
                 int count = topLevel.Count(x => x.Filtyp == filetype);
 
