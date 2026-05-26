@@ -64,6 +64,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             try
             {
+                // Persist tray/panel layout immediately — fire-and-forget async
+                // write would be abandoned if the process exits before it completes.
+                ctx.SaveUIStateSync();
+            }
+            catch (Exception ex)
+            {
+                Finn.Utils.ErrorLogger.Log(ex, "OnClosing: UIState save");
+            }
+
+            try
+            {
                 // Calendar save is best-effort on close — a failure must never
                 // prevent the close flow from reaching the dirty-check below.
                 await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);

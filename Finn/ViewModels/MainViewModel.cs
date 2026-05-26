@@ -233,6 +233,10 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
                     OnPropertyChanged(nameof(HasAvailableParents));
                     OnPropertyChanged(nameof(SelectedFileIsNotSketch));
+
+                    // Persist the selected file into UIState so it survives restart.
+                    if (currentProject != null)
+                        CaptureAndSaveCurrentProjectUIState();
                 }
             }
 

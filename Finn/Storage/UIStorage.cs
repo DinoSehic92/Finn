@@ -30,25 +30,11 @@ namespace Finn.Storage
         public string Font { get; set; } = string.Empty;
         public int FontSize { get; set; }
 
-        // Persistent UI-related flags that used to live in Storage.General
-        public bool TrayNote { get; set; }
-        public bool TrayCollections { get; set; }
-        public bool TrayBookmarks { get; set; }
-        public bool TrayRecent { get; set; }
-        public bool TrayVersions { get; set; }
-        public bool TrayOtherFiles { get; set; }
-        public bool TrayTodo { get; set; }
+        // Note: Tray/panel visibility flags moved to UIStateStorage (UIState.json)
+        // so they auto-persist without the theme dialog needing to be closed.
         public bool ShowIcons { get; set; }
         public bool ColorTagDot { get; set; }
 
-        // Persisted view visibility flags
-        public bool TreeViewOpen { get; set; }
-        public bool CalendarOpen { get; set; }
-        public bool TimeSheetOpen { get; set; }
-        public bool ShowFolders { get; set; }
-        public bool ShowThumbnails { get; set; }
-        public bool TrayViewOpen { get; set; }
-        public bool ShowActionBar { get; set; }
         public bool PreviewDarkMode { get; set; }
         public string PreviewDarkModeTint { get; set; } = "None";
         public int PreviewTintIntensity { get; set; } = 25;

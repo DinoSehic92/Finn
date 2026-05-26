@@ -203,7 +203,13 @@ namespace Finn.ViewModels
                         System.Threading.Tasks.TaskContinuationOptions.OnlyOnFaulted);
 
                 SetProjectlist();
-                SetDefaultSelection();
+                // Restore last active project, type filter, expansion, and
+                // selected file from UIState.json (if available). Falls back
+                // to SetDefaultSelection when no UIState exists.
+                if (CurrentUIState.LastActiveProject != null)
+                    RestoreUIState();
+                else
+                    SetDefaultSelection();
                 MigrateGroupsOnLoad();
                 SyncPreviewRegionColor();
             }
@@ -391,7 +397,7 @@ namespace Finn.ViewModels
 
                 Directory.CreateDirectory(backupDir);
 
-                foreach (string fileName in new[] { "Projects.json", "Content.json", "Calendar.json", "UISettings.json" })
+                foreach (string fileName in new[] { "Projects.json", "Content.json", "Calendar.json", "UISettings.json", "UIState.json" })
                 {
                     string src = Path.Combine(SavePath, fileName);
                     if (File.Exists(src))

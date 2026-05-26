@@ -350,6 +350,7 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.CalendarOpen):
                 if (_ctx.UI.CalendarOpen)
                     Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
+                _ctx.SaveUIStateAsync();
                 break;
             case nameof(_ctx.UI.FolderWatchEnabled):
                 _ctx.RefreshFolderWatchers();
@@ -367,6 +368,23 @@ public partial class MainView : UserControl
                 break;
             case nameof(_ctx.UI.AlternatingRowShading):
                 ApplyAlternatingRowShading();
+                break;
+
+            // Tray/panel visibility — auto-persist to UIState.json without touching project dirty state.
+            case nameof(_ctx.UI.TrayNote):
+            case nameof(_ctx.UI.TrayCollections):
+            case nameof(_ctx.UI.TrayBookmarks):
+            case nameof(_ctx.UI.TrayRecent):
+            case nameof(_ctx.UI.TrayVersions):
+            case nameof(_ctx.UI.TrayOtherFiles):
+            case nameof(_ctx.UI.TrayTodo):
+            case nameof(_ctx.UI.TreeViewOpen):
+            case nameof(_ctx.UI.TimeSheetOpen):
+            case nameof(_ctx.UI.ShowFolders):
+            case nameof(_ctx.UI.ShowThumbnails):
+            case nameof(_ctx.UI.TrayViewOpen):
+            case nameof(_ctx.UI.ShowActionBar):
+                _ctx.SaveUIStateAsync();
                 break;
         }
     }

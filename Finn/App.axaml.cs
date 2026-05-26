@@ -85,10 +85,37 @@ public partial class App : Application
                 var json = System.IO.File.ReadAllText(file);
                 var ui = Finn.Utils.JsonHelper.Deserialize<Finn.Storage.UIStorage>(json);
                 if (ui != null)
+                {
                     vm.UI.FromStorage(ui);
+                    // Re-write UISettings.json immediately to strip any legacy fields
+                    // (e.g. tray flags that were moved to UIState.json). This is safe
+                    // because ToStorage() only serialises the current schema.
+                    try
+                    {
+                        string clean = Finn.Utils.JsonHelper.Serialize(vm.UI.ToStorage());
+                        System.IO.File.WriteAllText(file, clean);
+                    }
+                    catch { /* best-effort */ }
+                }
             }
         }
         catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "Failed to load UISettings"); }
+
+        // Load UIState.json (panel/tray visibility + per-project state).
+        // Applied before the first frame to avoid a flash of default layout.
+        try
+        {
+            var uiState = Finn.ViewModels.MainViewModel.LoadUIState();
+            if (uiState != null)
+            {
+                vm.CurrentUIState = uiState;
+                vm.ApplyUIStatePanels(uiState);
+            }
+        }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "Failed to load UIState"); }
+
+        // All persisted state has been applied — allow UIState writes from here on.
+        vm.MarkUIStateReady();
 
         // Suppress individual property-changed theme updates while we apply the
         // full theme once — avoids N redundant ApplyTheme calls during FromStorage.

@@ -682,21 +682,7 @@ public class UISettingsViewModel : ObservableObject
                 DarkMode = this.DarkMode,
                 Font = this.Font,
                 FontSize = this.FontSize,
-                TrayNote = this.TrayNote,
-                TrayCollections = this.TrayCollections,
-                TrayBookmarks = this.TrayBookmarks,
-                TrayRecent = this.TrayRecent,
-                TrayVersions = this.TrayVersions,
-                TrayOtherFiles = this.TrayOtherFiles,
-                    TrayTodo = this.TrayTodo,
-                    ShowIcons = this.ShowIcons,
-                    TreeViewOpen = this.TreeViewOpen,
-                CalendarOpen = this.CalendarOpen,
-                TimeSheetOpen = this.TimeSheetOpen,
-                ShowFolders = this.ShowFolders,
-                ShowThumbnails = this.ShowThumbnails,
-                TrayViewOpen = this.TrayViewOpen,
-                ShowActionBar = this.ShowActionBar,
+                ShowIcons = this.ShowIcons,
                 PreviewDarkMode = this.PreviewDarkMode,
                 PreviewDarkModeTint = this.PreviewDarkModeTint,
                 PreviewTintIntensity = this.PreviewTintIntensity,
@@ -738,22 +724,7 @@ public class UISettingsViewModel : ObservableObject
 
             try
             {
-                this.TrayNote = ui.TrayNote;
-                this.TrayCollections = ui.TrayCollections;
-                this.TrayBookmarks = ui.TrayBookmarks;
-                this.TrayRecent = ui.TrayRecent;
-                this.TrayVersions = ui.TrayVersions;
-                this.TrayOtherFiles = ui.TrayOtherFiles;
-                this.TrayTodo = ui.TrayTodo;
                 this.ShowIcons = ui.ShowIcons;
-
-                this.TreeViewOpen = ui.TreeViewOpen;
-                this.CalendarOpen = ui.CalendarOpen;
-                this.TimeSheetOpen = ui.TimeSheetOpen;
-                this.ShowFolders = ui.ShowFolders;
-                this.ShowThumbnails = ui.ShowThumbnails;
-                this.TrayViewOpen = ui.TrayViewOpen;
-                this.ShowActionBar = ui.ShowActionBar;
                 this.PreviewDarkMode = ui.PreviewDarkMode;
                 if (!string.IsNullOrWhiteSpace(ui.PreviewDarkModeTint))
                     this.PreviewDarkModeTint = ui.PreviewDarkModeTint;
@@ -781,6 +752,44 @@ public class UISettingsViewModel : ObservableObject
             {
                 // ignore
             }
+        }
+
+        /// <summary>Populate UIStateStorage panel/tray flags from this viewmodel.</summary>
+        public void ToUIState(Finn.Storage.UIStateStorage state)
+        {
+            state.TrayNote        = this.TrayNote;
+            state.TrayCollections = this.TrayCollections;
+            state.TrayBookmarks   = this.TrayBookmarks;
+            state.TrayRecent      = this.TrayRecent;
+            state.TrayVersions    = this.TrayVersions;
+            state.TrayOtherFiles  = this.TrayOtherFiles;
+            state.TrayTodo        = this.TrayTodo;
+            state.TreeViewOpen    = this.TreeViewOpen;
+            state.CalendarOpen    = this.CalendarOpen;
+            state.TimeSheetOpen   = this.TimeSheetOpen;
+            state.ShowFolders     = this.ShowFolders;
+            state.ShowThumbnails  = this.ShowThumbnails;
+            state.TrayViewOpen    = this.TrayViewOpen;
+            state.ShowActionBar   = this.ShowActionBar;
+        }
+
+        /// <summary>Apply UIStateStorage panel/tray flags to this viewmodel.</summary>
+        public void FromUIState(Finn.Storage.UIStateStorage state)
+        {
+            this.TrayNote        = state.TrayNote;
+            this.TrayCollections = state.TrayCollections;
+            this.TrayBookmarks   = state.TrayBookmarks;
+            this.TrayRecent      = state.TrayRecent;
+            this.TrayVersions    = state.TrayVersions;
+            this.TrayOtherFiles  = state.TrayOtherFiles;
+            this.TrayTodo        = state.TrayTodo;
+            this.TreeViewOpen    = state.TreeViewOpen;
+            this.CalendarOpen    = state.CalendarOpen;
+            this.TimeSheetOpen   = state.TimeSheetOpen;
+            this.ShowFolders     = state.ShowFolders;
+            this.ShowThumbnails  = state.ShowThumbnails;
+            this.TrayViewOpen    = state.TrayViewOpen;
+            this.ShowActionBar   = state.ShowActionBar;
         }
 
         public void ApplyTheme()

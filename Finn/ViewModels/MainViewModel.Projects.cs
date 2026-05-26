@@ -339,6 +339,10 @@ namespace Finn.ViewModels
             ProjectData? project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == name);
             if (project == null) return;
 
+            // Snapshot the outgoing project's UI state before switching.
+            if (currentProject != null && currentProject.Namn != name)
+                CaptureProjectUIState(currentProject);
+
             // Clear any active search highlights before switching projects.
             ClearSearchMatchFlags();
 
@@ -348,6 +352,9 @@ namespace Finn.ViewModels
             currentProject = project;
             InvalidateAvailableParentsCache();
 
+            // Restore expansion + type filter from UI state for the incoming project.
+            ApplyProjectUIState(currentProject);
+
             if (!currentProject!.Filetypes.Contains(type))
                 type = ALL_TYPES;
 
@@ -356,6 +363,10 @@ namespace Finn.ViewModels
             OnPropertyChanged(nameof(CurrentProject));
             OnPropertyChanged(nameof(IsSearchResult));
             OnPropertyChanged(nameof(Type));
+
+            // Persist the new active project and save UI state.
+            CurrentUIState.LastActiveProject = currentProject.Namn;
+            SaveUIStateAsync();
         }
 
         public void SelectProject(string name)
@@ -388,11 +399,17 @@ namespace Finn.ViewModels
 
             if (projectChanged)
             {
+                // Snapshot the outgoing project's UI state before switching.
+                if (currentProject != null)
+                    CaptureProjectUIState(currentProject);
+
                 var project = Storage.StoredProjects.FirstOrDefault(x => x.Namn == projectName);
                 if (project != null)
                 {
                     currentProject = project;
                     InvalidateAvailableParentsCache();
+                    // Restore only expansion state — NavigateTo supplies the explicit type.
+                    ApplyProjectExpansion(currentProject);
                 }
             }
 
@@ -407,6 +424,9 @@ namespace Finn.ViewModels
             {
                 OnPropertyChanged(nameof(CurrentProject));
                 OnPropertyChanged(nameof(IsSearchResult));
+                // Persist the new active project.
+                CurrentUIState.LastActiveProject = currentProject!.Namn;
+                SaveUIStateAsync();
             }
             OnPropertyChanged(nameof(Type));
             SignalColumnsChanged();

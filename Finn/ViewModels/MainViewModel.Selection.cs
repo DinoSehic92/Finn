@@ -25,6 +25,7 @@ namespace Finn.ViewModels
             if (currentType != name)
             {
                 Type = name;
+                CaptureAndSaveCurrentProjectUIState();
             }
             SignalColumnsChanged();
         }
@@ -567,7 +568,8 @@ namespace Finn.ViewModels
             if (file.IsAppendedFile || !file.HasChildren) return;
 
             file.IsExpanded = !file.IsExpanded;
-            MarkDirty();
+            // Expansion state is now auto-saved in UIState.json; no project dirty-mark needed.
+            CaptureAndSaveCurrentProjectUIState();
 
             int parentIdx = FilteredFiles.IndexOf(file);
             if (parentIdx < 0) { UpdateFilter(); return; }
