@@ -44,6 +44,15 @@ namespace Finn.Storage
         public bool TrayViewOpen     { get; set; }
         public bool ShowActionBar    { get; set; } = true;
 
+        // ── TreeView sidebar expansion ───────────────────────────────────────
+        /// <summary>
+        /// Collapsed/expanded state of category, group, and subgroup nodes in
+        /// the sidebar TreeView. Keys use a prefix to avoid clashes:
+        ///   "cat:Archive", "grp:MyGroup", "sub:MySubgroup"
+        /// Only nodes that differ from the default (expanded) need an entry.
+        /// </summary>
+        public Dictionary<string, bool> TreeNodeExpansion { get; set; } = new();
+
         // ── Per-project state ────────────────────────────────────────────────
         /// <summary>
         /// Keyed by project name; values carry the last type filter,

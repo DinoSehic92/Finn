@@ -46,6 +46,7 @@ namespace Finn.ViewModels
             GetGroups();
             var nodes = new List<TreeNodeData>();
             TreeNodeData? selectedNode = null;
+            var saved = CurrentUIState.TreeNodeExpansion;
 
             foreach (string category in CategoryTypes)
             {
@@ -72,6 +73,14 @@ namespace Finn.ViewModels
                 foreach (var group in topLevelGroups)
                 {
                     var (groupNode, groupMatched) = BuildGroupNodeData(group, projects, ref selectedNode);
+                    // Restore group expansion (default is true/expanded)
+                    groupNode.IsExpanded = !saved.TryGetValue($"grp:{group.Name}", out var gExp) || gExp;
+                    WireTreeNodeSave(groupNode, $"grp:{group.Name}");
+                    foreach (var sub in groupNode.Children.Where(c => c.Tag == "Subgroup"))
+                    {
+                        sub.IsExpanded = !saved.TryGetValue($"sub:{sub.Header}", out var sExp) || sExp;
+                        WireTreeNodeSave(sub, $"sub:{sub.Header}");
+                    }
                     categoryChildren.Add(groupNode);
                     selectedNode ??= groupMatched;
                 }
@@ -83,24 +92,40 @@ namespace Finn.ViewModels
                     _ => "Briefcase"
                 };
 
-                nodes.Add(new TreeNodeData
+                bool catExpanded = !saved.TryGetValue($"cat:{category}", out var cExp) || cExp;
+                var catNode = new TreeNodeData
                 {
                     Header = category,
                     BadgeText = projects.Count.ToString(),
                     Tag = "Header",
                     IconSymbol = categoryIcon,
                     FontSize = 15,
-                    FontWeight = FontWeight.Bold,
-                    IsExpanded = true,
+                    FontWeight = Avalonia.Media.FontWeight.Bold,
+                    IsExpanded = catExpanded,
                     NodeOpacity = 0.9,
                     NodeMargin = nodes.Count > 0 ? new Avalonia.Thickness(0, 6, 0, 0) : new Avalonia.Thickness(0),
                     NodeMinHeight = 24,
                     Children = categoryChildren
-                });
+                };
+                WireTreeNodeSave(catNode, $"cat:{category}");
+                nodes.Add(catNode);
             }
 
             TreeNodes = nodes;
             SelectedTreeNode = selectedNode;
+        }
+
+        /// <summary>
+        /// Subscribes to <paramref name="node"/>.PropertyChanged so that collapsing or
+        /// expanding the node immediately triggers a debounced UIState save.
+        /// </summary>
+        private void WireTreeNodeSave(TreeNodeData node, string key)
+        {
+            node.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(TreeNodeData.IsExpanded))
+                    SaveUIStateAsync();
+            };
         }
 
         /// <summary>

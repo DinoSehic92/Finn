@@ -65,6 +65,7 @@ namespace Finn.ViewModels
             // Snapshot state on the UI thread so the background task works
             // with a stable string, not a shared mutable object.
             UI.ToUIState(CurrentUIState);
+            CaptureTreeExpansion();
             if (currentProject != null)
                 CurrentUIState.LastActiveProject = currentProject.Namn;
 
@@ -102,6 +103,7 @@ namespace Finn.ViewModels
             try
             {
                 UI.ToUIState(CurrentUIState);
+                CaptureTreeExpansion();
                 if (currentProject != null)
                     CurrentUIState.LastActiveProject = currentProject.Namn;
 
@@ -144,6 +146,44 @@ namespace Finn.ViewModels
         }
 
         // ── Per-project capture / restore ─────────────────────────────────────
+
+        /// <summary>
+        /// Snapshots the sidebar TreeView category/group/subgroup expansion state
+        /// into <see cref="CurrentUIState.TreeNodeExpansion"/>.
+        /// Called by both save paths before writing to disk.
+        /// </summary>
+        private void CaptureTreeExpansion()
+        {
+            var dict = CurrentUIState.TreeNodeExpansion;
+            dict.Clear();
+
+            foreach (var cat in TreeNodes)
+            {
+                // Category row (e.g. "Archive", "Library", "Project")
+                if (!cat.IsExpanded)
+                    dict[$"cat:{cat.Header}"] = false;
+
+                foreach (var child in cat.Children)
+                {
+                    if (child.Tag is "Group")
+                    {
+                        if (!child.IsExpanded)
+                            dict[$"grp:{child.Header}"] = false;
+
+                        // Subgroups nested inside the group
+                        foreach (var sub in child.Children)
+                        {
+                            if (sub.Tag is "Subgroup" && !sub.IsExpanded)
+                                dict[$"sub:{sub.Header}"] = false;
+                        }
+                    }
+                    else if (child.Tag is "Subgroup" && !child.IsExpanded)
+                    {
+                        dict[$"sub:{child.Header}"] = false;
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Snapshots the current project's UI state (type filter, selected file,
