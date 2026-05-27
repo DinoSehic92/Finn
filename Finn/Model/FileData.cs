@@ -595,7 +595,7 @@ namespace Finn.Model
         /// <summary>
         /// True when this file's appended children are shown inline in the main grid.
         /// Defaults to true so groups start expanded; user can collapse via chevron.
-        /// Serialized as IsCollapsed (omitted when false) to keep saves compact.
+        /// Expansion state is persisted in UIState.json via GroupExpansion, not in Projects.json.
         /// </summary>
         [JsonIgnore]
         public bool IsExpanded
@@ -611,10 +611,10 @@ namespace Finn.Model
         }
 
         /// <summary>
-        /// Persisted inverse of <see cref="IsExpanded"/>. Omitted from JSON when false
-        /// (i.e. when the group is expanded) to keep saves compact.
+        /// Runtime inverse of <see cref="IsExpanded"/>. Not serialized — expansion
+        /// state is owned by UIState.json via GroupExpansion.
         /// </summary>
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        [JsonIgnore]
         public bool IsCollapsed
         {
             get => _isCollapsed;

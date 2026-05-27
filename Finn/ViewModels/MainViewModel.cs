@@ -234,9 +234,10 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(HasAvailableParents));
                     OnPropertyChanged(nameof(SelectedFileIsNotSketch));
 
-                    // Persist the selected file into UIState so it survives restart.
-                    if (currentProject != null)
-                        CaptureAndSaveCurrentProjectUIState();
+                    // Persist the selected file into UIState on close via SaveUIStateSync —
+                    // do NOT call CaptureAndSaveCurrentProjectUIState here because it runs a
+                    // full JSON serialisation on every selection change, causing UI stutter
+                    // when scrolling quickly through the file list.
                 }
             }
 

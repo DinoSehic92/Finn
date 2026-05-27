@@ -552,7 +552,8 @@ namespace Finn.ViewModels
         {
             if (file.IsAppendedFile) return;
             file.IsExpanded = !file.IsExpanded;
-            MarkDirty();
+            // Expansion state is owned by UIState.json; no project dirty-mark needed.
+            CaptureAndSaveCurrentProjectUIState();
             UpdateFilter();
         }
 

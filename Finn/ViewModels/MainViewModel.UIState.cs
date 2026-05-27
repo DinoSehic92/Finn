@@ -67,7 +67,10 @@ namespace Finn.ViewModels
             UI.ToUIState(CurrentUIState);
             CaptureTreeExpansion();
             if (currentProject != null)
+            {
                 CurrentUIState.LastActiveProject = currentProject.Namn;
+                CaptureProjectUIState(currentProject);
+            }
 
             string json = JsonHelper.Serialize(CurrentUIState);
             var path    = Path.Combine(SavePath, "UIState.json");
@@ -105,7 +108,10 @@ namespace Finn.ViewModels
                 UI.ToUIState(CurrentUIState);
                 CaptureTreeExpansion();
                 if (currentProject != null)
+                {
                     CurrentUIState.LastActiveProject = currentProject.Namn;
+                    CaptureProjectUIState(currentProject);
+                }
 
                 string json = JsonHelper.Serialize(CurrentUIState);
                 File.WriteAllText(Path.Combine(SavePath, "UIState.json"), json);

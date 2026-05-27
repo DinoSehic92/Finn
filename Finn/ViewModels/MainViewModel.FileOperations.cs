@@ -262,10 +262,11 @@ namespace Finn.ViewModels
                 string prefix = project.VersionSuffix;
                 if (string.IsNullOrEmpty(prefix)) return;
 
-                // Build regex: <base><separator><prefix><digits|single-letter>  (case-insensitive)
+                // Build regex: <base><separator><prefix><date|digits|single-letter>  (case-insensitive)
                 // A separator (space, dash, or underscore) is required before the prefix.
+                // Accepted suffix values: ISO date (YYYY-MM-DD), integer, or single letter.
                 var suffixPattern = new System.Text.RegularExpressions.Regex(
-                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d+|[A-Z])$",
+                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z])$",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 // Only consider top-level, non-grouped, not-yet-versioned files.
@@ -311,10 +312,16 @@ namespace Finn.ViewModels
 
                         string baseName = m.Groups["base"].Value.TrimEnd();
                         string raw = m.Groups["num"].Value;
-                        // Letters → 1-based index (A=1, B=2, …, Z=26); digits → parsed directly
+                        // Letters → 1-based index (A=1, B=2, …, Z=26)
+                        // ISO dates (YYYY-MM-DD) → days since epoch for numeric comparison
+                        // Plain digits → parsed directly
                         int ver = raw.Length == 1 && char.IsLetter(raw[0])
                             ? char.ToUpperInvariant(raw[0]) - 'A' + 1
-                            : int.Parse(raw);
+                            : System.DateTime.TryParseExact(raw, "yyyy-MM-dd",
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                System.Globalization.DateTimeStyles.None, out var d)
+                                ? (int)(d - System.DateTime.UnixEpoch).TotalDays
+                                : int.TryParse(raw, out var n) ? n : 0;
 
                         if (!groups.TryGetValue(baseName, out var list))
                         {
@@ -397,7 +404,7 @@ namespace Finn.ViewModels
                 if (string.IsNullOrEmpty(prefix)) return 0;
 
                 var pattern = new System.Text.RegularExpressions.Regex(
-                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d+|[A-Z])$",
+                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z])$",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 return project.StoredFiles

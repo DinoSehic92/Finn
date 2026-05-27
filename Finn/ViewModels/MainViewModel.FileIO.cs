@@ -348,6 +348,10 @@ namespace Finn.ViewModels
                 // LastPushedUtc changes on every push and is not a user-facing edit,
                 // so it shouldn't trigger an unsaved-changes prompt on its own.
                 "LastPushedUtc",
+                // IsCollapsed was moved to UIState.json ownership. Existing Projects.json
+                // files on disk may still contain this field; strip it during comparison
+                // so old saves don't trigger a false unsaved-changes prompt.
+                "IsCollapsed",
             ];
 
             /// <summary>

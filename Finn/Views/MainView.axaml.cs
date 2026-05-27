@@ -160,7 +160,20 @@ public partial class MainView : UserControl
             _ = Task.Run(() => PreviewViewModel.CleanupStaleDiffTempDirs());
 
             await _ctx.LoadFileAutoAsync();
-            _ctx.BuildTreeData();
+            // Suppress the tree's SelectionChanged handler during the initial
+            // build so that setting SelectedTreeNode doesn't fire NavigateTo
+            // and overwrite the type filter / file selection restored by
+            // RestoreUIState().
+            using (SuppressSelection(suppressTree: true))
+                _ctx.BuildTreeData();
+
+            // Re-apply the grid selection that RestoreUIState() set on CurrentFiles,
+            // because UpdateFilter() (called inside NavigateTo via the tree binding)
+            // rebuilds FilteredFiles and loses the DataGrid's SelectedItem.
+            var restoredFile = _ctx.CurrentFiles?.FirstOrDefault();
+            if (restoredFile != null)
+                SelectInFileGrid(restoredFile, addRecent: false);
+
             _ctx.ReconcileFileCache();
             UpdateFont();
             // Refresh calendar day indicators when data changes
@@ -409,6 +422,9 @@ public partial class MainView : UserControl
             var window = (TopLevel)ParentWindow;
             if (window is not null)
                 _ctx.OpenPreviewWindow(window.RequestedThemeVariant!);
+            // Show the currently selected file immediately when the window opens.
+            if (_ctx.CurrentFile != null)
+                RequestPreview(_ctx.CurrentFile);
         }
         else
         {
@@ -425,6 +441,10 @@ public partial class MainView : UserControl
             MainGrid.ColumnDefinitions[1] = new ColumnDefinition(1, GridUnitType.Star) { MinWidth = 300 };
             EmbeddedPreview.SetRenderer();
             SyncLayerList();
+            // Show the currently selected file immediately when the panel opens
+            // rather than waiting for a selection change event.
+            if (_ctx.CurrentFile != null)
+                RequestPreview(_ctx.CurrentFile);
         }
         else
         {
