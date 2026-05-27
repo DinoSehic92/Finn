@@ -147,6 +147,19 @@ namespace Finn.ViewModels
                 var existingPaths = BuildKnownPathSet();
                 var existingByName = BuildFileNameLookup();
 
+                // Wide canonical lookup: all real files including group children.
+                // Group children are IsAppendedFile=true, so the narrow lookup misses them;
+                // we include them here so a file nested inside a group can still be found
+                // as a version target.  Group header placeholders are always excluded.
+                var wideByName = CurrentProject!.StoredFiles
+                    .Where(f => !f.IsGroup && (!f.IsAppendedFile || f.IsGroupChild))
+                    .GroupBy(f => f.Namn, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                // Pre-compile the suffix pattern once (empty prefix = no suffix detection)
+                string versionPrefix = CurrentProject!.VersionSuffix ?? string.Empty;
+                var suffixRx = string.IsNullOrEmpty(versionPrefix) ? null : BuildSuffixPattern(versionPrefix);
+
                 // When a specific type is selected, use it as the default category
                 string? defaultCategory = (Type != null && Type != ALL_TYPES) ? Type : null;
 
@@ -171,6 +184,39 @@ namespace Finn.ViewModels
                             ExistingFile = existing,
                             NewFilePath = path
                         });
+                    }
+                    else if (suffixRx != null)
+                    {
+                        // Suffix-aware detection: if the file name matches the version suffix
+                        // pattern and the extracted base name maps to a known file (including
+                        // files that already carry versions or live inside a file-group),
+                        // route it directly to the version import dialog.
+                        var m = suffixRx.Match(fileName);
+                        if (m.Success)
+                        {
+                            string baseName = m.Groups["base"].Value.TrimEnd();
+                            string num = m.Groups["num"].Value;
+                            string label = versionPrefix + num;
+
+                            // Find unambiguous canonical — exact unsuffixed name first,
+                            // then same-base fallback (e.g. "Drawing v1" for "Drawing v2").
+                            FileData? canonical = FindCanonicalForSuffixMatch(baseName, wideByName, suffixRx);
+
+                            if (canonical != null)
+                            {
+                                versionCandidates.Add(new VersionImportEntry
+                                {
+                                    ExistingFile = canonical,
+                                    NewFilePath = path,
+                                    SelectedLabel = label
+                                });
+                                continue; // Skip normal import path
+                            }
+                        }
+
+                        candidatePaths.Add((path, source));
+                        existingPaths.Add(path);
+                        existingByName.TryAdd(fileName, null!);
                     }
                     else
                     {
@@ -247,6 +293,83 @@ namespace Finn.ViewModels
             // Theme/resource updates handled by UIService
 
             /// <summary>
+            /// Builds the version-suffix regex for <paramref name="prefix"/>.
+            /// Matches: &lt;base&gt;&lt;sep&gt;&lt;prefix&gt;&lt;num&gt; where sep is space/dash/underscore
+            /// and num is an ISO date, integer, or single letter (case-insensitive).
+            /// </summary>
+            private static System.Text.RegularExpressions.Regex BuildSuffixPattern(string prefix) =>
+                new(
+                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z])$",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            /// <summary>
+            /// Given a <paramref name="baseName"/> extracted from an incoming suffixed file name
+            /// (e.g. "Drawing" from "Drawing v2"), finds the single canonical file in
+            /// <paramref name="wideByName"/> that should receive the new version.
+            ///
+            /// Two passes are tried in order:
+            ///   1. Exact name match: an existing file literally named <paramref name="baseName"/>.
+            ///   2. Same-base fallback: an existing file whose own name contains the same suffix
+            ///      pattern and parses to the same base (e.g. "Drawing v1" → base "Drawing").
+            ///      This handles the common case where there is no unsuffixed original and all
+            ///      versions are stored under the first suffixed file (e.g. "Drawing v1").
+            ///
+            /// Returns <c>null</c> when no unambiguous canonical can be determined.
+            /// </summary>
+            private static FileData? FindCanonicalForSuffixMatch(
+                string baseName,
+                Dictionary<string, List<FileData>> wideByName,
+                System.Text.RegularExpressions.Regex suffixRx)
+            {
+                // Pass 1: exact unsuffixed name match
+                if (wideByName.TryGetValue(baseName, out var exactMatches) && exactMatches.Count == 1)
+                    return exactMatches[0];
+
+                // Pass 2: same-base fallback — find existing files that also parse to this base.
+                // Priority: a file that already has versions registered on it (it is already
+                // acting as the canonical); otherwise the highest-numbered suffixed file so that
+                // the latest version is always treated as the "original".
+                FileData? bestCanonical = null;
+                int bestVer = int.MinValue;
+
+                foreach (var (name, files) in wideByName)
+                {
+                    var m = suffixRx.Match(name);
+                    if (!m.Success) continue;
+
+                    string existingBase = m.Groups["base"].Value.TrimEnd();
+                    if (!StringComparer.OrdinalIgnoreCase.Equals(existingBase, baseName)) continue;
+
+                    // Ambiguous — two different files share the same base, can't pick one safely
+                    if (files.Count != 1) return null;
+
+                    FileData candidate = files[0];
+
+                    // A file that already owns versions is always the canonical
+                    if (candidate.HasVersions)
+                        return candidate;
+
+                    string raw = m.Groups["num"].Value;
+                    int ver = raw.Length == 1 && char.IsLetter(raw[0])
+                        ? char.ToUpperInvariant(raw[0]) - 'A' + 1
+                        : System.DateTime.TryParseExact(raw, "yyyy-MM-dd",
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out var d)
+                            ? (int)(d - System.DateTime.UnixEpoch).TotalDays
+                            : int.TryParse(raw, out var n) ? n : 0;
+
+                    // Pick highest version — the latest file is always the canonical base
+                    if (ver > bestVer)
+                    {
+                        bestVer = ver;
+                        bestCanonical = candidate;
+                    }
+                }
+
+                return bestCanonical;
+            }
+
+            /// <summary>
             /// Scans eligible top-level files in <paramref name="project"/> and groups
             /// those that share a base name and differ only by a version suffix.
             /// Files are only ever grouped within the same directory — cross-directory
@@ -262,16 +385,25 @@ namespace Finn.ViewModels
                 string prefix = project.VersionSuffix;
                 if (string.IsNullOrEmpty(prefix)) return;
 
-                // Build regex: <base><separator><prefix><date|digits|single-letter>  (case-insensitive)
-                // A separator (space, dash, or underscore) is required before the prefix.
-                // Accepted suffix values: ISO date (YYYY-MM-DD), integer, or single letter.
-                var suffixPattern = new System.Text.RegularExpressions.Regex(
-                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z])$",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var suffixPattern = BuildSuffixPattern(prefix);
 
-                // Only consider top-level, non-grouped, not-yet-versioned files.
+                // Suffix-matching candidates: flat, unversioned, non-group files.
+                // These are the files that will be absorbed as versions.
                 var candidates = project.StoredFiles
                     .Where(f => !f.IsAppendedFile && !f.IsGroup && !f.HasVersions)
+                    .ToList();
+
+                // Wide canonical pool: all real files including group children.
+                // Group children are IsAppendedFile=true, so excluding all appended files
+                // would make a file nested inside a group invisible as a canonical target.
+                // Group header placeholders are excluded; styled attached children are excluded.
+                var wideByDirAndName = project.StoredFiles
+                    .Where(f => !f.IsGroup && (!f.IsAppendedFile || f.IsGroupChild))
+                    .GroupBy(
+                        f => (Dir: System.IO.Path.GetDirectoryName(f.Sökväg) ?? string.Empty,
+                              Name: f.Namn),
+                        f => f,
+                        (key, files) => (key.Dir, key.Name, Files: files.ToList()))
                     .ToList();
 
                 // When a new-file set is provided restrict to directories that contain
@@ -299,6 +431,7 @@ namespace Finn.ViewModels
 
                 foreach (var dirGroup in byDirectory)
                 {
+                    string dir = dirGroup.Key;
                     var dirCandidates = dirGroup.ToList();
 
                     // Map base-name → list of (file, version-number) within this directory
@@ -333,10 +466,9 @@ namespace Finn.ViewModels
 
                     if (groups.Count == 0) continue;
 
-                    // Build a name→files grouped lookup for unsuffixed-original detection.
-                    // Grouped rather than a flat dictionary so duplicate display names
-                    // (files with the same name in different sub-paths) never crash.
-                    var candidatesByName = dirCandidates
+                    // Build a flat-candidate name lookup (same-dir, unversioned files only)
+                    // for cases where the unsuffixed original is also a new flat import.
+                    var flatByName = dirCandidates
                         .GroupBy(f => f.Namn, StringComparer.OrdinalIgnoreCase)
                         .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
@@ -345,16 +477,32 @@ namespace Finn.ViewModels
                         string baseName = kvp.Key;
                         var group = kvp.Value;
 
-                        // Only treat as unsuffixed canonical when there is exactly one match —
-                        // ambiguous duplicates are skipped rather than guessed.
-                        candidatesByName.TryGetValue(baseName, out var unsuffixedMatches);
-                        bool hasUnsuffixed = unsuffixedMatches?.Count == 1;
-                        FileData? unsuffixedFile = hasUnsuffixed ? unsuffixedMatches![0] : null;
+                        // 1. Look for an unsuffixed canonical in the flat import candidates
+                        //    (same directory, same base name, unversioned).
+                        flatByName.TryGetValue(baseName, out var flatMatches);
+                        FileData? unsuffixedFile = flatMatches?.Count == 1 ? flatMatches[0] : null;
 
-                        // Need at least 2 suffixed files, OR 1 suffixed + an unambiguous unsuffixed sibling
+                        // 2. If not found there, search the wider pool — this catches files
+                        //    that are already in the project (possibly inside a file-group or
+                        //    already carrying versions from a previous import).
+                        if (unsuffixedFile == null)
+                        {
+                            var wideMatch = wideByDirAndName.FirstOrDefault(
+                                x => StringComparer.OrdinalIgnoreCase.Equals(x.Dir, dir)
+                                  && StringComparer.OrdinalIgnoreCase.Equals(x.Name, baseName));
+                            if (wideMatch.Files?.Count == 1)
+                                unsuffixedFile = wideMatch.Files[0];
+                        }
+
+                        bool hasUnsuffixed = unsuffixedFile != null;
+
+                        // Need at least 2 suffixed files, OR 1 suffixed + an unambiguous unsuffixed canonical
                         if (group.Count < 2 && !hasUnsuffixed) continue;
 
-                        // Unsuffixed file always wins as canonical; otherwise highest version wins
+                        // Unsuffixed file always wins as canonical.
+                        // When all files are suffixed, pick the HIGHEST version as canonical
+                        // so that e.g. "Drawing v2" becomes the base and "Drawing v1" is
+                        // stored as a version — the latest file is always the "original".
                         FileData canonicalFile = hasUnsuffixed
                             ? unsuffixedFile!
                             : group.OrderByDescending(x => x.Version).First().File;
@@ -365,6 +513,12 @@ namespace Finn.ViewModels
                         foreach (var (otherFile, _) in group)
                         {
                             if (otherFile == canonicalFile) continue;
+
+                            // Skip if this file is already registered as a version on the canonical
+                            if (canonicalFile.Versions.Any(v =>
+                                    string.Equals(v.Sökväg, otherFile.Sökväg,
+                                        StringComparison.OrdinalIgnoreCase)))
+                                continue;
 
                             // Re-derive the label from the actual file name so it exactly
                             // matches what is on disk (preserves letter casing, e.g. "RevA")
@@ -403,9 +557,7 @@ namespace Finn.ViewModels
                 string prefix = project.VersionSuffix;
                 if (string.IsNullOrEmpty(prefix)) return 0;
 
-                var pattern = new System.Text.RegularExpressions.Regex(
-                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z])$",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var pattern = BuildSuffixPattern(prefix);
 
                 return project.StoredFiles
                     .Count(f => !f.IsAppendedFile && !f.IsGroup && !f.HasVersions

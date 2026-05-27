@@ -924,8 +924,28 @@ namespace Finn.Model
             && _sökväg.EndsWith("blank_whiteboard.pdf", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
+        /// Parses a trailing numeric portion from a version label such as "v6" or "Rev3".
+        /// Returns the prefix and number, or null when no numeric suffix is found.
+        /// </summary>
+        private static (string Prefix, int Num)? ParseVersionLabel(string label)
+        {
+            if (string.IsNullOrEmpty(label)) return null;
+            var m = System.Text.RegularExpressions.Regex.Match(
+                label, @"^(?<pfx>.*?)(?<num>\d+)$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success && int.TryParse(m.Groups["num"].Value, out int num))
+                return (m.Groups["pfx"].Value, num);
+            return null;
+        }
+
+        /// <summary>
         /// Registers a new version path for this file. On the first call the existing
         /// Sökväg is also recorded as the original so the history is complete.
+        /// When the incoming version's number is higher than the current canonical's
+        /// number (read from the trailing suffix in <see cref="Namn"/>), the new file
+        /// is promoted to canonical: the old canonical is demoted to a version entry
+        /// and <see cref="Sökväg"/>/<see cref="Namn"/>/<see cref="OriginalPath"/> are
+        /// updated to point to the new file.
         /// </summary>
         public void AddVersion(string filepath, string label)
         {
@@ -941,6 +961,54 @@ namespace Finn.Model
             // Remember the original path before any version switches
             if (string.IsNullOrEmpty(_originalPath))
                 OriginalPath = _sökväg;
+
+            // If the incoming version is numerically higher than the current canonical,
+            // promote it: demote the old canonical to a version entry and make the new
+            // file the canonical (Sökväg / Namn / OriginalPath).
+            var incoming = ParseVersionLabel(label);
+            if (incoming.HasValue)
+            {
+                // Extract the trailing version suffix from the canonical display name.
+                var nm = System.Text.RegularExpressions.Regex.Match(
+                    _namn, @"(?<pfx>[A-Za-z]+)(?<num>\d+)$");
+                if (nm.Success && int.TryParse(nm.Groups["num"].Value, out int canonNum))
+                {
+                    string canonPrefix = nm.Groups["pfx"].Value;
+                    if (string.Equals(incoming.Value.Prefix, canonPrefix, StringComparison.OrdinalIgnoreCase)
+                        && incoming.Value.Num > canonNum)
+                    {
+                        // Demote current canonical to a version entry (if not already listed)
+                        string oldPath = _sökväg;
+                        string oldLabel = canonPrefix + canonNum;
+                        if (!_versions.Any(v => string.Equals(v.Sökväg, oldPath, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            _versions.Add(new FileVersionData
+                            {
+                                Sökväg = oldPath,
+                                Label = oldLabel,
+                                AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
+                            });
+                        }
+
+                        // Promote the new file to canonical
+                        Sökväg = filepath;
+                        Namn = System.IO.Path.GetFileNameWithoutExtension(filepath);
+                        OriginalPath = filepath;
+
+                        // Make sure we are showing the canonical (not a stale version)
+                        if (_currentVersion != string.Empty)
+                        {
+                            _currentVersion = string.Empty;
+                            OnPropertyChanged(nameof(CurrentVersion));
+                            OnPropertyChanged(nameof(IsOnOriginalVersion));
+                        }
+
+                        UpdateVersionActiveStates();
+                        SortVersions();
+                        return;
+                    }
+                }
+            }
 
             _versions.Add(new FileVersionData
             {

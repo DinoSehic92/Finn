@@ -507,6 +507,18 @@ namespace Finn.ViewModels
                 var filesByName = BuildFileNameLookup();
                 int skippedCount = 0;
 
+                // Wide canonical lookup — includes group children (IsAppendedFile=true whose
+                // parent is a group) so a file nested inside a group can still be matched
+                // as a version target.  Group header placeholders are always excluded.
+                var wideByName = CurrentProject!.StoredFiles
+                    .Where(f => !f.IsGroup && (!f.IsAppendedFile || f.IsGroupChild))
+                    .GroupBy(f => f.Namn, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+                string versionPrefix = CurrentProject!.VersionSuffix ?? string.Empty;
+                var suffixRx = string.IsNullOrEmpty(versionPrefix)
+                    ? null : BuildSuffixPattern(versionPrefix);
+
                 foreach (var file in filesToAdd)
                 {
                     // Already tracked as a version — silently skip
@@ -532,6 +544,31 @@ namespace Finn.ViewModels
                             ExistingFile = existing,
                             NewFilePath = file.Sökväg
                         });
+                    }
+                    else if (suffixRx != null)
+                    {
+                        // Suffix-aware pass: check whether the file name encodes a version
+                        // suffix and the extracted base name matches a known canonical.
+                        var m = suffixRx.Match(file.Namn);
+                        if (m.Success)
+                        {
+                            string baseName = m.Groups["base"].Value.TrimEnd();
+                            string num = m.Groups["num"].Value;
+                            // Find unambiguous canonical — exact unsuffixed name first,
+                            // then same-base fallback (e.g. "Drawing v1" for "Drawing v2").
+                            FileData? canonical = FindCanonicalForSuffixMatch(baseName, wideByName, suffixRx);
+                            if (canonical != null)
+                            {
+                                versionCandidates.Add(new VersionImportEntry
+                                {
+                                    ExistingFile = canonical,
+                                    NewFilePath = file.Sökväg,
+                                    SelectedLabel = versionPrefix + num
+                                });
+                                continue;
+                            }
+                        }
+                        additions.Add(file);
                     }
                     else
                     {
