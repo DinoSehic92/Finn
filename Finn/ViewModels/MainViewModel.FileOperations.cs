@@ -200,7 +200,10 @@ namespace Finn.ViewModels
 
                             // Find unambiguous canonical — exact unsuffixed name first,
                             // then same-base fallback (e.g. "Drawing v1" for "Drawing v2").
-                            FileData? canonical = FindCanonicalForSuffixMatch(baseName, wideByName, suffixRx);
+                            // Restrict to the same directory as the incoming file to avoid
+                            // cross-folder base-name collisions.
+                            string incomingDir = System.IO.Path.GetDirectoryName(path) ?? string.Empty;
+                            FileData? canonical = FindCanonicalForSuffixMatch(baseName, wideByName, suffixRx, incomingDir);
 
                             if (canonical != null)
                             {
@@ -299,7 +302,7 @@ namespace Finn.ViewModels
             /// </summary>
             private static System.Text.RegularExpressions.Regex BuildSuffixPattern(string prefix) =>
                 new(
-                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z])$",
+                    @"^(?<base>.+?)[ \-_]" + System.Text.RegularExpressions.Regex.Escape(prefix) + @"(?<num>\d{4}-\d{2}-\d{2}|\d+|[A-Z]+)$",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             /// <summary>
@@ -319,11 +322,25 @@ namespace Finn.ViewModels
             private static FileData? FindCanonicalForSuffixMatch(
                 string baseName,
                 Dictionary<string, List<FileData>> wideByName,
-                System.Text.RegularExpressions.Regex suffixRx)
+                System.Text.RegularExpressions.Regex suffixRx,
+                string? incomingDir = null)
             {
-                // Pass 1: exact unsuffixed name match
-                if (wideByName.TryGetValue(baseName, out var exactMatches) && exactMatches.Count == 1)
-                    return exactMatches[0];
+                // Helper: checks whether a file is in the same directory as the incoming file.
+                // When incomingDir is null/empty we do not restrict by directory.
+                bool SameDir(FileData f) =>
+                    string.IsNullOrEmpty(incomingDir)
+                    || string.Equals(
+                        System.IO.Path.GetDirectoryName(f.Sökväg) ?? string.Empty,
+                        incomingDir, StringComparison.OrdinalIgnoreCase);
+
+                // Pass 1: exact unsuffixed name match in the same directory
+                if (wideByName.TryGetValue(baseName, out var exactMatches))
+                {
+                    var dirMatches = exactMatches.Where(SameDir).ToList();
+                    if (dirMatches.Count == 1) return dirMatches[0];
+                    if (dirMatches.Count == 0 && exactMatches.Count == 1 && string.IsNullOrEmpty(incomingDir))
+                        return exactMatches[0]; // fallback when no dir info
+                }
 
                 // Pass 2: same-base fallback — find existing files that also parse to this base.
                 // Priority: a file that already has versions registered on it (it is already
@@ -340,23 +357,29 @@ namespace Finn.ViewModels
                     string existingBase = m.Groups["base"].Value.TrimEnd();
                     if (!StringComparer.OrdinalIgnoreCase.Equals(existingBase, baseName)) continue;
 
-                    // Ambiguous — two different files share the same base, can't pick one safely
-                    if (files.Count != 1) return null;
+                    // Restrict to same directory if incomingDir is known
+                    var dirFiles = files.Where(SameDir).ToList();
 
-                    FileData candidate = files[0];
+                    // Ambiguous — two different files share the same base in this directory
+                    if (dirFiles.Count != 1) continue;
+
+                    FileData candidate = dirFiles[0];
 
                     // A file that already owns versions is always the canonical
                     if (candidate.HasVersions)
                         return candidate;
 
                     string raw = m.Groups["num"].Value;
-                    int ver = raw.Length == 1 && char.IsLetter(raw[0])
-                        ? char.ToUpperInvariant(raw[0]) - 'A' + 1
-                        : System.DateTime.TryParseExact(raw, "yyyy-MM-dd",
+                    int ver = System.DateTime.TryParseExact(raw, "yyyy-MM-dd",
                             System.Globalization.CultureInfo.InvariantCulture,
                             System.Globalization.DateTimeStyles.None, out var d)
                             ? (int)(d - System.DateTime.UnixEpoch).TotalDays
-                            : int.TryParse(raw, out var n) ? n : 0;
+                            : int.TryParse(raw, out var n) ? n
+                            // Letter sequence: length is primary, then use ordinal encoding
+                            : raw.Length > 0 && raw.All(char.IsLetter)
+                                ? raw.Length * 100000 + raw.ToUpperInvariant()
+                                    .Aggregate(0, (acc, c) => acc * 26 + (c - 'A' + 1))
+                                : 0;
 
                     // Pick highest version — the latest file is always the canonical base
                     if (ver > bestVer)
@@ -448,13 +471,16 @@ namespace Finn.ViewModels
                         // Letters → 1-based index (A=1, B=2, …, Z=26)
                         // ISO dates (YYYY-MM-DD) → days since epoch for numeric comparison
                         // Plain digits → parsed directly
-                        int ver = raw.Length == 1 && char.IsLetter(raw[0])
-                            ? char.ToUpperInvariant(raw[0]) - 'A' + 1
-                            : System.DateTime.TryParseExact(raw, "yyyy-MM-dd",
+                        int ver = System.DateTime.TryParseExact(raw, "yyyy-MM-dd",
                                 System.Globalization.CultureInfo.InvariantCulture,
                                 System.Globalization.DateTimeStyles.None, out var d)
                                 ? (int)(d - System.DateTime.UnixEpoch).TotalDays
-                                : int.TryParse(raw, out var n) ? n : 0;
+                                : int.TryParse(raw, out var n) ? n
+                                // Letter sequence: length is primary, then ordinal within length
+                                : raw.Length > 0 && raw.All(char.IsLetter)
+                                    ? raw.Length * 100000 + raw.ToUpperInvariant()
+                                        .Aggregate(0, (acc, c) => acc * 26 + (c - 'A' + 1))
+                                    : 0;
 
                         if (!groups.TryGetValue(baseName, out var list))
                         {

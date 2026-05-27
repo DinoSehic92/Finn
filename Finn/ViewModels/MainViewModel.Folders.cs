@@ -742,13 +742,43 @@ namespace Finn.ViewModels
                     : folderPath + Path.DirectorySeparatorChar;
                 foreach (var file in CurrentProject!.StoredFiles)
                 {
-                    int before = file.Versions.Count;
+                    // First, remove version entries that live under this folder
                     for (int i = file.Versions.Count - 1; i >= 0; i--)
                     {
                         if (file.Versions[i].Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
                             file.Versions.RemoveAt(i);
                     }
-                    if (before > 0 && file.Versions.Count == 0 && !string.IsNullOrEmpty(file.OriginalPath))
+
+                    // If the canonical path was promoted and now lives under this folder,
+                    // we need to demote back to a non-folder canonical if one exists.
+                    if (file.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Prefer the original pre-promotion path, otherwise the highest remaining version
+                        string? restorePath = null;
+                        if (!string.IsNullOrEmpty(file.OriginalPath)
+                            && !file.OriginalPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        {
+                            restorePath = file.OriginalPath;
+                        }
+                        else if (file.Versions.Count > 0)
+                        {
+                            restorePath = file.Versions[file.Versions.Count - 1].Sökväg;
+                        }
+
+                        if (restorePath != null)
+                        {
+                            file.Sökväg = restorePath;
+                            file.Namn = System.IO.Path.GetFileNameWithoutExtension(restorePath);
+                            // Remove the version entry for the restored path to avoid duplication
+                            for (int i = file.Versions.Count - 1; i >= 0; i--)
+                            {
+                                if (string.Equals(file.Versions[i].Sökväg, restorePath, StringComparison.OrdinalIgnoreCase))
+                                    file.Versions.RemoveAt(i);
+                            }
+                        }
+                    }
+
+                    if (file.Versions.Count == 0 && !string.IsNullOrEmpty(file.OriginalPath))
                     {
                         // Last version removed — clear the original path marker
                         file.OriginalPath = string.Empty;
@@ -800,6 +830,21 @@ namespace Finn.ViewModels
                         {
                             staleVersions.Add((file, v));
                         }
+                    }
+
+                    // If the canonical was promoted into this version folder but the file
+                    // is no longer on disk, treat it as stale too — synthesise a placeholder
+                    // version entry so the user sees it in the removal dialog.
+                    if (file.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                        && !diskPaths.Contains(file.Sökväg))
+                    {
+                        var synthetic = new Finn.Model.FileVersionData
+                        {
+                            Sökväg = file.Sökväg,
+                            Label = "(current)",
+                            AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
+                        };
+                        staleVersions.Add((file, synthetic));
                     }
                 }
 

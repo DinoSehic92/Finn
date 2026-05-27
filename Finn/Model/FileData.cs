@@ -923,29 +923,143 @@ namespace Finn.Model
         public bool IsSketch => !string.IsNullOrEmpty(_sökväg)
             && _sökväg.EndsWith("blank_whiteboard.pdf", StringComparison.OrdinalIgnoreCase);
 
+        // Matches a version suffix of the form: <alpha-prefix><number>  e.g. "v6", "Rev3"
+        private static readonly System.Text.RegularExpressions.Regex _numSuffixRx =
+            new(@"^(?<pfx>[A-Za-z]*)(?<num>\d+)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        // Matches a version suffix of the form: <alpha-prefix><yyyy-MM-dd>  e.g. "v2024-01-15"
+        private static readonly System.Text.RegularExpressions.Regex _dateSuffixRx =
+            new(@"^(?<pfx>[A-Za-z]*)(?<date>\d{4}-\d{2}-\d{2})$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        // Matches a version suffix of the form: <alpha-prefix><letters>  e.g. "vA", "RevB", "vAA"
+        // The letter group must be ALL alpha (no digits) to avoid colliding with the num pattern.
+        private static readonly System.Text.RegularExpressions.Regex _letterSuffixRx =
+            new(@"^(?<pfx>[A-Za-z]*)(?<letter>[A-Z]+)$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        // Same patterns but anchored to the *end* of a longer string (for extracting from Namn)
+        private static readonly System.Text.RegularExpressions.Regex _numSuffixInNameRx =
+            new(@"(?<pfx>[A-Za-z]+)(?<num>\d+)$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static readonly System.Text.RegularExpressions.Regex _dateSuffixInNameRx =
+            new(@"(?<pfx>[A-Za-z]*)(?<date>\d{4}-\d{2}-\d{2})$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static readonly System.Text.RegularExpressions.Regex _letterSuffixInNameRx =
+            new(@"(?<pfx>[A-Za-z]+)(?<letter>[A-Z]+)$", System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        private enum VersionSuffixKind { Number, Date, Letter }
+
+        private readonly struct ParsedVersionSuffix
+        {
+            public string Prefix { get; }
+            public VersionSuffixKind Kind { get; }
+            public int Number { get; }      // set when Kind == Number
+            public string DateStr { get; }  // set when Kind == Date (yyyy-MM-dd, sorts lexicographically)
+            public string LetterStr { get; } // set when Kind == Letter — upper-case, supports AA/AB/…
+
+            public ParsedVersionSuffix(string prefix, int number)
+            { Prefix = prefix; Kind = VersionSuffixKind.Number; Number = number; DateStr = string.Empty; LetterStr = string.Empty; }
+
+            public ParsedVersionSuffix(string prefix, string dateOrLetter, VersionSuffixKind kind)
+            {
+                Prefix = prefix; Kind = kind; Number = 0;
+                DateStr = kind == VersionSuffixKind.Date ? dateOrLetter : string.Empty;
+                LetterStr = kind == VersionSuffixKind.Letter ? dateOrLetter.ToUpperInvariant() : string.Empty;
+            }
+
+            /// <summary>True when this suffix has the same prefix/kind as <paramref name="other"/>
+            /// and represents a strictly higher version.
+            /// Letter comparison uses Excel-column ordering: A &lt; B &lt; … &lt; Z &lt; AA &lt; AB …
+            /// </summary>
+            public bool IsHigherThan(ParsedVersionSuffix other)
+            {
+                if (Kind != other.Kind
+                    || !string.Equals(Prefix, other.Prefix, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                return Kind switch
+                {
+                    VersionSuffixKind.Number => Number > other.Number,
+                    VersionSuffixKind.Date   => string.Compare(DateStr, other.DateStr, StringComparison.Ordinal) > 0,
+                    VersionSuffixKind.Letter => CompareLetterSuffix(LetterStr, other.LetterStr) > 0,
+                    _ => false
+                };
+            }
+
+            /// <summary>Reconstructs the label string (e.g. "v6", "v2024-01-15", or "vAA").</summary>
+            public string ToLabel() => Kind switch
+            {
+                VersionSuffixKind.Number => Prefix + Number,
+                VersionSuffixKind.Date   => Prefix + DateStr,
+                VersionSuffixKind.Letter => Prefix + LetterStr,
+                _ => Prefix
+            };
+
+            /// <summary>
+            /// Compares two upper-case letter-series strings using Excel-column ordering:
+            /// shorter strings sort first (A–Z before AA), then lexicographically within
+            /// same-length groups (AA &lt; AB &lt; … &lt; AZ &lt; BA …).
+            /// </summary>
+            private static int CompareLetterSuffix(string a, string b)
+            {
+                if (a.Length != b.Length) return a.Length.CompareTo(b.Length);
+                return string.Compare(a, b, StringComparison.Ordinal);
+            }
+        }
+
         /// <summary>
-        /// Parses a trailing numeric portion from a version label such as "v6" or "Rev3".
-        /// Returns the prefix and number, or null when no numeric suffix is found.
+        /// Tries to parse a version label (e.g. "v6", "Rev3", "v2024-01-15") into its
+        /// prefix and comparable version key. Returns null for unrecognised labels.
         /// </summary>
-        private static (string Prefix, int Num)? ParseVersionLabel(string label)
+        private static ParsedVersionSuffix? ParseVersionSuffix(string label)
         {
             if (string.IsNullOrEmpty(label)) return null;
-            var m = System.Text.RegularExpressions.Regex.Match(
-                label, @"^(?<pfx>.*?)(?<num>\d+)$",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            if (m.Success && int.TryParse(m.Groups["num"].Value, out int num))
-                return (m.Groups["pfx"].Value, num);
+
+            var dm = _dateSuffixRx.Match(label);
+            if (dm.Success)
+                return new ParsedVersionSuffix(dm.Groups["pfx"].Value, dm.Groups["date"].Value, VersionSuffixKind.Date);
+
+            var nm = _numSuffixRx.Match(label);
+            if (nm.Success && int.TryParse(nm.Groups["num"].Value, out int n))
+                return new ParsedVersionSuffix(nm.Groups["pfx"].Value, n);
+
+            var lm = _letterSuffixRx.Match(label);
+            if (lm.Success)
+                return new ParsedVersionSuffix(lm.Groups["pfx"].Value, lm.Groups["letter"].Value, VersionSuffixKind.Letter);
+
+            return null;
+        }
+
+        /// <summary>
+        /// Tries to extract the trailing version suffix from a display name such as
+        /// "Drawing v5" or "Drawing v2024-01-15". Returns null when no suffix is found.
+        /// </summary>
+        private static ParsedVersionSuffix? ParseVersionSuffixFromName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+
+            var dm = _dateSuffixInNameRx.Match(name);
+            if (dm.Success)
+                return new ParsedVersionSuffix(dm.Groups["pfx"].Value, dm.Groups["date"].Value, VersionSuffixKind.Date);
+
+            var nm = _numSuffixInNameRx.Match(name);
+            if (nm.Success && int.TryParse(nm.Groups["num"].Value, out int n))
+                return new ParsedVersionSuffix(nm.Groups["pfx"].Value, n);
+
+            var lm = _letterSuffixInNameRx.Match(name);
+            if (lm.Success)
+                return new ParsedVersionSuffix(lm.Groups["pfx"].Value, lm.Groups["letter"].Value, VersionSuffixKind.Letter);
+
             return null;
         }
 
         /// <summary>
         /// Registers a new version path for this file. On the first call the existing
         /// Sökväg is also recorded as the original so the history is complete.
-        /// When the incoming version's number is higher than the current canonical's
-        /// number (read from the trailing suffix in <see cref="Namn"/>), the new file
-        /// is promoted to canonical: the old canonical is demoted to a version entry
-        /// and <see cref="Sökväg"/>/<see cref="Namn"/>/<see cref="OriginalPath"/> are
-        /// updated to point to the new file.
+        /// When the incoming version is higher than the current canonical — detected from
+        /// <see cref="Namn"/> when it carries a recognised suffix, or from the highest
+        /// existing version label when the canonical name has no suffix — the new file is
+        /// promoted to canonical: the old canonical is demoted to a version entry and
+        /// <see cref="Sökväg"/>/<see cref="Namn"/>/<see cref="OriginalPath"/> are updated.
         /// </summary>
         public void AddVersion(string filepath, string label)
         {
@@ -962,58 +1076,80 @@ namespace Finn.Model
             if (string.IsNullOrEmpty(_originalPath))
                 OriginalPath = _sökväg;
 
-            // If the incoming version is numerically higher than the current canonical,
-            // promote it: demote the old canonical to a version entry and make the new
-            // file the canonical (Sökväg / Namn / OriginalPath).
-            var incoming = ParseVersionLabel(label);
-            if (incoming.HasValue)
+            // Determine the "current canonical" suffix to compare against.
+            // Primary: suffix embedded in the canonical display name (e.g. "Drawing v5").
+            // Fallback: when the canonical name has no suffix (unsuffixed original such as
+            //   "Drawing"), derive the effective version from the highest existing version
+            //   label so we still know whether the incoming label should be promoted.
+            var incoming = ParseVersionSuffix(label);
+            var canonical = ParseVersionSuffixFromName(_namn);
+
+            if (canonical == null && incoming.HasValue && _versions.Count > 0)
             {
-                // Extract the trailing version suffix from the canonical display name.
-                var nm = System.Text.RegularExpressions.Regex.Match(
-                    _namn, @"(?<pfx>[A-Za-z]+)(?<num>\d+)$");
-                if (nm.Success && int.TryParse(nm.Groups["num"].Value, out int canonNum))
+                // Find the highest version label that matches the incoming prefix/kind
+                ParsedVersionSuffix? highestExisting = null;
+                foreach (var v in _versions)
                 {
-                    string canonPrefix = nm.Groups["pfx"].Value;
-                    if (string.Equals(incoming.Value.Prefix, canonPrefix, StringComparison.OrdinalIgnoreCase)
-                        && incoming.Value.Num > canonNum)
-                    {
-                        // Demote current canonical to a version entry (if not already listed)
-                        string oldPath = _sökväg;
-                        string oldLabel = canonPrefix + canonNum;
-                        if (!_versions.Any(v => string.Equals(v.Sökväg, oldPath, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            _versions.Add(new FileVersionData
-                            {
-                                Sökväg = oldPath,
-                                Label = oldLabel,
-                                AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
-                            });
-                        }
-
-                        // Promote the new file to canonical
-                        Sökväg = filepath;
-                        Namn = System.IO.Path.GetFileNameWithoutExtension(filepath);
-                        OriginalPath = filepath;
-
-                        // Make sure we are showing the canonical (not a stale version)
-                        if (_currentVersion != string.Empty)
-                        {
-                            _currentVersion = string.Empty;
-                            OnPropertyChanged(nameof(CurrentVersion));
-                            OnPropertyChanged(nameof(IsOnOriginalVersion));
-                        }
-
-                        UpdateVersionActiveStates();
-                        SortVersions();
-                        return;
-                    }
+                    var parsed = ParseVersionSuffix(v.Label);
+                    if (!parsed.HasValue) continue;
+                    if (parsed.Value.Kind != incoming.Value.Kind) continue;
+                    if (!string.Equals(parsed.Value.Prefix, incoming.Value.Prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!highestExisting.HasValue || parsed.Value.IsHigherThan(highestExisting.Value))
+                        highestExisting = parsed;
                 }
+                // Use the highest existing version as the effective canonical baseline
+                if (highestExisting.HasValue)
+                    canonical = highestExisting;
+            }
+
+            if (incoming.HasValue && canonical.HasValue && incoming.Value.IsHigherThan(canonical.Value))
+            {
+                // Demote current canonical to a version entry (if not already listed)
+                string oldPath = _sökväg;
+                string oldLabel = canonical.Value.ToLabel();
+                if (!_versions.Any(v => string.Equals(v.Sökväg, oldPath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _versions.Add(new FileVersionData
+                    {
+                        Sökväg = oldPath,
+                        Label = oldLabel,
+                        AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
+                    });
+                }
+
+                // Promote the new file to canonical
+                Sökväg = filepath;
+                Namn = System.IO.Path.GetFileNameWithoutExtension(filepath);
+                OriginalPath = filepath;
+
+                // Ensure we are showing the canonical (not a stale version)
+                if (_currentVersion != string.Empty)
+                {
+                    _currentVersion = string.Empty;
+                    OnPropertyChanged(nameof(CurrentVersion));
+                    OnPropertyChanged(nameof(IsOnOriginalVersion));
+                }
+
+                UpdateVersionActiveStates();
+                SortVersions();
+                return;
+            }
+
+            // Deduplicate the label: if a version with this label already exists,
+            // append an ordinal "(2)", "(3)", … until the label is unique.
+            string uniqueLabel = label;
+            if (_versions.Any(v => string.Equals(v.Label, uniqueLabel, StringComparison.OrdinalIgnoreCase)))
+            {
+                int ordinal = 2;
+                while (_versions.Any(v => string.Equals(v.Label, $"{label} ({ordinal})", StringComparison.OrdinalIgnoreCase)))
+                    ordinal++;
+                uniqueLabel = $"{label} ({ordinal})";
             }
 
             _versions.Add(new FileVersionData
             {
                 Sökväg = filepath,
-                Label = label,
+                Label = uniqueLabel,
                 AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
             });
             SortVersions();
@@ -1046,21 +1182,29 @@ namespace Finn.Model
                         // Known predefined labels sort first by their fixed index
                         if (order.TryGetValue(v.Label, out int idx)) return (0, idx, 0, string.Empty);
 
-                        // Auto-generated labels: detect a pattern of <prefix><number> or <prefix><letter>
-                        // e.g. "v1", "v2", "v10", "RevA", "RevB"
-                        var m = System.Text.RegularExpressions.Regex.Match(
-                            v.Label, @"^(?<pfx>.*?)(?<num>\d+|[A-Z])$",
+                        // Auto-generated labels: detect a pattern of <prefix><number> or <prefix><letters>
+                        // e.g. "v1", "v2", "v10", "RevA", "RevB", "vAA", "vAB"
+                        // Try numeric suffix first
+                        var numM = System.Text.RegularExpressions.Regex.Match(
+                            v.Label, @"^(?<pfx>.*?)(?<num>\d+)$",
                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                        if (m.Success)
+                        if (numM.Success && int.TryParse(numM.Groups["num"].Value, out int parsedNum))
+                            return (1, 0, parsedNum, numM.Groups["pfx"].Value);
+
+                        // Try letter suffix (single or multi-letter, no digits)
+                        var letM = System.Text.RegularExpressions.Regex.Match(
+                            v.Label, @"^(?<pfx>.*?)(?<letters>[A-Z]+)$",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (letM.Success)
                         {
-                            string pfx = m.Groups["pfx"].Value;
-                            string raw = m.Groups["num"].Value;
-                            int num = raw.Length == 1 && char.IsLetter(raw[0])
-                                ? char.ToUpperInvariant(raw[0]) - 'A' + 1
-                                : int.Parse(raw);
-                            // Group by prefix (so v* and Rev* each sort within themselves),
-                            // then numerically within the group
-                            return (1, 0, num, pfx);
+                            string pfx = letM.Groups["pfx"].Value;
+                            string letters = letM.Groups["letters"].Value.ToUpperInvariant();
+                            // Convert letter sequence to a comparable integer using Excel-column ordering:
+                            // shorter = smaller; within same length, lexicographic order applies
+                            // We encode as: length * 10000 + ordinal-within-length
+                            // For simplicity use the string length as the primary sort key,
+                            // then the label string as the secondary key via ThenBy below.
+                            return (1, letters.Length, 0, pfx + letters);
                         }
 
                         // Unrecognised labels sort last, alphabetically
