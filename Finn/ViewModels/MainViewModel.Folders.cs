@@ -556,7 +556,10 @@ namespace Finn.ViewModels
                             string num = m.Groups["num"].Value;
                             // Find unambiguous canonical — exact unsuffixed name first,
                             // then same-base fallback (e.g. "Drawing v1" for "Drawing v2").
-                            FileData? canonical = FindCanonicalForSuffixMatch(baseName, wideByName, suffixRx);
+                            // Restrict to the same directory as the incoming file to avoid
+                            // cross-folder base-name collisions.
+                            string incomingDir = Path.GetDirectoryName(file.Sökväg) ?? string.Empty;
+                            FileData? canonical = FindCanonicalForSuffixMatch(baseName, wideByName, suffixRx, incomingDir);
                             if (canonical != null)
                             {
                                 versionCandidates.Add(new VersionImportEntry
@@ -725,9 +728,18 @@ namespace Finn.ViewModels
                     : folderPath + Path.DirectorySeparatorChar;
                 int count = 0;
                 foreach (var f in CurrentProject!.StoredFiles)
+                {
+                    // Count version entries stored under the folder
                     foreach (var v in f.Versions)
                         if (v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
                             count++;
+
+                    // Also count promoted canonicals whose current path is inside the folder
+                    if (f.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrEmpty(f.OriginalPath)
+                        && !f.OriginalPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        count++;
+                }
                 return count;
             }
 
@@ -819,8 +831,11 @@ namespace Finn.ViewModels
                     ? folder.Path
                     : folder.Path + Path.DirectorySeparatorChar;
 
-                // Collect stale versions before removing
+                // Collect stale versions before removing.
+                // Distinguish real version entries from promoted canonicals whose Sökväg
+                // now points into this folder but whose file is gone from disk.
                 var staleVersions = new List<(FileData File, FileVersionData Version)>();
+                var staleCanonicals = new List<FileData>(); // promoted canonicals that are now missing
                 foreach (var file in CurrentProject!.StoredFiles)
                 {
                     foreach (var v in file.Versions)
@@ -832,40 +847,76 @@ namespace Finn.ViewModels
                         }
                     }
 
-                    // If the canonical was promoted into this version folder but the file
-                    // is no longer on disk, treat it as stale too — synthesise a placeholder
-                    // version entry so the user sees it in the removal dialog.
+                    // If the canonical path was promoted into this version folder but the
+                    // file is no longer on disk, collect it for a separate restore step.
                     if (file.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase)
                         && !diskPaths.Contains(file.Sökväg))
                     {
-                        var synthetic = new Finn.Model.FileVersionData
-                        {
-                            Sökväg = file.Sökväg,
-                            Label = "(current)",
-                            AddedDate = DateTime.Now.ToString("yyyy-MM-dd")
-                        };
-                        staleVersions.Add((file, synthetic));
+                        staleCanonicals.Add(file);
                     }
                 }
 
-                if (staleVersions.Count > 0 && mainWindow != null)
+                // Build a combined list for the removal dialog (real entries + canonical stubs).
+                var allStale = staleVersions
+                    .Select(sv => (sv.Version.ShortName, sv.Version.Sökväg))
+                    .Concat(staleCanonicals.Select(f =>
+                        (Name: Path.GetFileNameWithoutExtension(f.Sökväg) + " (current)", Path: f.Sökväg)))
+                    .ToList();
+
+                if (allStale.Count > 0 && mainWindow != null)
                 {
                     PreviewVM.BackgroundTaskActive = false;
-                    var removeEntries = staleVersions
-                        .Select(sv => (sv.Version.ShortName, sv.Version.Sökväg))
-                        .ToList();
                     var removeDia = new Dialogs.xSyncRemoveDia
                     {
                         DataContext = this,
                         RequestedThemeVariant = mainWindow.ActualThemeVariant
                     };
-                    removeDia.SetFiles(removeEntries, folderName);
+                    removeDia.SetFiles(allStale, folderName);
                     await removeDia.ShowDialog(mainWindow);
 
                     if (removeDia.Confirmed)
                     {
+                        // Remove stale version entries normally
                         foreach (var (file, v) in staleVersions)
                             file.RemoveVersion(v);
+
+                        // Restore promoted canonicals: fall back to the pre-promotion
+                        // OriginalPath when it is outside the folder; otherwise fall back
+                        // to the highest remaining version entry.
+                        foreach (var file in staleCanonicals)
+                        {
+                            string? restorePath = null;
+                            if (!string.IsNullOrEmpty(file.OriginalPath)
+                                && !file.OriginalPath.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                                && File.Exists(file.OriginalPath))
+                            {
+                                restorePath = file.OriginalPath;
+                            }
+                            else
+                            {
+                                restorePath = file.Versions
+                                    .Where(v => !v.Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                                             && File.Exists(v.Sökväg))
+                                    .Select(v => v.Sökväg)
+                                    .LastOrDefault();
+                            }
+
+                            if (restorePath != null)
+                            {
+                                file.Sökväg = restorePath;
+                                file.Namn = Path.GetFileNameWithoutExtension(restorePath);
+                                // Remove the version entry for that path to avoid duplicating it
+                                for (int i = file.Versions.Count - 1; i >= 0; i--)
+                                {
+                                    if (string.Equals(file.Versions[i].Sökväg, restorePath,
+                                            StringComparison.OrdinalIgnoreCase))
+                                        file.Versions.RemoveAt(i);
+                                }
+                            }
+                            // If no restore path is available, leave as-is; the user will see a
+                            // broken link and can remove the file manually.
+                        }
+
                         MarkDirty();
                     }
                     else
@@ -873,7 +924,7 @@ namespace Finn.ViewModels
                         return false;
                     }
                 }
-                else if (staleVersions.Count > 0)
+                else if (allStale.Count > 0)
                 {
                     // No window — can't show dialog, leave unsynced
                     return false;

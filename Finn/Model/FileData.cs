@@ -1117,10 +1117,12 @@ namespace Finn.Model
                     });
                 }
 
-                // Promote the new file to canonical
+                // Promote the new file to canonical.
+                // OriginalPath is intentionally NOT updated here — it was set the first
+                // time a version was ever added and must always point to the first-ever
+                // file on this record so that restore and cleanup logic have a stable anchor.
                 Sökväg = filepath;
                 Namn = System.IO.Path.GetFileNameWithoutExtension(filepath);
-                OriginalPath = filepath;
 
                 // Ensure we are showing the canonical (not a stale version)
                 if (_currentVersion != string.Empty)
@@ -1182,16 +1184,33 @@ namespace Finn.Model
                         // Known predefined labels sort first by their fixed index
                         if (order.TryGetValue(v.Label, out int idx)) return (0, idx, 0, string.Empty);
 
-                        // Auto-generated labels: detect a pattern of <prefix><number> or <prefix><letters>
-                        // e.g. "v1", "v2", "v10", "RevA", "RevB", "vAA", "vAB"
-                        // Try numeric suffix first
+                        // Auto-generated labels are sorted in three tiers:
+                        //   Tier 1: ISO date suffix  (e.g. "2024-01-15", "v2024-01-15")
+                        //   Tier 2: numeric suffix   (e.g. "v1", "Rev3")
+                        //   Tier 3: letter suffix    (e.g. "A", "vAA")
+                        // Try date first so that "v2024-01-15" is not mis-parsed as
+                        // a numeric label with trailing digits "15".
+                        var dateM = System.Text.RegularExpressions.Regex.Match(
+                            v.Label, @"^(?<pfx>.*?)(?<date>\d{4}-\d{2}-\d{2})$",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (dateM.Success
+                            && DateTime.TryParseExact(dateM.Groups["date"].Value, "yyyy-MM-dd",
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                System.Globalization.DateTimeStyles.None, out var parsedDate))
+                        {
+                            // Encode as days since epoch for stable numeric comparison
+                            int days = (int)(parsedDate - DateTime.UnixEpoch).TotalDays;
+                            return (1, 0, days, dateM.Groups["pfx"].Value);
+                        }
+
+                        // Numeric suffix (e.g. "v1", "v2", "v10")
                         var numM = System.Text.RegularExpressions.Regex.Match(
                             v.Label, @"^(?<pfx>.*?)(?<num>\d+)$",
                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                         if (numM.Success && int.TryParse(numM.Groups["num"].Value, out int parsedNum))
                             return (1, 0, parsedNum, numM.Groups["pfx"].Value);
 
-                        // Try letter suffix (single or multi-letter, no digits)
+                        // Letter suffix (single or multi-letter, no digits; e.g. "A", "vAA")
                         var letM = System.Text.RegularExpressions.Regex.Match(
                             v.Label, @"^(?<pfx>.*?)(?<letters>[A-Z]+)$",
                             System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -1199,11 +1218,8 @@ namespace Finn.Model
                         {
                             string pfx = letM.Groups["pfx"].Value;
                             string letters = letM.Groups["letters"].Value.ToUpperInvariant();
-                            // Convert letter sequence to a comparable integer using Excel-column ordering:
-                            // shorter = smaller; within same length, lexicographic order applies
-                            // We encode as: length * 10000 + ordinal-within-length
-                            // For simplicity use the string length as the primary sort key,
-                            // then the label string as the secondary key via ThenBy below.
+                            // Excel-column ordering: shorter strings sort first (A–Z before AA),
+                            // then lexicographically within the same length via ThenBy below.
                             return (1, letters.Length, 0, pfx + letters);
                         }
 
