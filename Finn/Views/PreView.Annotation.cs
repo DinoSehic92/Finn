@@ -310,6 +310,7 @@ public partial class PreView
         {
             ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle } s => s.CornerRadius,
             InkStroke { IsPolyline: true, IsAreaMeasure: false } s => s.CornerRadius,
+            TextAnnotation t => t.CornerRadius,
             _ => null
         };
         double? sourceFontSize = source switch
@@ -322,7 +323,11 @@ public partial class PreView
             TextAnnotation t => t.HasFrame,
             _ => null
         };
-
+        bool? sourceSolidBackground = source switch
+        {
+            TextAnnotation t => t.SolidBackground,
+            _ => null
+        };
         var snapshot = MuPDFRenderer.CapturePropertySnapshot(target);
         if (snapshot != null)
             MuPDFRenderer.PushPropertyUndo(snapshot);
@@ -357,6 +362,8 @@ public partial class PreView
                 if (sourceColor.HasValue) text.Color = sourceColor.Value;
                 if (sourceOpacity.HasValue) text.Opacity = sourceOpacity.Value;
                 if (sourceHasFrame.HasValue) text.HasFrame = sourceHasFrame.Value;
+                if (sourceSolidBackground.HasValue) text.SolidBackground = sourceSolidBackground.Value;
+                if (sourceCornerRadius.HasValue) text.CornerRadius = sourceCornerRadius.Value;
                 if (sourceFontSize.HasValue)
                 {
                     text.FontSize = sourceFontSize.Value;
@@ -653,6 +660,8 @@ public partial class PreView
                     IsStickyNote = src.IsStickyNote,
                     IsLabel = src.IsLabel,
                     HasFrame = src.HasFrame,
+                    SolidBackground = src.SolidBackground,
+                    CornerRadius = src.CornerRadius,
                     CreatedAtRotation = src.CreatedAtRotation,
                     MaxWidth = src.MaxWidth,
                     ArrowOrigin = src.ArrowOrigin.HasValue

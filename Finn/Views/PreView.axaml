@@ -715,8 +715,11 @@
 									</Button>
 									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,3" CornerRadius="1" Opacity="0.7"/>
 									<Button Name="PropertyFrameToggleBtn" Classes="ghost" ToolTip.Tip="Toggle background &amp; border" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFrameToggle" BorderThickness="0">
-										<ic:SymbolIcon Symbol="TextBox" IconVariant="Regular" FontSize="14"/>
-									</Button>
+											<ic:SymbolIcon Symbol="TextBox" IconVariant="Regular" FontSize="14"/>
+										</Button>
+										<Button Name="PropertySolidBgToggleBtn" Classes="ghost" ToolTip.Tip="Toggle solid background" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertySolidBgToggle" BorderThickness="0">
+											<ic:SymbolIcon Symbol="RectangleLandscape" IconVariant="Filled" FontSize="14"/>
+										</Button>
 								</StackPanel>
 								<TextBox Name="PropertyTextBox" MinWidth="190" MinHeight="38" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text…" HorizontalAlignment="Stretch"/>
 							</StackPanel>

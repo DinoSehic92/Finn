@@ -2203,7 +2203,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // ShapeAnnotation
         bool IsFilled, double CornerRadius,
         // TextAnnotation
-        double FontSize, string Text, double MaxWidth, bool HasFrame);
+        double FontSize, string Text, double MaxWidth, bool HasFrame,
+        bool SolidBackground = false);
 
     /// <summary>
     /// Captures a snapshot of all visual properties of an annotation.
@@ -2213,7 +2214,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, 0, "", 0, false),
         ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, 0, "", 0, false),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, 0, t.FontSize, t.Text, t.MaxWidth, t.HasFrame),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, t.CornerRadius, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground),
         MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, 0, "", 0, false),
         _ => null
     };
@@ -2240,6 +2241,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 t.Color = snap.Color; t.Opacity = snap.Opacity;
                 t.FontSize = snap.FontSize; t.Text = snap.Text;
                 t.MaxWidth = snap.MaxWidth; t.HasFrame = snap.HasFrame;
+                t.SolidBackground = snap.SolidBackground;
+                t.CornerRadius = snap.CornerRadius;
                 t.InvalidateArrowPen();
                 break;
             case MeasurementAnnotation m:
@@ -5436,7 +5439,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     (float)screenPos.X, y, line, fontSize, color,
                     HasBackground: true, HasBorder: first, IsTextAnnotation: true,
                     FontFamily: fontFamily, HasFrame: t.HasFrame,
-                    RotationDegrees: (float)GetTextRenderRotation(t)));
+                    RotationDegrees: (float)GetTextRenderRotation(t),
+                    SolidBackground: t.SolidBackground,
+                    CornerRadius: (float)t.CornerRadius));
                 first = false;
             }
             y += lineHeight;
@@ -5787,7 +5792,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                                        string SecondLine = "",
                                        bool CenterOnPoint = false,
                                        bool HasFrame = true,
-                                       float RotationDegrees = 0f);
+                                       float RotationDegrees = 0f,
+                                       bool SolidBackground = false,
+                                       float CornerRadius = 5f);
 
         private readonly Rect _bounds;
         private readonly List<TextItem> _items;
@@ -6175,7 +6182,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
                 // Tinted-glass frame: soft color wash + matching border, no accent bar
                 float pad = 6;
-                float radius = 5;
+                float radius = item.CornerRadius;
                 var fullArea = new SKRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
                 var frameRRect = new SKRoundRect(fullArea, radius, radius);
 
@@ -6186,8 +6193,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     canvas.RotateDegrees(item.RotationDegrees, item.X, item.Y - item.FontSize);
                 }
 
-                // Tinted background — faint wash of the annotation color
-                bgPaint.Color = new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 30);
+                // Tinted background — faint wash of the annotation color,
+                // or solid opaque white when SolidBackground is requested.
+                bgPaint.Color = item.SolidBackground
+                    ? new SKColor(255, 255, 255, 255)
+                    : new SKColor(groupColor.Red, groupColor.Green, groupColor.Blue, 30);
                 canvas.DrawRoundRect(frameRRect, bgPaint);
 
                 // Matching border at moderate opacity

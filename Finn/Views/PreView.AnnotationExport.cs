@@ -484,19 +484,20 @@ public partial class PreView
 
                 if (t.HasFrame)
                 {
-                // Tinted-glass frame: soft color wash + matching border, no accent bar
-                float s    = (float)renderZoom;
-                float pad  = 6 * s;
-                float radius = 5 * s;
-                var fullArea = new SKRect(frameMinX - pad, frameMinY - pad,
-                                          frameMaxX + pad, frameMaxY + pad);
+                float s      = (float)renderZoom;
+                float pad    = 6 * s;
+                float radius = (float)t.CornerRadius * s;
+                var fullArea  = new SKRect(frameMinX - pad, frameMinY - pad,
+                                           frameMaxX + pad, frameMaxY + pad);
                 var frameRRect = new SKRoundRect(fullArea, radius, radius);
 
-                // Tinted background
-                bgPaint.Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, 30);
+                // Solid white background or tinted-glass wash
+                bgPaint.Color = t.SolidBackground
+                    ? new SKColor(255, 255, 255, 255)
+                    : new SKColor(t.Color.R, t.Color.G, t.Color.B, 30);
                 canvas.DrawRoundRect(frameRRect, bgPaint);
 
-                // Matching border
+                // Border
                 framePaint.Color = new SKColor(t.Color.R, t.Color.G, t.Color.B, 110);
                 framePaint.StrokeWidth = 1.2f * s;
                 canvas.DrawRoundRect(frameRRect, framePaint);
@@ -1455,7 +1456,9 @@ public partial class PreView
             // to match the in-app / Skia rendered position.
             double yOff = t.FontSize * 0.2;
 
-            const double pad = 2, accentW = 4, r = 4;
+            const double pad = 2;
+            double accentW = t.HasFrame && !t.SolidBackground ? 4 : 0;
+            double r = t.CornerRadius > 0 ? t.CornerRadius : 4;
             double fx = t.Position.X - pad - accentW;
             double fy = t.Position.Y - pad + yOff;
             double fw = maxW + pad * 2 + accentW;
@@ -1471,21 +1474,35 @@ public partial class PreView
                 gfx.RotateAtTransform(renderRotation, new XPoint(t.Position.X, t.Position.Y));
             }
 
-            // Shadow
-            gfx.DrawRoundedRectangle(
-                new XSolidBrush(XColor.FromArgb(20, 0, 0, 0)),
-                new XRect(fx + 1, fy + 2, fw, fh), corner);
-            // White body
-            gfx.DrawRoundedRectangle(
-                new XSolidBrush(XColor.FromArgb(245, 255, 255, 255)),
-                frameRect, corner);
-            // Colored accent bar
-            var accentColor = XColor.FromArgb((byte)(210 * alpha / 255), t.Color.R, t.Color.G, t.Color.B);
-            gfx.DrawRectangle(new XSolidBrush(accentColor),
-                new XRect(fx, fy + r, accentW, fh - r * 2));
-            // Border
-            gfx.DrawRoundedRectangle(
-                new XPen(XColor.FromArgb(40, 0, 0, 0), 0.8), frameRect, corner);
+            if (t.HasFrame)
+            {
+                if (t.SolidBackground)
+                {
+                    // Solid opaque white background
+                    gfx.DrawRoundedRectangle(
+                        new XSolidBrush(XColor.FromArgb(255, 255, 255, 255)),
+                        frameRect, corner);
+                }
+                else
+                {
+                    // Shadow
+                    gfx.DrawRoundedRectangle(
+                        new XSolidBrush(XColor.FromArgb(20, 0, 0, 0)),
+                        new XRect(fx + 1, fy + 2, fw, fh), corner);
+                    // Tinted white body
+                    gfx.DrawRoundedRectangle(
+                        new XSolidBrush(XColor.FromArgb(245, 255, 255, 255)),
+                        frameRect, corner);
+                    // Colored accent bar
+                    var accentColor = XColor.FromArgb((byte)(210 * alpha / 255), t.Color.R, t.Color.G, t.Color.B);
+                    gfx.DrawRectangle(new XSolidBrush(accentColor),
+                        new XRect(fx, fy + r, accentW, fh - r * 2));
+                }
+                // Border
+                gfx.DrawRoundedRectangle(
+                    new XPen(XColor.FromArgb(t.SolidBackground ? 110 : 40, t.Color.R, t.Color.G, t.Color.B), 0.8),
+                    frameRect, corner);
+            }
 
             // Arrow for ArrowText — Euclidean distance to side centres (matches Skia)
             double arrowTipX = 0, arrowTipY = 0;

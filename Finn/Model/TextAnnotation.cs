@@ -98,6 +98,20 @@ public class TextAnnotation
     public bool HasFrame { get; set; } = true;
 
     /// <summary>
+    /// When true, the background of the text box is rendered as a solid opaque white fill
+    /// instead of the default tinted-glass (semi-transparent) wash.
+    /// Only has an effect when <see cref="HasFrame"/> is also true.
+    /// </summary>
+    public bool SolidBackground { get; set; }
+
+    /// <summary>
+    /// Corner radius of the textbox frame in PDF units. 0 = sharp corners.
+    /// Defaults to 5 to match the previous hardcoded value.
+    /// Only has an effect when <see cref="HasFrame"/> is also true.
+    /// </summary>
+    public double CornerRadius { get; set; } = 5;
+
+    /// <summary>
     /// Page rotation in degrees at the time this text annotation was created.
     /// Used to preserve the textbox's visual orientation relative to its creation view.
     /// </summary>

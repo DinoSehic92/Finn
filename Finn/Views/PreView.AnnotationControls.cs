@@ -22,6 +22,7 @@ public partial class PreView
     private Button? _propertyCalibrateBtn;
     private Border? _propertyCalibrateSeparator;
     private MeasurementAnnotation? _calibrationReferenceMeasurement;
+    private Button? _propertySolidBgToggleBtn;
 
     // Font-size undo coalescing: track the annotation and time of the last
     // size change so rapid +/- taps collapse into a single undo step.
@@ -1384,7 +1385,8 @@ public partial class PreView
                             or InlineAnnotationTool.RevisionCloud)
             || item is InkStroke { IsPolyline: true, IsClosed: true };
         bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
-            || item is InkStroke { IsPolyline: true, IsAreaMeasure: false };
+            || item is InkStroke { IsPolyline: true, IsAreaMeasure: false }
+            || item is TextAnnotation { HasFrame: true };
 
         PropertyStrokeRow.IsVisible = hasStroke;
         _propertyDashRow ??= this.FindControl<StackPanel>("PropertyDashRow");
@@ -1434,6 +1436,7 @@ public partial class PreView
         {
             PropertyTextBox.Text = textItem.Text;
             SyncFrameToggleButton(textItem.HasFrame);
+            SyncSolidBgToggleButton(textItem.SolidBackground);
         }
 
         PropertyPanelCanvas.IsVisible = true;
@@ -1545,6 +1548,25 @@ public partial class PreView
         MuPDFRenderer.NotifyAnnotationChanged();
     }
 
+    private void SyncSolidBgToggleButton(bool solidBackground)
+    {
+        _propertySolidBgToggleBtn ??= this.FindControl<Button>("PropertySolidBgToggleBtn");
+        if (_propertySolidBgToggleBtn == null) return;
+        _propertySolidBgToggleBtn.BorderThickness = solidBackground ? new Thickness(2) : new Thickness(0);
+        _propertySolidBgToggleBtn.BorderBrush = solidBackground ? Brushes.White : null;
+        ToolTip.SetTip(_propertySolidBgToggleBtn, solidBackground ? "Use tinted background" : "Use solid white background");
+    }
+
+    private void OnPropertySolidBgToggle(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not TextAnnotation t) return;
+        StagePropertyUndoSnapshot(t);
+        t.SolidBackground = !t.SolidBackground;
+        SyncSolidBgToggleButton(t.SolidBackground);
+        MuPDFRenderer.InvalidateVisual();
+        MuPDFRenderer.NotifyAnnotationChanged();
+    }
+
     private void OnPropertyFill(object sender, RoutedEventArgs e)
     {
         bool isFilled;
@@ -1586,6 +1608,8 @@ public partial class PreView
                     sh.CornerRadius = r; sh.InvalidatePen(); break;
                 case InkStroke { IsPolyline: true } ink:
                     ink.CornerRadius = r; ink.InvalidatePen(); break;
+                case TextAnnotation t:
+                    t.CornerRadius = r; break;
             }
         }
         MuPDFRenderer.ShapeCornerRadius = r;
