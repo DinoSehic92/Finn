@@ -14,27 +14,38 @@ public partial class xEditDia : Window
     private System.Collections.Generic.IReadOnlyList<(string Label, string? GroupName, string Category)> _groupItems
         = System.Array.Empty<(string, string?, string)>();
 
+    // Tracks the last category used to populate the group picker so spurious
+    // SelectionChanged events from Avalonia (fired after initial binding) don't
+    // reset the group back to "No Group".
+    private string _lastGroupPickerCategory = string.Empty;
+
     public xEditDia()
     {
         InitializeComponent();
 
-        ProjectCategory.AddHandler(ComboBox.LoadedEvent, SetupCategory);
-        this.FindControl<ComboBox>("ProjectGroup")?.AddHandler(ComboBox.LoadedEvent, SetupGroupCombo);
-
-        // Wire the category→group refresh only after the window is fully open,
-        // so the initial SetupCategory selection does not reset the group picker.
         Opened += (_, _) =>
         {
             if (DataContext is not MainViewModel ctx) return;
+
+            // 1. Set up the category picker
+            SetupCategory(ctx);
+
+            // 2. Set up the group picker with the project's current parent
+            _projectGroupCombo = this.FindControl<ComboBox>("ProjectGroup");
+            RefreshGroupPicker(ctx.CurrentProject?.Category ?? string.Empty, ctx.CurrentProject?.Parent);
+
+            // 3. Wire SelectionChanged AFTER initial setup. Guard against spurious
+            //    re-fires (Avalonia can dispatch SelectionChanged asynchronously after
+            //    the initial SelectedItem assignment) by only refreshing when the
+            //    category value actually changes.
             ProjectCategory.SelectionChanged += (_, _) =>
             {
                 string cat = (ProjectCategory.SelectedItem as ComboBoxItem)?.Content?.ToString()
                              ?? ctx.CurrentProject?.Category ?? string.Empty;
+                if (cat == _lastGroupPickerCategory) return;
                 RefreshGroupPicker(cat, null);
             };
 
-            // Inject live candidate counts into Reapply/Reset button tooltips so
-            // the user knows what will be affected before clicking.
             UpdateVersionGroupCounts(ctx);
         };
 
@@ -43,20 +54,12 @@ public partial class xEditDia : Window
 
     private ComboBox? _projectGroupCombo;
 
-    private void SetupGroupCombo(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainViewModel ctx) return;
-        _projectGroupCombo = sender as ComboBox ?? this.FindControl<ComboBox>("ProjectGroup");
-        if (_projectGroupCombo == null) return;
-
-        RefreshGroupPicker(ctx.CurrentProject?.Category ?? string.Empty, ctx.CurrentProject?.Parent);
-    }
-
     private void RefreshGroupPicker(string category, string? selectedGroup)
     {
         if (_projectGroupCombo == null) return;
         if (DataContext is not MainViewModel ctx) return;
 
+        _lastGroupPickerCategory = category;
         _groupItems = ctx.GetProjectGroupPickerItems(category);
         _projectGroupCombo.ItemsSource = _groupItems.Select(i => i.Label).ToList();
 
@@ -66,10 +69,8 @@ public partial class xEditDia : Window
         _projectGroupCombo.SelectedIndex = idx >= 0 ? idx : 0;
     }
 
-    private void SetupCategory(object? sender, RoutedEventArgs e)
+    private void SetupCategory(MainViewModel ctx)
     {
-        if (DataContext is not MainViewModel ctx) return;
-
         string cat = ctx.CurrentProject?.Category ?? string.Empty;
 
         ComboBoxItem? comboBoxItem = null;

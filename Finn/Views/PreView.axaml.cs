@@ -187,7 +187,7 @@ public partial class PreView : UserControl
                 break;
 
             case "CurrentPage1":
-                if (_annotateMode && _selectedAnnotation != null)
+                if (_annotateMode && (_selectedAnnotation != null || _selectedAnnotations.Count > 0))
                     DeselectAnnotation();
                 MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)

@@ -566,6 +566,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _activeShape = null;
         _activeMeasurement = null;
         _measurementPreviewPoint = null;
+        _selectHighlightItems.Clear();
+        _selectHoverItem = null;
         _currentPage = page;
         if (IsViewerInitialized)
             InvalidateVisual();
