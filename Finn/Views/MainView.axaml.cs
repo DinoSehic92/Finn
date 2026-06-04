@@ -67,6 +67,12 @@ public partial class MainView : UserControl
     {
         InitializeComponent();
 
+        this.AttachedToVisualTree += (_, _) =>
+        {
+            _selectionCanvas = this.FindControl<Canvas>("SelectionCanvas")!;
+            _selectionRect   = this.FindControl<Border>("SelectionRect")!;
+        };
+
         FileGrid.AddHandler(DataGrid.LoadedEvent, InitStartup);
         FileGrid.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
         FileGrid.AddHandler(DataGrid.SelectionChangedEvent, SetPreviewRequestMain);
@@ -77,6 +83,7 @@ public partial class MainView : UserControl
         FileGrid.AddHandler(PointerPressedEvent, OnFileGridPointerPressed, RoutingStrategies.Tunnel);
         FileGrid.AddHandler(PointerMovedEvent, OnFileGridPointerMoved, RoutingStrategies.Tunnel);
         FileGrid.AddHandler(PointerReleasedEvent, OnFileGridPointerReleased, RoutingStrategies.Tunnel);
+        FileGrid.AddHandler(PointerCaptureLostEvent, OnFileGridCaptureLost, RoutingStrategies.Bubble);
 
         // Drag-and-drop visual hints
         MainGrid.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
@@ -588,47 +595,272 @@ public partial class MainView : UserControl
 
     #endregion
 
-    #region Internal Row Drag-Drop (nest files into groups)
+    #region FileGrid pointer — rubber-band multi-select + group drag
 
-    private Point _dragStartPoint;
     private bool _isDraggingToGroup;
-    private const double DragThreshold = 10;
+    private bool _isRubberBanding;
+    private Point _dragStartPoint;
+    private const double DragThreshold = 6;
+
+    private Canvas _selectionCanvas = null!;
+    private Border _selectionRect = null!;
+
+    // Cached state to avoid redundant work on every pointer-move.
+    private HashSet<FileData>? _bandValidItems;       // current ItemsSource snapshot
+    private HashSet<FileData>  _bandLastHit = [];     // previous frame's hit set
+    private HashSet<FileData>? _bandPreSelection;     // selection that existed before band started (Ctrl additive mode)
+
+    // Auto-scroll while rubber-banding near the grid edge.
+    private const double AutoScrollZone   = 40;  // px from edge that triggers scroll
+    private const double AutoScrollAmount = 24;  // px per tick
+    private IDisposable? _autoScrollSub;
 
     private void OnFileGridPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         _isDraggingToGroup = false;
+        _isRubberBanding = false;
+
         if (!e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
+
         _dragStartPoint = e.GetPosition(FileGrid);
     }
 
     private void OnFileGridPointerMoved(object? sender, PointerEventArgs e)
     {
         if (!e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
-        if (_isDraggingToGroup) return;
-        if (_ctx?.CurrentFiles == null || _ctx.CurrentFiles.Count == 0) return;
 
         var pos = e.GetPosition(FileGrid);
         var delta = pos - _dragStartPoint;
+
+        if (_isDraggingToGroup)
+        {
+            // Existing group-drag in progress — nothing extra to do.
+            return;
+        }
+
+        if (_isRubberBanding)
+        {
+            UpdateRubberBand(pos);
+            UpdateAutoScroll(pos);
+            ApplyRubberBandSelection(pos, e.KeyModifiers);
+            return;
+        }
+
+        // Below the threshold — not yet decided which mode.
         if (Math.Abs(delta.X) < DragThreshold && Math.Abs(delta.Y) < DragThreshold)
             return;
 
-        // Only start a drag for top-level, non-group files
-        if (_ctx.CurrentFiles.Any(f => !f.IsRegularFile)) return;
+        // Decide: group-drag only when the selection is all regular files and
+        // the user starts dragging on an already-selected row (Ctrl/Shift not held).
+        var modifiers = e.KeyModifiers;
+        bool modifierHeld = (modifiers & (KeyModifiers.Shift | KeyModifiers.Control)) != 0;
 
-        _isDraggingToGroup = true;
-        FileGrid.Cursor = new Cursor(StandardCursorType.DragMove);
+        bool selectionIsAllRegular = _ctx?.CurrentFiles != null
+            && _ctx.CurrentFiles.Count > 0
+            && _ctx.CurrentFiles.All(f => f.IsRegularFile);
+
+        bool hitSelectedRow = false;
+        var hit = FileGrid.InputHitTest(_dragStartPoint);
+        if (hit is Visual v)
+        {
+            var row = v.FindAncestorOfType<DataGridRow>();
+            if (row?.DataContext is FileData fd && _ctx?.CurrentFiles?.Contains(fd) == true)
+                hitSelectedRow = true;
+        }
+
+        // Group-drag only when >1 regular files are already selected and the user
+        // drags from one of those selected rows (no modifier held). Any other gesture
+        // — including clicking on a row — starts rubber-band.
+        bool multipleSelected = (_ctx?.CurrentFiles?.Count ?? 0) > 1;
+        if (!modifierHeld && hitSelectedRow && selectionIsAllRegular && multipleSelected)
+        {
+            // Start group drag.
+            _isDraggingToGroup = true;
+            FileGrid.Cursor = new Cursor(StandardCursorType.DragMove);
+        }
+        else
+        {
+            // Start rubber-band selection.
+            // Snapshot pre-existing selection so Ctrl+band can add to it.
+            _bandPreSelection = (modifiers & KeyModifiers.Control) != 0
+                ? FileGrid.SelectedItems.Cast<FileData>().ToHashSet()
+                : null;
+            _isRubberBanding = true;
+            e.Pointer.Capture(FileGrid);
+            ShowRubberBand(_dragStartPoint);
+        }
     }
 
     private void OnFileGridPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (!_isDraggingToGroup) return;
-        _isDraggingToGroup = false;
-        FileGrid.Cursor = Cursor.Default;
-
-        var target = FindGroupRowUnderPointer(e);
-        if (target != null && _ctx?.CurrentFiles != null)
-            _ctx.MoveFilesToParent(target, _ctx.CurrentFiles.ToList());
+        if (_isDraggingToGroup)
+        {
+            _isDraggingToGroup = false;
+            FileGrid.Cursor = Cursor.Default;
+            var target = FindGroupRowUnderPointer(e);
+            if (target != null && _ctx?.CurrentFiles != null)
+                _ctx.MoveFilesToParent(target, _ctx.CurrentFiles.ToList());
+        }
+        else if (_isRubberBanding)
+        {
+            EndRubberBand(e.Pointer);
+        }
     }
+
+    private void OnFileGridCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        if (_isRubberBanding)
+            EndRubberBand(null);
+    }
+
+    // ── Rubber-band helpers ──────────────────────────────────────────
+
+    private void ShowRubberBand(Point origin)
+    {
+        if (_selectionRect == null) return;
+        // Snapshot the valid item set once at the start of the gesture so we
+        // don't rebuild it on every pointer-move event.
+        _bandValidItems = FileGrid.ItemsSource?.Cast<FileData>().ToHashSet() ?? [];
+        _bandLastHit.Clear();
+        // Clamp the start point to the grid's own client area.
+        double cx = Math.Max(0, Math.Min(origin.X, FileGrid.Bounds.Width));
+        double cy = Math.Max(0, Math.Min(origin.Y, FileGrid.Bounds.Height));
+        Canvas.SetLeft(_selectionRect, cx);
+        Canvas.SetTop(_selectionRect, cy);
+        _selectionRect.Width = 0;
+        _selectionRect.Height = 0;
+        _selectionRect.IsVisible = true;
+    }
+
+    private void UpdateRubberBand(Point current)
+    {        if (_selectionRect == null) return;
+
+        // Clamp the current pointer position to FileGrid bounds.
+        double maxW = FileGrid.Bounds.Width;
+        double maxH = FileGrid.Bounds.Height;
+        double cx = Math.Max(0, Math.Min(current.X, maxW));
+        double cy = Math.Max(0, Math.Min(current.Y, maxH));
+
+        double x = Math.Min(_dragStartPoint.X, cx);
+        double y = Math.Min(_dragStartPoint.Y, cy);
+        double w = Math.Abs(cx - _dragStartPoint.X);
+        double h = Math.Abs(cy - _dragStartPoint.Y);
+
+        // Also clamp the start-point contribution so the rect never overflows.
+        x = Math.Max(0, x);
+        y = Math.Max(0, y);
+        w = Math.Min(w, maxW - x);
+        h = Math.Min(h, maxH - y);
+
+        Canvas.SetLeft(_selectionRect, x);
+        Canvas.SetTop(_selectionRect, y);
+        _selectionRect.Width  = w;
+        _selectionRect.Height = h;
+    }
+
+    private void ApplyRubberBandSelection(Point current, KeyModifiers modifiers)
+    {
+        if (_bandValidItems == null) return;
+
+        double top    = Math.Min(_dragStartPoint.Y, current.Y);
+        double bottom = Math.Max(_dragStartPoint.Y, current.Y);
+
+        // Intentional: rows span the full grid width, so only the vertical
+        // overlap matters. A true 2-D rectangle test would feel wrong because
+        // partial horizontal coverage would exclude rows the user clearly
+        // intended to select.
+
+        // Walk only currently-rendered rows (avoids stale recycled-row positions).
+        var newHit = new HashSet<FileData>();
+        foreach (var row in FileGrid.GetVisualDescendants().OfType<DataGridRow>())
+        {
+            if (row.DataContext is not FileData fd) continue;
+            if (!_bandValidItems.Contains(fd)) continue;
+
+            var transform = row.TransformToVisual(FileGrid);
+            if (transform is not Matrix m) continue;
+
+            double rowTop    = new Point(0, 0).Transform(m).Y;
+            double rowBottom = rowTop + row.Bounds.Height;
+
+            if (rowBottom >= top && rowTop <= bottom)
+                newHit.Add(fd);
+        }
+
+        // Ctrl+band: add to existing selection rather than replace.
+        if ((modifiers & KeyModifiers.Control) != 0 && _bandPreSelection != null)
+            newHit.UnionWith(_bandPreSelection);
+
+        // Skip the expensive SelectedItems rebuild if the set hasn't changed.
+        if (newHit.SetEquals(_bandLastHit)) return;
+        _bandLastHit = newHit;
+
+        using (SuppressSelection())
+        {
+            FileGrid.SelectedItems.Clear();
+            foreach (var fd in newHit)
+                FileGrid.SelectedItems.Add(fd);
+        }
+    }
+
+    private void EndRubberBand(Avalonia.Input.IPointer? pointer)
+    {
+        _isRubberBanding = false;
+        if (_selectionRect != null) _selectionRect.IsVisible = false;
+        StopAutoScroll();
+        pointer?.Capture(null);
+
+        // Always commit — including empty lists — so the VM stays in sync
+        // when the band ends with nothing under it.
+        var files = FileGrid.SelectedItems.Cast<FileData>().ToList();
+        _ctx?.SelectFiles(files);
+    }
+
+    // ── Auto-scroll helpers ─────────────────────────────────────────
+
+    private double _autoScrollDirection; // -1 = up, 0 = none, +1 = down
+    private DispatcherTimer? _autoScrollTimer;
+
+    private void UpdateAutoScroll(Point posInGrid)
+    {
+        double h = FileGrid.Bounds.Height;
+        double dir = 0;
+        if (posInGrid.Y < AutoScrollZone)
+            dir = -1;
+        else if (posInGrid.Y > h - AutoScrollZone)
+            dir = +1;
+
+        if (dir == _autoScrollDirection) return;
+        _autoScrollDirection = dir;
+
+        if (dir == 0)
+        {
+            StopAutoScroll();
+            return;
+        }
+
+        if (_autoScrollTimer == null)
+        {
+            _autoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+            _autoScrollTimer.Tick += OnAutoScrollTick;
+        }
+        _autoScrollTimer.Start();
+    }
+
+    private void OnAutoScrollTick(object? sender, EventArgs e)
+    {
+        var sv = FileGrid.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (sv == null) return;
+        sv.Offset = sv.Offset.WithY(sv.Offset.Y + _autoScrollDirection * AutoScrollAmount);
+    }
+
+    private void StopAutoScroll()
+    {
+        _autoScrollDirection = 0;
+        _autoScrollTimer?.Stop();
+    }
+
+    // ── Group-drag helper ────────────────────────────────────────────
 
     /// <summary>
     /// Hit-tests the pointer position against the DataGrid to find a group
@@ -643,7 +875,6 @@ public partial class MainView : UserControl
         var row = visual.FindAncestorOfType<DataGridRow>();
         if (row?.DataContext is FileData data && data.IsParent)
         {
-            // Don't allow dropping onto a file that's part of the selection
             if (_ctx.CurrentFiles?.Contains(data) == true) return null;
             return data;
         }
@@ -1909,6 +2140,20 @@ public partial class MainView : UserControl
             row.DataContextChanged += OnRowDataContextChanged;
         BindRowToFileData(row, row.DataContext as FileData);
         ApplyRowClasses(row, IsMainFileGridRow(row));
+    }
+
+    private void DataGrid_OnUnloadingRow(object? sender, DataGridRowEventArgs e)
+    {
+        var row = e.Row;
+        if (_trackedRows.Remove(row))
+        {
+            row.DataContextChanged -= OnRowDataContextChanged;
+            if (_rowBindings.TryGetValue(row, out var binding))
+            {
+                binding.Data.PropertyChanged -= binding.Handler;
+                _rowBindings.Remove(row);
+            }
+        }
     }
 
     private void OnRowDataContextChanged(object? sender, EventArgs e)

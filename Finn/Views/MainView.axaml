@@ -637,7 +637,8 @@
 					  ItemsSource="{Binding FilteredFiles, Mode=OneWay}" SelectionMode="Extended"
 					  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Visible"
 					  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="None"
-					  LoadingRow="DataGrid_OnLoadingRow" CanUserReorderColumns="True" CanUserResizeColumns="True"
+					  LoadingRow="DataGrid_OnLoadingRow" UnloadingRow="DataGrid_OnUnloadingRow"
+					  CanUserReorderColumns="True" CanUserResizeColumns="True"
 					  CanUserSortColumns="False"
 					  ToolTip.ServiceEnabled="{Binding UI.ShowThumbnails}">
 
@@ -1007,6 +1008,20 @@
 						<TextBlock Text="Drop PDFs or folders to add to project" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,6,0,0"/>
 					</StackPanel>
 				</Border>
+				<!-- Rubber-band selection overlay — sits above the grid, hit-test invisible so clicks pass through.
+					 Width/Height are bound to FileGrid so the canvas is always exactly the same size as the grid,
+					 preventing the selection rect from ever rendering outside the grid area. -->
+				<Canvas Name="SelectionCanvas" IsHitTestVisible="False" ClipToBounds="True"
+						Width="{Binding #FileGrid.Bounds.Width}"
+						Height="{Binding #FileGrid.Bounds.Height}">
+					<Border Name="SelectionRect"
+							BorderBrush="{DynamicResource SystemAccentColor}"
+							BorderThickness="1"
+							Background="{DynamicResource SystemAccentColor}"
+							Opacity="0.18"
+							IsVisible="False"
+							Canvas.Left="0" Canvas.Top="0"/>
+				</Canvas>
 			</Panel>
 			</Border>
 					<Grid Grid.Row="2" MinHeight="200" MaxHeight="400" IsVisible="{Binding UI.ShowFolders}" RowDefinitions="*,Auto" DragDrop.AllowDrop="True">

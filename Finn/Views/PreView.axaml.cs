@@ -328,8 +328,6 @@ public partial class PreView : UserControl
                 // These modes change the renderer layout or document in ways
                 // incompatible with an active screenshot selection.
                 if (_screenshotMode) DeactivateScreenshotMode();
-                MuPDFRenderer.ViewRotation = pwr.Rotation;
-                MuPDFRenderer.InvalidateVisual();
                 break;
         }
     }
