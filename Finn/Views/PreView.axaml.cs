@@ -1099,25 +1099,35 @@ public partial class PreView : UserControl
     /// <summary>Return to the original file from version preview.</summary>
     private async void OnReturnToOriginal(object? sender, RoutedEventArgs e)
     {
-        if (ctx == null) return;
-        await ctx.ReturnToOriginalAsync();
+        try
+        {
+            if (ctx == null) return;
+            await ctx.ReturnToOriginalAsync();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnReturnToOriginal"); }
     }
 
     /// <summary>Close Diff comparison mode from the banner close button.</summary>
     private async void OnCloseDiffMode(object? sender, RoutedEventArgs e)
     {
-        if (pwr == null) return;
-        await CloseDiffViewsAsync();
-        pwr.CloseDiffModeSync();
-        MuPDFRenderer.ClearDiffOverlay();
-        if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClose)
+        try
         {
-            secClose.ClearDiffOverlay();
-            secClose.SetLayers(null);
+            if (pwr == null) return;
+            await CloseDiffViewsAsync();
+            pwr.CloseDiffModeSync();
+            MuPDFRenderer.ClearDiffOverlay();
+            if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secClose)
+            {
+                secClose.ClearDiffOverlay();
+                secClose.SetLayers(null);
+            }
+            if (!SyncLayers())
+                MuPDFRenderer.NotifyLayersChanged();
+            MuPDFRenderer.Contain();
         }
-        if (!SyncLayers())
-            MuPDFRenderer.NotifyLayersChanged();
-        MuPDFRenderer.Contain();
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnCloseDiffMode"); }
     }
 
     // ── Diff mode radio-button Click handlers ────────────────────────
@@ -1283,6 +1293,8 @@ public partial class PreView : UserControl
     /// <summary>Opens the version comparison dialog.</summary>
     private async void OnOpenVersionCompareDialog(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         if (pwr == null) return;
 
         // Deactivate annotation mode BEFORE any document operations.
@@ -1351,6 +1363,9 @@ public partial class PreView : UserControl
         // The user can run the slow pixel comparison later via the toolbar button.
         pwr.EnterDiffView(dialog.ChoiceA.Path, dialog.ChoiceB.Path, pwr.DiffSourceFile);
         SyncDiffOverlay();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Finn.Utils.ErrorLogger.Log(ex, "OnOpenVersionCompareDialog"); }
     }
 
     /// <summary>
