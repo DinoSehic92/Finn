@@ -328,6 +328,16 @@ public partial class PreView : UserControl
                 // These modes change the renderer layout or document in ways
                 // incompatible with an active screenshot selection.
                 if (_screenshotMode) DeactivateScreenshotMode();
+                // Keep the annotation renderer's rotation snapshot in sync so new
+                // text annotations capture the correct CreatedAtRotation, and
+                // existing ones immediately redraw at the right counter-rotation.
+                // ViewRotation is a plain double field on AnnotatedPDFRenderer —
+                // no native renderer side-effects, safe to set on any property change.
+                if (e.PropertyName == nameof(pwr.Rotation))
+                {
+                    MuPDFRenderer.ViewRotation = pwr.Rotation;
+                    MuPDFRenderer.InvalidateVisual();
+                }
                 break;
         }
     }
