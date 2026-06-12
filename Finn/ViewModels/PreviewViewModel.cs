@@ -1438,7 +1438,7 @@ namespace Finn.ViewModels
 
                         // --- Page setup ---
                         if (!DualFileMode) LinkedPageMode = true;
-                        if (Pagecount <= 1 && twopageMode) TwopageMode = false;
+                        if (!DualFileMode && Pagecount <= 1 && twopageMode) TwopageMode = false;
                         requestPage1 = desired;
                         OnPropertyChanged(nameof(RequestPage1));
                         currentPage1 = -1;
