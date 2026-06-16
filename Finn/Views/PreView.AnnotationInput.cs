@@ -326,8 +326,11 @@ public partial class PreView
                     SelectAnnotation(arrowHit);
                     return;
                 }
-                // Vertex drag: check if click is near any vertex of the hit annotation
-                if (TryBeginVertexDrag(hitItem, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
+                // Vertex drag: check if click is near any vertex of the hit annotation.
+                // Skip when the item is part of a multi-selection — move takes priority to
+                // avoid accidentally stretching one annotation when the user intends to move all.
+                bool inMultiSelect = _selectedAnnotations.Count >= 2 && _selectedAnnotations.Contains(hitItem);
+                if (!inMultiSelect && TryBeginVertexDrag(hitItem, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
                 {
                     MuPDFRenderer.Cursor = CursorCross;
                     SelectAnnotation(hitItem);
