@@ -708,6 +708,7 @@
 											<ic:SymbolIcon Symbol="History"      IsVisible="{Binding HasVersions}"           IconVariant="Regular" FontSize="14"/>
 											<ic:SymbolIcon Symbol="Pen"          IsVisible="{Binding HasAnnotations}"        IconVariant="Regular" FontSize="14"/>
 											<ic:SymbolIcon Symbol="ArrowSync"    IsVisible="{Binding IsCached}"              IconVariant="Regular" FontSize="14"/>
+											<ic:SymbolIcon Symbol="Folder" IsVisible="{Binding IsFromFolder}"          IconVariant="Regular" FontSize="14" ToolTip.Tip="From synced folder"/>
 										</StackPanel>
 									</Grid>
 								</DataTemplate>
