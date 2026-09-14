@@ -325,6 +325,7 @@
 								<CheckBox Content="Filtyp"        Height="28" IsChecked="{Binding CurrentProject.Meta_3, Mode=TwoWay}"/>
 								<CheckBox Content="Uppdrag"       Height="28" IsChecked="{Binding CurrentProject.Meta_4, Mode=TwoWay}"/>
 								<CheckBox Content="Active version" Height="28" IsChecked="{Binding CurrentProject.Meta_17, Mode=TwoWay}"/>
+								<CheckBox Content="Latest version" Height="28" IsChecked="{Binding CurrentProject.Meta_18, Mode=TwoWay}"/>
 								<CheckBox Content="Tagg"          Height="28" IsChecked="{Binding CurrentProject.Meta_5, Mode=TwoWay}"/>
 								<CheckBox Content="Färg"          Height="28" IsChecked="{Binding CurrentProject.Meta_6, Mode=TwoWay}"/>
 								<CheckBox Content="Handling"      Height="28" IsChecked="{Binding CurrentProject.Meta_7, Mode=TwoWay}"/>
@@ -717,6 +718,7 @@
 					<DataGridTextColumn Binding="{Binding Filtyp}"            Header="Filtyp"        Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_3}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Uppdrag}"           Header="Uppdrag"       Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_4}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding CurrentVersion}"     Header="Active version"  Width="Auto" MinWidth="80"  IsVisible="{Binding CurrentProject.Meta_17}"    FontSize="{Binding UI.FontSize}"/>
+					<DataGridTextColumn Binding="{Binding LatestVersion}"      Header="Latest version"  Width="Auto" MinWidth="80"  IsVisible="{Binding CurrentProject.Meta_18}"    FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Tagg}"              Header="Tagg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_5}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Färg}"              Header="Färg"          Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_6}"     FontSize="{Binding UI.FontSize}"/>
 					<DataGridTextColumn Binding="{Binding Handling}"          Header="Handling"      Width="Auto" MinWidth="120" IsVisible="{Binding CurrentProject.Meta_7}"     FontSize="{Binding UI.FontSize}"/>

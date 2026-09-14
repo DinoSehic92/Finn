@@ -72,6 +72,7 @@ namespace Finn.Model
 
             UpdateVersionActiveStates();
             OnPropertyChanged(nameof(HasVersions));
+            OnPropertyChanged(nameof(LatestVersion));
         }
 
         private void Version_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -85,6 +86,7 @@ namespace Finn.Model
                     CurrentVersion = version.Label;
                 }
                 SortVersions();
+                OnPropertyChanged(nameof(LatestVersion));
                 UpdateVersionActiveStates();
             }
         }
@@ -763,6 +765,12 @@ namespace Finn.Model
 
         public bool HasVersions => _versions.Count > 0;
 
+        /// <summary>
+        /// Gets the label of the latest version according to the existing version sort order.
+        /// </summary>
+        [JsonIgnore]
+        public string LatestVersion => _versions.Count > 0 ? _versions[^1].Label : string.Empty;
+
         public string CurrentVersion
         {
             get => _currentVersion;
@@ -1055,13 +1063,14 @@ namespace Finn.Model
         /// <summary>
         /// Registers a new version path for this file. On the first call the existing
         /// Sökväg is also recorded as the original so the history is complete.
-        /// When the incoming version is higher than the current canonical — detected from
-        /// <see cref="Namn"/> when it carries a recognised suffix, or from the highest
-        /// existing version label when the canonical name has no suffix — the new file is
-        /// promoted to canonical: the old canonical is demoted to a version entry and
+        /// When <paramref name="promoteToCanonical"/> is enabled and the incoming version
+        /// is higher than the current canonical — detected from <see cref="Namn"/> when it
+        /// carries a recognised suffix, or from the highest existing version label when
+        /// the canonical name has no suffix — the new file is promoted to canonical: the
+        /// old canonical is demoted to a version entry and
         /// <see cref="Sökväg"/>/<see cref="Namn"/>/<see cref="OriginalPath"/> are updated.
         /// </summary>
-        public void AddVersion(string filepath, string label)
+        public void AddVersion(string filepath, string label, bool promoteToCanonical = false)
         {
             // Skip if this path is already the current file, the original, or already registered
             if (string.Equals(filepath, _sökväg, StringComparison.OrdinalIgnoreCase)
@@ -1102,7 +1111,10 @@ namespace Finn.Model
                     canonical = highestExisting;
             }
 
-            if (incoming.HasValue && canonical.HasValue && incoming.Value.IsHigherThan(canonical.Value))
+            if (promoteToCanonical
+                && incoming.HasValue
+                && canonical.HasValue
+                && incoming.Value.IsHigherThan(canonical.Value))
             {
                 // Demote current canonical to a version entry (if not already listed)
                 string oldPath = _sökväg;

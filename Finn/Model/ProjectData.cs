@@ -182,7 +182,7 @@ namespace Finn.Model
             set { folders = value; RaisePropertyChanged(nameof(Folders)); }
         }
 
-        private static readonly bool[] DefaultMetaValues = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false];
+        private static readonly bool[] DefaultMetaValues = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false, false];
         private bool[] metaValues = (bool[])DefaultMetaValues.Clone();
 
         private bool GetMeta(int index) => metaValues[index];
@@ -237,8 +237,10 @@ namespace Finn.Model
         public bool Meta_16 { get => GetMeta(15); set => SetMeta(15, value); }
         /// <summary>Column visibility: Active version.</summary>
         public bool Meta_17 { get => GetMeta(16); set => SetMeta(16, value); }
+        /// <summary>Column visibility: Latest version.</summary>
+        public bool Meta_18 { get => GetMeta(17); set => SetMeta(17, value); }
 
-        public bool[] MetaCheckDefault = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false];
+        public bool[] MetaCheckDefault = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false, false];
 
         public List<string>? AllowedTypes
         {
@@ -264,13 +266,13 @@ namespace Finn.Model
 
         public void SetDefaultMeta()
         {
-            if (MetaCheckDefault.Length < 17)
-                MetaCheckDefault = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false];
+            if (MetaCheckDefault.Length < 18)
+                MetaCheckDefault = [true, false, true, true, true, false, false, false, true, true, true, false, false, false, false, false, false, false];
 
-            for (int i = 0; i < 17; i++)
+            for (int i = 0; i < 18; i++)
                 metaValues[i] = MetaCheckDefault[i];
 
-            for (int i = 1; i <= 17; i++)
+            for (int i = 1; i <= 18; i++)
                 RaisePropertyChanged($"Meta_{i}");
         }
 

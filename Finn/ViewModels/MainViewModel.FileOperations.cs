@@ -553,7 +553,7 @@ namespace Finn.ViewModels
                                 ? prefix + labelMatch.Groups["num"].Value
                                 : prefix + "?";
 
-                            canonicalFile.AddVersion(otherFile.Sökväg, label);
+                            canonicalFile.AddVersion(otherFile.Sökväg, label, promoteToCanonical: true);
 
                             // Mark the version so ResetVersionGrouping can distinguish it
                             // from manually-added versions and only dissolve auto-grouped ones.
@@ -747,6 +747,7 @@ namespace Finn.ViewModels
                     if (CurrentProject!.Meta_13 == true) { sb.Append(file.Beskrivning4).Append('\t'); }
                     if (CurrentProject!.Meta_14 == true) { sb.Append(file.Revidering).Append('\t'); }
                     if (CurrentProject!.Meta_15 == true) { sb.Append(file.Sökväg).Append('\t'); }
+                    if (CurrentProject!.Meta_18 == true) { sb.Append(file.LatestVersion).Append('\t'); }
 
                     sb.AppendLine();
                 }
