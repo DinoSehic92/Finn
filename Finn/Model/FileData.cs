@@ -94,6 +94,7 @@ namespace Finn.Model
 
         #region Fields
         private string _namn = string.Empty;
+        private string _id = Guid.NewGuid().ToString("N");
         private bool _isFileMissing;
         private string _tagg = string.Empty;
         private string _färg = string.Empty;
@@ -335,6 +336,19 @@ namespace Finn.Model
         #endregion
 
         #region Properties
+        /// <summary>
+        /// Stable identifier used by persisted collection ordering.
+        /// Older project files do not contain this value; the constructor supplies
+        /// one when they are loaded and it is then persisted on the next save.
+        /// </summary>
+        public string Id
+        {
+            get => _id;
+            set => _id = string.IsNullOrWhiteSpace(value)
+                ? Guid.NewGuid().ToString("N")
+                : value;
+        }
+
         /// <summary>
         /// Gets or sets the file name.
         /// </summary>

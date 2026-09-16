@@ -59,8 +59,25 @@ namespace Finn.ViewModels
         public FileData? SelectedCollectionFile
         {
             get => selectedCollectionFile;
-            set { selectedCollectionFile = value; OnPropertyChanged(nameof(SelectedCollectionFile)); }
+            set
+            {
+                selectedCollectionFile = value;
+                OnPropertyChanged(nameof(SelectedCollectionFile));
+                OnPropertyChanged(nameof(CanMoveCollectionFileUp));
+                OnPropertyChanged(nameof(CanMoveCollectionFileDown));
+            }
         }
+
+        public bool CanMoveCollectionFileUp =>
+            SelectedCollectionFile != null && CollectionContent.IndexOf(SelectedCollectionFile) > 0;
+
+        public bool CanMoveCollectionFileDown =>
+            SelectedCollectionFile != null
+            && CollectionContent.IndexOf(SelectedCollectionFile) >= 0
+            && CollectionContent.IndexOf(SelectedCollectionFile) < CollectionContent.Count - 1;
+
+        public bool CanBindCollection =>
+            !string.IsNullOrEmpty(CurrentCollection) && CollectionContent.Count >= 2;
 
         #endregion
 
@@ -183,6 +200,7 @@ namespace Finn.ViewModels
         public void NewCollection(string name)
         {
             Storage.Collections.Add(name);
+            Storage.CollectionOrders[name] = new List<string>();
             _markDirty?.Invoke();
         }
 
@@ -196,6 +214,7 @@ namespace Finn.ViewModels
                 }
             }
             Storage.Collections.Remove(CurrentCollection);
+            Storage.CollectionOrders.Remove(CurrentCollection);
             _markDirty?.Invoke();
         }
 
@@ -205,6 +224,7 @@ namespace Finn.ViewModels
             {
                 file.PartOfCollections.Add(collection);
             }
+            EnsureCollectionOrder(collection);
             CurrentCollection = collection;
             _markDirty?.Invoke();
         }
@@ -215,6 +235,7 @@ namespace Finn.ViewModels
             {
                 file.PartOfCollections.Add(collection);
             }
+            EnsureCollectionOrder(collection);
             CurrentCollection = collection;
             _markDirty?.Invoke();
         }
@@ -222,7 +243,12 @@ namespace Finn.ViewModels
         public void RemoveFileFromCollection()
         {
             var target = SelectedCollectionFile ?? CurrentFile;
-            target?.PartOfCollections.Remove(CurrentCollection);
+            if (target != null)
+            {
+                target.PartOfCollections.Remove(CurrentCollection);
+                if (Storage.CollectionOrders.TryGetValue(CurrentCollection, out var order) && order != null)
+                    order.Remove(target.Id);
+            }
             SetCollectionContent();
             _markDirty?.Invoke();
         }
@@ -230,13 +256,84 @@ namespace Finn.ViewModels
         public void SetCollectionContent()
         {
             CollectionContent.Clear();
+            SelectedCollectionFile = null;
 
-            foreach (ProjectData project in Storage.StoredProjects)
+            var members = Storage.StoredProjects
+                .SelectMany(project => project.AllFiles)
+                .Where(file => file.PartOfCollections.Contains(CurrentCollection))
+                .ToList();
+
+            if (string.IsNullOrEmpty(CurrentCollection))
             {
-                foreach (FileData file in project.AllFiles.Where(x => x.PartOfCollections.Contains(CurrentCollection)))
-                {
-                    CollectionContent.Add(file);
-                }
+                OnPropertyChanged(nameof(CanMoveCollectionFileUp));
+                OnPropertyChanged(nameof(CanMoveCollectionFileDown));
+                OnPropertyChanged(nameof(CanBindCollection));
+                return;
+            }
+
+            if (!Storage.CollectionOrders.TryGetValue(CurrentCollection, out var order) || order == null)
+            {
+                order = new List<string>();
+                Storage.CollectionOrders[CurrentCollection] = order;
+            }
+
+            var membersById = members.ToDictionary(file => file.Id, StringComparer.OrdinalIgnoreCase);
+            var normalizedOrder = order
+                .Where(id => membersById.ContainsKey(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            normalizedOrder.AddRange(members
+                .Where(file => !normalizedOrder.Contains(file.Id, StringComparer.OrdinalIgnoreCase))
+                .Select(file => file.Id));
+
+            order.Clear();
+            order.AddRange(normalizedOrder);
+
+            foreach (string id in normalizedOrder)
+                CollectionContent.Add(membersById[id]);
+
+            OnPropertyChanged(nameof(CanMoveCollectionFileUp));
+            OnPropertyChanged(nameof(CanMoveCollectionFileDown));
+            OnPropertyChanged(nameof(CanBindCollection));
+        }
+
+        public void MoveSelectedFileUp() => MoveSelectedFile(-1);
+
+        public void MoveSelectedFileDown() => MoveSelectedFile(1);
+
+        private void MoveSelectedFile(int offset)
+        {
+            if (SelectedCollectionFile == null
+                || !Storage.CollectionOrders.TryGetValue(CurrentCollection, out var order)
+                || order == null)
+                return;
+
+            int index = order.IndexOf(SelectedCollectionFile.Id);
+            int targetIndex = index + offset;
+            if (index < 0 || targetIndex < 0 || targetIndex >= order.Count)
+                return;
+
+            string selectedId = SelectedCollectionFile.Id;
+            (order[index], order[targetIndex]) = (order[targetIndex], order[index]);
+            SetCollectionContent();
+            SelectedCollectionFile = CollectionContent.FirstOrDefault(file => file.Id == selectedId);
+            _markDirty?.Invoke();
+        }
+
+        private void EnsureCollectionOrder(string collection)
+        {
+            if (!Storage.CollectionOrders.TryGetValue(collection, out var order) || order == null)
+            {
+                Storage.CollectionOrders[collection] = new List<string>();
+                order = Storage.CollectionOrders[collection];
+            }
+            foreach (var file in Storage.StoredProjects
+                .SelectMany(project => project.AllFiles)
+                .Where(file => file.PartOfCollections.Contains(collection)))
+            {
+                if (!order.Contains(file.Id, StringComparer.OrdinalIgnoreCase))
+                    order.Add(file.Id);
             }
         }
 
@@ -252,6 +349,9 @@ namespace Finn.ViewModels
 
                 int index = Storage.Collections.IndexOf(CurrentCollection);
                 Storage.Collections[index] = newName;
+
+                if (Storage.CollectionOrders.Remove(CurrentCollection, out var order))
+                    Storage.CollectionOrders[newName] = order;
 
                 CurrentCollection = newName;
                 _markDirty?.Invoke();

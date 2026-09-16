@@ -145,8 +145,10 @@ namespace Finn.ViewModels
 
                 // Guard against null collections from partial/corrupt JSON
                 Storage.StoredProjects ??= new ObservableCollection<ProjectData>();
+                Storage.CollectionOrders ??= new Dictionary<string, List<string>>();
 
                 EnsureDefaultProject();
+                var fileIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 // Single pass: migrate, wire references, and validate all files.
                 foreach (var project in Storage.StoredProjects)
@@ -155,6 +157,15 @@ namespace Finn.ViewModels
 
                     foreach (var file in project.StoredFiles)
                     {
+                        if (string.IsNullOrWhiteSpace(file.Id) || !fileIds.Add(file.Id))
+                        {
+                            do
+                            {
+                                file.Id = Guid.NewGuid().ToString("N");
+                            }
+                            while (!fileIds.Add(file.Id));
+                        }
+
                         // Clear stale thumbnail references
                         if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
                             file.ThumbnailSource = string.Empty;

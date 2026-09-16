@@ -932,10 +932,6 @@
 									<MenuItem Header="Cache Locally" IsVisible="{Binding CanCacheSelectedFiles}" Command="{Binding ToggleCacheFilesCommand}" ToolTip.Tip="Toggle local caching for selected files">
 											<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowSync"/></MenuItem.Icon>
 										</MenuItem>
-										<Separator/>
-										<MenuItem Header="Bind Selected" Click="OnBindSelected" ToolTip.Tip="Merge selected PDFs into Finn/Binder">
-											<MenuItem.Icon><ic:SymbolIcon Symbol="Merge"/></MenuItem.Icon>
-										</MenuItem>
 											</MenuItem>
 
                        <MenuItem Header="Organize">
@@ -1399,13 +1395,14 @@
 			</Panel>
 
 			<!-- Collections toolbar -->
-			<Grid Grid.Row="1" ColumnDefinitions="*,28,28,28" ColumnSpacing="4" Margin="0,0,10,0" IsVisible="{Binding UI.TrayCollections}">
+			<Grid Grid.Row="1" ColumnDefinitions="*,28,28,28,28" ColumnSpacing="4" Margin="0,0,10,0" IsVisible="{Binding UI.TrayCollections}">
 				<Border Classes="shadow" Grid.Column="0">
 					<TextBox Name="CollectionInput" PlaceholderText="Add Collection"/>
 				</Border>
 			    <Button Grid.Column="1" Width="28" Padding="2" Click="OnNewCollection"    ToolTip.Tip="Add">   <ic:SymbolIcon Symbol="Add"    FontSize="15"/></Button>
 				<Button Grid.Column="2" Width="28" Padding="2" Command="{Binding Collections.RemoveCollection}" ToolTip.Tip="Delete"><ic:SymbolIcon Symbol="Delete" FontSize="15"/></Button>
 				<Button Grid.Column="3" Width="28" Padding="2" Click="OnRenameCollection" ToolTip.Tip="Rename"><ic:SymbolIcon Symbol="Rename" FontSize="15"/></Button>
+				<Button Grid.Column="4" Width="28" Padding="2" Click="OnBindCollection" IsEnabled="{Binding Collections.CanBindCollection}" ToolTip.Tip="Bind collection to PDF"><ic:SymbolIcon Symbol="Merge" FontSize="15"/></Button>
 			</Grid>
 
 			<!-- Collections list -->
@@ -1465,6 +1462,13 @@
 				</DataGrid.Columns>
 				<DataGrid.ContextMenu>
 					<ContextMenu>
+						<MenuItem Header="Move Up" Click="OnMoveCollectionFileUp" IsEnabled="{Binding Collections.CanMoveCollectionFileUp}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowUp"/></MenuItem.Icon>
+						</MenuItem>
+						<MenuItem Header="Move Down" Click="OnMoveCollectionFileDown" IsEnabled="{Binding Collections.CanMoveCollectionFileDown}">
+							<MenuItem.Icon><ic:SymbolIcon Symbol="ArrowDown"/></MenuItem.Icon>
+						</MenuItem>
+						<Separator/>
 						<MenuItem Header="View">
 							<MenuItem.IsVisible>
 								<MultiBinding Converter="{x:Static BoolConverters.And}">

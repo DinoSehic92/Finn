@@ -1300,31 +1300,71 @@ public partial class MainView : UserControl
         catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRemoveFiles)); }
     }
 
-    private async void OnBindSelected(object? sender, RoutedEventArgs e)
+    private async void OnBindCollection(object? sender, RoutedEventArgs e)
     {
+        await BindFilesAsync(
+            _ctx.Collections.CollectionContent,
+            $"Collection '{_ctx.Collections.CurrentCollection}'");
+    }
+
+    private async Task BindFilesAsync(
+        IEnumerable<FileData> sourceFiles,
+        string sourceLabel)
+    {
+        if (_ctx.PreviewVM.BackgroundTaskActive)
+        {
+            _ctx.PreviewVM.StatusMessage = "Bind unavailable while another background task is running.";
+            return;
+        }
+
+        string? outputPath = null;
+        bool progressStarted = false;
         try
         {
-            // Collect distinct local PDFs from the selection, silently ignoring anything else.
-            var pdfs = FileGrid.SelectedItems
-                .Cast<FileData>()
-                .Where(f => f.HasPdfExtension() && File.Exists(f.Sökväg))
+            var candidates = sourceFiles
                 .GroupBy(f => f.Sökväg, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
                 .ToList();
 
-            if (pdfs.Count < 2)
+            var invalidEntries = candidates
+                .Where(f => !f.HasPdfExtension() || !File.Exists(f.Sökväg))
+                .ToList();
+
+            if (invalidEntries.Count > 0)
             {
-                _ctx.PreviewVM.StatusMessage = "Select at least 2 local PDF files to bind.";
+                var detail = FormatBindFileList(invalidEntries.Select(file =>
+                {
+                    string reason = !file.HasPdfExtension()
+                        ? "not a PDF"
+                        : "file not found";
+                    return $"{GetBindFileLabel(file)} ({reason})";
+                }));
+                _ctx.PreviewVM.StatusMessage =
+                    $"Bind cancelled — collection contains {detail}.";
                 return;
             }
 
+            var pdfs = candidates
+                .Where(f => f.HasPdfExtension() && File.Exists(f.Sökväg))
+                .ToList();
+
+            if (pdfs.Count < 2)
+            {
+                _ctx.PreviewVM.StatusMessage =
+                    $"{sourceLabel}: select at least 2 local PDF files to bind.";
+                return;
+            }
+
+            progressStarted = true;
+            SetBindProgress($"{sourceLabel}: scanning {pdfs.Count} file(s)…", 0);
+
             // Pre-flight: iText opens owner-locked PDFs fine; only open-password files throw.
-            _ctx.PreviewVM.StatusMessage = $"Scanning {pdfs.Count} file(s)…";
             var failures = await Task.Run(() =>
             {
                 var bad = new List<string>();
-                foreach (var file in pdfs)
+                for (int i = 0; i < pdfs.Count; i++)
                 {
+                    var file = pdfs[i];
                     try
                     {
                         using var reader = new ITextPdfReader(file.Sökväg);
@@ -1343,44 +1383,125 @@ public partial class MainView : UserControl
                     {
                         bad.Add($"{Path.GetFileName(file.Sökväg)} (unreadable)");
                     }
+
+                    int completed = i + 1;
+                    int progress = completed * 100 / pdfs.Count;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_ctx.PreviewVM.BackgroundTaskActive)
+                            SetBindProgress($"{sourceLabel}: scanned {completed}/{pdfs.Count}…", progress);
+                    });
                 }
                 return bad;
             });
 
             if (failures.Count > 0)
             {
-                var detail = failures.Count > 3
-                    ? $"{string.Join(", ", failures.Take(3))} and {failures.Count - 3} more"
-                    : string.Join(", ", failures);
-                _ctx.PreviewVM.StatusMessage = $"Bind cancelled — {detail}";
+                _ctx.PreviewVM.StatusMessage = $"Bind cancelled — {FormatBindFileList(failures)}";
                 return;
             }
 
-            var binderDir = Path.Combine(MainViewModel.SavePath, "Binder");
-            Directory.CreateDirectory(binderDir);
-            var outputPath = Path.Combine(binderDir, $"Binder_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+            SetBindProgress("Choose a save location for the bound PDF…", 100);
+            var topLevel = TopLevel.GetTopLevel(ParentWindow);
+            if (topLevel == null)
+            {
+                _ctx.PreviewVM.StatusMessage = "Bind cancelled — no save location is available.";
+                return;
+            }
+
+            var pdfType = new FilePickerFileType("PDF document") { Patterns = new[] { "*.pdf" } };
+            var destination = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Save bound PDF",
+                SuggestedFileName = $"Binder_{DateTime.Now:yyyyMMdd_HHmmss}.pdf",
+                DefaultExtension = "pdf",
+                FileTypeChoices = new[] { pdfType }
+            });
+
+            if (destination == null)
+            {
+                _ctx.PreviewVM.StatusMessage = "Bind cancelled — no save location selected.";
+                return;
+            }
+
+            string selectedOutputPath = destination.Path.LocalPath;
+            if (!selectedOutputPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+                selectedOutputPath += ".pdf";
+            outputPath = selectedOutputPath;
+
+            SetBindProgress($"{sourceLabel}: merging {pdfs.Count} file(s)…", 0);
 
             await Task.Run(() =>
             {
-                using var writer = new ITextPdfWriter(outputPath);
+                using var writer = new ITextPdfWriter(selectedOutputPath);
                 using var output = new ITextPdfDocument(writer);
                 var merger = new PdfMerger(output);
-                foreach (var file in pdfs)
+                for (int i = 0; i < pdfs.Count; i++)
                 {
+                    var file = pdfs[i];
                     using var reader = new ITextPdfReader(file.Sökväg);
                     reader.SetUnethicalReading(true);
                     using var src = new ITextPdfDocument(reader);
                     merger.Merge(src, 1, src.GetNumberOfPages());
+
+                    int completed = i + 1;
+                    int progress = completed * 100 / pdfs.Count;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (_ctx.PreviewVM.BackgroundTaskActive)
+                            SetBindProgress($"{sourceLabel}: merged {completed}/{pdfs.Count}…", progress);
+                    });
                 }
             });
 
-            _ctx.PreviewVM.StatusMessage = $"{pdfs.Count} file(s) bound → {outputPath}";
+            _ctx.PreviewVM.StatusMessage = $"{sourceLabel}: {pdfs.Count} file(s) bound → {outputPath}";
+            if (outputPath is { } completedOutputPath)
+                _ctx.OpenFileDirect(completedOutputPath);
         }
         catch (Exception ex)
         {
+            if (outputPath != null)
+            {
+                try { File.Delete(outputPath); } catch { }
+            }
             _ctx.PreviewVM.StatusMessage = $"Bind failed: {ex.Message}";
-            Utils.ErrorLogger.Log(ex, nameof(OnBindSelected));
+            Utils.ErrorLogger.Log(ex, nameof(BindFilesAsync));
         }
+        finally
+        {
+            if (progressStarted)
+            {
+                _ctx.PreviewVM.BackgroundTaskMessage = string.Empty;
+                _ctx.PreviewVM.BackgroundTaskProgress = 0;
+                _ctx.PreviewVM.BackgroundTaskActive = false;
+            }
+        }
+    }
+
+    private void SetBindProgress(string message, int progress)
+    {
+        _ctx.PreviewVM.StatusMessage = message;
+        _ctx.PreviewVM.BackgroundTaskMessage = message;
+        _ctx.PreviewVM.BackgroundTaskProgress = progress;
+        _ctx.PreviewVM.BackgroundTaskActive = true;
+    }
+
+    private static string FormatBindFileList(IEnumerable<FileData> files)
+    {
+        return FormatBindFileList(files.Select(GetBindFileLabel));
+    }
+
+    private static string GetBindFileLabel(FileData file) =>
+        string.IsNullOrWhiteSpace(file.Namn)
+            ? Path.GetFileName(file.Sökväg)
+            : file.Namn;
+
+    private static string FormatBindFileList(IEnumerable<string> files)
+    {
+        var list = files.ToList();
+        return list.Count > 3
+            ? $"{string.Join(", ", list.Take(3))} and {list.Count - 3} more"
+            : string.Join(", ", list);
     }
 
     private async void OnRemoveOtherFile(object? sender, RoutedEventArgs e)

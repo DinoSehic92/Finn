@@ -365,6 +365,16 @@ public partial class MainView
         }
     }
 
+    private void OnMoveCollectionFileUp(object? sender, RoutedEventArgs e)
+    {
+        _ctx.Collections.MoveSelectedFileUp();
+    }
+
+    private void OnMoveCollectionFileDown(object? sender, RoutedEventArgs e)
+    {
+        _ctx.Collections.MoveSelectedFileDown();
+    }
+
     private void OnAddToCollection(object? sender, RoutedEventArgs e)
     {
         string? name = sender switch

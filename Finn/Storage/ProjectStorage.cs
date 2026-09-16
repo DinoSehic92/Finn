@@ -23,6 +23,12 @@ namespace Finn.Storage
         }
 
         /// <summary>
+        /// Ordered file IDs for each collection. Membership remains stored on
+        /// FileData.PartOfCollections for compatibility with existing projects.
+        /// </summary>
+        public Dictionary<string, List<string>> CollectionOrders { get; set; } = new();
+
+        /// <summary>
         /// Explicit group/subgroup records. Populated from ProjectData.Parent strings
         /// on first load via MigrateGroupsOnLoad(), then managed directly.
         /// </summary>
