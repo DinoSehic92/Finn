@@ -251,7 +251,7 @@ namespace Finn.Model
 
                 if (Category == "Library")
                 {
-                    return new List<string>() { "Drawing", "Document", "Bridges", "Maintenance", "Assesment", "Legacy", "General", "Loads", "Concrete", "Steel", "Composite", "Timber", "FEM", "Mechanics", "Dynamics", "Geotechnics", "Other" };
+                    return new List<string>() { "Drawing", "Document", "Bridges", "Maintenance", "Assesment", "Tunnels", "Legacy", "General", "Loads", "Concrete", "Steel", "Composite", "Timber", "FEM", "Mechanics", "Dynamics", "Geotechnics", "Other" };
                 }
                 if (Category == "Archive")
                 {

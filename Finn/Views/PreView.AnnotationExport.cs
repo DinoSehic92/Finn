@@ -1238,6 +1238,7 @@ public partial class PreView
             // XGraphics in explicit block so it finalises before we add annotations
             using (var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append))
             {
+                ApplyPageRotationTransform(gfx, page);
                 DrawStrokesWithPdfSharp(gfx, i);
                 DrawShapesWithPdfSharp(gfx, i);
                 DrawTextsWithPdfSharp(gfx, i);
@@ -1250,6 +1251,41 @@ public partial class PreView
 
         outDoc.Save(outputPath);
         return outputPath;
+    }
+
+    private static void ApplyPageRotationTransform(XGraphics gfx, PdfSharp.Pdf.PdfPage page)
+    {
+        double width = page.Width.Point;
+        double height = page.Height.Point;
+        switch (((page.Rotate % 360) + 360) % 360)
+        {
+            case 90:
+                gfx.RotateTransform(-90, XMatrixOrder.Append);
+                gfx.TranslateTransform(0, height, XMatrixOrder.Append);
+                break;
+            case 180:
+                gfx.RotateTransform(-180, XMatrixOrder.Append);
+                gfx.TranslateTransform(width, height, XMatrixOrder.Append);
+                break;
+            case 270:
+                gfx.RotateTransform(90, XMatrixOrder.Append);
+                gfx.TranslateTransform(width, 0, XMatrixOrder.Append);
+                break;
+        }
+    }
+
+    private static (double x, double y) DisplayPointToPagePoint(
+        PdfSharp.Pdf.PdfPage page, double x, double y)
+    {
+        double width = page.Width.Point;
+        double height = page.Height.Point;
+        return (((page.Rotate % 360) + 360) % 360) switch
+        {
+            90 => (y, height - x),
+            180 => (width - x, height - y),
+            270 => (width - y, x),
+            _ => (x, y)
+        };
     }
 
     private void DrawStrokesWithPdfSharp(XGraphics gfx, int page)
@@ -1440,15 +1476,33 @@ public partial class PreView
             try   { font = new XFont(fontName, t.FontSize, XFontStyleEx.Regular); }
             catch { font = new XFont("Arial",  t.FontSize, XFontStyleEx.Regular); }
 
-            // Strip \r so carriage-return doesn't render as a missing-glyph box
-            string[] lines = t.Text.Replace("\r", "").Split('\n');
+            string text = t.Text.Replace("\r", "");
+            using var typeface = string.IsNullOrEmpty(t.FontFamily)
+                ? null
+                : SKTypeface.FromFamilyName(t.FontFamily);
+            using var skFont = new SKFont(typeface ?? SKTypeface.Default, (float)t.FontSize);
+            List<string> lines = t.MaxWidth > 0
+                ? WrapTextLines(text, (float)t.MaxWidth, skFont)
+                : new List<string>(text.Split('\n'));
             double lineHeight = t.FontSize * 1.3;
-            double maxW = 0;
+            float frameMinX = float.MaxValue, frameMinY = float.MaxValue;
+            float frameMaxX = float.MinValue, frameMaxY = float.MinValue;
+            float lineY = (float)(t.Position.Y + t.FontSize);
             foreach (var line in lines)
+            {
                 if (line.Length > 0)
-                    maxW = Math.Max(maxW, gfx.MeasureString(line, font).Width);
-            maxW = Math.Max(maxW, t.FontSize * 2);
-            double totalH = lines.Length * lineHeight;
+                {
+                    skFont.MeasureText(line, out var textBounds);
+                    frameMinX = Math.Min(frameMinX, (float)t.Position.X + textBounds.Left);
+                    frameMinY = Math.Min(frameMinY, lineY + textBounds.Top);
+                    frameMaxX = Math.Max(frameMaxX, (float)t.Position.X + textBounds.Left + textBounds.Width);
+                    frameMaxY = Math.Max(frameMaxY, lineY + textBounds.Top + textBounds.Height);
+                }
+                lineY += (float)lineHeight;
+            }
+
+            if (frameMinX >= frameMaxX || frameMinY >= frameMaxY)
+                continue;
 
             // Vertical offset: in Skia the baseline sits at Position.Y + FontSize
             // and the visible text top is ~FontSize*0.2 below Position.Y.
@@ -1456,13 +1510,12 @@ public partial class PreView
             // to match the in-app / Skia rendered position.
             double yOff = t.FontSize * 0.2;
 
-            const double pad = 2;
-            double accentW = t.HasFrame && !t.SolidBackground ? 4 : 0;
-            double r = t.CornerRadius > 0 ? t.CornerRadius : 4;
-            double fx = t.Position.X - pad - accentW;
-            double fy = t.Position.Y - pad + yOff;
-            double fw = maxW + pad * 2 + accentW;
-            double fh = totalH + pad * 2;
+            const double pad = 6;
+            double r = t.CornerRadius;
+            double fx = frameMinX - pad;
+            double fy = frameMinY - pad;
+            double fw = frameMaxX - frameMinX + pad * 2;
+            double fh = frameMaxY - frameMinY + pad * 2;
             var frameRect = new XRect(fx, fy, fw, fh);
             var corner = new XSize(r, r);
             double renderRotation = AnnotationRotation.GetRenderRotation(t.CreatedAtRotation);
@@ -1485,22 +1538,13 @@ public partial class PreView
                 }
                 else
                 {
-                    // Shadow
                     gfx.DrawRoundedRectangle(
-                        new XSolidBrush(XColor.FromArgb(20, 0, 0, 0)),
-                        new XRect(fx + 1, fy + 2, fw, fh), corner);
-                    // Tinted white body
-                    gfx.DrawRoundedRectangle(
-                        new XSolidBrush(XColor.FromArgb(245, 255, 255, 255)),
+                        new XSolidBrush(XColor.FromArgb(30, t.Color.R, t.Color.G, t.Color.B)),
                         frameRect, corner);
-                    // Colored accent bar
-                    var accentColor = XColor.FromArgb((byte)(210 * alpha / 255), t.Color.R, t.Color.G, t.Color.B);
-                    gfx.DrawRectangle(new XSolidBrush(accentColor),
-                        new XRect(fx, fy + r, accentW, fh - r * 2));
                 }
                 // Border
                 gfx.DrawRoundedRectangle(
-                    new XPen(XColor.FromArgb(t.SolidBackground ? 110 : 40, t.Color.R, t.Color.G, t.Color.B), 0.8),
+                    new XPen(XColor.FromArgb(110, t.Color.R, t.Color.G, t.Color.B), 1.2),
                     frameRect, corner);
             }
 
@@ -1612,9 +1656,10 @@ public partial class PreView
         {
             if (!t.IsStickyNote) continue;
 
-            // Convert from XGraphics Y-down to PDF native Y-up
-            double pdfX = t.Position.X;
-            double pdfY = pageH - t.Position.Y;
+            // Convert from MuPDF's displayed page space to PDF native Y-up.
+            var (pageX, pageY) = DisplayPointToPagePoint(page, t.Position.X, t.Position.Y);
+            double pdfX = pageX;
+            double pdfY = pageH - pageY;
 
             var annot = new PdfSharp.Pdf.Annotations.PdfTextAnnotation(outDoc);
             annot.Contents = t.Text;
