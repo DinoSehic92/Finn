@@ -1464,6 +1464,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             Opacity = StrokeOpacity,
             FontFamily = TextFontFamily,
+            SolidBackground = true,
             MaxWidth = TextMaxWidth,
             CreatedAtRotation = ViewRotation
         };
@@ -1536,6 +1537,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Opacity = StrokeOpacity,
             FontFamily = TextFontFamily,
             ArrowOrigin = arrowOrigin,
+            SolidBackground = true,
             MaxWidth = TextMaxWidth,
             CreatedAtRotation = ViewRotation
         };
