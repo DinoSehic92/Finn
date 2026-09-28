@@ -1145,6 +1145,17 @@ namespace Finn.ViewModels
             if (TwopageMode)
                 TwopageMode = false;
 
+            // Invalidate any in-flight PDF load so a stale SetFileAsync cannot
+            // reattach the last viewed document after the blank whiteboard is set.
+            Interlocked.Increment(ref fileGeneration);
+            try
+            {
+                mainCts.Cancel();
+                mainCts.Dispose();
+            }
+            catch { }
+            mainCts = new CancellationTokenSource();
+
             await DisposeCurrentDocumentAsync(CancellationToken.None).ConfigureAwait(false);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -1158,8 +1169,14 @@ namespace Finn.ViewModels
                 MainPreviewFile = wbDoc;
                 context = wbContext;
                 Pagecount = 1;
+                Pagecount2 = 0;
                 RequestFile = null;
                 CurrentFile = null;
+                CurrentFile2 = null;
+                RequestPage1 = 0;
+                RequestPage2 = 0;
+                CurrentPage1 = 0;
+                CurrentPage2 = 0;
                 WhiteboardMode = true;
                 fileAvailable = true;
 
@@ -1175,8 +1192,7 @@ namespace Finn.ViewModels
                     mainRenderer.ReleaseResources();
                     mainRenderer.Initialize(MainPreviewFile, 1, 0, ZOOM_LEVEL);
                     mainRenderer.IsVisible = true;
-                    CurrentPage1 = 0;
-                    RequestPage1 = 0;
+                    mainRenderer.InvalidateVisual();
                 }
 
                 FileWorkerBusy = false;
@@ -1590,7 +1606,16 @@ namespace Finn.ViewModels
         /// </summary>
         private async Task DisposeCurrentDocumentAsync(CancellationToken token)
         {
-            // Cancel any running search without polling
+            // Cancel any running file/search work before tearing down the current
+            // document so stale async loads cannot reattach the previous PDF.
+            try
+            {
+                mainCts.Cancel();
+                mainCts.Dispose();
+            }
+            catch { }
+            mainCts = new CancellationTokenSource();
+
             try
             {
                 searchCts.Cancel();
