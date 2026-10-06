@@ -244,6 +244,14 @@ namespace Finn.ViewModels
         private void OnTimesheetCollectionChanged(object? sender,
             System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
+            // Promote transient entry to storage when timesheets are added
+            if (sender is ObservableCollection<TimeSheetData> col && col.Count > 0
+                && CurrentCalendarData != null && !_dateIndex.ContainsKey(CurrentCalendarData.Date))
+            {
+                CalendarList.Add(CurrentCalendarData);
+                _dateIndex[CurrentCalendarData.Date] = CurrentCalendarData;
+            }
+
             // Unsubscribe removed items
             if (e.OldItems != null)
                 foreach (TimeSheetData ts in e.OldItems)

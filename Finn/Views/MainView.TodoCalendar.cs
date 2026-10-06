@@ -410,16 +410,31 @@ public partial class MainView
     /// <summary>
     /// Called when the Calendar control navigates to a different month.
     /// </summary>
+    private void OnCalendarLoaded(object? sender, RoutedEventArgs e)
+    {
+        RefreshCalendarDayIndicators();
+    }
+
     private void OnCalendarMonthChanged(object? sender, CalendarDateChangedEventArgs e)
     {
-        // Delay so the CalendarDayButtons have been laid out for the new month
+        Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Render);
         Dispatcher.UIThread.Post(RefreshCalendarDayIndicators, DispatcherPriority.Loaded);
     }
 
+    private static TextBlock BuildDayText(string text, IBrush foreground)
+    {
+        return new TextBlock
+        {
+            Text = text,
+            Foreground = foreground,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+        };
+    }
+
     /// <summary>
-    /// Walks the visual tree of the calendar control and adds small coloured
-    /// dot indicators to each <see cref="CalendarDayButton"/> that has timesheet
-    /// entries, notes, or reminders.
+    /// Adds small coloured dot indicators to each day button and applies a simple
+    /// weekend / adjacent-month visual style that is easy to maintain.
     /// </summary>
     private void RefreshCalendarDayIndicators()
     {
@@ -431,26 +446,54 @@ public partial class MainView
 
         foreach (var btn in dayButtons)
         {
-            // Resolve the template root Panel so we can add/remove our indicator
+            btn.Classes.Remove("weekend");
+            btn.Classes.Remove("adjacent-month");
+            btn.ClearValue(Button.ForegroundProperty);
+
+            var date = btn.DataContext as DateTime?;
+            if (date is not DateTime dayDate)
+                continue;
+
+            var isCurrentMonth = dayDate.Year == displayDate.Year && dayDate.Month == displayDate.Month;
+            var isAdjacentMonth = !isCurrentMonth;
+            var isWeekend = isCurrentMonth && (dayDate.DayOfWeek == DayOfWeek.Saturday || dayDate.DayOfWeek == DayOfWeek.Sunday);
+
+            if (isWeekend)
+                btn.Classes.Add("weekend");
+
+            if (isAdjacentMonth)
+                btn.Classes.Add("adjacent-month");
+
+            if (btn.Content is not string dayText || !int.TryParse(dayText, out _))
+                continue;
+
+            if (isWeekend)
+            {
+                btn.Content = BuildDayText(dayText, new SolidColorBrush(Color.Parse("#C45850")));
+            }
+            else if (isAdjacentMonth)
+            {
+                btn.Content = BuildDayText(dayText, Brushes.Gray);
+            }
+            else if (btn.Content is TextBlock textBlock && (textBlock.Foreground is SolidColorBrush scb && (scb.Color == Color.Parse("#C45850") || textBlock.Foreground == Brushes.Gray)))
+            {
+                btn.Content = dayText;
+            }
+
             var rootPanel = btn.GetVisualChildren().FirstOrDefault() as Panel;
             if (rootPanel is null) continue;
 
-            // Remove any previously-added indicator panel
             for (int i = rootPanel.Children.Count - 1; i >= 0; i--)
             {
                 if (rootPanel.Children[i] is Avalonia.Controls.StackPanel sp && sp.Name == "_DayInd")
                     rootPanel.Children.RemoveAt(i);
             }
 
-            // Skip inactive (previous/next month) day buttons
-            if (btn.Classes.Contains(":inactive")) continue;
+            if (!isCurrentMonth)
+                continue;
 
-            // Parse the day number from the button's Content
-            if (btn.Content is not string dayStr || !int.TryParse(dayStr, out int day)) continue;
-            if (day < 1 || day > DateTime.DaysInMonth(displayDate.Year, displayDate.Month)) continue;
-
-            var date = new DateOnly(displayDate.Year, displayDate.Month, day);
-            var (hasNote, hasTime, hasReminder) = _ctx.Calendar.GetDayInfo(date);
+            var dayInfo = new DateOnly(dayDate.Year, dayDate.Month, dayDate.Day);
+            var (hasNote, hasTime, hasReminder) = _ctx.Calendar.GetDayInfo(dayInfo);
             if (!hasNote && !hasTime && !hasReminder) continue;
 
             var indicator = new Avalonia.Controls.StackPanel
@@ -465,14 +508,11 @@ public partial class MainView
             };
 
             if (hasTime)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                    { Width = 5, Height = 5, Fill = Brushes.DodgerBlue });
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = Brushes.DodgerBlue });
             if (hasNote)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                    { Width = 5, Height = 5, Fill = Brushes.MediumSeaGreen });
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = Brushes.MediumSeaGreen });
             if (hasReminder)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse
-                    { Width = 5, Height = 5, Fill = Brushes.Orange });
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = Brushes.Orange });
 
             rootPanel.Children.Add(indicator);
         }

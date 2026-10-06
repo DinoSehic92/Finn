@@ -544,7 +544,7 @@
 
 			<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="4,6" Opacity="0.55"/>
 
-			<ToggleButton Classes="ghost" ToolTip.Tip="Calendar (Ctrl+K)" IsVisible="False" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
+			<ToggleButton Classes="ghost" ToolTip.Tip="Calendar (Ctrl+K)" IsVisible="True" Height="30" Width="35" Padding="0" IsChecked="{Binding UI.CalendarOpen}" IsEnabled="{Binding UI.SuperuserMode}"><ic:SymbolIcon Symbol="Calendar" IconVariant="Regular" FontSize="18"/></ToggleButton>
 
 			<!-- Sync status indicator (visible only when folder watching is enabled and superuser mode) -->
            <Button Name="SyncStatusButton" Classes="ghost" Height="30" Width="35" Padding="0" ToolTip.Tip="{Binding SyncStatusText}">
@@ -1126,19 +1126,20 @@
 				<ColumnDefinition Width="Auto"/>
 			</Grid.ColumnDefinitions>
 		<!-- Calendar panel -->
-		<Grid Grid.Column="0" RowDefinitions="Auto,Auto,2*,2*,40,Auto,Auto" Width="320">
+		<Grid Grid.Column="0" RowDefinitions="Auto,Auto,2*,2*,40,Auto,Auto" Width="310">
 			<Grid.IsVisible>
 				<MultiBinding Converter="{x:Static BoolConverters.And}">
 					<Binding Path="UI.CalendarOpen"/>
 					<Binding Path="UI.SuperuserMode"/>
 				</MultiBinding>
 			</Grid.IsVisible>
-			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource AppPanelSurfaceBrush}" Width="310" Height="345">
+			<Border Grid.Row="0" Classes="shadow" Background="{DynamicResource AppPanelSurfaceBrush}" Height="330">
 				<StackPanel Orientation="Vertical">
-					<Calendar Name="MainCalendar" Height="305" Background="Transparent" HorizontalAlignment="Center"
+					<Calendar Name="MainCalendar" Height="295" Background="Transparent" HorizontalAlignment="Center"
 							  DisplayDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
 							  SelectedDate="{Binding Calendar.SelectedDateTime, Mode=TwoWay}"
 							  BorderBrush="Transparent" FontSize="{Binding UI.FontSize}"
+							  Loaded="OnCalendarLoaded"
 							  DisplayDateChanged="OnCalendarMonthChanged">
 						<Calendar.Styles>
 							<Style Selector="CalendarDayButton:selected /template/ ContentPresenter">
@@ -1165,6 +1166,17 @@
 							<Style Selector="CalendarDayButton:inactive /template/ ContentPresenter">
 								<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 							</Style>
+							<Style Selector="CalendarDayButton.adjacent-month /template/ ContentPresenter#PART_ContentPresenter">
+								<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+								<Setter Property="Opacity" Value="0.7"/>
+							</Style>
+							<Style Selector="CalendarDayButton.weekend /template/ ContentPresenter#PART_ContentPresenter">
+								<Setter Property="Foreground" Value="#C45850"/>
+							</Style>
+							<Style Selector="CalendarDayButton.weekend:inactive /template/ ContentPresenter#PART_ContentPresenter">
+								<Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+								<Setter Property="Opacity" Value="0.6"/>
+							</Style>
 						</Calendar.Styles>
 					</Calendar>
 					<Grid ColumnDefinitions="40,*,40">
@@ -1181,18 +1193,18 @@
 			</Border>
 
 			<!-- Daily timesheet entry -->
-			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="10,0,0,0" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
-			<StackPanel Grid.Row="1" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="0" Margin="0,4,0,2">
-				<Button Width="28" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove selected"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
-				<Button Width="28" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
-				<Button Width="28" Command="{Binding Calendar.CopyFromPreviousDay}" ToolTip.Tip="Copy from previous day"><ic:SymbolIcon Symbol="Copy" FontSize="16"/></Button>
+			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="11,5,0,5" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
+			<StackPanel Grid.Row="1" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="2" Margin="5,5">
+				<Button Width="28" Height="26" Padding="0" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove selected"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
+				<Button Width="28" Height="26" Padding="0" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
+				<Button Width="28" Height="26" Padding="0" Command="{Binding Calendar.CopyFromPreviousDay}" ToolTip.Tip="Copy from previous day"><ic:SymbolIcon Symbol="Copy" FontSize="15"/></Button>
 			</StackPanel>
 
 			<!-- Daily timesheet list -->
-			<Panel Grid.Row="2" Margin="0" MinHeight="55">
+			<Panel Grid.Row="2" Margin="5,5" MinHeight="55">
 				<DataGrid ItemsSource="{Binding Calendar.CurrentCalendarData.TimeSheets}"
 						  SelectedItem="{Binding Calendar.CurrentTimeSheet, Mode=TwoWay}" MinWidth="0"
-						  RowHeight="24" HeadersVisibility="Column" GridLinesVisibility="None"
+						  RowHeight="26" HeadersVisibility="Column" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
 						<DataGridTemplateColumn Header="Hrs" Width="50">
@@ -1200,7 +1212,7 @@
 								<DataTemplate>
 									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.Hours}"
 											  SelectedItem="{Binding Hours}" MinHeight="0" MinWidth="0"
-											  Padding="8,0,4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="24"
+											  Padding="6,0,4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="26"
 											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 											  VerticalContentAlignment="Center"
 											  BorderThickness="0" Background="Transparent"/>
@@ -1212,7 +1224,7 @@
 								<DataTemplate>
 									<ComboBox ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.SelectableProjectNames}"
 											  SelectedItem="{Binding Project}" MinHeight="0" MinWidth="0"
-											  Padding="4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="24"
+											  Padding="4,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="26"
 											  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 											  VerticalContentAlignment="Center"
 											  BorderThickness="0" Background="Transparent"/>
@@ -1259,25 +1271,25 @@
 			</Border>
 
 			<!-- Project management & weekly summary -->
-			<StackPanel Grid.Row="5" Spacing="3" Margin="0,2,0,0">
+			<StackPanel Grid.Row="5" Spacing="4" Margin="5,5">
 				<!-- Project name + nr + add/remove on one row -->
-				<StackPanel Orientation="Horizontal" Spacing="0">
-					<Border Classes="shadow">
-						<TextBox Name="ProjectNameBox" Width="155" PlaceholderText="Project" FontSize="{Binding UI.FontSizeCompact}"
+				<Grid ColumnDefinitions="*,68,28,28" ColumnSpacing="4">
+					<Border Classes="shadow" Grid.Column="0" Margin="0">
+						<TextBox Name="ProjectNameBox" PlaceholderText="Project" FontSize="{Binding UI.FontSizeCompact}"
 								 Text="{Binding Calendar.CurrentTimeSheetProject.Project, Mode=TwoWay}"/>
 					</Border>
-					<Border Classes="shadow">
-						<TextBox Name="ProjNrBox" Width="75" PlaceholderText="Nr" FontSize="{Binding UI.FontSizeCompact}"
+					<Border Classes="shadow" Grid.Column="1" Margin="0">
+						<TextBox Name="ProjNrBox" PlaceholderText="Nr" FontSize="{Binding UI.FontSizeCompact}"
 								 Text="{Binding Calendar.CurrentTimeSheetProject.ProjectNr, Mode=TwoWay}"/>
 					</Border>
-					<Button Width="30" ToolTip.Tip="Add Project" Command="{Binding Calendar.AddTimeProject}"><ic:SymbolIcon Symbol="Add" FontSize="18"/></Button>
-					<Button Width="30" ToolTip.Tip="Remove Project" Command="{Binding Calendar.RemoveTimeProject}"><ic:SymbolIcon Symbol="Delete" FontSize="18"/></Button>
-				</StackPanel>
+					<Button Grid.Column="2" Width="28" Padding="2" ToolTip.Tip="Add Project" Command="{Binding Calendar.AddTimeProject}"><ic:SymbolIcon Symbol="Add" FontSize="15"/></Button>
+					<Button Grid.Column="3" Width="28" Padding="2" ToolTip.Tip="Remove Project" Command="{Binding Calendar.RemoveTimeProject}"><ic:SymbolIcon Symbol="Delete" FontSize="15"/></Button>
+				</Grid>
 
 				<!-- Weekly hours per project -->
 				<DataGrid Name="ProjectSummaryGrid" ItemsSource="{Binding Calendar.TimeProjects}"
 						  SelectedItem="{Binding Calendar.CurrentTimeSheetProject, Mode=TwoWay}"
-						  IsReadOnly="True" MinWidth="0" RowHeight="22" 
+						  IsReadOnly="True" MinWidth="0" RowHeight="26" 
 						  HeadersVisibility="None" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
@@ -1307,7 +1319,7 @@
 
 				<!-- Diary summary for selected project: Mon–Fri of the selected week -->
 				<DataGrid ItemsSource="{Binding Calendar.WeekDiaryEntries}"
-						  IsReadOnly="True" MinWidth="0" RowHeight="24" Height="105"
+						  IsReadOnly="True" MinWidth="0" RowHeight="26" Height="105"
 						  HeadersVisibility="None" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
