@@ -407,6 +407,18 @@ public partial class MainView
         }
     }
 
+    private void OnTimeSheetEntryPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not Control ctrl || ctrl.DataContext is not TimeSheetData entry)
+            return;
+
+        var grid = this.FindControl<DataGrid>("TimeSheetGrid");
+        if (grid != null)
+            grid.SelectedItem = entry;
+
+        _ctx.Calendar.CurrentTimeSheet = entry;
+    }
+
     /// <summary>
     /// Called when the Calendar control navigates to a different month.
     /// </summary>
