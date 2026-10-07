@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using System;
 using System.ComponentModel;
 
 namespace Finn.Model
@@ -9,6 +10,27 @@ namespace Finn.Model
     /// 
     public class TimeSheetProjectData : ObservableObject
     {
+        /// <summary>Well-known Id for the synthetic "Total" summary row (not a real project).</summary>
+        public static readonly Guid TotalRowId = new("00000000-0000-0000-0000-000000000001");
+
+        private Guid id = Guid.NewGuid();
+        /// <summary>
+        /// Stable unique identity for this project. Persisted; never changes once assigned.
+        /// Timesheet entries reference this rather than the display name, so renaming
+        /// a project does not require rewriting any timesheet rows.
+        /// </summary>
+        public Guid Id
+        {
+            get => id;
+            set
+            {
+                // Guard: never allow an empty identity (e.g. from malformed JSON).
+                if (value == Guid.Empty) return;
+                id = value;
+                OnPropertyChanged(nameof(Id));
+            }
+        }
+
         private string project = string.Empty;
         /// <summary>
         /// Gets or sets the project name.

@@ -1225,14 +1225,24 @@
 												  PointerPressed="OnTimeSheetEntryPointerPressed"/>
 
 										<ComboBox Grid.Row="0" Grid.Column="1"
-												  ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.SelectableProjectNames}"
-												  SelectedItem="{Binding Project}" MinHeight="0" MinWidth="0"
+												  ItemsSource="{Binding $parent[DataGrid].DataContext.Calendar.SelectableProjects}"
+												  SelectedValue="{Binding ProjectId, Mode=OneWay}" MinHeight="0" MinWidth="0"
 												  Padding="3,0" FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSizeCompact}" Height="20"
 												  HorizontalAlignment="Stretch" VerticalAlignment="Center"
 												  VerticalContentAlignment="Center"
 												  BorderThickness="0" Background="Transparent"
 												  ToolTip.Tip="Project"
-												  PointerPressed="OnTimeSheetEntryPointerPressed"/>
+												  PointerPressed="OnTimeSheetEntryPointerPressed"
+												  SelectionChanged="OnTimeSheetProjectSelectionChanged">
+											<ComboBox.SelectedValueBinding>
+												<Binding Path="Id"/>
+											</ComboBox.SelectedValueBinding>
+											<ComboBox.ItemTemplate>
+												<DataTemplate x:DataType="model:TimeSheetProjectData">
+													<TextBlock Text="{Binding Project}"/>
+												</DataTemplate>
+											</ComboBox.ItemTemplate>
+										</ComboBox>
 
 										<TextBox Grid.Row="1" Grid.ColumnSpan="2"
 												 Text="{Binding Diary}"
@@ -1277,7 +1287,7 @@
 						</Style>
 					</DataGrid.Styles>
 				</DataGrid>
-				<Ellipse Width="6" Height="6" Fill="{DynamicResource SystemAccentColor}" HorizontalAlignment="Right" VerticalAlignment="Top"
+				<Ellipse Width="6" Height="6" Fill="{StaticResource TagColorBlue}" HorizontalAlignment="Right" VerticalAlignment="Top"
 							 Margin="0,9,11,0" IsHitTestVisible="False"/>
 			</Panel>
 

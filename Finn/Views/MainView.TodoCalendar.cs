@@ -419,6 +419,21 @@ public partial class MainView
         _ctx.Calendar.CurrentTimeSheet = entry;
     }
 
+    // The project ComboBox displays via SelectedValue (ProjectId) one-way; committing
+    // happens here on real user selection. Entries store ProjectId (stable identity),
+    // so renaming a project never rewrites timesheet rows.
+    private void OnTimeSheetProjectSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox combo || combo.DataContext is not TimeSheetData entry)
+            return;
+
+        if (combo.SelectedItem is TimeSheetProjectData proj && entry.ProjectId != proj.Id)
+        {
+            entry.ProjectId = proj.Id;
+            entry.Project = proj.Project;
+        }
+    }
+
     /// <summary>
     /// Called when the Calendar control navigates to a different month.
     /// </summary>
@@ -520,11 +535,11 @@ public partial class MainView
             };
 
             if (hasTime)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = Brushes.DodgerBlue });
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = new SolidColorBrush(Color.Parse("#3B82D9")) });
             if (hasNote)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = Brushes.MediumSeaGreen });
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = new SolidColorBrush(Color.Parse("#3DA35F")) });
             if (hasReminder)
-                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = Brushes.Orange });
+                indicator.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 5, Height = 5, Fill = new SolidColorBrush(Color.Parse("#E06830")) });
 
             rootPanel.Children.Add(indicator);
         }

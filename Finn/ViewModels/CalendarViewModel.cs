@@ -19,6 +19,7 @@ namespace Finn.ViewModels
     {
         private readonly Func<UISettingsViewModel> uiGetter;
         private readonly Dictionary<DateOnly, CalendarData> _dateIndex = new();
+        private Dictionary<Guid, TimeSheetProjectData> _projectById = new();
 
         private const string TOTAL_PROJECT = "Total";
 
@@ -73,6 +74,7 @@ namespace Finn.ViewModels
                 {
                     CalendarStorage.TimeProjects = value;
                     OnPropertyChanged(nameof(TimeProjects));
+                    InvalidateSelectableProjectNames();
                 }
             }
         }
@@ -120,8 +122,9 @@ namespace Finn.ViewModels
             }
 
             EnsureTotalRow();
-            OnPropertyChanged(nameof(SelectableProjects));
-            OnPropertyChanged(nameof(SelectableProjectNames));
+            RebuildProjectIndex();
+            HydrateProjectDisplayNames();
+            InvalidateSelectableProjectNames();
             var firstProject = SelectableProjects.FirstOrDefault();
             if (firstProject != null)
                 NewEntryProject = firstProject.Project;
@@ -382,9 +385,53 @@ namespace Finn.ViewModels
         public IEnumerable<TimeSheetProjectData> SelectableProjects
             => TimeProjects.Where(x => x.Project != TOTAL_PROJECT);
 
-        /// <summary>Project name strings for inline ComboBox editing in the daily grid.</summary>
+        /// <summary>Resolves a project entry by its stable Id, or null if unknown.</summary>
+        public TimeSheetProjectData? GetProjectById(Guid? id)
+            => id.HasValue && _projectById.TryGetValue(id.Value, out var p) ? p : null;
+
+        /// <summary>Display name for an entry's project, resolved via ProjectId.</summary>
+        public string GetProjectName(Guid? id) => GetProjectById(id)?.Project ?? string.Empty;
+
+        /// <summary>
+        /// Rebuilds the Id → project lookup. Call whenever TimeProjects membership changes.
+        /// </summary>
+        private void RebuildProjectIndex()
+        {
+            _projectById = TimeProjects
+                .Where(x => x != null)
+                .GroupBy(x => x.Id)
+                .ToDictionary(g => g.Key, g => g.First());
+        }
+
+        /// <summary>
+        /// Populates the non-persisted Project display cache on each entry from the
+        /// catalog, so the grid can show names after a fresh load.
+        /// </summary>
+        private void HydrateProjectDisplayNames()
+        {
+            foreach (var cal in CalendarList)
+                foreach (var ts in cal.TimeSheets)
+                    ts.Project = GetProjectName(ts.ProjectId);
+        }
+
+        private List<string>? _selectableProjectNamesCache;
+        /// <summary>
+        /// Project name strings for inline ComboBox editing in the daily grid.
+        /// Cached as a materialized list so the ComboBox ItemsSource is a stable
+        /// instance rather than a re-enumerated deferred query.
+        /// </summary>
         public IEnumerable<string> SelectableProjectNames
-            => TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Select(x => x.Project);
+            => _selectableProjectNamesCache ??= BuildSelectableProjectNames();
+
+        private List<string> BuildSelectableProjectNames()
+            => TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Select(x => x.Project).ToList();
+
+        private void InvalidateSelectableProjectNames()
+        {
+            _selectableProjectNamesCache = null;
+            OnPropertyChanged(nameof(SelectableProjects));
+            OnPropertyChanged(nameof(SelectableProjectNames));
+        }
 
         /// <summary>Display string for the daily total hours.</summary>
         public string DailyTotalDisplay
@@ -410,12 +457,12 @@ namespace Finn.ViewModels
 
             foreach (var p in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
             {
-                var name = p?.Project ?? string.Empty;
-                p!.W1 = SumProjectHoursForWeek(entries, 0, name);
-                p.W2 = SumProjectHoursForWeek(entries, 1, name);
-                p.W3 = SumProjectHoursForWeek(entries, 2, name);
-                p.W4 = SumProjectHoursForWeek(entries, 3, name);
-                p.W5 = SumProjectHoursForWeek(entries, 4, name);
+                var pid = p!.Id;
+                p.W1 = SumProjectHoursForWeek(entries, 0, pid);
+                p.W2 = SumProjectHoursForWeek(entries, 1, pid);
+                p.W3 = SumProjectHoursForWeek(entries, 2, pid);
+                p.W4 = SumProjectHoursForWeek(entries, 3, pid);
+                p.W5 = SumProjectHoursForWeek(entries, 4, pid);
             }
 
             var total = TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
@@ -431,7 +478,6 @@ namespace Finn.ViewModels
         }
 
         private TimeSheetProjectData currentTimeSheetProject = new();
-        private string? _trackedProjectName;
         public TimeSheetProjectData CurrentTimeSheetProject
         {
             get => currentTimeSheetProject;
@@ -439,8 +485,6 @@ namespace Finn.ViewModels
             {
                 if (currentTimeSheetProject != null)
                     currentTimeSheetProject.PropertyChanged -= OnCurrentProjectPropertyChanged;
-
-                _trackedProjectName = value?.Project;
 
                 SetProperty(ref currentTimeSheetProject!, value, () =>
                 {
@@ -452,31 +496,17 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// When the selected project's name changes, rename all matching
-        /// TimeSheetData entries across the entire calendar so summaries
-        /// and diary entries stay in sync.
+        /// When the selected project's name changes, entries reference the project by
+        /// stable Id, so no row needs rewriting — only the display-facing caches and
+        /// summaries need to refresh to show the new name.
         /// </summary>
         private void OnCurrentProjectPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(TimeSheetProjectData.Project) && _trackedProjectName != null)
+            if (e.PropertyName == nameof(TimeSheetProjectData.Project))
             {
-                string oldName = _trackedProjectName;
-                string newName = CurrentTimeSheetProject.Project;
-                if (oldName != newName && !string.IsNullOrWhiteSpace(newName))
-                {
-                    foreach (var cal in CalendarList)
-                    {
-                        foreach (var ts in cal.TimeSheets)
-                        {
-                            if (ts.Project == oldName)
-                                ts.Project = newName;
-                        }
-                    }
-                    _trackedProjectName = newName;
-                    RefreshProjectSummaries();
-                    RefreshProjectDiarySummary();
-                    OnPropertyChanged(nameof(SelectableProjectNames));
-                }
+                RefreshProjectSummaries();
+                RefreshProjectDiarySummary();
+                InvalidateSelectableProjectNames();
             }
         }
 
@@ -485,11 +515,17 @@ namespace Finn.ViewModels
             if (CurrentCalendarData == null) SetCurrentCalendarData();
             if (CurrentCalendarData == null) return;
 
-            string project = !string.IsNullOrWhiteSpace(NewEntryProject)
-                ? NewEntryProject
-                : SelectableProjects.FirstOrDefault()?.Project ?? "New";
+            var project = !string.IsNullOrWhiteSpace(NewEntryProject)
+                ? SelectableProjects.FirstOrDefault(x => x.Project == NewEntryProject)
+                : null;
+            project ??= SelectableProjects.FirstOrDefault();
 
-            var entry = new TimeSheetData { Hours = NewEntryHours, Project = project };
+            var entry = new TimeSheetData
+            {
+                Hours = NewEntryHours,
+                ProjectId = project?.Id,
+                Project = project?.Project ?? string.Empty
+            };
             CurrentCalendarData.TimeSheets.Add(entry);
             CurrentTimeSheet = entry;
         }
@@ -523,6 +559,7 @@ namespace Finn.ViewModels
                         CurrentCalendarData.TimeSheets.Add(new TimeSheetData
                         {
                             Hours = ts.Hours,
+                            ProjectId = ts.ProjectId,
                             Project = ts.Project
                         });
                     }
@@ -552,10 +589,10 @@ namespace Finn.ViewModels
             int idx = TimeProjects.IndexOf(TimeProjects.First(x => x.Project == TOTAL_PROJECT));
             var newProject = new TimeSheetProjectData { Project = name };
             TimeProjects.Insert(idx, newProject);
+            _projectById[newProject.Id] = newProject;
             CurrentTimeSheetProject = newProject;
             RefreshProjectSummaries();
-            OnPropertyChanged(nameof(SelectableProjects));
-            OnPropertyChanged(nameof(SelectableProjectNames));
+            InvalidateSelectableProjectNames();
         }
 
         /// <summary>
@@ -564,10 +601,11 @@ namespace Finn.ViewModels
         public void RemoveTimeProject()
         {
             if (CurrentTimeSheetProject == null || CurrentTimeSheetProject.Project == TOTAL_PROJECT) return;
-            TimeProjects.Remove(CurrentTimeSheetProject);
+            var removed = CurrentTimeSheetProject;
+            TimeProjects.Remove(removed);
+            _projectById.Remove(removed.Id);
             RefreshProjectSummaries();
-            OnPropertyChanged(nameof(SelectableProjects));
-            OnPropertyChanged(nameof(SelectableProjectNames));
+            InvalidateSelectableProjectNames();
         }
 
         /// <summary>
@@ -586,9 +624,10 @@ namespace Finn.ViewModels
         {
             WeekDiaryEntries.Clear();
 
-            var projName = CurrentTimeSheetProject?.Project;
-            if (string.IsNullOrEmpty(projName) || projName == TOTAL_PROJECT)
+            var proj = CurrentTimeSheetProject;
+            if (proj == null || proj.Project == TOTAL_PROJECT)
                 return;
+            var projId = proj.Id;
 
             int year = SelectedDateTime.Year;
             int month = SelectedDateTime.Month;
@@ -607,7 +646,7 @@ namespace Finn.ViewModels
             foreach (var day in weekDays)
             {
                 var diaries = day.TimeSheets
-                    .Where(ts => ts.Project == projName && !string.IsNullOrWhiteSpace(ts.Diary))
+                    .Where(ts => ts.ProjectId == projId && !string.IsNullOrWhiteSpace(ts.Diary))
                     .Select(ts => ts.Diary.Trim())
                     .ToList();
 
@@ -634,10 +673,10 @@ namespace Finn.ViewModels
             }
         }
 
-        private static int SumProjectHoursForWeek(IEnumerable<CalendarData> entries, int weekOfMonth, string project)
+        private static int SumProjectHoursForWeek(IEnumerable<CalendarData> entries, int weekOfMonth, Guid projectId)
             => entries.Where(x => x.WeekOfMonth == weekOfMonth)
                       .SelectMany(x => x.TimeSheets)
-                      .Where(ts => ts.Project == project)
+                      .Where(ts => ts.ProjectId == projectId)
                       .Sum(ts => ts.Hours);
 
         #endregion
@@ -652,7 +691,7 @@ namespace Finn.ViewModels
         private void EnsureTotalRow()
         {
             if (!TimeProjects.Any(x => x.Project == TOTAL_PROJECT))
-                TimeProjects.Add(new TimeSheetProjectData { Project = TOTAL_PROJECT });
+                TimeProjects.Add(new TimeSheetProjectData { Id = TimeSheetProjectData.TotalRowId, Project = TOTAL_PROJECT });
         }
 
         /// <summary>
