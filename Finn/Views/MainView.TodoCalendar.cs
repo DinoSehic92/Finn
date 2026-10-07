@@ -428,10 +428,7 @@ public partial class MainView
             return;
 
         if (combo.SelectedItem is TimeSheetProjectData proj && entry.ProjectId != proj.Id)
-        {
-            entry.ProjectId = proj.Id;
-            entry.Project = proj.Project;
-        }
+            entry.SetProject(proj.Id, proj.Project);
     }
 
     /// <summary>

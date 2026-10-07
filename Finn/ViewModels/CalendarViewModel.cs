@@ -127,7 +127,7 @@ namespace Finn.ViewModels
             InvalidateSelectableProjectNames();
             var firstProject = SelectableProjects.FirstOrDefault();
             if (firstProject != null)
-                NewEntryProject = firstProject.Project;
+                NewEntryProjectId = firstProject.Id;
             RefreshProjectSummaries();
             RefreshProjectDiarySummary();
             DayIndicatorsChanged?.Invoke();
@@ -232,9 +232,14 @@ namespace Finn.ViewModels
 
         private void SubscribeTimesheetItems(CalendarData cal)
         {
+            // Guard against double-subscription when the same cached instance is set twice.
+            cal.TimeSheets.CollectionChanged -= OnTimesheetCollectionChanged;
             cal.TimeSheets.CollectionChanged += OnTimesheetCollectionChanged;
             foreach (var ts in cal.TimeSheets)
+            {
+                ts.PropertyChanged -= OnTimesheetItemChanged;
                 ts.PropertyChanged += OnTimesheetItemChanged;
+            }
         }
 
         private void UnsubscribeTimesheetItems(CalendarData cal)
@@ -267,8 +272,14 @@ namespace Finn.ViewModels
 
             RefreshProjectSummaries();
             RefreshProjectDiarySummary();
-            OnPropertyChanged(nameof(DailyTotalDisplay));
+            NotifyDailyTotalChanged();
             DataChanged?.Invoke();
+        }
+
+        private void NotifyDailyTotalChanged()
+        {
+            OnPropertyChanged(nameof(DailyTotalDisplay));
+            OnPropertyChanged(nameof(IsDailyTotalExceeded));
         }
 
         /// <summary>
@@ -282,7 +293,7 @@ namespace Finn.ViewModels
             if (e.PropertyName is nameof(TimeSheetData.Hours) or nameof(TimeSheetData.Project) or nameof(TimeSheetData.Diary))
                 RefreshProjectDiarySummary();
             if (e.PropertyName is nameof(TimeSheetData.Hours))
-                OnPropertyChanged(nameof(DailyTotalDisplay));
+                NotifyDailyTotalChanged();
             DataChanged?.Invoke();
         }
 
@@ -337,8 +348,8 @@ namespace Finn.ViewModels
             // Reset grid selection to first entry for the new day (#8)
             CurrentTimeSheet = CurrentCalendarData.TimeSheets.Count > 0
                 ? CurrentCalendarData.TimeSheets[0]
-                : null!;
-            OnPropertyChanged(nameof(DailyTotalDisplay));
+                : null;
+            NotifyDailyTotalChanged();
         }
 
         /// <summary>
@@ -358,8 +369,8 @@ namespace Finn.ViewModels
 
         #region Timesheet
 
-        private TimeSheetData currentTimeSheet = new();
-        public TimeSheetData CurrentTimeSheet
+        private TimeSheetData? currentTimeSheet;
+        public TimeSheetData? CurrentTimeSheet
         {
             get => currentTimeSheet;
             set => SetProperty(ref currentTimeSheet, value);
@@ -373,12 +384,12 @@ namespace Finn.ViewModels
             set => SetProperty(ref newEntryHours, value);
         }
 
-        private string newEntryProject = string.Empty;
-        /// <summary>Staging: project name for the next entry to be added.</summary>
-        public string NewEntryProject
+        private Guid? newEntryProjectId;
+        /// <summary>Staging: project Id for the next entry to be added.</summary>
+        public Guid? NewEntryProjectId
         {
-            get => newEntryProject;
-            set => SetProperty(ref newEntryProject, value);
+            get => newEntryProjectId;
+            set => SetProperty(ref newEntryProjectId, value);
         }
 
         /// <summary>Projects available for selection (excludes the Total summary row).</summary>
@@ -411,7 +422,7 @@ namespace Finn.ViewModels
         {
             foreach (var cal in CalendarList)
                 foreach (var ts in cal.TimeSheets)
-                    ts.Project = GetProjectName(ts.ProjectId);
+                    ts.SetProject(ts.ProjectId, GetProjectName(ts.ProjectId));
         }
 
         private List<string>? _selectableProjectNamesCache;
@@ -443,6 +454,9 @@ namespace Finn.ViewModels
             }
         }
 
+        /// <summary>True when the day's logged hours exceed the 8-hour target.</summary>
+        public bool IsDailyTotalExceeded => (CurrentCalendarData?.TotalTime ?? 0) > 8;
+
         public ObservableCollection<int> Hours { get; } = [1, 2, 3, 4, 5, 6, 7, 8];
 
         /// <summary>
@@ -453,16 +467,24 @@ namespace Finn.ViewModels
         {
             int month = SelectedDateTime.Month;
             int year = SelectedDateTime.Year;
-            var entries = GetMonthEntries(year, month).ToList();
+            var selectedDate = DateOnly.FromDateTime(SelectedDateTime);
+            int selectedWeekOfMonth = CalendarData.GetWeekOfMonth(selectedDate);
+
+            // Selected work week only (Mon–Fri), matching the diary summary.
+            var entries = GetMonthEntries(year, month)
+                .Where(x => x.WeekOfMonth == selectedWeekOfMonth)
+                .Where(x => x.Date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+                .ToList();
 
             foreach (var p in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
             {
                 var pid = p!.Id;
-                p.W1 = SumProjectHoursForWeek(entries, 0, pid);
-                p.W2 = SumProjectHoursForWeek(entries, 1, pid);
-                p.W3 = SumProjectHoursForWeek(entries, 2, pid);
-                p.W4 = SumProjectHoursForWeek(entries, 3, pid);
-                p.W5 = SumProjectHoursForWeek(entries, 4, pid);
+                int weekHours = SumProjectHours(entries, pid);
+                p.W1 = selectedWeekOfMonth == 0 ? weekHours : 0;
+                p.W2 = selectedWeekOfMonth == 1 ? weekHours : 0;
+                p.W3 = selectedWeekOfMonth == 2 ? weekHours : 0;
+                p.W4 = selectedWeekOfMonth == 3 ? weekHours : 0;
+                p.W5 = selectedWeekOfMonth == 4 ? weekHours : 0;
             }
 
             var total = TimeProjects.FirstOrDefault(x => x.Project == TOTAL_PROJECT);
@@ -477,8 +499,8 @@ namespace Finn.ViewModels
             }
         }
 
-        private TimeSheetProjectData currentTimeSheetProject = new();
-        public TimeSheetProjectData CurrentTimeSheetProject
+        private TimeSheetProjectData? currentTimeSheetProject;
+        public TimeSheetProjectData? CurrentTimeSheetProject
         {
             get => currentTimeSheetProject;
             set
@@ -486,7 +508,7 @@ namespace Finn.ViewModels
                 if (currentTimeSheetProject != null)
                     currentTimeSheetProject.PropertyChanged -= OnCurrentProjectPropertyChanged;
 
-                SetProperty(ref currentTimeSheetProject!, value, () =>
+                SetProperty(ref currentTimeSheetProject, value, () =>
                 {
                     if (currentTimeSheetProject != null)
                         currentTimeSheetProject.PropertyChanged += OnCurrentProjectPropertyChanged;
@@ -515,17 +537,10 @@ namespace Finn.ViewModels
             if (CurrentCalendarData == null) SetCurrentCalendarData();
             if (CurrentCalendarData == null) return;
 
-            var project = !string.IsNullOrWhiteSpace(NewEntryProject)
-                ? SelectableProjects.FirstOrDefault(x => x.Project == NewEntryProject)
-                : null;
-            project ??= SelectableProjects.FirstOrDefault();
+            var project = GetProjectById(NewEntryProjectId) ?? SelectableProjects.FirstOrDefault();
 
-            var entry = new TimeSheetData
-            {
-                Hours = NewEntryHours,
-                ProjectId = project?.Id,
-                Project = project?.Project ?? string.Empty
-            };
+            var entry = new TimeSheetData { Hours = NewEntryHours };
+            entry.SetProject(project?.Id, project?.Project ?? string.Empty);
             CurrentCalendarData.TimeSheets.Add(entry);
             CurrentTimeSheet = entry;
         }
@@ -536,7 +551,7 @@ namespace Finn.ViewModels
             CurrentCalendarData.TimeSheets.Remove(CurrentTimeSheet);
             CurrentTimeSheet = CurrentCalendarData.TimeSheets.Count > 0
                 ? CurrentCalendarData.TimeSheets[^1]
-                : null!;
+                : null;
         }
 
         /// <summary>
@@ -556,12 +571,9 @@ namespace Finn.ViewModels
                 {
                     foreach (var ts in prevDay.TimeSheets)
                     {
-                        CurrentCalendarData.TimeSheets.Add(new TimeSheetData
-                        {
-                            Hours = ts.Hours,
-                            ProjectId = ts.ProjectId,
-                            Project = ts.Project
-                        });
+                        var copy = new TimeSheetData { Hours = ts.Hours };
+                        copy.SetProject(ts.ProjectId, ts.Project);
+                        CurrentCalendarData.TimeSheets.Add(copy);
                     }
                     break;
                 }
@@ -633,9 +645,8 @@ namespace Finn.ViewModels
             int month = SelectedDateTime.Month;
             var selectedDate = DateOnly.FromDateTime(SelectedDateTime);
 
-            // Use the same day-of-month arithmetic as CalendarData.WeekOfMonth
-            // to avoid ISOWeek wraparound issues (e.g. Jan 1 in ISO week 52).
-            int selectedWeekOfMonth = (selectedDate.Day - 1) / 7;
+            // Same Monday-start week bucketing as CalendarData.WeekOfMonth.
+            int selectedWeekOfMonth = CalendarData.GetWeekOfMonth(selectedDate);
 
             var weekDays = GetMonthEntries(year, month)
                 .Where(x => x.WeekOfMonth == selectedWeekOfMonth)
@@ -673,9 +684,8 @@ namespace Finn.ViewModels
             }
         }
 
-        private static int SumProjectHoursForWeek(IEnumerable<CalendarData> entries, int weekOfMonth, Guid projectId)
-            => entries.Where(x => x.WeekOfMonth == weekOfMonth)
-                      .SelectMany(x => x.TimeSheets)
+        private static int SumProjectHours(IEnumerable<CalendarData> entries, Guid projectId)
+            => entries.SelectMany(x => x.TimeSheets)
                       .Where(ts => ts.ProjectId == projectId)
                       .Sum(ts => ts.Hours);
 

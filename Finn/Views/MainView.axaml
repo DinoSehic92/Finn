@@ -1193,7 +1193,14 @@
 			</Border>
 
 			<!-- Daily timesheet entry -->
-			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="11,5,0,5" Foreground="{DynamicResource AppMutedForegroundBrush}"/>
+			<TextBlock Grid.Row="1" Text="{Binding Calendar.DailyTotalDisplay}" VerticalAlignment="Center" FontSize="{Binding UI.FontSizeCompact}" FontWeight="SemiBold" Margin="11,5,0,5" Foreground="{DynamicResource AppMutedForegroundBrush}"
+					   Classes.DailyOver="{Binding Calendar.IsDailyTotalExceeded}">
+				<TextBlock.Styles>
+					<Style Selector="TextBlock.DailyOver">
+						<Setter Property="Foreground" Value="{DynamicResource AppWarningBrush}"/>
+					</Style>
+				</TextBlock.Styles>
+			</TextBlock>
 			<StackPanel Grid.Row="1" Orientation="Horizontal" FlowDirection="RightToLeft" Spacing="2" Margin="5,5">
 				<Button Width="28" Height="26" Padding="0" Command="{Binding Calendar.RemoveTimeSheet}" ToolTip.Tip="Remove selected"><ic:SymbolIcon Symbol="Delete" FontSize="16"/></Button>
 				<Button Width="28" Height="26" Padding="0" Command="{Binding Calendar.NewTimeSheet}" ToolTip.Tip="Add entry"><ic:SymbolIcon Symbol="Add" FontSize="16"/></Button>
@@ -1201,7 +1208,7 @@
 			</StackPanel>
 
 			<!-- Daily timesheet list -->
-			<Panel Grid.Row="2" Margin="5,5" MinHeight="55">
+			<Panel Grid.Row="2" Margin="5,7,5,7" MinHeight="55">
 				<DataGrid Name="TimeSheetGrid" ItemsSource="{Binding Calendar.CurrentCalendarData.TimeSheets}"
 						  SelectedItem="{Binding Calendar.CurrentTimeSheet, Mode=TwoWay}" MinWidth="0"
 						  RowHeight="58" HeadersVisibility="Column" GridLinesVisibility="None"
@@ -1249,7 +1256,7 @@
 												 FontSize="11"
 												 FontStyle="Italic"
 												 Foreground="{DynamicResource AppMutedForegroundBrush}"
-												 PlaceholderText="Diary entry required"
+												 PlaceholderText="Diary entry"
 												 AcceptsReturn="True"
 												 TextWrapping="Wrap"
 												 Height="30"
@@ -1311,7 +1318,7 @@
 			</Border>
 
 			<!-- Project management & weekly summary -->
-			<StackPanel Grid.Row="5" Spacing="4" Margin="5,5">
+			<StackPanel Grid.Row="5" Spacing="7" Margin="5,8,5,5">
 				<!-- Project name + nr + add/remove on one row -->
 				<Grid ColumnDefinitions="*,68,28,28" ColumnSpacing="4">
 					<Border Classes="shadow" Grid.Column="0" Margin="0">
@@ -1329,8 +1336,8 @@
 				<!-- Weekly hours per project -->
 				<DataGrid Name="ProjectSummaryGrid" ItemsSource="{Binding Calendar.TimeProjects}"
 						  SelectedItem="{Binding Calendar.CurrentTimeSheetProject, Mode=TwoWay}"
-						  IsReadOnly="True" MinWidth="0" RowHeight="26" 
-						  HeadersVisibility="None" GridLinesVisibility="None"
+						  IsReadOnly="True" MinWidth="0" RowHeight="26" Margin="0,2,0,0"
+						  HeadersVisibility="Column" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
 						<DataGridTextColumn Header="Project" Binding="{Binding Project}" Width="*" FontSize="{Binding UI.FontSizeCompact}"/>
@@ -1359,13 +1366,13 @@
 
 				<!-- Diary summary for selected project: Mon–Fri of the selected week -->
 				<DataGrid ItemsSource="{Binding Calendar.WeekDiaryEntries}"
-						  IsReadOnly="True" MinWidth="0" RowHeight="26" Height="105"
-						  HeadersVisibility="None" GridLinesVisibility="None"
+						  IsReadOnly="True" MinWidth="0" RowHeight="26" Height="105" Margin="0,2,0,0"
+						  HeadersVisibility="Column" GridLinesVisibility="None"
 						  HorizontalAlignment="Stretch" CanUserResizeColumns="False" CanUserReorderColumns="False">
 					<DataGrid.Columns>
 						<DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="38" FontSize="{Binding UI.FontSizeCompact}"/>
 						<DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*" FontSize="{Binding UI.FontSizeCompact}"/>
-						<DataGridTemplateColumn Width="28">
+						<DataGridTemplateColumn Header="" Width="28">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate x:DataType="model:WeekDiaryEntry">
 									<Button Width="22" Height="20" Padding="0" MinWidth="0" MinHeight="0"

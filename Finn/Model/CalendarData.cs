@@ -33,18 +33,19 @@ namespace Finn.Model
         }
 
         /// <summary>
-        /// Gets the week of the month for this date (0-based).
-        /// Uses day-of-month arithmetic to avoid ISO week wraparound issues
-        /// (e.g. January 1st in ISO week 52 of the previous year).
+        /// Gets the week of the month for this date (0-based), using Monday-start
+        /// weeks. Week 0 is the partial week containing the 1st (from the 1st up to
+        /// the first Sunday); each following Monday begins the next week. This groups
+        /// days that actually belong to the same Mon–Sun work week.
         /// </summary>
         [JsonIgnore]
-        public int WeekOfMonth
+        public int WeekOfMonth => GetWeekOfMonth(Date);
+
+        /// <summary>Monday-start week-of-month (0-based) for a given date.</summary>
+        public static int GetWeekOfMonth(DateOnly date)
         {
-            get
-            {
-                // Week 0 = days 1–7, week 1 = days 8–14, etc.
-                return (Date.Day - 1) / 7;
-            }
+            int firstDayDow = (int)new DateOnly(date.Year, date.Month, 1).DayOfWeek; // Sunday=0
+            return (date.Day - 1 + firstDayDow) / 7;
         }
 
         private string note1 = string.Empty;

@@ -28,12 +28,21 @@ namespace Finn.Model
         /// <summary>
         /// Display cache of the project's current name. Not persisted — the source of
         /// truth is <see cref="ProjectId"/>; the name is resolved from the catalog.
+        /// Read-only to consumers; set via <see cref="SetProjectDisplay"/> by the
+        /// ViewModel when hydrating or committing a selection.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public string Project
         {
             get { return project; }
-            set { project = value; RaisePropertyChanged("Project"); }
+            private set { project = value; RaisePropertyChanged("Project"); }
+        }
+
+        /// <summary>Sets the project display-name cache (and identity) together.</summary>
+        public void SetProject(Guid? id, string displayName)
+        {
+            ProjectId = id;
+            Project = displayName;
         }
 
         private string diary = string.Empty;
