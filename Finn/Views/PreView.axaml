@@ -121,6 +121,15 @@
 				</Grid>
 			</LayoutTransformControl>
 
+			<Border Name="PreviewLockToastBorder" Padding="10,4" IsHitTestVisible="False"
+					Background="#AA111111" CornerRadius="6"
+					HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,8"
+					IsVisible="False">
+				<TextBlock Name="PreviewLockToastText" FontSize="11" TextWrapping="Wrap"
+						   HorizontalAlignment="Center" TextAlignment="Center"
+						   Foreground="White" MaxWidth="520" Opacity="0.92"/>
+			</Border>
+
 			<!-- Mode banner: Dual File (only for user-initiated, not diff side-by-side) -->
 			<Border Name="DualFileBanner" Classes="shadow" IsVisible="{Binding PreviewVM.IsUserDualFileMode}" IsHitTestVisible="True"
 					HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,8,0">
@@ -915,6 +924,12 @@
 									   Foreground="{DynamicResource AppMutedForegroundBrush}"
 									   Opacity="0.75" Width="30" Height="30"
 									   ToolTip.Tip="{Binding CacheSourceTooltip}"/>
+						<ToggleButton Classes="ghost" ToolTip.Tip="Lock preview to the current file" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" ToolTip.Placement="Right" IsChecked="{Binding IsPreviewLocked, Mode=TwoWay}" Click="OnTogglePreviewLock">
+							<Grid>
+								<ic:SymbolIcon Symbol="LockClosed" IconVariant="Regular" FontSize="16" IsVisible="{Binding IsPreviewLocked}"/>
+								<ic:SymbolIcon Symbol="LockOpen" IconVariant="Regular" FontSize="16" IsVisible="{Binding !IsPreviewLocked}"/>
+							</Grid>
+						</ToggleButton>
 
 						<ToggleButton Classes="ghost" ToolTip.Tip="Invert Colors (Ctrl+G)" Width="30" Height="30" FontWeight="Normal" BorderThickness="0" Name="DimmedMode" IsChecked="{Binding DarkMode}" ToolTip.Placement="Right">
 							<ic:SymbolIcon Symbol="DarkTheme" IconVariant="Regular" FontSize="16"/>

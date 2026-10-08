@@ -56,6 +56,9 @@ public partial class PreView : UserControl
     private bool _syncingDiffOverlay;
     /// <summary>Pending disposal task from CloseDiffViews so the next diff open can await it.</summary>
     private Task? _pendingDiffDisposal;
+    private Avalonia.Threading.DispatcherTimer? _previewLockToastTimer;
+    private Border? _previewLockToastBorder;
+    private TextBlock? _previewLockToastText;
 
     // Pan state — shared between PreView.axaml.cs and PreView.Annotation.cs
     private bool _middlePanning;
@@ -85,6 +88,42 @@ public partial class PreView : UserControl
                 pwr.UpdateThemeRegionColor(color);
             };
         }
+    }
+
+    private void OnTogglePreviewLock(object? sender, RoutedEventArgs e)
+    {
+        if (pwr == null) return;
+
+        string message = pwr.IsPreviewLocked
+            ? "Preview locked to this file. Grid selection will not change it."
+            : "Preview unlocked. It will follow grid selection again.";
+        ShowPreviewLockToast(message);
+    }
+
+    private void ShowPreviewLockToast(string message)
+    {
+        _previewLockToastBorder ??= this.FindControl<Border>("PreviewLockToastBorder");
+        _previewLockToastText ??= this.FindControl<TextBlock>("PreviewLockToastText");
+        if (_previewLockToastBorder == null || _previewLockToastText == null) return;
+
+        _previewLockToastText.Text = message;
+        _previewLockToastBorder.IsVisible = true;
+
+        _previewLockToastTimer ??= new Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2.5)
+        };
+        _previewLockToastTimer.Tick -= OnPreviewLockToastTimerTick;
+        _previewLockToastTimer.Tick += OnPreviewLockToastTimerTick;
+        _previewLockToastTimer.Stop();
+        _previewLockToastTimer.Start();
+    }
+
+    private void OnPreviewLockToastTimerTick(object? sender, EventArgs e)
+    {
+        _previewLockToastTimer?.Stop();
+        if (_previewLockToastBorder != null)
+            _previewLockToastBorder.IsVisible = false;
     }
 
     /// <summary>
@@ -918,6 +957,7 @@ public partial class PreView : UserControl
     {
         _resizeDebounce?.Stop();
         _resizeDebounce = null;
+        _previewLockToastTimer?.Stop();
         StopDisplayAreaSync();
     }
 

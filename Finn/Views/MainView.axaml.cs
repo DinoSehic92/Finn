@@ -990,6 +990,7 @@ public partial class MainView : UserControl
     private void SetPreviewRequestMain(object? sender, RoutedEventArgs r)
     {
         if (_isUpdatingSelection) return;
+        if (_ctx.PreviewVM.IsPreviewLocked) return;
         ClearOtherGridSelections(FileGrid);
         _ctx.ClearSelectedVersion();
         var file = FileGrid.SelectedItem as FileData;
@@ -999,6 +1000,8 @@ public partial class MainView : UserControl
 
     private async void RequestPreview(FileData? file)
     {
+        if (_ctx.PreviewVM.IsPreviewLocked) return;
+
         // Block automatic file switching while in Dual-File or Diff mode.
         // The user must explicitly close these modes first, or use the
         // View Left/Right context menu items in Dual-File mode.

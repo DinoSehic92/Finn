@@ -266,6 +266,13 @@ namespace Finn.ViewModels
             set => SetProperty(ref requestFile, value);
         }
 
+        private bool _isPreviewLocked;
+        public bool IsPreviewLocked
+        {
+            get => _isPreviewLocked;
+            set => SetProperty(ref _isPreviewLocked, value);
+        }
+
         private AvaloniaList<FileData> recentFiles;
         public AvaloniaList<FileData> RecentFiles
         {

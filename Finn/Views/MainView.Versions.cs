@@ -197,6 +197,14 @@ public partial class MainView
 
     private void OnPreviewPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(PreviewViewModel.IsPreviewLocked)
+            && sender is PreviewViewModel { IsPreviewLocked: false })
+        {
+            Dispatcher.UIThread.Post(
+                () => SetPreviewRequestMain(null, null!),
+                DispatcherPriority.Background);
+        }
+
         // Re-sync the layer list whenever the active layers change.
         // PropertyChanged may fire from a background thread (e.g. CurrentFile
         // is set after ConfigureAwait(false) in SetFileAsync), so dispatch
