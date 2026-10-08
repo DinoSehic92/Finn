@@ -45,10 +45,10 @@ public partial class PreView
         if (sender is Button btn && btn.Tag is string colorName)
         {
             var color = ColorPalette.GetValueOrDefault(colorName, ColorPalette["Red"]);
-            MuPDFRenderer.StrokeColor = color;
+            AnnotationRenderer.StrokeColor = color;
 
-            if (MuPDFRenderer.ActiveLayer != null)
-                MuPDFRenderer.ActiveLayer.Color = color;
+            if (AnnotationRenderer.ActiveLayer != null)
+                AnnotationRenderer.ActiveLayer.Color = color;
 
             // Apply to currently selected annotation
             ApplyColorToSelection(color);
@@ -56,7 +56,7 @@ public partial class PreView
             SetActiveColorButton(btn);
             UpdateColorIndicator(color);
             UpdateAnnotationStatusHint();
-            MuPDFRenderer.Focus();
+            AnnotationRenderer.Focus();
         }
     }
 
@@ -68,7 +68,7 @@ public partial class PreView
         {
             if (_propertyPanelTarget == null)
             {
-                var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+                var snap = AnnotationRenderer.CapturePropertySnapshot(selItem);
                 if (snap != null) snaps.Add(snap);
             }
             switch (selItem)
@@ -80,9 +80,9 @@ public partial class PreView
             }
         }
         if (snaps.Count > 0)
-            MuPDFRenderer.PushGroupPropertyUndo(snaps);
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+            AnnotationRenderer.PushGroupPropertyUndo(snaps);
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void OnAnnotateToolSelect(object sender, RoutedEventArgs e)
@@ -93,15 +93,15 @@ public partial class PreView
             ApplyToolSwitch(tool);
         }
         UpdateAnnotationStatusHint();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void OnAnnotateWidth(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string widthStr && double.TryParse(widthStr, out double w))
         {
-            if (MuPDFRenderer.IsHighlighterMode) return;
-            MuPDFRenderer.StrokeWidth = w;
+            if (AnnotationRenderer.IsHighlighterMode) return;
+            AnnotationRenderer.StrokeWidth = w;
             _normalStrokeWidth = w;
 
             // Apply to currently selected annotations
@@ -110,19 +110,19 @@ public partial class PreView
             {
                 if (selItem is InkStroke ink)
                 {
-                    var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    var snap = AnnotationRenderer.CapturePropertySnapshot(ink);
                     if (snap != null) snaps.Add(snap);
                     ink.Width = w; ink.InvalidatePen();
                 }
                 else if (selItem is ShapeAnnotation sh)
                 {
-                    var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    var snap = AnnotationRenderer.CapturePropertySnapshot(sh);
                     if (snap != null) snaps.Add(snap);
                     sh.StrokeWidth = w; sh.InvalidatePen();
                 }
             }
-            if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
-            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+            if (snaps.Count > 0) AnnotationRenderer.PushGroupPropertyUndo(snaps);
+            if (_selectedAnnotations.Count > 0) { AnnotationRenderer.InvalidateVisual(); AnnotationRenderer.NotifyAnnotationChanged(); }
 
             SetActiveWidthButton(btn);
             UpdateBrushSizeIndicator(w);
@@ -135,7 +135,7 @@ public partial class PreView
         if (sender is Button btn && btn.Tag is string patternName
             && Enum.TryParse<LineDashPattern>(patternName, out var pattern))
         {
-            MuPDFRenderer.StrokeDashPattern = pattern;
+            AnnotationRenderer.StrokeDashPattern = pattern;
 
             // Apply to currently selected annotations
             // Apply to currently selected annotations
@@ -144,19 +144,19 @@ public partial class PreView
             {
                 if (selItem is InkStroke ink)
                 {
-                    var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    var snap = AnnotationRenderer.CapturePropertySnapshot(ink);
                     if (snap != null) snaps.Add(snap);
                     ink.DashPattern = pattern; ink.InvalidatePen();
                 }
                 else if (selItem is ShapeAnnotation sh)
                 {
-                    var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    var snap = AnnotationRenderer.CapturePropertySnapshot(sh);
                     if (snap != null) snaps.Add(snap);
                     sh.DashPattern = pattern; sh.InvalidatePen();
                 }
             }
-            if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
-            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+            if (snaps.Count > 0) AnnotationRenderer.PushGroupPropertyUndo(snaps);
+            if (_selectedAnnotations.Count > 0) { AnnotationRenderer.InvalidateVisual(); AnnotationRenderer.NotifyAnnotationChanged(); }
 
             SetActiveDashButton(btn);
             UpdateDashIndicator(pattern);
@@ -177,7 +177,7 @@ public partial class PreView
     {
         if (sender is Button btn && btn.Tag is string radiusStr && double.TryParse(radiusStr, out double r))
         {
-            MuPDFRenderer.ShapeCornerRadius = r;
+            AnnotationRenderer.ShapeCornerRadius = r;
 
             // Apply to currently selected annotations using the same immediate
             // capture→mutate→push pattern as OnAnnotateWidth / OnAnnotateDashPattern.
@@ -188,21 +188,21 @@ public partial class PreView
             {
                 if (selItem is ShapeAnnotation sh && sh.ShapeType == InlineAnnotationTool.Rectangle)
                 {
-                    var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                    var snap = AnnotationRenderer.CapturePropertySnapshot(sh);
                     if (snap != null) snaps.Add(snap);
                     sh.CornerRadius = r;
                     sh.InvalidatePen();
                 }
                 else if (selItem is InkStroke { IsPolyline: true } ink)
                 {
-                    var snap = MuPDFRenderer.CapturePropertySnapshot(ink);
+                    var snap = AnnotationRenderer.CapturePropertySnapshot(ink);
                     if (snap != null) snaps.Add(snap);
                     ink.CornerRadius = r;
                     ink.InvalidatePen();
                 }
             }
-            if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
-            if (_selectedAnnotations.Count > 0) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+            if (snaps.Count > 0) AnnotationRenderer.PushGroupPropertyUndo(snaps);
+            if (_selectedAnnotations.Count > 0) { AnnotationRenderer.InvalidateVisual(); AnnotationRenderer.NotifyAnnotationChanged(); }
 
             SetActiveButton(ref _activeCornerRadiusButton, btn);
             UpdateCornerIndicator(r);
@@ -259,10 +259,10 @@ public partial class PreView
     /// </summary>
     private void HighlightInitialButtons()
     {
-        SetActiveToolButton(FindToolbarButtonByTag(MuPDFRenderer.ActiveTool.ToString()));
+        SetActiveToolButton(FindToolbarButtonByTag(AnnotationRenderer.ActiveTool.ToString()));
         SetActiveColorButton(FindToolbarButtonByTag("Red"));
-        SetActiveWidthButton(FindToolbarButtonByTag(((int)MuPDFRenderer.StrokeWidth).ToString()));
-        SetActiveDashButton(FindToolbarButtonByTag(MuPDFRenderer.StrokeDashPattern.ToString()));
+        SetActiveWidthButton(FindToolbarButtonByTag(((int)AnnotationRenderer.StrokeWidth).ToString()));
+        SetActiveDashButton(FindToolbarButtonByTag(AnnotationRenderer.StrokeDashPattern.ToString()));
         SyncFlyoutIndicators();
         UpdateCornerRadiusVisibility();
         UpdateFontSizeVisibility();
@@ -274,10 +274,10 @@ public partial class PreView
     /// </summary>
     private void SyncWidthState()
     {
-        if (!MuPDFRenderer.IsHighlighterMode)
-            _normalStrokeWidth = MuPDFRenderer.StrokeWidth;
-        SetActiveWidthButton(FindToolbarButtonByTag(((int)MuPDFRenderer.StrokeWidth).ToString()));
-        UpdateBrushSizeIndicator(MuPDFRenderer.StrokeWidth);
+        if (!AnnotationRenderer.IsHighlighterMode)
+            _normalStrokeWidth = AnnotationRenderer.StrokeWidth;
+        SetActiveWidthButton(FindToolbarButtonByTag(((int)AnnotationRenderer.StrokeWidth).ToString()));
+        UpdateBrushSizeIndicator(AnnotationRenderer.StrokeWidth);
     }
 
     /// <summary>Updates the color flyout button indicator to reflect the current color.</summary>
@@ -319,19 +319,19 @@ public partial class PreView
     /// <summary>Syncs all flyout indicators to the current renderer state.</summary>
     private void SyncFlyoutIndicators()
     {
-        UpdateColorIndicator(MuPDFRenderer.StrokeColor);
-        UpdateBrushSizeIndicator(MuPDFRenderer.StrokeWidth);
-        UpdateDashIndicator(MuPDFRenderer.StrokeDashPattern);
-        UpdateCornerIndicator(MuPDFRenderer.ShapeCornerRadius);
+        UpdateColorIndicator(AnnotationRenderer.StrokeColor);
+        UpdateBrushSizeIndicator(AnnotationRenderer.StrokeWidth);
+        UpdateDashIndicator(AnnotationRenderer.StrokeDashPattern);
+        UpdateCornerIndicator(AnnotationRenderer.ShapeCornerRadius);
     }
 
-    private void OnAnnotateUndo(object sender, RoutedEventArgs e) { MuPDFRenderer.Undo(); MuPDFRenderer.Focus(); }
+    private void OnAnnotateUndo(object sender, RoutedEventArgs e) { AnnotationRenderer.Undo(); AnnotationRenderer.Focus(); }
 
-    private void OnAnnotateRedo(object sender, RoutedEventArgs e) { MuPDFRenderer.Redo(); MuPDFRenderer.Focus(); }
+    private void OnAnnotateRedo(object sender, RoutedEventArgs e) { AnnotationRenderer.Redo(); AnnotationRenderer.Focus(); }
 
     private async void OnAnnotateClear(object sender, RoutedEventArgs e)
     {
-        int count = MuPDFRenderer.CurrentPageAnnotationCount;
+        int count = AnnotationRenderer.CurrentPageAnnotationCount;
         if (count == 0) return;
         var owner = Avalonia.Controls.TopLevel.GetTopLevel(this) as Avalonia.Controls.Window;
         if (owner == null) return;
@@ -340,13 +340,13 @@ public partial class PreView
         if (mainVm == null) return;
         await mainVm.ConfirmDeleteDia(owner);
         if (!mainVm.Confirmed) return;
-        MuPDFRenderer.ClearPage();
+        AnnotationRenderer.ClearPage();
     }
 
     private void OnOpacitySliderChanged(object? sender, RoutedEventArgs e)
     {
         if (OpacitySlider == null) return;
-        MuPDFRenderer.StrokeOpacity = OpacitySlider.Value;
+        AnnotationRenderer.StrokeOpacity = OpacitySlider.Value;
         if (_selectedAnnotations.Count == 0) return;
 
         var now = DateTime.UtcNow;
@@ -362,11 +362,11 @@ public partial class PreView
             _opacityUndoSelection = new HashSet<object>(_selectedAnnotations);
             foreach (var selItem in _selectedAnnotations)
             {
-                var snap = MuPDFRenderer.CapturePropertySnapshot(selItem);
+                var snap = AnnotationRenderer.CapturePropertySnapshot(selItem);
                 if (snap != null) _opacityUndoSnapshots.Add(snap);
             }
             if (_opacityUndoSnapshots.Count > 0)
-                MuPDFRenderer.PushGroupPropertyUndo(_opacityUndoSnapshots);
+                AnnotationRenderer.PushGroupPropertyUndo(_opacityUndoSnapshots);
         }
 
         _opacityLastChange = now;
@@ -380,16 +380,16 @@ public partial class PreView
                 case TextAnnotation t: t.Opacity = OpacitySlider.Value; break;
             }
         }
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void OnAnnotateCustomColor(object sender, RoutedEventArgs e)
     {
         // Open a simple color input via TextBox — parse hex like "#FF6600"
-        var hex = "#" + MuPDFRenderer.StrokeColor.R.ToString("X2")
-                      + MuPDFRenderer.StrokeColor.G.ToString("X2")
-                      + MuPDFRenderer.StrokeColor.B.ToString("X2");
+        var hex = "#" + AnnotationRenderer.StrokeColor.R.ToString("X2")
+                      + AnnotationRenderer.StrokeColor.G.ToString("X2")
+                      + AnnotationRenderer.StrokeColor.B.ToString("X2");
         ColorInputBox.Text = hex;
         ColorInputCanvas.IsVisible = true;
         ColorInputBox.Focus();
@@ -400,9 +400,9 @@ public partial class PreView
     {
         if (Color.TryParse(ColorInputBox.Text?.Trim(), out var c))
         {
-            MuPDFRenderer.StrokeColor = c;
-            if (MuPDFRenderer.ActiveLayer != null)
-                MuPDFRenderer.ActiveLayer.Color = c;
+            AnnotationRenderer.StrokeColor = c;
+            if (AnnotationRenderer.ActiveLayer != null)
+                AnnotationRenderer.ActiveLayer.Color = c;
             // Apply to any selected annotations (same as palette color path)
             ApplyColorToSelection(c);
             // Clear any active palette highlight — custom color doesn't match a preset
@@ -410,13 +410,13 @@ public partial class PreView
             UpdateColorIndicator(c);
         }
         ColorInputCanvas.IsVisible = false;
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void OnColorInputCancel(object sender, RoutedEventArgs e)
     {
         ColorInputCanvas.IsVisible = false;
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void OnColorInputKeyDown(object? sender, KeyEventArgs e)
@@ -427,7 +427,7 @@ public partial class PreView
 
     private void UpdateAnnotationCountBadge()
     {
-        if (MuPDFRenderer.ActiveLayer is { } layer)
+        if (AnnotationRenderer.ActiveLayer is { } layer)
         {
             int count = layer.TotalCount;
             AnnotationCountBadge.Text = count > 0 ? $"{count}" : "";
@@ -440,22 +440,25 @@ public partial class PreView
 
     private void UpdateFontSizeLabel()
     {
-        FontSizeLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
+        FontSizeLabel.Text = $"{AnnotationRenderer.TextFontSize}pt";
         // Also sync the property panel label if it is open
         var propLabel = _propertyFontSizeLabel ??= this.FindControl<TextBlock>("PropertyFontSizeLabel");
-        if (propLabel != null) propLabel.Text = $"{MuPDFRenderer.TextFontSize}pt";
+        if (propLabel != null) propLabel.Text = $"{AnnotationRenderer.TextFontSize}pt";
     }
 
     private void UpdateUndoRedoButtons()
     {
-        bool canUndo = MuPDFRenderer.CanUndoCurrentPage;
-        bool canRedo = MuPDFRenderer.CanRedoCurrentPage;
+        bool canUndo = AnnotationRenderer.CanUndoCurrentPage;
+        bool canRedo = AnnotationRenderer.CanRedoCurrentPage;
         if (_undoBtn != null) { _undoBtn.Opacity = canUndo ? 1.0 : 0.35; _undoBtn.IsEnabled = canUndo; }
         if (_redoBtn != null) { _redoBtn.Opacity = canRedo ? 1.0 : 0.35; _redoBtn.IsEnabled = canRedo; }
     }
 
     private void OnAnnotationChanged()
     {
+        MuPDFRenderer.InvalidateVisual();
+        if (pwr.TwopageMode && !pwr.DualFileMode)
+            MuPDFRendererSecondary.InvalidateVisual();
         UpdateAnnotationCountBadge();
         UpdateUndoRedoButtons();
         UpdateActiveLayerLabel();
@@ -470,7 +473,7 @@ public partial class PreView
     private void RebuildLayerPanel()
     {
         var panel = this.FindControl<StackPanel>("LayerPickerPanel");
-        var renderer = MuPDFRenderer;
+        var renderer = AnnotationRenderer;
         if (panel == null || renderer.Layers.Count == 0) return;
 
         panel.Children.Clear();
@@ -722,7 +725,7 @@ public partial class PreView
     /// <summary>Syncs the layer label to the current active layer.</summary>
     private void UpdateActiveLayerLabel()
     {
-        var layer = MuPDFRenderer.ActiveLayer;
+        var layer = AnnotationRenderer.ActiveLayer;
         if (layer == null) return;
         if (ActiveLayerLabel != null)
             ActiveLayerLabel.Text = layer.IsLocked ? $"{layer.Name} \U0001F512" : layer.Name;
@@ -731,7 +734,7 @@ public partial class PreView
     /// <summary>Adds a new annotation layer with an auto-incremented name and makes it active.</summary>
     private void OnAddLayer(object? sender, RoutedEventArgs e)
     {
-        int n = MuPDFRenderer.Layers.Count + 1;
+        int n = AnnotationRenderer.Layers.Count + 1;
         // Pick a cycling accent color for the new layer
         var palette = new[]
         {
@@ -742,17 +745,17 @@ public partial class PreView
             Avalonia.Media.Color.FromRgb(38, 166, 154),   // teal
         };
         var color = palette[(n - 1) % palette.Length];
-        MuPDFRenderer.AddLayer($"Layer {n}", color);
+        AnnotationRenderer.AddLayer($"Layer {n}", color);
         UpdateActiveLayerLabel();
-        MuPDFRenderer.NotifyAnnotationChanged();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.Focus();
     }
 
     /// <summary>Removes the active annotation layer after confirmation when it contains annotations.</summary>
     private async void OnRemoveLayer(object? sender, RoutedEventArgs e)
     {
-        var layer = MuPDFRenderer.ActiveLayer;
-        if (layer == null || MuPDFRenderer.Layers.Count <= 1) return;
+        var layer = AnnotationRenderer.ActiveLayer;
+        if (layer == null || AnnotationRenderer.Layers.Count <= 1) return;
 
         bool hasAnnotations = layer.StrokeCount > 0 || layer.ShapeCount > 0
                            || layer.TextCount > 0 || layer.MeasurementCount > 0;
@@ -768,9 +771,9 @@ public partial class PreView
             if (!mainVm.Confirmed) return;
         }
 
-        MuPDFRenderer.RemoveLayer(layer);
+        AnnotationRenderer.RemoveLayer(layer);
         UpdateActiveLayerLabel();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void OnFontSizeDecrease(object sender, RoutedEventArgs e)
@@ -787,7 +790,7 @@ public partial class PreView
     /// </summary>
     private void AdjustFontSize(int delta)
     {
-        MuPDFRenderer.TextFontSize = Math.Clamp(MuPDFRenderer.TextFontSize + delta, 6, 72);
+        AnnotationRenderer.TextFontSize = Math.Clamp(AnnotationRenderer.TextFontSize + delta, 6, 72);
         UpdateFontSizeLabel();
 
         if (_selectedAnnotation is not TextAnnotation t) return;
@@ -799,23 +802,23 @@ public partial class PreView
         if (!sameTarget || !withinWindow)
         {
             // Begin a new coalesce window: capture the pre-change snapshot.
-            _fontSizeUndoSnapshot = MuPDFRenderer.CapturePropertySnapshot(t);
+            _fontSizeUndoSnapshot = AnnotationRenderer.CapturePropertySnapshot(t);
             _fontSizeUndoTarget = t;
             // Update size AFTER capture so the snapshot holds the old value.
-            t.FontSize = MuPDFRenderer.TextFontSize;
+            t.FontSize = AnnotationRenderer.TextFontSize;
             if (_fontSizeUndoSnapshot != null)
-                MuPDFRenderer.PushPropertyUndo(_fontSizeUndoSnapshot);
+                AnnotationRenderer.PushPropertyUndo(_fontSizeUndoSnapshot);
         }
         else
         {
             // Still within the coalesce window — just move the annotation forward,
             // no new undo entry is pushed.
-            t.FontSize = MuPDFRenderer.TextFontSize;
+            t.FontSize = AnnotationRenderer.TextFontSize;
         }
 
         _fontSizeLastChange = now;
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void OnPropertyFontSizeDecrease(object sender, RoutedEventArgs e) => AdjustFontSize(-2);
@@ -823,7 +826,7 @@ public partial class PreView
 
     private void OnToggleFill(object sender, RoutedEventArgs e)
     {
-        MuPDFRenderer.IsFilledMode = !MuPDFRenderer.IsFilledMode;
+        AnnotationRenderer.IsFilledMode = !AnnotationRenderer.IsFilledMode;
 
         // Apply to all fillable items in the current selection (matches color/width/dash multi-select behaviour)
         var snaps = new List<object>();
@@ -835,25 +838,25 @@ public partial class PreView
                                 or InlineAnnotationTool.Ellipse
                                 or InlineAnnotationTool.RevisionCloud)
             {
-                var snap = MuPDFRenderer.CapturePropertySnapshot(sh);
+                var snap = AnnotationRenderer.CapturePropertySnapshot(sh);
                 if (snap != null) snaps.Add(snap);
-                sh.IsFilled = MuPDFRenderer.IsFilledMode;
+                sh.IsFilled = AnnotationRenderer.IsFilledMode;
                 sh.InvalidatePen();
                 anyChanged = true;
             }
             else if (selItem is InkStroke { IsPolyline: true, IsClosed: true } poly)
             {
-                var snap = MuPDFRenderer.CapturePropertySnapshot(poly);
+                var snap = AnnotationRenderer.CapturePropertySnapshot(poly);
                 if (snap != null) snaps.Add(snap);
-                poly.IsFilled = MuPDFRenderer.IsFilledMode;
+                poly.IsFilled = AnnotationRenderer.IsFilledMode;
                 poly.InvalidatePen();
                 anyChanged = true;
             }
         }
-        if (snaps.Count > 0) MuPDFRenderer.PushGroupPropertyUndo(snaps);
-        if (anyChanged) { MuPDFRenderer.InvalidateVisual(); MuPDFRenderer.NotifyAnnotationChanged(); }
+        if (snaps.Count > 0) AnnotationRenderer.PushGroupPropertyUndo(snaps);
+        if (anyChanged) { AnnotationRenderer.InvalidateVisual(); AnnotationRenderer.NotifyAnnotationChanged(); }
 
-        SyncFillToggleButton(MuPDFRenderer.IsFilledMode);
+        SyncFillToggleButton(AnnotationRenderer.IsFilledMode);
     }
 
     /// <summary>Applies accent-color active styling to a toggle button, or resets it to transparent.</summary>
@@ -877,11 +880,11 @@ public partial class PreView
 
     private void OnToggleGrid(object sender, RoutedEventArgs e)
     {
-        MuPDFRenderer.SnapToGrid = !MuPDFRenderer.SnapToGrid;
-        SyncGridToggleButton(MuPDFRenderer.SnapToGrid);
-        MuPDFRenderer.InvalidateVisual();
+        AnnotationRenderer.SnapToGrid = !AnnotationRenderer.SnapToGrid;
+        SyncGridToggleButton(AnnotationRenderer.SnapToGrid);
+        AnnotationRenderer.InvalidateVisual();
         UpdateAnnotationStatusHint();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     /// <summary>Syncs the grid toggle button visual state to the given value.</summary>
@@ -892,7 +895,7 @@ public partial class PreView
         _showAnnotationStatusHints = !_showAnnotationStatusHints;
         SyncStatusHintsToggleButton();
         UpdateAnnotationStatusHint();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void SyncStatusHintsToggleButton()
@@ -936,8 +939,8 @@ public partial class PreView
 
         // Use the property panel with text row visible, but hide non-text rows
         _propertyPanelTarget = null;
-        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 240));
-        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y, MuPDFRenderer.Bounds.Height - 100));
+        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, AnnotationRenderer.Bounds.Width - 240));
+        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y, AnnotationRenderer.Bounds.Height - 100));
         PropertyStrokeRow.IsVisible = false;
         PropertyFillBtn.IsVisible = false;
         PropertyCornerRadiusRow.IsVisible = false;
@@ -950,10 +953,10 @@ public partial class PreView
         // Give the TextBox a finite width matching the annotation's intended render width
         // (TextMaxWidth in PDF units → screen pixels). Without this the TextBox has no
         // width constraint inside the Canvas and TextWrapping="Wrap" never activates.
-        var da = MuPDFRenderer.DisplayArea;
-        var bounds = MuPDFRenderer.Bounds;
+        var da = AnnotationRenderer.DisplayArea;
+        var bounds = AnnotationRenderer.Bounds;
         if (da.Width > 0 && bounds.Width > 0)
-            PropertyTextBox.Width = Math.Clamp(MuPDFRenderer.TextMaxWidth / da.Width * bounds.Width, 120, 400);
+            PropertyTextBox.Width = Math.Clamp(AnnotationRenderer.TextMaxWidth / da.Width * bounds.Width, 120, 400);
         else
             PropertyTextBox.Width = 220;
 
@@ -967,15 +970,15 @@ public partial class PreView
         _textPlacementPdfPoint = existing.Position;
         _editingTextAnnotation = existing;
         // Position the property panel directly over the annotation for in-place editing
-        var da = MuPDFRenderer.DisplayArea;
-        var bounds = MuPDFRenderer.Bounds;
+        var da = AnnotationRenderer.DisplayArea;
+        var bounds = AnnotationRenderer.Bounds;
         if (da.Width > 0 && bounds.Width > 0)
         {
             double annotX = (existing.Position.X - da.X) / da.Width * bounds.Width;
             double annotY = (existing.Position.Y - da.Y) / da.Height * bounds.Height;
             screenPos = new Point(annotX, annotY);
             // Match text input width to annotation's MaxWidth for WYSIWYG editing
-            double pdfWidth = existing.MaxWidth > 0 ? existing.MaxWidth : MuPDFRenderer.TextMaxWidth;
+            double pdfWidth = existing.MaxWidth > 0 ? existing.MaxWidth : AnnotationRenderer.TextMaxWidth;
             PropertyTextBox.Width = Math.Clamp(pdfWidth / da.Width * bounds.Width, 120, 400);
         }
         // Show the property panel with text editing for the annotation
@@ -993,30 +996,30 @@ public partial class PreView
                 {
                     bool isNewPlacement2 = false;
                     CloseTextInput();
-                    MuPDFRenderer.DeleteAnnotation(_editingTextAnnotation);
+                    AnnotationRenderer.DeleteAnnotation(_editingTextAnnotation);
                     _selectedAnnotation = null;
                     _selectedAnnotations.Clear();
-                    MuPDFRenderer.ClearSelectHighlight();
-                    MuPDFRenderer.InvalidateVisual();
+                    AnnotationRenderer.ClearSelectHighlight();
+                    AnnotationRenderer.InvalidateVisual();
                     UpdateAnnotationStatusHint();
                     return;
                 }
-                var snap = MuPDFRenderer.CapturePropertySnapshot(_editingTextAnnotation);
+                var snap = AnnotationRenderer.CapturePropertySnapshot(_editingTextAnnotation);
                 _editingTextAnnotation.Text = PropertyTextBox.Text;
-                _editingTextAnnotation.MaxWidth = MuPDFRenderer.TextMaxWidth;
-                MuPDFRenderer.AutoSizeTextWidth(_editingTextAnnotation);
-                if (snap != null) MuPDFRenderer.PushPropertyUndo(snap);
+                _editingTextAnnotation.MaxWidth = AnnotationRenderer.TextMaxWidth;
+                AnnotationRenderer.AutoSizeTextWidth(_editingTextAnnotation);
+                if (snap != null) AnnotationRenderer.PushPropertyUndo(snap);
             }
             else if (!string.IsNullOrWhiteSpace(PropertyTextBox.Text))
             {
                 // New placement: ignore empty input
                 if (_pendingStickyNote)
-                    MuPDFRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                    AnnotationRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
                 else if (_pendingArrowOrigin.HasValue)
-                    MuPDFRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
+                    AnnotationRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
                         _textPlacementPdfPoint.Value, PropertyTextBox.Text);
                 else
-                    MuPDFRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                    AnnotationRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
             }
         }
 
@@ -1026,7 +1029,7 @@ public partial class PreView
         CloseTextInput();
         if (isNewPlacement)
             ApplyToolSwitch(InlineAnnotationTool.Select);
-        MuPDFRenderer.InvalidateVisual();
+        AnnotationRenderer.InvalidateVisual();
         UpdateAnnotationStatusHint();
     }
 
@@ -1078,21 +1081,21 @@ public partial class PreView
 
         if (_calibrationReferenceMeasurement != null)
         {
-            MuPDFRenderer.CalibrateFromMeasurement(_calibrationReferenceMeasurement, realMm);
+            AnnotationRenderer.CalibrateFromMeasurement(_calibrationReferenceMeasurement, realMm);
             _calibrationReferenceMeasurement = null;
         }
         else
         {
-            MuPDFRenderer.CalibrateFromLastMeasurement(realMm);
+            AnnotationRenderer.CalibrateFromLastMeasurement(realMm);
         }
 
-        if (MuPDFRenderer.HasInconsistentMeasurementScales())
-            MuPDFRenderer.NormalizeMeasurementScales();
+        if (AnnotationRenderer.HasInconsistentMeasurementScales())
+            AnnotationRenderer.NormalizeMeasurementScales();
         CalibrationCanvas.IsVisible = false;
         _calibrationMode = false;
         ApplyToolSwitch(InlineAnnotationTool.Select);
         UpdateAnnotationStatusHint();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void OnCalibrationCancel(object sender, RoutedEventArgs e)
@@ -1101,7 +1104,7 @@ public partial class PreView
         _calibrationMode = false;
         _calibrationReferenceMeasurement = null;
         UpdateAnnotationStatusHint();
-        MuPDFRenderer.Focus();
+        AnnotationRenderer.Focus();
     }
 
     private void OnPropertyCalibrate(object? sender, RoutedEventArgs e)
@@ -1132,8 +1135,8 @@ public partial class PreView
         // Use approximate dialog size; Avalonia measures on next layout pass
         const double dialogWidth = 250;
         const double dialogHeight = 110;
-        double cx = Math.Max(0, (MuPDFRenderer.Bounds.Width - dialogWidth) / 2);
-        double cy = Math.Max(0, (MuPDFRenderer.Bounds.Height - dialogHeight) / 2);
+        double cx = Math.Max(0, (AnnotationRenderer.Bounds.Width - dialogWidth) / 2);
+        double cy = Math.Max(0, (AnnotationRenderer.Bounds.Height - dialogHeight) / 2);
         Canvas.SetLeft(CalibrationBorder, cx);
         Canvas.SetTop(CalibrationBorder, cy);
     }
@@ -1154,7 +1157,7 @@ public partial class PreView
 
     private void OnPropertyDuplicate(object sender, RoutedEventArgs e)
     {
-        if (_propertyPanelTarget != null && !MuPDFRenderer.IsActiveLayerLocked)
+        if (_propertyPanelTarget != null && !AnnotationRenderer.IsActiveLayerLocked)
         {
             _annotationClipboard = _propertyPanelTarget;
             PasteAnnotation();
@@ -1175,7 +1178,7 @@ public partial class PreView
     {
         if (_propertyPanelTarget != null)
         {
-            MuPDFRenderer.BringToFront(_propertyPanelTarget);
+            AnnotationRenderer.BringToFront(_propertyPanelTarget);
             if (pwr != null) pwr.StatusMessage = "Annotation moved to front";
         }
         ClosePropertyPanel();
@@ -1185,7 +1188,7 @@ public partial class PreView
     {
         if (_propertyPanelTarget != null)
         {
-            MuPDFRenderer.SendToBack(_propertyPanelTarget);
+            AnnotationRenderer.SendToBack(_propertyPanelTarget);
             if (pwr != null) pwr.StatusMessage = "Annotation sent to back";
         }
         ClosePropertyPanel();
@@ -1194,7 +1197,7 @@ public partial class PreView
     private void OnPropertyClosePolyline(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget is InkStroke { IsPolyline: true } poly)
-            MuPDFRenderer.TogglePolylineClosed(poly);
+            AnnotationRenderer.TogglePolylineClosed(poly);
         ClosePropertyPanel();
     }
 
@@ -1202,10 +1205,10 @@ public partial class PreView
     {
         if (_propertyPanelTarget != null)
         {
-            MuPDFRenderer.DeleteAnnotation(_propertyPanelTarget);
+            AnnotationRenderer.DeleteAnnotation(_propertyPanelTarget);
             _selectedAnnotation = null;
             _selectedAnnotations.Clear();
-            MuPDFRenderer.ClearSelectHighlight();
+            AnnotationRenderer.ClearSelectHighlight();
         }
         ClosePropertyPanel();
     }
@@ -1216,7 +1219,7 @@ public partial class PreView
         {
             _spaceHeld = false;
             if (!_middlePanning)
-                MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
+                AnnotationRenderer.Cursor = GetToolCursor(AnnotationRenderer.ActiveTool);
             e.Handled = true;
         }
     }
@@ -1245,7 +1248,7 @@ public partial class PreView
         }
         else
         {
-            var tool = MuPDFRenderer.ActiveTool;
+            var tool = AnnotationRenderer.ActiveTool;
             // Area measure tool creates area polylines — exclude it
             visible = tool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Polyline;
         }
@@ -1267,7 +1270,7 @@ public partial class PreView
         }
         else
         {
-            var tool = MuPDFRenderer.ActiveTool;
+            var tool = AnnotationRenderer.ActiveTool;
             visible = tool is InlineAnnotationTool.Text
                            or InlineAnnotationTool.ArrowText
                            or InlineAnnotationTool.StickyNote;
@@ -1305,7 +1308,7 @@ public partial class PreView
         {
             var tag = MatchColorTag(color.Value);
             SetActiveColorButton(tag != null ? FindToolbarButtonByTag(tag) : null);
-            MuPDFRenderer.StrokeColor = color.Value;
+            AnnotationRenderer.StrokeColor = color.Value;
             UpdateColorIndicator(color.Value);
         }
 
@@ -1313,8 +1316,8 @@ public partial class PreView
         if (width.HasValue)
         {
             SetActiveWidthButton(FindToolbarButtonByTag(((int)width.Value).ToString()));
-            if (!MuPDFRenderer.IsHighlighterMode)
-            { MuPDFRenderer.StrokeWidth = width.Value; _normalStrokeWidth = width.Value; }
+            if (!AnnotationRenderer.IsHighlighterMode)
+            { AnnotationRenderer.StrokeWidth = width.Value; _normalStrokeWidth = width.Value; }
             UpdateBrushSizeIndicator(width.Value);
         }
 
@@ -1322,7 +1325,7 @@ public partial class PreView
         if (dash.HasValue)
         {
             SetActiveDashButton(FindToolbarButtonByTag(dash.Value.ToString()));
-            MuPDFRenderer.StrokeDashPattern = dash.Value;
+            AnnotationRenderer.StrokeDashPattern = dash.Value;
             UpdateDashIndicator(dash.Value);
         }
 
@@ -1333,7 +1336,7 @@ public partial class PreView
         // Sync font size for text annotations
         if (_selectedAnnotation is TextAnnotation txt)
         {
-            MuPDFRenderer.TextFontSize = txt.FontSize;
+            AnnotationRenderer.TextFontSize = txt.FontSize;
             UpdateFontSizeLabel();
         }
 
@@ -1343,12 +1346,12 @@ public partial class PreView
                                or InlineAnnotationTool.Ellipse
                                or InlineAnnotationTool.RevisionCloud)
         {
-            MuPDFRenderer.IsFilledMode = shape.IsFilled;
+            AnnotationRenderer.IsFilledMode = shape.IsFilled;
             SyncFillToggleButton(shape.IsFilled);
         }
         else if (_selectedAnnotation is InkStroke { IsPolyline: true, IsClosed: true } closedPoly)
         {
-            MuPDFRenderer.IsFilledMode = closedPoly.IsFilled;
+            AnnotationRenderer.IsFilledMode = closedPoly.IsFilled;
             SyncFillToggleButton(closedPoly.IsFilled);
         }
 
@@ -1366,8 +1369,8 @@ public partial class PreView
         _propertyPanelTarget = item;
         SelectAnnotation(item);
 
-        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, MuPDFRenderer.Bounds.Width - 220));
-        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, MuPDFRenderer.Bounds.Height - 100));
+        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, AnnotationRenderer.Bounds.Width - 220));
+        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, AnnotationRenderer.Bounds.Height - 100));
 
         bool isDot = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
         bool isText = item is TextAnnotation;
@@ -1457,7 +1460,7 @@ public partial class PreView
         _propertyPanelTarget = null;
         FlushPropertySessionUndo();
         UpdateAnnotationStatusHint();
-        if (restoreFocus) MuPDFRenderer.Focus();
+        if (restoreFocus) AnnotationRenderer.Focus();
     }
 
     private void OnPropertyPanelBackgroundClick(object? sender, PointerPressedEventArgs e)
@@ -1482,7 +1485,7 @@ public partial class PreView
         foreach (var selItem in _selectedAnnotations)
             StagePropertyUndoSnapshot(selItem);
         ApplyColorToSelection(color);
-        MuPDFRenderer.StrokeColor = color;
+        AnnotationRenderer.StrokeColor = color;
         SetActiveColorButton(FindToolbarButtonByTag(colorName));
         UpdateAnnotationStatusHint();
     }
@@ -1500,11 +1503,11 @@ public partial class PreView
                 case ShapeAnnotation sh: sh.StrokeWidth = w; sh.InvalidatePen(); break;
             }
         }
-        MuPDFRenderer.StrokeWidth = w;
+        AnnotationRenderer.StrokeWidth = w;
         _normalStrokeWidth = w;
         SetActiveWidthButton(FindToolbarButtonByTag(widthStr));
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
     }
 
@@ -1522,10 +1525,10 @@ public partial class PreView
                 case ShapeAnnotation sh: sh.DashPattern = pattern; sh.InvalidatePen(); break;
             }
         }
-        MuPDFRenderer.StrokeDashPattern = pattern;
+        AnnotationRenderer.StrokeDashPattern = pattern;
         SetActiveDashButton(FindToolbarButtonByTag(patternName));
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
     }
 
@@ -1544,8 +1547,8 @@ public partial class PreView
         StagePropertyUndoSnapshot(t);
         t.HasFrame = !t.HasFrame;
         SyncFrameToggleButton(t.HasFrame);
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void SyncSolidBgToggleButton(bool solidBackground)
@@ -1563,8 +1566,8 @@ public partial class PreView
         StagePropertyUndoSnapshot(t);
         t.SolidBackground = !t.SolidBackground;
         SyncSolidBgToggleButton(t.SolidBackground);
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void OnPropertyFill(object sender, RoutedEventArgs e)
@@ -1576,7 +1579,7 @@ public partial class PreView
             sh.IsFilled = !sh.IsFilled;
             sh.InvalidatePen();
             isFilled = sh.IsFilled;
-            MuPDFRenderer.IsFilledMode = isFilled;
+            AnnotationRenderer.IsFilledMode = isFilled;
             SyncFillToggleButton(isFilled);
         }
         else if (_propertyPanelTarget is InkStroke { IsPolyline: true, IsClosed: true } poly)
@@ -1590,8 +1593,8 @@ public partial class PreView
 
         PropertyFillBtn.BorderThickness = isFilled ? new Thickness(2) : new Thickness(0);
         PropertyFillBtn.BorderBrush = isFilled ? Brushes.White : null;
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
     }
 
@@ -1612,10 +1615,10 @@ public partial class PreView
                     t.CornerRadius = r; break;
             }
         }
-        MuPDFRenderer.ShapeCornerRadius = r;
+        AnnotationRenderer.ShapeCornerRadius = r;
         SetActiveButton(ref _activeCornerRadiusButton, btn);
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
     }
 
@@ -1633,10 +1636,10 @@ public partial class PreView
                 case TextAnnotation t: t.Opacity = val; break;
             }
         }
-        MuPDFRenderer.StrokeOpacity = val;
+        AnnotationRenderer.StrokeOpacity = val;
         if (OpacitySlider != null) OpacitySlider.Value = val;
-        MuPDFRenderer.InvalidateVisual();
-        MuPDFRenderer.NotifyAnnotationChanged();
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
     }
 }

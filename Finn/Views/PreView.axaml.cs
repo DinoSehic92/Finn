@@ -256,10 +256,9 @@ public partial class PreView : UserControl
                 if (_annotateMode) UpdateUndoRedoButtons();
                 break;
 
-            case "CurrentPage2" when _diffSideBySideOpen:
-                // When navigating the B file independently in SBS mode,
-                // update the secondary renderer's stroke page so annotations
-                // (diff highlights, labels) draw on the correct page.
+            case "CurrentPage2" when _diffSideBySideOpen || pwr.TwopageMode:
+                // Keep the secondary annotation renderer aligned with its page
+                // in two-page mode and with the B file in diff side-by-side mode.
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec2)
                 {
                     sec2.SetStrokePage(pwr.CurrentPage2);
@@ -364,6 +363,8 @@ public partial class PreView : UserControl
             case nameof(pwr.DualFileMode):
             case nameof(pwr.IsViewingVersion):
             case nameof(pwr.Rotation):
+                if (e.PropertyName == nameof(pwr.TwopageMode))
+                    SyncLayers();
                 // These modes change the renderer layout or document in ways
                 // incompatible with an active screenshot selection.
                 if (_screenshotMode) DeactivateScreenshotMode();
@@ -392,13 +393,34 @@ public partial class PreView : UserControl
     {
         if (pwr == null || pwr.WhiteboardMode) return false;
         var layers = pwr.CurrentFile?.AnnotationLayers;
+        bool changed = false;
         if (layers != MuPDFRenderer.Layers)
         {
             MuPDFRenderer.SetLayers(layers);
             MuPDFRenderer.ValidateAndRepairAnnotations();
-            return true;
+            changed = true;
         }
-        return false;
+
+        if (MuPDFRendererSecondary is not Finn.Controls.AnnotatedPDFRenderer secondary)
+            return changed;
+
+        if (pwr.TwopageMode && !pwr.DualFileMode && !pwr.DiffOverlayActive)
+        {
+            if (secondary.Layers != layers)
+            {
+                secondary.SetLayers(layers);
+                secondary.ValidateAndRepairAnnotations();
+                changed = true;
+            }
+            secondary.SetStrokePage(pwr.CurrentPage2);
+        }
+        else if (!pwr.DualFileMode && !pwr.DiffOverlayActive && secondary.Layers == layers)
+        {
+            secondary.SetLayers(null);
+            changed = true;
+        }
+
+        return changed;
     }
 
     /// <summary>

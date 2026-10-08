@@ -25,21 +25,22 @@ public partial class PreView
 
     private void OnInkPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        SetActiveAnnotationRenderer(sender);
         if (!_annotateMode) return;
         try
         {
-        var point = e.GetCurrentPoint(MuPDFRenderer);
+        var point = e.GetCurrentPoint(AnnotationRenderer);
 
         // Mouse side-buttons: XButton1 = back = Undo, XButton2 = forward = Redo
         if (point.Properties.IsXButton1Pressed)
         {
-            MuPDFRenderer.Undo();
+            AnnotationRenderer.Undo();
             e.Handled = true;
             return;
         }
         if (point.Properties.IsXButton2Pressed)
         {
-            MuPDFRenderer.Redo();
+            AnnotationRenderer.Redo();
             e.Handled = true;
             return;
         }
@@ -47,15 +48,15 @@ public partial class PreView
         // Space+left-click: pan (Figma-style)
         if (_spaceHeld && point.Properties.IsLeftButtonPressed)
         {
-            BeginPan(MuPDFRenderer, e);
+            BeginPan(AnnotationRenderer, e);
             return;
         }
 
         // Middle-mouse: pan even in annotation mode
         if (point.Properties.IsMiddleButtonPressed)
         {
-            BeginPan(MuPDFRenderer, e);
-            MuPDFRenderer.Cursor = CursorHand;
+            BeginPan(AnnotationRenderer, e);
+            AnnotationRenderer.Cursor = CursorHand;
             return;
         }
 
@@ -68,28 +69,28 @@ public partial class PreView
                 e.Handled = true;
                 return;
             }
-            if (MuPDFRenderer.HasActivePolyline)
+            if (AnnotationRenderer.HasActivePolyline)
             {
                 // For area measurements with too few points, cancel rather than commit a degenerate shape
-                if (MuPDFRenderer.IsActivePolylineAreaMeasure && MuPDFRenderer.ActivePolylinePointCount < 3)
-                    MuPDFRenderer.CancelPolyline();
+                if (AnnotationRenderer.IsActivePolylineAreaMeasure && AnnotationRenderer.ActivePolylinePointCount < 3)
+                    AnnotationRenderer.CancelPolyline();
                 else
-                    MuPDFRenderer.EndPolyline();
+                    AnnotationRenderer.EndPolyline();
                 ApplyToolSwitch(InlineAnnotationTool.Select);
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
-            if (MuPDFRenderer.HasActiveShape)
+            if (AnnotationRenderer.HasActiveShape)
             {
-                MuPDFRenderer.CancelStroke();
+                AnnotationRenderer.CancelStroke();
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
             }
-            if (MuPDFRenderer.HasActiveMeasurement)
+            if (AnnotationRenderer.HasActiveMeasurement)
             {
-                MuPDFRenderer.CancelStroke();
+                AnnotationRenderer.CancelStroke();
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
@@ -104,7 +105,7 @@ public partial class PreView
             if (_arrowTextOrigin != null)
             {
                 _arrowTextOrigin = null;
-                MuPDFRenderer.ClearArrowTextPreview();
+                AnnotationRenderer.ClearArrowTextPreview();
                 _inkDrawing = false;
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
@@ -112,7 +113,7 @@ public partial class PreView
             }
             if (_inkDrawing)
             {
-                MuPDFRenderer.CancelStroke();
+                AnnotationRenderer.CancelStroke();
                 _inkDrawing = false;
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
@@ -120,8 +121,8 @@ public partial class PreView
             }
             // Right-click with nothing active: switch to Select tool, then select hit item or deselect.
             ApplyToolSwitch(InlineAnnotationTool.Select);
-            var rightPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
-            object? rightHit = rightPdf.HasValue ? MuPDFRenderer.FindTopmostAt(rightPdf.Value) : null;
+            var rightPdf = AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer));
+            object? rightHit = rightPdf.HasValue ? AnnotationRenderer.FindTopmostAt(rightPdf.Value) : null;
             if (rightHit != null)
             {
                 SelectAnnotation(rightHit);
@@ -138,12 +139,12 @@ public partial class PreView
 
         if (!point.Properties.IsLeftButtonPressed) return;
 
-        var pdfPoint = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
+        var pdfPoint = AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer));
         if (!pdfPoint.HasValue) return;
 
         if (_matchStyleArmed)
         {
-            var matchHit = MuPDFRenderer.FindTopmostAt(pdfPoint.Value);
+            var matchHit = AnnotationRenderer.FindTopmostAt(pdfPoint.Value);
             if (matchHit != null && _matchStyleSource != null && !ReferenceEquals(matchHit, _matchStyleSource))
             {
                 ApplyMatchedStyle(_matchStyleSource, matchHit);
@@ -155,28 +156,28 @@ public partial class PreView
             return;
         }
 
-        e.Pointer.Capture(MuPDFRenderer);
+        e.Pointer.Capture(AnnotationRenderer);
         e.Handled = true;
 
-        var tool = MuPDFRenderer.ActiveTool;
+        var tool = AnnotationRenderer.ActiveTool;
 
         // ── Two-click shapes: second click commits ──
-        if (MuPDFRenderer.HasActiveShape)
+        if (AnnotationRenderer.HasActiveShape)
         {
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-            MuPDFRenderer.UpdateShape(pdfPoint.Value, shift);
-            MuPDFRenderer.EndShape();
+            AnnotationRenderer.UpdateShape(pdfPoint.Value, shift);
+            AnnotationRenderer.EndShape();
             ApplyToolSwitch(InlineAnnotationTool.Select);
             e.Pointer.Capture(null);
             return;
         }
 
         // ── Two-click measurement: second click commits ──
-        if (MuPDFRenderer.HasActiveMeasurement)
+        if (AnnotationRenderer.HasActiveMeasurement)
         {
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-            MuPDFRenderer.UpdateMeasurementPreview(pdfPoint.Value, shift);
-            MuPDFRenderer.EndMeasurement();
+            AnnotationRenderer.UpdateMeasurementPreview(pdfPoint.Value, shift);
+            AnnotationRenderer.EndMeasurement();
             e.Pointer.Capture(null);
             // Guided calibration: after drawing the reference measurement, show calibration input
             if (_calibrationMode)
@@ -207,11 +208,11 @@ public partial class PreView
             // Check for existing annotations under cursor
             object? hitItem = null;
             if (tool is InlineAnnotationTool.StickyNote)
-                hitItem = MuPDFRenderer.FindStickyNoteAt(pdfPoint.Value);
+                hitItem = AnnotationRenderer.FindStickyNoteAt(pdfPoint.Value);
             else if (tool is InlineAnnotationTool.Text or InlineAnnotationTool.ArrowText)
-                hitItem = MuPDFRenderer.FindTextAt(pdfPoint.Value);
+                hitItem = AnnotationRenderer.FindTextAt(pdfPoint.Value);
             else
-                hitItem = MuPDFRenderer.FindTopmostAt(pdfPoint.Value);
+                hitItem = AnnotationRenderer.FindTopmostAt(pdfPoint.Value);
 
             if (hitItem is TextAnnotation hitText)
             {
@@ -224,21 +225,21 @@ public partial class PreView
                 }
                 if (e.ClickCount >= 2)
                 {
-                    if (!MuPDFRenderer.IsActiveLayerLocked)
+                    if (!AnnotationRenderer.IsActiveLayerLocked)
                     {
                         // Double-click text: open property panel with inline text editor
-                        var screenPos = e.GetPosition(MuPDFRenderer);
+                        var screenPos = e.GetPosition(AnnotationRenderer);
                         ShowTextEdit(hitText, screenPos);
                     }
                     else
                     {
-                        ShowPropertyPanel(hitText, e.GetPosition(MuPDFRenderer));
+                        ShowPropertyPanel(hitText, e.GetPosition(AnnotationRenderer));
                     }
                     e.Pointer.Capture(null);
                     return;
                 }
                 // Locked layer: allow selection but not dragging/editing
-                if (MuPDFRenderer.IsActiveLayerLocked)
+                if (AnnotationRenderer.IsActiveLayerLocked)
                 {
                     SelectAnnotation(hitText);
                     e.Pointer.Capture(null);
@@ -249,7 +250,7 @@ public partial class PreView
                 {
                     _draggingArrowOrigin = hitText;
                     _dragStartPdf = pdfPoint.Value;
-                    _preDragSnapshot = MuPDFRenderer.CapturePreDragSnapshot(hitText);
+                    _preDragSnapshot = AnnotationRenderer.CapturePreDragSnapshot(hitText);
                     _inkDrawing = true;
                     SelectAnnotation(hitText);
                     return;
@@ -257,14 +258,14 @@ public partial class PreView
                 // Right-edge resize handle: check before generic drag
                 if (!hitText.IsStickyNote && hitText.MaxWidth > 0)
                 {
-                    var handlePdf = MuPDFRenderer.GetTextResizeHandlePdfPoint(hitText);
+                    var handlePdf = AnnotationRenderer.GetTextResizeHandlePdfPoint(hitText);
                     if (handlePdf.HasValue && IsNear(pdfPoint.Value, handlePdf.Value, HitRadius(HandleHitScreenPxLarge)))
                     {
                         _resizingTextAnnotation = hitText;
                         _dragStartPdf = pdfPoint.Value;
-                        _preDragSnapshot = MuPDFRenderer.CapturePropertySnapshot(hitText);
+                        _preDragSnapshot = AnnotationRenderer.CapturePropertySnapshot(hitText);
                         _inkDrawing = true;
-                        MuPDFRenderer.Cursor = CursorSizeWE;
+                        AnnotationRenderer.Cursor = CursorSizeWE;
                         SelectAnnotation(hitText);
                         return;
                     }
@@ -272,9 +273,9 @@ public partial class PreView
                 // Single click: select + start drag
                 _draggingTextAnnotation = hitText;
                 _dragStartPdf = pdfPoint.Value;
-                _preDragSnapshot = MuPDFRenderer.CapturePreDragSnapshot(hitText);
+                _preDragSnapshot = AnnotationRenderer.CapturePreDragSnapshot(hitText);
                 _inkDrawing = true;
-                MuPDFRenderer.Cursor = CursorSizeAll;
+                AnnotationRenderer.Cursor = CursorSizeAll;
                 SelectAnnotation(hitText);
                 return;
             }
@@ -285,10 +286,10 @@ public partial class PreView
             // be dragged.
             if (hitItem != null && _selectedAnnotation != null
                 && hitItem != _selectedAnnotation
-                && !MuPDFRenderer.IsActiveLayerLocked
+                && !AnnotationRenderer.IsActiveLayerLocked
                 && TryBeginVertexDrag(_selectedAnnotation, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
             {
-                MuPDFRenderer.Cursor = CursorCross;
+                AnnotationRenderer.Cursor = CursorCross;
                 return;
             }
             if (hitItem != null)
@@ -297,7 +298,7 @@ public partial class PreView
                 if (e.ClickCount >= 2 && hitItem is not TextAnnotation)
                 {
                     SelectAnnotation(hitItem);
-                    ShowPropertyPanel(hitItem, e.GetPosition(MuPDFRenderer));
+                    ShowPropertyPanel(hitItem, e.GetPosition(AnnotationRenderer));
                     e.Pointer.Capture(null);
                     return;
                 }
@@ -309,7 +310,7 @@ public partial class PreView
                     return;
                 }
                 // Locked layer: allow selection but not dragging
-                if (MuPDFRenderer.IsActiveLayerLocked)
+                if (AnnotationRenderer.IsActiveLayerLocked)
                 {
                     SelectAnnotation(hitItem);
                     e.Pointer.Capture(null);
@@ -321,7 +322,7 @@ public partial class PreView
                 {
                     _draggingArrowOrigin = arrowHit;
                     _dragStartPdf = pdfPoint.Value;
-                    _preDragSnapshot = MuPDFRenderer.CapturePreDragSnapshot(arrowHit);
+                    _preDragSnapshot = AnnotationRenderer.CapturePreDragSnapshot(arrowHit);
                     _inkDrawing = true;
                     SelectAnnotation(arrowHit);
                     return;
@@ -332,7 +333,7 @@ public partial class PreView
                 bool inMultiSelect = _selectedAnnotations.Count >= 2 && _selectedAnnotations.Contains(hitItem);
                 if (!inMultiSelect && TryBeginVertexDrag(hitItem, pdfPoint.Value, HitRadius(HandleHitScreenPx)))
                 {
-                    MuPDFRenderer.Cursor = CursorCross;
+                    AnnotationRenderer.Cursor = CursorCross;
                     SelectAnnotation(hitItem);
                     return;
                 }
@@ -348,11 +349,11 @@ public partial class PreView
                         _multiDragSnapshots = new List<object>();
                         foreach (var sel in _selectedAnnotations)
                         {
-                            var snap = MuPDFRenderer.CapturePreDragSnapshot(sel);
+                            var snap = AnnotationRenderer.CapturePreDragSnapshot(sel);
                             if (snap != null) _multiDragSnapshots.Add(snap);
                         }
                         _inkDrawing = true;
-                        MuPDFRenderer.Cursor = CursorSizeAll;
+                        AnnotationRenderer.Cursor = CursorSizeAll;
                         return;
                     }
                 }
@@ -367,18 +368,18 @@ public partial class PreView
                 _multiDragSnapshots = new List<object>();
                 foreach (var sel in _selectedAnnotations)
                 {
-                    var snap = MuPDFRenderer.CapturePreDragSnapshot(sel);
+                    var snap = AnnotationRenderer.CapturePreDragSnapshot(sel);
                     if (snap != null) _multiDragSnapshots.Add(snap);
                 }
                 _inkDrawing = true;
-                MuPDFRenderer.Cursor = CursorSizeAll;
+                AnnotationRenderer.Cursor = CursorSizeAll;
                 return;
             }
             // No annotation body hit — but check if we clicked a vertex of the currently selected annotation
             // (needed for ellipses where Start/End are at bounding-box corners, outside the ellipse boundary,
             //  and for measurements/polylines whose endpoints may extend past the hit-test region)
             // Multi-selection / group resize handles take priority over individual vertex drag.
-            if (hitItem == null && _selectedAnnotations.Count >= 2 && !MuPDFRenderer.IsActiveLayerLocked)
+            if (hitItem == null && _selectedAnnotations.Count >= 2 && !AnnotationRenderer.IsActiveLayerLocked)
             {
                 if (TryBeginGroupResize(pdfPoint.Value))
                     return;
@@ -391,14 +392,14 @@ public partial class PreView
                 // Text right-edge resize handle (outside text body but near the handle dot)
                 if (_selectedAnnotation is TextAnnotation { IsStickyNote: false, MaxWidth: > 0 } selText)
                 {
-                    var handlePdf = MuPDFRenderer.GetTextResizeHandlePdfPoint(selText);
+                    var handlePdf = AnnotationRenderer.GetTextResizeHandlePdfPoint(selText);
                     if (handlePdf.HasValue && IsNear(pdfPoint.Value, handlePdf.Value, HitRadius(ResizeHandleHitScreenPx)))
                     {
                         _resizingTextAnnotation = selText;
                         _dragStartPdf = pdfPoint.Value;
-                        _preDragSnapshot = MuPDFRenderer.CapturePropertySnapshot(selText);
+                        _preDragSnapshot = AnnotationRenderer.CapturePropertySnapshot(selText);
                         _inkDrawing = true;
-                        MuPDFRenderer.Cursor = CursorSizeWE;
+                        AnnotationRenderer.Cursor = CursorSizeWE;
                         return;
                     }
                 }
@@ -417,28 +418,28 @@ public partial class PreView
 
         // ── Tool-specific first-click actions ──
         // Block creation/mutation when the active layer is locked
-        if (MuPDFRenderer.IsActiveLayerLocked)
+        if (AnnotationRenderer.IsActiveLayerLocked)
         {
             SetAnnotationStatusText("Active layer is locked — unlock it in the layer panel or choose another layer to annotate.");
             e.Pointer.Capture(null);
             return;
         }
-        MuPDFRenderer.ClearTextPlacementPreview();
+        AnnotationRenderer.ClearTextPlacementPreview();
         switch (tool)
         {
             case InlineAnnotationTool.Eraser:
-                MuPDFRenderer.EraseAt(pdfPoint.Value);
+                AnnotationRenderer.EraseAt(pdfPoint.Value);
                 _lastErasePdf = pdfPoint.Value;
                 _inkDrawing = true;
                 break;
 
             case InlineAnnotationTool.Text:
-                ShowTextInput(pdfPoint.Value, e.GetPosition(MuPDFRenderer));
+                ShowTextInput(pdfPoint.Value, e.GetPosition(AnnotationRenderer));
                 e.Pointer.Capture(null);
                 break;
 
             case InlineAnnotationTool.StickyNote:
-                ShowTextInput(pdfPoint.Value, e.GetPosition(MuPDFRenderer), isStickyNote: true);
+                ShowTextInput(pdfPoint.Value, e.GetPosition(AnnotationRenderer), isStickyNote: true);
                 e.Pointer.Capture(null);
                 break;
 
@@ -446,21 +447,21 @@ public partial class PreView
                 if (_arrowTextOrigin != null)
                 {
                     // Second click: freeze arrow at endpoint and show text input
-                    MuPDFRenderer.UpdateArrowTextPreview(pdfPoint.Value);
-                    ShowTextInput(pdfPoint.Value, e.GetPosition(MuPDFRenderer), _arrowTextOrigin.Value);
+                    AnnotationRenderer.UpdateArrowTextPreview(pdfPoint.Value);
+                    ShowTextInput(pdfPoint.Value, e.GetPosition(AnnotationRenderer), _arrowTextOrigin.Value);
                     e.Pointer.Capture(null);
                 }
                 else
                 {
                     // First click: set arrow origin
                     _arrowTextOrigin = pdfPoint.Value;
-                    MuPDFRenderer.SetArrowTextPreview(pdfPoint.Value);
+                    AnnotationRenderer.SetArrowTextPreview(pdfPoint.Value);
                     e.Pointer.Capture(null);
                 }
                 break;
 
             case InlineAnnotationTool.MeasureDistance:
-                MuPDFRenderer.BeginMeasurement(pdfPoint.Value);
+                AnnotationRenderer.BeginMeasurement(pdfPoint.Value);
                 e.Pointer.Capture(null);
                 break;
 
@@ -472,7 +473,7 @@ public partial class PreView
                 _rubberBandSubtractive = e.KeyModifiers.HasFlag(KeyModifiers.Control);
                 _rubberBandStartPdf = pdfPoint.Value;
                 _inkDrawing = true;
-                MuPDFRenderer.SetRubberBand(pdfPoint.Value, pdfPoint.Value, false);
+                AnnotationRenderer.SetRubberBand(pdfPoint.Value, pdfPoint.Value, false);
                 break;
 
             case InlineAnnotationTool.Rectangle:
@@ -481,34 +482,34 @@ public partial class PreView
             case InlineAnnotationTool.Arrow:
             case InlineAnnotationTool.RevisionCloud:
                 // First click: begin shape (no drag needed — preview follows cursor)
-                MuPDFRenderer.BeginShape(pdfPoint.Value);
+                AnnotationRenderer.BeginShape(pdfPoint.Value);
                 e.Pointer.Capture(null);
                 break;
 
             case InlineAnnotationTool.Polyline:
             {
                 bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-                if (MuPDFRenderer.HasActivePolyline)
+                if (AnnotationRenderer.HasActivePolyline)
                 {
-                    bool autoClose = MuPDFRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
+                    bool autoClose = AnnotationRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
                     if (e.ClickCount >= 2)
                     {
                         // The first click of the double-click already added a point via ClickCount==1;
                         // remove it so we don't get a duplicate node at the end.
-                        MuPDFRenderer.RemoveLastPolylinePoint();
-                        MuPDFRenderer.EndPolyline(close: autoClose);
+                        AnnotationRenderer.RemoveLastPolylinePoint();
+                        AnnotationRenderer.EndPolyline(close: autoClose);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else if (autoClose)
                     {
-                        MuPDFRenderer.EndPolyline(close: true);
+                        AnnotationRenderer.EndPolyline(close: true);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else
-                        MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
+                        AnnotationRenderer.AddPolylinePoint(pdfPoint.Value, shift);
                 }
                 else
-                    MuPDFRenderer.BeginPolyline(pdfPoint.Value);
+                    AnnotationRenderer.BeginPolyline(pdfPoint.Value);
                 UpdateAnnotationStatusHint();
                 e.Pointer.Capture(null);
                 break;
@@ -517,43 +518,43 @@ public partial class PreView
             case InlineAnnotationTool.MeasureArea:
             {
                 bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-                if (MuPDFRenderer.HasActivePolyline)
+                if (AnnotationRenderer.HasActivePolyline)
                 {
-                    bool autoClose = MuPDFRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
+                    bool autoClose = AnnotationRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
                     if (e.ClickCount >= 2)
                     {
-                        MuPDFRenderer.RemoveLastPolylinePoint();
+                        AnnotationRenderer.RemoveLastPolylinePoint();
                         // Need at least 3 points for a valid area. Cancel if insufficient.
-                        if (MuPDFRenderer.ActivePolylinePointCount < 3)
-                            MuPDFRenderer.CancelPolyline();
+                        if (AnnotationRenderer.ActivePolylinePointCount < 3)
+                            AnnotationRenderer.CancelPolyline();
                         else
-                            MuPDFRenderer.EndPolyline(close: true);
+                            AnnotationRenderer.EndPolyline(close: true);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else if (autoClose)
                     {
-                        MuPDFRenderer.EndPolyline(close: true);
+                        AnnotationRenderer.EndPolyline(close: true);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else
-                        MuPDFRenderer.AddPolylinePoint(pdfPoint.Value, shift);
+                        AnnotationRenderer.AddPolylinePoint(pdfPoint.Value, shift);
                 }
                 else
-                    MuPDFRenderer.BeginPolyline(pdfPoint.Value, asAreaMeasure: true);
+                    AnnotationRenderer.BeginPolyline(pdfPoint.Value, asAreaMeasure: true);
                 UpdateAnnotationStatusHint();
                 e.Pointer.Capture(null);
                 break;
             }
 
             case InlineAnnotationTool.Dot:
-                MuPDFRenderer.PlaceDot(pdfPoint.Value);
+                AnnotationRenderer.PlaceDot(pdfPoint.Value);
                 ApplyToolSwitch(InlineAnnotationTool.Select);
                 e.Pointer.Capture(null);
                 break;
 
             default: // Draw, Highlight
                 _inkDrawing = true;
-                MuPDFRenderer.BeginStroke(pdfPoint.Value);
+                AnnotationRenderer.BeginStroke(pdfPoint.Value);
                 UpdateAnnotationStatusHint();
                 break;
         }
@@ -563,6 +564,8 @@ public partial class PreView
 
     private void OnInkPointerMoved(object? sender, PointerEventArgs e)
     {
+        if (_selectedAnnotations.Count == 0)
+            SetActiveAnnotationRenderer(sender);
         if (!_annotateMode) return;
         try
         {
@@ -579,32 +582,32 @@ public partial class PreView
             // Pan handler cannot override our cursor on every PointerMoved.
             e.Handled = true;
 
-            var hoverPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
+            var hoverPdf = AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer));
 
             // Two-click shapes: live preview follows cursor without drag
-            if (_annotateMode && MuPDFRenderer.HasActiveShape)
+            if (_annotateMode && AnnotationRenderer.HasActiveShape)
             {
                 if (hoverPdf.HasValue)
-                    MuPDFRenderer.UpdateShape(hoverPdf.Value,
+                    AnnotationRenderer.UpdateShape(hoverPdf.Value,
                         e.KeyModifiers.HasFlag(KeyModifiers.Shift));
                 return;
             }
 
             // Two-click measurement: live preview follows cursor without drag
-            if (_annotateMode && MuPDFRenderer.HasActiveMeasurement)
+            if (_annotateMode && AnnotationRenderer.HasActiveMeasurement)
             {
                 if (hoverPdf.HasValue)
-                    MuPDFRenderer.UpdateMeasurementPreview(hoverPdf.Value,
+                    AnnotationRenderer.UpdateMeasurementPreview(hoverPdf.Value,
                         e.KeyModifiers.HasFlag(KeyModifiers.Shift));
                 return;
             }
 
             // Polyline preview: always track cursor when a polyline is active
-            if (_annotateMode && MuPDFRenderer.HasActivePolyline)
+            if (_annotateMode && AnnotationRenderer.HasActivePolyline)
             {
                 if (hoverPdf.HasValue)
                 {
-                    MuPDFRenderer.UpdatePolylinePreview(hoverPdf.Value,
+                    AnnotationRenderer.UpdatePolylinePreview(hoverPdf.Value,
                         e.KeyModifiers.HasFlag(KeyModifiers.Shift));
                 }
             }
@@ -612,10 +615,10 @@ public partial class PreView
             else if (_annotateMode && _arrowTextOrigin != null && _textPlacementPdfPoint == null)
             {
                 if (hoverPdf.HasValue)
-                    MuPDFRenderer.UpdateArrowTextPreview(hoverPdf.Value);
+                    AnnotationRenderer.UpdateArrowTextPreview(hoverPdf.Value);
             }
             // Eraser hover highlight: track what's under the cursor
-            else if (_annotateMode && MuPDFRenderer.ActiveTool == InlineAnnotationTool.Eraser)
+            else if (_annotateMode && AnnotationRenderer.ActiveTool == InlineAnnotationTool.Eraser)
             {
                 bool hoverMoved = true;
                 if (hoverPdf.HasValue)
@@ -631,9 +634,9 @@ public partial class PreView
                 if (hoverMoved)
                 {
                     if (hoverPdf.HasValue)
-                        MuPDFRenderer.UpdateEraserHover(hoverPdf.Value);
+                        AnnotationRenderer.UpdateEraserHover(hoverPdf.Value);
                     else
-                        MuPDFRenderer.ClearEraserHover();
+                        AnnotationRenderer.ClearEraserHover();
                 }
             }
             // General hover: sticky-note popup, text placement ghost, select outline
@@ -654,22 +657,22 @@ public partial class PreView
                 if (hoverMoved)
                 {
                     if (hoverPdf.HasValue)
-                        MuPDFRenderer.UpdateStickyNoteHover(hoverPdf.Value);
+                        AnnotationRenderer.UpdateStickyNoteHover(hoverPdf.Value);
                     else
-                        MuPDFRenderer.ClearStickyNoteHover();
+                        AnnotationRenderer.ClearStickyNoteHover();
                 }
 
                 // Text/Sticky/ArrowText: show ghost at cursor for placement preview
-                var at = MuPDFRenderer.ActiveTool;
+                var at = AnnotationRenderer.ActiveTool;
                 if (at is InlineAnnotationTool.Text or InlineAnnotationTool.StickyNote or InlineAnnotationTool.ArrowText)
                 {
                     if (hoverPdf.HasValue)
-                        MuPDFRenderer.UpdateTextPlacementPreview(at, hoverPdf.Value);
+                        AnnotationRenderer.UpdateTextPlacementPreview(at, hoverPdf.Value);
                     else
-                        MuPDFRenderer.ClearTextPlacementPreview();
+                        AnnotationRenderer.ClearTextPlacementPreview();
                 }
                 else
-                    MuPDFRenderer.ClearTextPlacementPreview();
+                    AnnotationRenderer.ClearTextPlacementPreview();
 
                 // Shape/polyline/measurement creation tools: show snap guides on first-click hover
                 // so the user can see snapping feedback before committing the first point.
@@ -683,13 +686,13 @@ public partial class PreView
                         or InlineAnnotationTool.MeasureDistance)
                 {
                     if (hoverMoved)
-                        MuPDFRenderer.UpdateSnapPreview(hoverPdf.Value);
+                        AnnotationRenderer.UpdateSnapPreview(hoverPdf.Value);
                 }
                 else if (at is not (InlineAnnotationTool.Text or InlineAnnotationTool.StickyNote
                                  or InlineAnnotationTool.ArrowText or InlineAnnotationTool.Select
                                  or InlineAnnotationTool.Eraser))
                 {
-                    MuPDFRenderer.ClearSnapGuides();
+                    AnnotationRenderer.ClearSnapGuides();
                 }
 
                 // Hover outline + cursor: show only for tools that can grab annotations
@@ -699,15 +702,15 @@ public partial class PreView
                         or InlineAnnotationTool.ArrowText
                         or InlineAnnotationTool.StickyNote)
                 {
-                    var hoverHit = MuPDFRenderer.FindTopmostAt(hoverPdf.Value);
-                    MuPDFRenderer.UpdateSelectHover(hoverHit);
+                    var hoverHit = AnnotationRenderer.FindTopmostAt(hoverPdf.Value);
+                    AnnotationRenderer.UpdateSelectHover(hoverHit);
                     ShowHoverEditHint(hoverHit);
                     if (at is InlineAnnotationTool.Select)
-                        MuPDFRenderer.Cursor = GetHoverCursor(hoverPdf.Value, hoverHit);
+                        AnnotationRenderer.Cursor = GetHoverCursor(hoverPdf.Value, hoverHit);
                 }
                 else if (hoverMoved)
                 {
-                    MuPDFRenderer.UpdateSelectHover(null);
+                    AnnotationRenderer.UpdateSelectHover(null);
                     UpdateAnnotationStatusHint();
                 }
             }
@@ -715,17 +718,17 @@ public partial class PreView
         }
         e.Handled = true;
 
-        var pdfPoint = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
+        var pdfPoint = AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer));
         if (!pdfPoint.HasValue) return;
 
         // Swipe-to-erase: continuously erase while dragging with eraser tool
-        if (MuPDFRenderer.ActiveTool == InlineAnnotationTool.Eraser)
+        if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.Eraser)
         {
             double edx = pdfPoint.Value.X - _lastErasePdf.X;
             double edy = pdfPoint.Value.Y - _lastErasePdf.Y;
             if (edx * edx + edy * edy >= EraseThresholdSq)
             {
-                MuPDFRenderer.EraseAt(pdfPoint.Value);
+                AnnotationRenderer.EraseAt(pdfPoint.Value);
                 _lastErasePdf = pdfPoint.Value;
             }
             return;
@@ -751,7 +754,7 @@ public partial class PreView
                     }
                     else
                     {
-                        target = MuPDFRenderer.ComputeVertexSnap(sv, target);
+                        target = AnnotationRenderer.ComputeVertexSnap(sv, target);
                     }
                     if (_draggingVertexIndex == 0) sv.Start = target;
                     else sv.End = target;
@@ -768,7 +771,7 @@ public partial class PreView
                     }
                     else
                     {
-                        target = MuPDFRenderer.ComputeVertexSnap(mv, target);
+                        target = AnnotationRenderer.ComputeVertexSnap(mv, target);
                     }
                     mv.Points[_draggingVertexIndex] = target;
                     break;
@@ -786,14 +789,14 @@ public partial class PreView
                     }
                     else
                     {
-                        target = MuPDFRenderer.ComputeVertexSnap(pv, target);
+                        target = AnnotationRenderer.ComputeVertexSnap(pv, target);
                     }
                     pv.Points[_draggingVertexIndex] = target;
                     pv.InvalidatePen();
                     break;
                 }
             }
-            MuPDFRenderer.InvalidateVisual();
+            AnnotationRenderer.InvalidateVisual();
             return;
         }
 
@@ -806,8 +809,8 @@ public partial class PreView
             {
                 // Project the mouse position onto the text's local horizontal axis.
                 // The local X direction in screen space is (cos(angle), sin(angle)).
-                var originScreen = MuPDFRenderer.PdfToScreenPoint(_resizingTextAnnotation.Position);
-                var mouseScreen = MuPDFRenderer.PdfToScreenPoint(pdfPoint.Value);
+                var originScreen = AnnotationRenderer.PdfToScreenPoint(_resizingTextAnnotation.Position);
+                var mouseScreen = AnnotationRenderer.PdfToScreenPoint(pdfPoint.Value);
                 if (originScreen.HasValue && mouseScreen.HasValue)
                 {
                     double rad = rotation * Math.PI / 180.0;
@@ -815,7 +818,7 @@ public partial class PreView
                     double dx = mouseScreen.Value.X - originScreen.Value.X;
                     double dy = mouseScreen.Value.Y - originScreen.Value.Y;
                     double projectedPx = dx * lx + dy * ly;
-                    newWidth = Math.Max(30, MuPDFRenderer.ScreenToPdfDistance(projectedPx));
+                    newWidth = Math.Max(30, AnnotationRenderer.ScreenToPdfDistance(projectedPx));
                 }
                 else
                 {
@@ -824,12 +827,12 @@ public partial class PreView
             }
             else
             {
-                var snapped = MuPDFRenderer.ComputeVertexSnap(_resizingTextAnnotation,
+                var snapped = AnnotationRenderer.ComputeVertexSnap(_resizingTextAnnotation,
                     new Point(pdfPoint.Value.X, _resizingTextAnnotation.Position.Y));
                 newWidth = Math.Max(30, snapped.X - _resizingTextAnnotation.Position.X);
             }
             _resizingTextAnnotation.MaxWidth = newWidth;
-            MuPDFRenderer.InvalidateVisual();
+            AnnotationRenderer.InvalidateVisual();
             return;
         }
 
@@ -838,10 +841,10 @@ public partial class PreView
         {
             var target = e.KeyModifiers.HasFlag(KeyModifiers.Shift)
                 ? AnnotatedPDFRenderer.ConstrainToFineAngle(_draggingArrowOrigin.Position, pdfPoint.Value)
-                : MuPDFRenderer.ComputeVertexSnap(_draggingArrowOrigin, pdfPoint.Value);
+                : AnnotationRenderer.ComputeVertexSnap(_draggingArrowOrigin, pdfPoint.Value);
             _draggingArrowOrigin.ArrowOrigin = target;
             _dragStartPdf = pdfPoint.Value;
-            MuPDFRenderer.InvalidateVisual();
+            AnnotationRenderer.InvalidateVisual();
             return;
         }
 
@@ -851,12 +854,12 @@ public partial class PreView
         {
             double rawDx = pdfPoint.Value.X - _dragStartPdf.X;
             double rawDy = pdfPoint.Value.Y - _dragStartPdf.Y;
-            var (dx, dy) = MuPDFRenderer.ComputeSnapDelta(_draggingTextAnnotation, rawDx, rawDy);
+            var (dx, dy) = AnnotationRenderer.ComputeSnapDelta(_draggingTextAnnotation, rawDx, rawDy);
             _draggingTextAnnotation.Position = new Point(
                 _draggingTextAnnotation.Position.X + dx,
                 _draggingTextAnnotation.Position.Y + dy);
             _dragStartPdf = new Point(_dragStartPdf.X + dx, _dragStartPdf.Y + dy);
-            MuPDFRenderer.InvalidateVisual();
+            AnnotationRenderer.InvalidateVisual();
             return;
         }
 
@@ -893,7 +896,7 @@ public partial class PreView
             }
             foreach (var sel in _selectedAnnotations)
                 AnnotatedPDFRenderer.ScaleAnnotation(sel, anchor, sx, sy);
-            MuPDFRenderer.InvalidateVisual();
+            AnnotationRenderer.InvalidateVisual();
             return;
         }
 
@@ -902,11 +905,11 @@ public partial class PreView
         {
             double rawDx = pdfPoint.Value.X - _dragStartPdf.X;
             double rawDy = pdfPoint.Value.Y - _dragStartPdf.Y;
-            var (dx, dy) = MuPDFRenderer.ComputeSnapDelta(_selectDragItem, rawDx, rawDy);
+            var (dx, dy) = AnnotationRenderer.ComputeSnapDelta(_selectDragItem, rawDx, rawDy);
             foreach (var item in _selectedAnnotations)
                 MoveAnnotation(item, dx, dy);
             _dragStartPdf = new Point(_dragStartPdf.X + dx, _dragStartPdf.Y + dy);
-            MuPDFRenderer.InvalidateVisual();
+            AnnotationRenderer.InvalidateVisual();
             return;
         }
 
@@ -914,44 +917,44 @@ public partial class PreView
         if (_rubberBandActive)
         {
             _rubberBandCrossing = pdfPoint.Value.X < _rubberBandStartPdf.X;
-            MuPDFRenderer.SetRubberBand(_rubberBandStartPdf, pdfPoint.Value, _rubberBandCrossing);
+            AnnotationRenderer.SetRubberBand(_rubberBandStartPdf, pdfPoint.Value, _rubberBandCrossing);
             return;
         }
 
         bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-        var tool = MuPDFRenderer.ActiveTool;
+        var tool = AnnotationRenderer.ActiveTool;
 
         // Update pen cursor preview for freehand tools
         if (tool is InlineAnnotationTool.Draw or InlineAnnotationTool.Highlight)
-            MuPDFRenderer.UpdateCursorPreview(pdfPoint.Value);
+            AnnotationRenderer.UpdateCursorPreview(pdfPoint.Value);
 
         switch (tool)
         {
             case InlineAnnotationTool.MeasureDistance:
-                MuPDFRenderer.SetPolarCursorScreen(e.GetPosition(MuPDFRenderer));
-                MuPDFRenderer.UpdateMeasurementPreview(pdfPoint.Value, shift);
+                AnnotationRenderer.SetPolarCursorScreen(e.GetPosition(AnnotationRenderer));
+                AnnotationRenderer.UpdateMeasurementPreview(pdfPoint.Value, shift);
                 break;
 
             case InlineAnnotationTool.Polyline:
             case InlineAnnotationTool.MeasureArea:
-                MuPDFRenderer.SetPolarCursorScreen(e.GetPosition(MuPDFRenderer));
-                MuPDFRenderer.UpdatePolylinePreview(pdfPoint.Value, shift);
+                AnnotationRenderer.SetPolarCursorScreen(e.GetPosition(AnnotationRenderer));
+                AnnotationRenderer.UpdatePolylinePreview(pdfPoint.Value, shift);
                 break;
 
             case InlineAnnotationTool.Line:
             case InlineAnnotationTool.Arrow:
-                MuPDFRenderer.SetPolarCursorScreen(e.GetPosition(MuPDFRenderer));
-                MuPDFRenderer.UpdateShape(pdfPoint.Value, shift);
+                AnnotationRenderer.SetPolarCursorScreen(e.GetPosition(AnnotationRenderer));
+                AnnotationRenderer.UpdateShape(pdfPoint.Value, shift);
                 break;
 
             case InlineAnnotationTool.Rectangle:
             case InlineAnnotationTool.Ellipse:
             case InlineAnnotationTool.RevisionCloud:
-                MuPDFRenderer.UpdateShape(pdfPoint.Value, shift);
+                AnnotationRenderer.UpdateShape(pdfPoint.Value, shift);
                 break;
 
             default: // Draw, Highlight
-                MuPDFRenderer.AddPoint(pdfPoint.Value);
+                AnnotationRenderer.AddPoint(pdfPoint.Value);
                 break;
         }
         }
@@ -960,6 +963,7 @@ public partial class PreView
 
     private void OnInkPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        SetActiveAnnotationRenderer(sender);
         if (!_annotateMode) return;
         try
         {
@@ -969,7 +973,7 @@ public partial class PreView
             _middlePanning = false;
             e.Pointer.Capture(null);
             e.Handled = true;
-            MuPDFRenderer.Cursor = _spaceHeld ? CursorHand : GetToolCursor(MuPDFRenderer.ActiveTool);
+            AnnotationRenderer.Cursor = _spaceHeld ? CursorHand : GetToolCursor(AnnotationRenderer.ActiveTool);
             return;
         }
         if (!_inkDrawing) return;
@@ -999,8 +1003,8 @@ public partial class PreView
             _rubberBandActive = false;
             bool crossing = _rubberBandCrossing;
             _rubberBandCrossing = false;
-            var endPdf = MuPDFRenderer.ScreenToPdf(e.GetPosition(MuPDFRenderer));
-            MuPDFRenderer.ClearRubberBand();
+            var endPdf = AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer));
+            AnnotationRenderer.ClearRubberBand();
             if (endPdf.HasValue)
             {
                 double x = Math.Min(_rubberBandStartPdf.X, endPdf.Value.X);
@@ -1010,7 +1014,7 @@ public partial class PreView
                 if (w > 2 || h > 2) // ignore tiny accidental drags
                 {
                     var rect = new Rect(x, y, w, h);
-                    var found = MuPDFRenderer.FindAnnotationsInRect(rect, crossing);
+                    var found = AnnotationRenderer.FindAnnotationsInRect(rect, crossing);
                     if (found.Count > 0)
                     {
                         if (_rubberBandSubtractive)
@@ -1031,9 +1035,9 @@ public partial class PreView
                                 _selectedAnnotations.Add(item);
                         }
 
-                        MuPDFRenderer.ClearSelectHighlight();
+                        AnnotationRenderer.ClearSelectHighlight();
                         foreach (var item in _selectedAnnotations)
-                            MuPDFRenderer.AddSelectHighlight(item);
+                            AnnotationRenderer.AddSelectHighlight(item);
 
                         _selectedAnnotation = _selectedAnnotations.Count > 0 ? _selectedAnnotations.First() : null;
                         if (_selectedAnnotation != null)
@@ -1051,12 +1055,12 @@ public partial class PreView
             }
             _rubberBandAdditive = false;
             _rubberBandSubtractive = false;
-            MuPDFRenderer.Cursor = GetToolCursor(MuPDFRenderer.ActiveTool);
+            AnnotationRenderer.Cursor = GetToolCursor(AnnotationRenderer.ActiveTool);
             UpdateAnnotationStatusHint();
             return;
         }
 
-        var tool = MuPDFRenderer.ActiveTool;
+        var tool = AnnotationRenderer.ActiveTool;
         switch (tool)
         {
             case InlineAnnotationTool.MeasureDistance:
@@ -1072,8 +1076,8 @@ public partial class PreView
                 break;
 
             default: // Draw, Highlight
-                MuPDFRenderer.EndStroke();
-                MuPDFRenderer.UpdateCursorPreview(null);
+                AnnotationRenderer.EndStroke();
+                AnnotationRenderer.UpdateCursorPreview(null);
                 break;
         }
         }
