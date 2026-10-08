@@ -28,7 +28,7 @@ public partial class xWeeklyReportDia : Window
         var text = string.Join(System.Environment.NewLine,
             viewModel.Calendar.WeekDiaryEntries
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Diary))
-                .Select(entry => $"{entry.Day}: {entry.Diary}"));
+                .Select(entry => $"{entry.Day}:{System.Environment.NewLine}{entry.Diary.Trim()}"));
 
         await CopyTextAsync(text);
     }

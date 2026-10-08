@@ -77,7 +77,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 // Calendar save is best-effort on close — a failure must never
                 // prevent the close flow from reaching the dirty-check below.
-                await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath);
+                if (!await ctx.Calendar.SaveStorageAsync(MainViewModel.SavePath))
+                    Finn.Utils.ErrorLogger.Log(new InvalidOperationException("Calendar data was not saved because calendar storage was not loaded or the save failed."), "OnClosing: calendar save");
             }
             catch (Exception ex)
             {

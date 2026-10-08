@@ -147,11 +147,6 @@ public partial class MainView : UserControl
         };
         _ctx.Collections.CollectionContent.CollectionChanged += (_, _) => UpdateCollectionsEmptyHint();
         _ctx.PreviewVM.RecentFiles.CollectionChanged += (_, _) => UpdateRecentEmptyHint();
-        _ctx.Calendar.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(_ctx.Calendar.SelectableProjectNames))
-                Resources["CalendarProjectNames"] = _ctx.Calendar.SelectableProjectNames;
-        };
         _ctx.ColumnsChanged += () => { OnUpdateColumns(); UpdateEmptyState(); };
         _ctx.TreeViewUpdateRequested += () => _ctx.BuildTreeData();
         _ctx.FontChanged += () => UpdateFont();
@@ -417,8 +412,6 @@ public partial class MainView : UserControl
     {
         Resources["ViewFontSize"] = (double)_ctx.UI.FontSize;
         Resources["ViewFontSizeCompact"] = (double)_ctx.UI.FontSizeCompact;
-        Resources["CalendarHours"] = _ctx.Calendar.Hours;
-        Resources["CalendarProjectNames"] = _ctx.Calendar.SelectableProjectNames;
     }
 
     private void OnTogglePreviewWindow()

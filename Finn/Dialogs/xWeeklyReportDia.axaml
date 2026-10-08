@@ -33,7 +33,7 @@
                       IsReadOnly="True" AutoGenerateColumns="False" HeadersVisibility="Column"
                       GridLinesVisibility="None" CanUserResizeColumns="False" CanUserReorderColumns="False">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="48"/>
+                    <DataGridTextColumn Header="Day" Binding="{Binding Day}" Width="100"/>
                     <DataGridTextColumn Header="Diary" Binding="{Binding Diary}" Width="*"/>
                     <DataGridTemplateColumn Header="" Width="32">
                         <DataGridTemplateColumn.CellTemplate>

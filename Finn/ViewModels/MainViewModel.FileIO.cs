@@ -246,7 +246,11 @@ namespace Finn.ViewModels
 
                     await using var stream = await file.OpenWriteAsync();
                     await JsonHelper.SerializeAsync(Storage, stream);
-                    await Calendar.SaveStorageAsync(SavePath);
+                    if (!await Calendar.SaveStorageAsync(SavePath))
+                    {
+                        PreviewVM.StatusMessage = "Projects saved, but calendar data could not be saved.";
+                        return;
+                    }
                     ClearDirty();
                 }
             }
@@ -275,7 +279,11 @@ namespace Finn.ViewModels
 
                     File.Move(tmpPath, path, overwrite: true);
 
-                    await Calendar.SaveStorageAsync(SavePath);
+                    if (!await Calendar.SaveStorageAsync(SavePath))
+                    {
+                        PreviewVM.StatusMessage = "Projects saved, but calendar data could not be saved.";
+                        return;
+                    }
                     ClearDirty();
                     PreviewVM.StatusMessage = "Saved";
                 }

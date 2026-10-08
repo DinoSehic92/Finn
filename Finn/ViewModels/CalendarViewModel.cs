@@ -22,6 +22,9 @@ namespace Finn.ViewModels
         private Dictionary<Guid, TimeSheetProjectData> _projectById = new();
 
         private const string TOTAL_PROJECT = "Total";
+        private bool storageLoaded;
+
+        public bool StorageLoaded => storageLoaded;
 
         public CalendarViewModel(Func<UISettingsViewModel> uiGetter)
             : base(logger: null)
@@ -74,7 +77,6 @@ namespace Finn.ViewModels
                 {
                     CalendarStorage.TimeProjects = value;
                     OnPropertyChanged(nameof(TimeProjects));
-                    InvalidateSelectableProjectNames();
                 }
             }
         }
@@ -86,6 +88,7 @@ namespace Finn.ViewModels
         /// </summary>
         public async Task LoadOrCreateStorageAsync(string savePath)
         {
+            storageLoaded = false;
             if (string.IsNullOrWhiteSpace(savePath)) return;
 
             try
@@ -97,16 +100,16 @@ namespace Finn.ViewModels
                 {
                     string json = await File.ReadAllTextAsync(file);
                     var cs = JsonHelper.Deserialize<CalendarStorage>(json);
-                    if (cs != null)
-                    {
-                        CalendarStorage = cs;
-                        CalendarStorage.CalendarList = new ObservableCollection<CalendarData>(CalendarStorage.CalendarList ?? []);
-                        CalendarStorage.TimeProjects = new ObservableCollection<TimeSheetProjectData>(CalendarStorage.TimeProjects ?? []);
-                        RebuildDateIndex();
-                        OnPropertyChanged(nameof(CalendarStorage));
-                        OnPropertyChanged(nameof(CalendarList));
-                        OnPropertyChanged(nameof(TimeProjects));
-                    }
+                    if (cs == null)
+                        throw new InvalidDataException($"Calendar data in '{file}' could not be deserialized.");
+
+                    CalendarStorage = cs;
+                    CalendarStorage.CalendarList = new ObservableCollection<CalendarData>(CalendarStorage.CalendarList ?? []);
+                    CalendarStorage.TimeProjects = new ObservableCollection<TimeSheetProjectData>(CalendarStorage.TimeProjects ?? []);
+                    RebuildDateIndex();
+                    OnPropertyChanged(nameof(CalendarStorage));
+                    OnPropertyChanged(nameof(CalendarList));
+                    OnPropertyChanged(nameof(TimeProjects));
                 }
                 else
                 {
@@ -114,17 +117,19 @@ namespace Finn.ViewModels
                     await File.WriteAllTextAsync(file, json);
                 }
 
+                storageLoaded = true;
                 SetCurrentCalendarData();
             }
             catch (Exception ex)
             {
                 Finn.Utils.ErrorLogger.Log(ex, "CalendarViewModel.LoadOrCreateStorageAsync");
+                StatusMessageRequested?.Invoke("Calendar data could not be loaded. The existing file will not be overwritten.");
+                return;
             }
 
             EnsureTotalRow();
             RebuildProjectIndex();
             HydrateProjectDisplayNames();
-            InvalidateSelectableProjectNames();
             var firstProject = SelectableProjects.FirstOrDefault();
             if (firstProject != null)
                 NewEntryProjectId = firstProject.Id;
@@ -136,8 +141,11 @@ namespace Finn.ViewModels
         /// <summary>
         /// Saves the current CalendarStorage to Calendar.json using atomic write.
         /// </summary>
-        public async Task SaveStorageAsync(string savePath)
+        public async Task<bool> SaveStorageAsync(string savePath)
         {
+            if (!storageLoaded || string.IsNullOrWhiteSpace(savePath))
+                return false;
+
             try
             {
                 if (!Directory.Exists(savePath)) Directory.CreateDirectory(savePath);
@@ -156,10 +164,12 @@ namespace Finn.ViewModels
                     File.Copy(file, bakFile, overwrite: true);
 
                 File.Move(tmpFile, file, overwrite: true);
+                return true;
             }
             catch (Exception ex)
             {
                 Finn.Utils.ErrorLogger.Log(ex, "CalendarViewModel.SaveStorageAsync");
+                return false;
             }
         }
 
@@ -361,7 +371,7 @@ namespace Finn.ViewModels
             if (CurrentCalendarData != null
                 && CurrentCalendarData.Date != DateOnly.FromDateTime(SelectedDateTime.Date))
             {
-                SelectedDateTime = CurrentCalendarData.Date.ToDateTime(TimeOnly.Parse("10:00 PM"));
+                SelectedDateTime = CurrentCalendarData.Date.ToDateTime(new TimeOnly(22, 0));
             }
         }
 
@@ -425,25 +435,6 @@ namespace Finn.ViewModels
                     ts.SetProject(ts.ProjectId, GetProjectName(ts.ProjectId));
         }
 
-        private List<string>? _selectableProjectNamesCache;
-        /// <summary>
-        /// Project name strings for inline ComboBox editing in the daily grid.
-        /// Cached as a materialized list so the ComboBox ItemsSource is a stable
-        /// instance rather than a re-enumerated deferred query.
-        /// </summary>
-        public IEnumerable<string> SelectableProjectNames
-            => _selectableProjectNamesCache ??= BuildSelectableProjectNames();
-
-        private List<string> BuildSelectableProjectNames()
-            => TimeProjects.Where(x => x.Project != TOTAL_PROJECT).Select(x => x.Project).ToList();
-
-        private void InvalidateSelectableProjectNames()
-        {
-            _selectableProjectNamesCache = null;
-            OnPropertyChanged(nameof(SelectableProjects));
-            OnPropertyChanged(nameof(SelectableProjectNames));
-        }
-
         /// <summary>Display string for the daily total hours.</summary>
         public string DailyTotalDisplay
         {
@@ -457,7 +448,7 @@ namespace Finn.ViewModels
         /// <summary>True when the day's logged hours exceed the 8-hour target.</summary>
         public bool IsDailyTotalExceeded => (CurrentCalendarData?.TotalTime ?? 0) > 8;
 
-        public ObservableCollection<int> Hours { get; } = [1, 2, 3, 4, 5, 6, 7, 8];
+        public ObservableCollection<int> Hours { get; } = new(Enumerable.Range(0, 25));
 
         /// <summary>
         /// Refreshes the W1–W5 columns on each TimeProject so the inline
@@ -468,12 +459,12 @@ namespace Finn.ViewModels
             int month = SelectedDateTime.Month;
             int year = SelectedDateTime.Year;
             var selectedDate = DateOnly.FromDateTime(SelectedDateTime);
-            int selectedWeekOfMonth = CalendarData.GetWeekOfMonth(selectedDate);
+            int selectedWeekOfMonth = Math.Min(CalendarData.GetWeekOfMonth(selectedDate), 4);
 
-            // Selected work week only (Mon–Fri), matching the diary summary.
-            var entries = GetMonthEntries(year, month)
-                .Where(x => x.WeekOfMonth == selectedWeekOfMonth)
-                .Where(x => x.Date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+            var entries = GetSelectedWorkWeekDates(selectedDate)
+                .Select(date => _dateIndex.TryGetValue(date, out var entry) ? entry : null)
+                .Where(entry => entry != null)
+                .Cast<CalendarData>()
                 .ToList();
 
             foreach (var p in TimeProjects.Where(x => (x?.Project ?? string.Empty) != TOTAL_PROJECT))
@@ -512,8 +503,32 @@ namespace Finn.ViewModels
                 {
                     if (currentTimeSheetProject != null)
                         currentTimeSheetProject.PropertyChanged += OnCurrentProjectPropertyChanged;
+                    OnPropertyChanged(nameof(CurrentTimeSheetProjectName));
                     RefreshProjectDiarySummary();
                 });
+            }
+        }
+
+        public string CurrentTimeSheetProjectName
+        {
+            get => CurrentTimeSheetProject?.Project ?? string.Empty;
+            set
+            {
+                if (CurrentTimeSheetProject == null)
+                    return;
+
+                string name = value.Trim();
+                if (string.IsNullOrWhiteSpace(name)
+                    || string.Equals(name, TOTAL_PROJECT, StringComparison.OrdinalIgnoreCase)
+                    || TimeProjects.Any(project => project.Id != CurrentTimeSheetProject.Id
+                        && string.Equals(project.Project, name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    StatusMessageRequested?.Invoke("Project names must be non-empty, unique, and cannot be 'Total'.");
+                    OnPropertyChanged();
+                    return;
+                }
+
+                CurrentTimeSheetProject.Project = name;
             }
         }
 
@@ -526,9 +541,18 @@ namespace Finn.ViewModels
         {
             if (e.PropertyName == nameof(TimeSheetProjectData.Project))
             {
+                foreach (var entry in CalendarList.SelectMany(day => day.TimeSheets)
+                             .Where(entry => entry.ProjectId == CurrentTimeSheetProject?.Id))
+                    entry.SetProject(entry.ProjectId, CurrentTimeSheetProject.Project);
+
                 RefreshProjectSummaries();
                 RefreshProjectDiarySummary();
-                InvalidateSelectableProjectNames();
+                OnPropertyChanged(nameof(CurrentTimeSheetProjectName));
+                DataChanged?.Invoke();
+            }
+            else if (e.PropertyName == nameof(TimeSheetProjectData.ProjectNr))
+            {
+                DataChanged?.Invoke();
             }
         }
 
@@ -564,6 +588,12 @@ namespace Finn.ViewModels
             if (CurrentCalendarData == null) return;
 
             var currentDate = DateOnly.FromDateTime(SelectedDateTime);
+            if (CurrentCalendarData.TimeSheets.Count > 0)
+            {
+                StatusMessageRequested?.Invoke("The selected day already has timesheet entries; copy-forward was skipped.");
+                return;
+            }
+
             for (int i = 1; i <= 7; i++)
             {
                 var prevDate = currentDate.AddDays(-i);
@@ -592,7 +622,7 @@ namespace Finn.ViewModels
             string baseName = "New";
             string name = baseName;
             int counter = 1;
-            while (TimeProjects.Any(x => x.Project == name))
+            while (TimeProjects.Any(x => string.Equals(x.Project, name, StringComparison.OrdinalIgnoreCase)))
             {
                 name = $"{baseName} {counter}";
                 counter++;
@@ -601,10 +631,11 @@ namespace Finn.ViewModels
             int idx = TimeProjects.IndexOf(TimeProjects.First(x => x.Project == TOTAL_PROJECT));
             var newProject = new TimeSheetProjectData { Project = name };
             TimeProjects.Insert(idx, newProject);
+            OnPropertyChanged(nameof(SelectableProjects));
             _projectById[newProject.Id] = newProject;
             CurrentTimeSheetProject = newProject;
             RefreshProjectSummaries();
-            InvalidateSelectableProjectNames();
+            DataChanged?.Invoke();
         }
 
         /// <summary>
@@ -614,10 +645,24 @@ namespace Finn.ViewModels
         {
             if (CurrentTimeSheetProject == null || CurrentTimeSheetProject.Project == TOTAL_PROJECT) return;
             var removed = CurrentTimeSheetProject;
+
+            int referencingEntries = CalendarList
+                .SelectMany(day => day.TimeSheets)
+                .Count(entry => entry.ProjectId == removed.Id);
+            if (referencingEntries > 0)
+            {
+                StatusMessageRequested?.Invoke($"Cannot remove '{removed.Project}': {referencingEntries} timesheet entr{(referencingEntries == 1 ? "y refers" : "ies refer")} to it.");
+                return;
+            }
+
+            int removedIndex = TimeProjects.IndexOf(removed);
             TimeProjects.Remove(removed);
+            OnPropertyChanged(nameof(SelectableProjects));
             _projectById.Remove(removed.Id);
+            CurrentTimeSheetProject = SelectableProjects
+                .ElementAtOrDefault(Math.Min(removedIndex, SelectableProjects.Count() - 1));
             RefreshProjectSummaries();
-            InvalidateSelectableProjectNames();
+            DataChanged?.Invoke();
         }
 
         /// <summary>
@@ -641,22 +686,11 @@ namespace Finn.ViewModels
                 return;
             var projId = proj.Id;
 
-            int year = SelectedDateTime.Year;
-            int month = SelectedDateTime.Month;
             var selectedDate = DateOnly.FromDateTime(SelectedDateTime);
-
-            // Same Monday-start week bucketing as CalendarData.WeekOfMonth.
-            int selectedWeekOfMonth = CalendarData.GetWeekOfMonth(selectedDate);
-
-            var weekDays = GetMonthEntries(year, month)
-                .Where(x => x.WeekOfMonth == selectedWeekOfMonth)
-                .Where(x => x.Date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
-                .OrderBy(x => x.Date)
-                .ToList();
-
-            foreach (var day in weekDays)
+            foreach (var date in GetSelectedWorkWeekDates(selectedDate))
             {
-                var diaries = day.TimeSheets
+                _dateIndex.TryGetValue(date, out var day);
+                var diaries = (day?.TimeSheets ?? [])
                     .Where(ts => ts.ProjectId == projId && !string.IsNullOrWhiteSpace(ts.Diary))
                     .Select(ts => ts.Diary.Trim())
                     .ToList();
@@ -665,7 +699,7 @@ namespace Finn.ViewModels
 
                 WeekDiaryEntries.Add(new WeekDiaryEntry
                 {
-                    Day = day.Date.Day.ToString(),
+                    Day = date.ToString("ddd M/d", CultureInfo.CurrentCulture),
                     Diary = diaryText
                 });
             }
@@ -675,13 +709,12 @@ namespace Finn.ViewModels
 
         #region Project summary helpers
 
-        private IEnumerable<CalendarData> GetMonthEntries(int year, int month)
+        private static IEnumerable<DateOnly> GetSelectedWorkWeekDates(DateOnly selectedDate)
         {
-            foreach (var day in Enumerable.Range(1, DateTime.DaysInMonth(year, month)))
-            {
-                var date = new DateOnly(year, month, day);
-                if (_dateIndex.TryGetValue(date, out var cd)) yield return cd;
-            }
+            int daysFromMonday = ((int)selectedDate.DayOfWeek + 6) % 7;
+            var monday = selectedDate.AddDays(-daysFromMonday);
+            for (int day = 0; day < 5; day++)
+                yield return monday.AddDays(day);
         }
 
         private static int SumProjectHours(IEnumerable<CalendarData> entries, Guid projectId)
@@ -724,6 +757,8 @@ namespace Finn.ViewModels
         /// so the host can mark the application as dirty.
         /// </summary>
         public event Action? DataChanged;
+
+        public event Action<string>? StatusMessageRequested;
 
         private void RebuildDateIndex()
         {

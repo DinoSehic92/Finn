@@ -32,6 +32,7 @@ namespace Finn.Model
         /// ViewModel when hydrating or committing a selection.
         /// </summary>
         [System.Text.Json.Serialization.JsonIgnore]
+        [Newtonsoft.Json.JsonIgnore]
         public string Project
         {
             get { return project; }

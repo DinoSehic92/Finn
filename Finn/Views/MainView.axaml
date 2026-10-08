@@ -1328,7 +1328,7 @@
 				<Grid ColumnDefinitions="*,68,28,28,28" ColumnSpacing="4">
 					<Border Classes="shadow" Grid.Column="0" Margin="0">
 						<TextBox Name="ProjectNameBox" PlaceholderText="Project" FontSize="{Binding UI.FontSizeCompact}"
-								 Text="{Binding Calendar.CurrentTimeSheetProject.Project, Mode=TwoWay}"/>
+								 Text="{Binding Calendar.CurrentTimeSheetProjectName, Mode=TwoWay}"/>
 					</Border>
 					<Border Classes="shadow" Grid.Column="1" Margin="0">
 						<TextBox Name="ProjNrBox" PlaceholderText="Nr" FontSize="{Binding UI.FontSizeCompact}"

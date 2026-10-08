@@ -70,6 +70,7 @@ namespace Finn.ViewModels
 
                 Calendar = new CalendarViewModel(() => UI);
                 Calendar.DataChanged += () => MarkDirty();
+                Calendar.StatusMessageRequested += message => PreviewVM.StatusMessage = message;
                 Collections = new CollectionsViewModel(
                     () => Storage,
                     () => PreviewVM,
