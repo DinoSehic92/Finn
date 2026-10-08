@@ -457,12 +457,11 @@ public partial class PreView
     private void OnAnnotationChanged()
     {
         MuPDFRenderer.InvalidateVisual();
-        if (pwr.TwopageMode && !pwr.DualFileMode)
+        if ((pwr.TwopageMode && !pwr.DualFileMode) || pwr.IsUserDualFileMode)
             MuPDFRendererSecondary.InvalidateVisual();
         UpdateAnnotationCountBadge();
         UpdateUndoRedoButtons();
         UpdateActiveLayerLabel();
-        ctx?.MarkDirty();
     }
 
     /// <summary>

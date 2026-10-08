@@ -52,6 +52,7 @@ public partial class PreView : UserControl
     private bool _renderHandlersRegistered;
     /// <summary>Debounce guard: last time OnAnnotationDirty posted to the UI thread.</summary>
     private long _lastAnnotationDirtyTick;
+    private long _lastSecondaryAnnotationDirtyTick;
     /// <summary>Re-entrancy guard for SyncDiffOverlay so overlapping calls don't interleave.</summary>
     private bool _syncingDiffOverlay;
     /// <summary>Pending disposal task from CloseDiffViews so the next diff open can await it.</summary>
@@ -75,6 +76,7 @@ public partial class PreView : UserControl
         SetRenderer();
 
         MuPDFRenderer.AnnotationChanged += OnAnnotationDirty;
+        MuPDFRendererSecondary.AnnotationChanged += OnSecondaryAnnotationDirty;
 
         InitLayerPickerFlyout();
 
@@ -161,7 +163,23 @@ public partial class PreView : UserControl
 
             // Keep the annotation page list in sync while it is open.
             if (pwr.AnnotationPageListMode)
-                pwr.PopulateAnnotationPageList(MuPDFRenderer.Layers);
+                pwr.PopulateAnnotationPageList(_annotateMode && ReferenceEquals(_activeAnnotationRenderer, MuPDFRendererSecondary)
+                    ? MuPDFRendererSecondary.Layers
+                    : MuPDFRenderer.Layers);
+        });
+    }
+
+    private void OnSecondaryAnnotationDirty()
+    {
+        if (!pwr.IsUserDualFileMode) return;
+        long now = Environment.TickCount64;
+        if (now - _lastSecondaryAnnotationDirtyTick < 80) return;
+        _lastSecondaryAnnotationDirtyTick = now;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            ctx?.MarkDirty();
+            pwr.CurrentFile2?.RefreshAnnotationStatus();
+            UpdateAnnotationCountBadge();
         });
     }
 
@@ -225,6 +243,14 @@ public partial class PreView : UserControl
                 });
                 break;
 
+            case nameof(pwr.CurrentFile2) when pwr.DualFileMode && !pwr.DiffOverlayActive:
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (!SyncLayers())
+                        MuPDFRendererSecondary.NotifyLayersChanged();
+                });
+                break;
+
             case "CurrentPage1":
                 if (_annotateMode && (_selectedAnnotation != null || _selectedAnnotations.Count > 0))
                     DeselectAnnotation();
@@ -235,7 +261,7 @@ public partial class PreView : UserControl
                     // CurrentPage1 when pages are linked.
                     // In SBS or Toggle with unlinked pages, the B side has its own page
                     // controlled by CurrentPage2.
-                    bool unlinked = !pwr.LinkedPageMode && (_diffSideBySideOpen || _diffToggleOpen);
+                    bool unlinked = pwr.DualFileMode || (!pwr.LinkedPageMode && (_diffSideBySideOpen || _diffToggleOpen));
                     if (!unlinked)
                     {
                         sec.SetStrokePage(pwr.CurrentPage1);
@@ -256,7 +282,7 @@ public partial class PreView : UserControl
                 if (_annotateMode) UpdateUndoRedoButtons();
                 break;
 
-            case "CurrentPage2" when _diffSideBySideOpen || pwr.TwopageMode:
+            case "CurrentPage2" when _diffSideBySideOpen || pwr.TwopageMode || pwr.DualFileMode:
                 // Keep the secondary annotation renderer aligned with its page
                 // in two-page mode and with the B file in diff side-by-side mode.
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec2)
@@ -271,6 +297,7 @@ public partial class PreView : UserControl
                             sec2.ClearDiffOverlay();
                     }
                 }
+                if (_annotateMode) UpdateUndoRedoButtons();
                 break;
 
             case "DiffOverlayActive":
@@ -363,7 +390,7 @@ public partial class PreView : UserControl
             case nameof(pwr.DualFileMode):
             case nameof(pwr.IsViewingVersion):
             case nameof(pwr.Rotation):
-                if (e.PropertyName == nameof(pwr.TwopageMode))
+                if (e.PropertyName == nameof(pwr.TwopageMode) || e.PropertyName == nameof(pwr.DualFileMode))
                     SyncLayers();
                 // These modes change the renderer layout or document in ways
                 // incompatible with an active screenshot selection.
@@ -404,7 +431,18 @@ public partial class PreView : UserControl
         if (MuPDFRendererSecondary is not Finn.Controls.AnnotatedPDFRenderer secondary)
             return changed;
 
-        if (pwr.TwopageMode && !pwr.DualFileMode && !pwr.DiffOverlayActive)
+        if (pwr.IsUserDualFileMode && !pwr.DiffOverlayActive)
+        {
+            var secondaryLayers = pwr.CurrentFile2?.AnnotationLayers;
+            if (secondary.Layers != secondaryLayers)
+            {
+                secondary.SetLayers(secondaryLayers);
+                secondary.ValidateAndRepairAnnotations();
+                changed = true;
+            }
+            secondary.SetStrokePage(pwr.CurrentPage2);
+        }
+        else if (pwr.TwopageMode && !pwr.DualFileMode && !pwr.DiffOverlayActive)
         {
             if (secondary.Layers != layers)
             {
@@ -414,7 +452,7 @@ public partial class PreView : UserControl
             }
             secondary.SetStrokePage(pwr.CurrentPage2);
         }
-        else if (!pwr.DualFileMode && !pwr.DiffOverlayActive && secondary.Layers == layers)
+        else if (!pwr.DualFileMode && !pwr.DiffOverlayActive && !pwr.TwopageMode && secondary.Layers.Count > 0)
         {
             secondary.SetLayers(null);
             changed = true;

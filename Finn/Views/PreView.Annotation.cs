@@ -52,7 +52,9 @@ public partial class PreView
     {
         if (sender is not AnnotatedPDFRenderer renderer
             || (renderer != MuPDFRenderer
-                && !(pwr.TwopageMode && !pwr.DualFileMode && renderer == MuPDFRendererSecondary)))
+                && !(renderer == MuPDFRendererSecondary
+                    && ((pwr.TwopageMode && !pwr.DualFileMode && !pwr.DiffOverlayActive)
+                        || (pwr.IsUserDualFileMode && !pwr.DiffOverlayActive)))))
             return;
 
         if (ReferenceEquals(_activeAnnotationRenderer, renderer)) return;
@@ -71,10 +73,12 @@ public partial class PreView
         var nextOpacity = previous.StrokeOpacity;
         var nextHighlighterMode = previous.IsHighlighterMode;
         var nextFontSize = previous.TextFontSize;
+        var nextFontFamily = previous.TextFontFamily;
         var nextFilledMode = previous.IsFilledMode;
         var nextDash = previous.StrokeDashPattern;
         var nextCornerRadius = previous.ShapeCornerRadius;
         var nextSnapToGrid = previous.SnapToGrid;
+        var nextGridSpacing = previous.GridSpacing;
 
         renderer.ActiveTool = nextTool;
         renderer.StrokeColor = nextColor;
@@ -82,10 +86,12 @@ public partial class PreView
         renderer.StrokeOpacity = nextOpacity;
         renderer.IsHighlighterMode = nextHighlighterMode;
         renderer.TextFontSize = nextFontSize;
+        renderer.TextFontFamily = nextFontFamily;
         renderer.IsFilledMode = nextFilledMode;
         renderer.StrokeDashPattern = nextDash;
         renderer.ShapeCornerRadius = nextCornerRadius;
         renderer.SnapToGrid = nextSnapToGrid;
+        renderer.GridSpacing = nextGridSpacing;
         renderer.Cursor = GetToolCursor(renderer.ActiveTool);
         _activeAnnotationRenderer = renderer;
 
@@ -93,6 +99,9 @@ public partial class PreView
         {
             UpdateUndoRedoButtons();
             SyncFlyoutIndicators();
+            UpdateActiveLayerLabel();
+            UpdateAnnotationCountBadge();
+            UpdateFontSizeLabel();
         }
     }
     private Avalonia.Controls.ContextMenu? _savedContextMenu;
@@ -786,16 +795,13 @@ public partial class PreView
         if (_annotateMode) return;
         // If screenshot mode is active, cancel it cleanly before entering annotation mode
         if (_screenshotMode) DeactivateScreenshotMode();
-        // Block activation while in dual-file mode (ambiguous annotation target)
-        if (pwr.DualFileMode && !pwr.WhiteboardMode) return;
+        // Diff modes do not have an editable secondary file target.
+        if (pwr.DiffOverlayActive || (pwr.DualFileMode && !pwr.IsUserDualFileMode && !pwr.WhiteboardMode)) return;
 
-        // Close diff renderer modes at the view level FIRST so that renderer
-        // opacity, column positions and display-area sync are fully restored
-        // before we collapse the ViewModel modes below.
-        CloseDiffViews();
-
-        if (pwr.DualFileMode)
-            pwr.DualFileMode = false;
+        // Diff modes are rejected above. Do not close the secondary renderer
+        // here: in user dual-file mode it owns CurrentFile2's annotation layers.
+        if (!pwr.IsUserDualFileMode)
+            CloseDiffViews();
 
         _annotateMode = true;
         _activeAnnotationRenderer = MuPDFRenderer;
@@ -814,6 +820,8 @@ public partial class PreView
         _rubberBandActive = false;
 
         MuPDFRenderer.EnsureDefaultLayer();
+        if (pwr.IsUserDualFileMode && MuPDFRendererSecondary is AnnotatedPDFRenderer secondaryDefaultLayer)
+            secondaryDefaultLayer.EnsureDefaultLayer();
         // Remove before adding to guard against double-registration if ActivateAnnotateMode
         // is called while already active (e.g. fast toggle or mode-switch edge cases).
         MuPDFRenderer.RemoveHandler(PointerPressedEvent, OnInkPointerPressed);
@@ -829,8 +837,10 @@ public partial class PreView
         MuPDFRenderer.AddHandler(PointerPressedEvent, OnInkPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         MuPDFRenderer.AddHandler(PointerMovedEvent, OnInkPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         MuPDFRenderer.AddHandler(PointerReleasedEvent, OnInkPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
-        if (pwr.TwopageMode && !pwr.DualFileMode)
+        if ((pwr.TwopageMode && !pwr.DualFileMode) || pwr.IsUserDualFileMode)
         {
+            MuPDFRendererSecondary.Cursor = CursorArrow;
+            MuPDFRendererSecondary.PointerEventHandlersType = PDFRenderer.PointerEventHandlers.Pan;
             MuPDFRendererSecondary.AddHandler(PointerPressedEvent, OnInkPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             MuPDFRendererSecondary.AddHandler(PointerMovedEvent, OnInkPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             MuPDFRendererSecondary.AddHandler(PointerReleasedEvent, OnInkPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -841,15 +851,19 @@ public partial class PreView
         // Suppress the default context menu while annotating
         _savedContextMenu = MuPDFRenderer.ContextMenu as Avalonia.Controls.ContextMenu;
         MuPDFRenderer.ContextMenu = null;
-        if (pwr.TwopageMode && MuPDFRendererSecondary is AnnotatedPDFRenderer secondaryRenderer)
+        if (((pwr.TwopageMode && !pwr.DualFileMode) || pwr.IsUserDualFileMode)
+            && MuPDFRendererSecondary is AnnotatedPDFRenderer secondaryRenderer)
         {
+            if (pwr.IsUserDualFileMode)
+                secondaryRenderer.EnsureDefaultLayer();
             _savedSecondaryContextMenu = secondaryRenderer.ContextMenu as Avalonia.Controls.ContextMenu;
             secondaryRenderer.ContextMenu = null;
         }
 
         // Subscribe to annotation changes for badge + undo/redo button state
         MuPDFRenderer.AnnotationChanged += OnAnnotationChanged;
-        if (pwr.TwopageMode && MuPDFRendererSecondary is AnnotatedPDFRenderer secondary)
+        if (((pwr.TwopageMode && !pwr.DualFileMode) || pwr.IsUserDualFileMode)
+            && MuPDFRendererSecondary is AnnotatedPDFRenderer secondary)
         {
             secondary.AnnotationChanged -= OnAnnotationChanged;
             secondary.AnnotationChanged += OnAnnotationChanged;

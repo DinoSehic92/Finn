@@ -506,11 +506,11 @@ namespace Finn.ViewModels
         }
 
         /// <summary>
-        /// True when annotation mode may be activated. Blocked in Dual-File mode
-        /// where there are two independent documents and annotation targets are
-        /// ambiguous.
+        /// True when annotation mode may be activated. User dual-file mode is
+        /// supported; diff comparisons remain blocked because the secondary
+        /// renderer may represent a comparison source rather than an editable file.
         /// </summary>
-        public bool CanAnnotate => !dualFileMode;
+        public bool CanAnnotate => !_diffOverlayActive;
 
         /// <summary>
         /// True when the screenshot region tool may be activated.
