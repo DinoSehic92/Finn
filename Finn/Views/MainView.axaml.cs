@@ -295,8 +295,7 @@ public partial class MainView : UserControl
 
     private void OnMainViewSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        if (_ctx != null)
-            _ctx.UI.ShowClock = e.NewSize.Height > 1250;
+        // Clock hidden; no size-based auto-show.
     }
 
     /// <summary>

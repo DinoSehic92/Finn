@@ -67,6 +67,13 @@ namespace Finn.ViewModels
                 window.ShowDialog(mainWindow);
             }
 
+            public void OpenWeeklyReportDia(Window mainWindow)
+            {
+                var window = new xWeeklyReportDia();
+                ConfigureWindow(window, mainWindow);
+                window.ShowDialog(mainWindow);
+            }
+
             public void OpenColorDia(Window mainWindow)
             {
                 var window = new xColorDia();

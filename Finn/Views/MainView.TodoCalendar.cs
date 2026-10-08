@@ -527,7 +527,7 @@ public partial class MainView
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Bottom,
                 Spacing = 2,
-                Margin = new Thickness(0, 0, 0, 4),
+                Margin = new Thickness(0, 0, 0, 2),
                 IsHitTestVisible = false,
             };
 
