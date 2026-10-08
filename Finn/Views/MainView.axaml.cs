@@ -1305,7 +1305,7 @@ public partial class MainView : UserControl
     private async void OnBatchExportReviews(object? sender, RoutedEventArgs e)
     {
         var files = _ctx.CurrentFiles.ToList();
-        if (files.Count < 2 || files.Any(file => !file.IsRegularFile || !file.HasPdfExtension()))
+        if (files.Count < 2 || files.Any(file => !file.IsBatchReviewExportCandidate))
             return;
 
         try

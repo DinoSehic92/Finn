@@ -252,6 +252,15 @@ namespace Finn.Model
         public bool IsRegularFile => IsTopLevel && !IsGroup;
 
         /// <summary>
+        /// True when this entry is a PDF that may be included in a batch review
+        /// export: either a top-level file or a child file, including files
+        /// nested under a group.
+        /// </summary>
+        [JsonIgnore]
+        public bool IsBatchReviewExportCandidate =>
+            (IsRegularFile || IsChild) && HasPdfExtension();
+
+        /// <summary>
         /// True when this row should reserve leading space for a hierarchy marker.
         /// Parents use it for the chevron, children for the spine.
         /// </summary>

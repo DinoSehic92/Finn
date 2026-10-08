@@ -247,7 +247,7 @@ namespace Finn.ViewModels
             public bool FileSelected => CurrentFile != null;
             public bool CanBatchExportReviews =>
                 CurrentFiles != null && CurrentFiles.Count >= 2
-                && CurrentFiles.All(file => file.IsRegularFile && file.HasPdfExtension());
+                && CurrentFiles.All(file => file.IsBatchReviewExportCandidate);
 
             /// <summary>
             /// The file whose OtherFiles should be displayed in the tray.
