@@ -862,6 +862,19 @@
 
 						<Separator/>
 
+						<MenuItem Header="Tools">
+							<MenuItem.IsVisible>
+								<MultiBinding Converter="{x:Static BoolConverters.And}">
+									<Binding Path="CanBatchExportReviews"/>
+									<Binding Path="!UI.SuperuserMode"/>
+								</MultiBinding>
+							</MenuItem.IsVisible>
+							<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
+							<MenuItem Header="Batch review export" Click="OnBatchExportReviews">
+								<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
+							</MenuItem>
+						</MenuItem>
+
 						<MenuItem Header="Tools" IsVisible="{Binding UI.SuperuserMode}">
 							<MenuItem.Icon><ic:SymbolIcon Symbol="Toolbox"/></MenuItem.Icon>
 									<MenuItem Header="File info"  Command="{Binding OnInfoDia}" CommandParameter="{Binding $parent[Window]}">
@@ -869,6 +882,9 @@
 										</MenuItem>
 									<MenuItem Header="Copy Table" Command="{Binding CopyListviewToClipboard}" CommandParameter="{Binding $parent[Window]}" IsVisible="{Binding SelectedFileIsNotSketch}">
 										<MenuItem.Icon><ic:SymbolIcon Symbol="TableLightning"/></MenuItem.Icon>
+									</MenuItem>
+									<MenuItem Header="Batch review export" Click="OnBatchExportReviews" IsVisible="{Binding CanBatchExportReviews}">
+										<MenuItem.Icon><ic:SymbolIcon Symbol="DocumentArrowRight"/></MenuItem.Icon>
 									</MenuItem>
 									<Separator/>
 									<MenuItem Header="Metadata" IsVisible="{Binding SelectedFileIsNotSketch}">

@@ -1302,6 +1302,90 @@ public partial class MainView : UserControl
             $"Collection '{_ctx.Collections.CurrentCollection}'");
     }
 
+    private async void OnBatchExportReviews(object? sender, RoutedEventArgs e)
+    {
+        var files = _ctx.CurrentFiles.ToList();
+        if (files.Count < 2 || files.Any(file => !file.IsRegularFile || !file.HasPdfExtension()))
+            return;
+
+        try
+        {
+            var window = ParentWindow;
+            var dialog = new xBatchReviewExportDia();
+            _ctx.ConfigureWindow(dialog, window);
+            await dialog.ShowDialog(window);
+            if (!dialog.Confirmed)
+                return;
+
+            if (dialog.SelectedMode == xBatchReviewExportDia.ExportMode.BindOnly)
+            {
+                await BindFilesAsync(files, "Selected files");
+                return;
+            }
+
+            if (_ctx.PreviewVM.BackgroundTaskActive)
+            {
+                _ctx.PreviewVM.StatusMessage = "Batch review export unavailable while another background task is running.";
+                return;
+            }
+
+            if (_ctx.PreviewVM.DualFileMode || _ctx.PreviewVM.DiffOverlayActive)
+            {
+                _ctx.PreviewVM.StatusMessage = "Exit Dual File or Diff mode before exporting batch reviews.";
+                return;
+            }
+
+            bool restoreEmbeddedPreview = !_ctx.UI.PreviewEmbeddedOpen && !_ctx.PreviewWindowOpen;
+            if (restoreEmbeddedPreview)
+                _ctx.UI.PreviewEmbeddedOpen = true;
+
+            try
+            {
+                PreView? preview = _ctx.UI.PreviewEmbeddedOpen
+                    ? EmbeddedPreview
+                    : _ctx.PreviewWindow?.GetVisualDescendants().OfType<PreView>().FirstOrDefault();
+
+                if (preview == null)
+                {
+                    _ctx.PreviewVM.StatusMessage = "Unable to initialize the preview for batch export.";
+                    return;
+                }
+
+                if (!preview.IsLoaded)
+                {
+                    var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    EventHandler<RoutedEventArgs> onLoaded = (_, _) => loaded.TrySetResult();
+                    preview.Loaded += onLoaded;
+                    try
+                    {
+                        if (preview.IsLoaded)
+                            loaded.TrySetResult();
+                        await loaded.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    }
+                    finally
+                    {
+                        preview.Loaded -= onLoaded;
+                    }
+                }
+
+                await preview.ExportBatchReviewsAsync(
+                    files,
+                    dialog.ReviewName,
+                    dialog.SelectedMode == xBatchReviewExportDia.ExportMode.MergedReview);
+            }
+            finally
+            {
+                if (restoreEmbeddedPreview)
+                    _ctx.UI.PreviewEmbeddedOpen = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _ctx.PreviewVM.StatusMessage = $"Batch review export failed: {ex.Message}";
+            Utils.ErrorLogger.Log(ex, nameof(OnBatchExportReviews));
+        }
+    }
+
     private async Task BindFilesAsync(
         IEnumerable<FileData> sourceFiles,
         string sourceLabel)

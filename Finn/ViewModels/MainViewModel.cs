@@ -220,6 +220,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(OtherFilesOwner));
                     OnPropertyChanged(nameof(NrSelectedFiles));
                     OnPropertyChanged(nameof(FileSelected));
+                    OnPropertyChanged(nameof(CanBatchExportReviews));
                     OnPropertyChanged(nameof(AllSelectedFilesHaveVersions));
                     OnPropertyChanged(nameof(SelectedFileIsTopLevel));
                     OnPropertyChanged(nameof(SelectedFileIsChild));
@@ -244,6 +245,9 @@ namespace Finn.ViewModels
 
             public FileData? CurrentFile => CurrentFiles?.LastOrDefault();
             public bool FileSelected => CurrentFile != null;
+            public bool CanBatchExportReviews =>
+                CurrentFiles != null && CurrentFiles.Count >= 2
+                && CurrentFiles.All(file => file.IsRegularFile && file.HasPdfExtension());
 
             /// <summary>
             /// The file whose OtherFiles should be displayed in the tray.

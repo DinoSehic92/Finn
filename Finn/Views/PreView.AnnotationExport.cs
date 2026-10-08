@@ -9,6 +9,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using iText.IO.Image;
 using iText.Kernel.Pdf;
+using iText.Kernel.Utils;
 using MuPDFCore;
 using MuPDFCore.MuPDFRenderer;
 using SkiaSharp;
@@ -1179,7 +1180,110 @@ public partial class PreView
     /// <summary>
     /// Exports a review PDF using PDFSharp vector export.
     /// </summary>
-    private string ExportReviewPdf(string reviewName)
+    public async Task<IReadOnlyList<string>> ExportBatchReviewsAsync(
+        IReadOnlyList<FileData> files,
+        string reviewName,
+        bool mergeReviews)
+    {
+        var exportedFiles = new List<string>();
+        string? temporaryDirectory = null;
+        FileData? previousFile = pwr.CurrentFile;
+        FileData? previousVersionSource = pwr.VersionSourceFile;
+        bool previousWhiteboardMode = pwr.WhiteboardMode;
+        string safeReviewName = SanitizeFileName(reviewName);
+
+        if (mergeReviews)
+            temporaryDirectory = Path.Combine(Path.GetTempPath(), $"FinnReviews_{Guid.NewGuid():N}");
+
+        try
+        {
+            pwr.VersionSourceFile = null;
+            for (int i = 0; i < files.Count; i++)
+            {
+                FileData file = files[i];
+                pwr.StatusMessage = $"Exporting review {i + 1} of {files.Count}: {file.Namn}";
+                pwr.RequestFile = file;
+                await pwr.SetFileAsync();
+                if (!ReferenceEquals(pwr.CurrentFile, file))
+                    throw new InvalidOperationException($"Could not open {file.Namn} for review export.");
+
+                string? exportPath = null;
+                if (temporaryDirectory != null)
+                {
+                    Directory.CreateDirectory(temporaryDirectory);
+                    string fileName = Path.GetFileNameWithoutExtension(file.Sökväg);
+                    exportPath = Path.Combine(temporaryDirectory, $"{i:D4}_{SanitizeFileName(fileName)}.pdf");
+                }
+
+                string resultPath = await Task.Run(() => ExportReviewPdf(reviewName, exportPath));
+                if (temporaryDirectory == null)
+                {
+                    file.AddVersion(resultPath, "REVIEW");
+                    ctx.MarkDirty();
+                }
+                exportedFiles.Add(resultPath);
+            }
+
+            if (temporaryDirectory != null)
+            {
+                string? baseFolder = ctx?.CurrentProject?.ReviewFolder;
+                if (string.IsNullOrWhiteSpace(baseFolder))
+                    baseFolder = Path.Combine(MainViewModel.SavePath, "Reviews");
+
+                string outputDirectory = Path.Combine(baseFolder, $"{DateTime.Now:yyyy-MM-dd}_{safeReviewName}");
+                Directory.CreateDirectory(outputDirectory);
+                string mergedPath = Path.Combine(outputDirectory, $"{safeReviewName}_Merged.pdf");
+                await Task.Run(() => MergeReviewPdfs(exportedFiles, mergedPath));
+                exportedFiles.Clear();
+                exportedFiles.Add(mergedPath);
+            }
+
+            pwr.StatusMessage = mergeReviews
+                ? $"Merged review exported: {Path.GetFileName(exportedFiles[0])}"
+                : $"Exported {exportedFiles.Count} individual reviews.";
+            return exportedFiles;
+        }
+        finally
+        {
+            if (temporaryDirectory != null)
+            {
+                try { Directory.Delete(temporaryDirectory, recursive: true); }
+                catch { }
+            }
+
+            if (previousFile != null)
+            {
+                pwr.VersionSourceFile = previousVersionSource;
+                pwr.RequestFile = previousFile;
+                await pwr.SetFileAsync();
+            }
+            else if (previousWhiteboardMode)
+            {
+                pwr.VersionSourceFile = previousVersionSource;
+                await pwr.OpenWhiteboardAsync();
+            }
+            else
+            {
+                pwr.VersionSourceFile = previousVersionSource;
+                await pwr.CloseRendererAsync();
+            }
+        }
+    }
+
+    private static void MergeReviewPdfs(IReadOnlyList<string> inputPaths, string outputPath)
+    {
+        using var writer = new PdfWriter(outputPath);
+        using var output = new PdfDocument(writer);
+        var merger = new PdfMerger(output);
+        foreach (string path in inputPaths)
+        {
+            using var reader = new PdfReader(path);
+            using var source = new PdfDocument(reader);
+            merger.Merge(source, 1, source.GetNumberOfPages());
+        }
+    }
+
+    private string ExportReviewPdf(string reviewName, string? outputPath = null)
     {
         var integrity = MuPDFRenderer.ValidateAndRepairAnnotations();
         if ((integrity.FixedCount > 0 || integrity.RemovedCount > 0) && pwr != null)
@@ -1194,13 +1298,17 @@ public partial class PreView
 
         string subFolder = $"{DateTime.Now:yyyy-MM-dd}_{SanitizeFileName(reviewName)}";
         string outputDir = Path.Combine(baseFolder, subFolder);
-        Directory.CreateDirectory(outputDir);
 
         string? sourcePath = pwr?.CurrentFile?.Sökväg;
         string sourceName = sourcePath != null
             ? Path.GetFileNameWithoutExtension(sourcePath) ?? "whiteboard"
             : "whiteboard";
-        string outputPath = Path.Combine(outputDir, $"{sourceName}.pdf");
+        if (outputPath == null)
+        {
+            Directory.CreateDirectory(outputDir);
+            outputPath = Path.Combine(outputDir, $"{sourceName}.pdf");
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
         // Whiteboard or missing source → image-based fallback
         if (sourcePath == null || !File.Exists(sourcePath))
