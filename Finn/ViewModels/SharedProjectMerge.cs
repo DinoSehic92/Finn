@@ -270,6 +270,7 @@ internal static class SharedProjectMerge
         Opacity = source.Opacity,
         IsHighlighter = source.IsHighlighter,
         IsPolyline = source.IsPolyline,
+        IsRebar = source.IsRebar,
         IsClosed = source.IsClosed,
         DashPattern = source.DashPattern,
         CornerRadius = source.CornerRadius

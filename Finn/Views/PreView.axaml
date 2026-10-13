@@ -253,6 +253,9 @@
 									<Button ToolTip.Tip="Polyline (P)" Width="26" Height="26" Padding="0" Tag="Polyline" Click="OnAnnotateToolSelect" BorderThickness="0">
 											<ic:SymbolIcon Symbol="BezierCurveSquare" IconVariant="Regular" FontSize="14"/>
 										</Button>
+									<Button ToolTip.Tip="Rebar" Width="26" Height="26" Padding="0" Tag="Rebar" Click="OnAnnotateToolSelect" BorderThickness="0">
+										<TextBlock Text="R" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+									</Button>
 									<Button ToolTip.Tip="Rectangle (3)" Width="26" Height="26" Padding="0" Tag="Rectangle" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Square" IconVariant="Regular" FontSize="14"/>
 									</Button>

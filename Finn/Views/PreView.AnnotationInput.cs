@@ -487,11 +487,13 @@ public partial class PreView
                 break;
 
             case InlineAnnotationTool.Polyline:
+            case InlineAnnotationTool.Rebar:
             {
                 bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
                 if (AnnotationRenderer.HasActivePolyline)
                 {
-                    bool autoClose = AnnotationRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
+                    bool atStart = AnnotationRenderer.ShouldAutoCloseActivePolyline(pdfPoint.Value, HitRadius(12));
+                    bool autoClose = atStart && !AnnotationRenderer.IsActivePolylineRebar;
                     if (e.ClickCount >= 2)
                     {
                         // The first click of the double-click already added a point via ClickCount==1;
@@ -500,16 +502,16 @@ public partial class PreView
                         AnnotationRenderer.EndPolyline(close: autoClose);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
-                    else if (autoClose)
+                    else if (atStart)
                     {
-                        AnnotationRenderer.EndPolyline(close: true);
+                        AnnotationRenderer.EndPolyline(close: autoClose);
                         ApplyToolSwitch(InlineAnnotationTool.Select);
                     }
                     else
                         AnnotationRenderer.AddPolylinePoint(pdfPoint.Value, shift);
                 }
                 else
-                    AnnotationRenderer.BeginPolyline(pdfPoint.Value);
+                    AnnotationRenderer.BeginPolyline(pdfPoint.Value, asRebar: tool == InlineAnnotationTool.Rebar);
                 UpdateAnnotationStatusHint();
                 e.Pointer.Capture(null);
                 break;
@@ -682,6 +684,7 @@ public partial class PreView
                         or InlineAnnotationTool.Arrow
                         or InlineAnnotationTool.RevisionCloud
                         or InlineAnnotationTool.Polyline
+                        or InlineAnnotationTool.Rebar
                         or InlineAnnotationTool.MeasureArea
                         or InlineAnnotationTool.MeasureDistance)
                 {
@@ -936,6 +939,7 @@ public partial class PreView
                 break;
 
             case InlineAnnotationTool.Polyline:
+            case InlineAnnotationTool.Rebar:
             case InlineAnnotationTool.MeasureArea:
                 AnnotationRenderer.SetPolarCursorScreen(e.GetPosition(AnnotationRenderer));
                 AnnotationRenderer.UpdatePolylinePreview(pdfPoint.Value, shift);

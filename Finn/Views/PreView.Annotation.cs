@@ -253,6 +253,7 @@ public partial class PreView
             InlineAnnotationTool.Draw => "Draw: drag to sketch freehand, right-click or Esc to cancel.",
             InlineAnnotationTool.Highlight => "Highlight: drag to mark up content, right-click or Esc to cancel.",
             InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
+            InlineAnnotationTool.Rebar => "Rebar: click to add points, click the first point, double-click, or press Enter to finish; Esc to cancel.",
             InlineAnnotationTool.Dot => "Dot: click to place a dot annotation.",
             InlineAnnotationTool.Rectangle => "Rectangle: click once to start, move the mouse, click again to finish. Hold Shift for a square.",
             InlineAnnotationTool.Ellipse => "Ellipse: click once to start, move the mouse, click again to finish. Hold Shift for a circle.",
@@ -753,6 +754,7 @@ public partial class PreView
                     Color = src.Color, Width = src.Width,
                     Opacity = src.Opacity, IsHighlighter = src.IsHighlighter,
                     IsPolyline = src.IsPolyline,
+                    IsRebar = src.IsRebar,
                     IsClosed = src.IsClosed,
                     IsFilled = src.IsFilled,
                     IsAreaMeasure = src.IsAreaMeasure,
@@ -1014,7 +1016,7 @@ public partial class PreView
             if (AnnotationRenderer.IsActivePolylineAreaMeasure && AnnotationRenderer.ActivePolylinePointCount < 3)
                 AnnotationRenderer.CancelPolyline();
             else
-                AnnotationRenderer.EndPolyline(close: true);
+                AnnotationRenderer.EndPolyline(close: !AnnotationRenderer.IsActivePolylineRebar);
             ApplyToolSwitch(InlineAnnotationTool.Select);
             e.Handled = true;
             return;
@@ -1302,7 +1304,7 @@ public partial class PreView
         InlineAnnotationTool.Text => CursorIbeam,
         InlineAnnotationTool.StickyNote => CursorIbeam,
         InlineAnnotationTool.Select => CursorArrow,
-        InlineAnnotationTool.Polyline => CursorCross,
+        InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar => CursorCross,
         InlineAnnotationTool.Screenshot => CursorCross,
         _ => CursorCross
     };
@@ -1394,7 +1396,7 @@ public partial class PreView
             _arrowTextOrigin = null;
             AnnotationRenderer.ClearArrowTextPreview();
         }
-        if (AnnotationRenderer.HasActivePolyline && tool != InlineAnnotationTool.Polyline)
+        if (AnnotationRenderer.HasActivePolyline && tool is not (InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar))
         {
             AnnotationRenderer.CancelPolyline();
         }

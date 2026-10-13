@@ -101,14 +101,14 @@ public partial class PreView
             using var path = new SKPath();
             float z = (float)renderZoom;
 
-            if (pts.Count == 2)
+            if (pts.Count == 2 && !stroke.IsRebar)
             {
                 path.MoveTo((float)(pts[0].X * z), (float)(pts[0].Y * z));
                 path.LineTo((float)(pts[1].X * z), (float)(pts[1].Y * z));
             }
             else if (stroke.IsPolyline)
             {
-                float cr = (float)(stroke.CornerRadius * z);
+                float cr = stroke.IsAreaMeasure ? 0 : (float)(stroke.CornerRadius * z);
                 bool closed = stroke.IsClosed && pts.Count >= 3;
                 // Remove duplicated closing point if present
                 int n = pts.Count;
@@ -124,13 +124,22 @@ public partial class PreView
                 for (int i = 0; i < n; i++)
                     sp[i] = new SKPoint((float)(pts[i].X * z), (float)(pts[i].Y * z));
 
+                SKPoint? hookStart = null, hookEnd = null;
+                if (stroke.TryGetRebarHookPoints(out var pageHookStart, out var pageHookEnd))
+                {
+                    hookStart = new SKPoint((float)(pageHookStart.X * z), (float)(pageHookStart.Y * z));
+                    hookEnd = new SKPoint((float)(pageHookEnd.X * z), (float)(pageHookEnd.Y * z));
+                }
+
                 if (cr > 0.5f && n >= 3)
-                    BuildRoundedPolylinePath(path, sp, n, cr, closed);
+                    BuildRoundedPolylinePath(path, sp, n, cr, closed, hookStart, hookEnd);
                 else
                 {
-                    path.MoveTo(sp[0]);
+                    path.MoveTo(hookStart ?? sp[0]);
+                    if (hookStart.HasValue) path.LineTo(sp[0]);
                     for (int i = 1; i < n; i++)
                         path.LineTo(sp[i]);
+                    if (hookEnd.HasValue && !closed) path.LineTo(hookEnd.Value);
                     if (closed) path.Close();
                 }
 
@@ -892,7 +901,8 @@ public partial class PreView
     /// Bézier curves at each vertex. Matches the in-app Avalonia renderer's
     /// ComputeArcRadius + QuadraticBezierTo logic.
     /// </summary>
-    private static void BuildRoundedPolylinePath(SKPath path, SKPoint[] pts, int n, float cr, bool closed)
+    private static void BuildRoundedPolylinePath(SKPath path, SKPoint[] pts, int n, float cr, bool closed,
+                                                 SKPoint? hookStart = null, SKPoint? hookEnd = null)
     {
         static float Dist(SKPoint a, SKPoint b)
         {
@@ -904,7 +914,7 @@ public partial class PreView
         {
             float dIn = Dist(prev, curr);
             float dOut = Dist(curr, next);
-            float halfMin = MathF.Min(dIn, dOut) * 0.45f;
+            float halfMin = MathF.Min(dIn, dOut) * 0.5f;
             return MathF.Min(maxR, halfMin);
         }
 
@@ -958,7 +968,8 @@ public partial class PreView
         else
         {
             // Open polyline: first and last points are endpoints, round interior vertices
-            path.MoveTo(pts[0]);
+            path.MoveTo(hookStart ?? pts[0]);
+            if (hookStart.HasValue) path.LineTo(pts[0]);
             for (int i = 1; i < n - 1; i++)
             {
                 var prev = pts[i - 1];
@@ -982,6 +993,7 @@ public partial class PreView
                 }
             }
             path.LineTo(pts[n - 1]);
+            if (hookEnd.HasValue) path.LineTo(hookEnd.Value);
         }
     }
 
@@ -1396,6 +1408,51 @@ public partial class PreView
         };
     }
 
+    private static void BuildRebarPdfSharpPath(
+        XGraphicsPath path, IReadOnlyList<Point> points, double cornerRadius, Point hookStart, Point hookEnd)
+    {
+        path.StartFigure();
+        path.AddLine(hookStart.X, hookStart.Y, points[0].X, points[0].Y);
+        var current = points[0];
+
+        for (int i = 1; i < points.Count - 1; i++)
+        {
+            var prev = points[i - 1];
+            var curr = points[i];
+            var next = points[i + 1];
+            double dxIn = curr.X - prev.X, dyIn = curr.Y - prev.Y;
+            double lenIn = Math.Sqrt(dxIn * dxIn + dyIn * dyIn);
+            double dxOut = next.X - curr.X, dyOut = next.Y - curr.Y;
+            double lenOut = Math.Sqrt(dxOut * dxOut + dyOut * dyOut);
+            double radius = lenIn < 1 || lenOut < 1
+                ? 0
+                : Math.Min(cornerRadius, Math.Min(lenIn, lenOut) * 0.5);
+
+            if (radius < 0.5)
+            {
+                path.AddLine(current.X, current.Y, curr.X, curr.Y);
+                current = curr;
+                continue;
+            }
+
+            var arcStart = new Point(curr.X - dxIn / lenIn * radius, curr.Y - dyIn / lenIn * radius);
+            var arcEnd = new Point(curr.X + dxOut / lenOut * radius, curr.Y + dyOut / lenOut * radius);
+            path.AddLine(current.X, current.Y, arcStart.X, arcStart.Y);
+
+            double control1X = arcStart.X + (curr.X - arcStart.X) * 2 / 3;
+            double control1Y = arcStart.Y + (curr.Y - arcStart.Y) * 2 / 3;
+            double control2X = arcEnd.X + (curr.X - arcEnd.X) * 2 / 3;
+            double control2Y = arcEnd.Y + (curr.Y - arcEnd.Y) * 2 / 3;
+            path.AddBezier(arcStart.X, arcStart.Y, control1X, control1Y,
+                control2X, control2Y, arcEnd.X, arcEnd.Y);
+            current = arcEnd;
+        }
+
+        var end = points[^1];
+        path.AddLine(current.X, current.Y, end.X, end.Y);
+        path.AddLine(end.X, end.Y, hookEnd.X, hookEnd.Y);
+    }
+
     private void DrawStrokesWithPdfSharp(XGraphics gfx, int page)
     {
         var strokes = MuPDFRenderer.GetStrokes(page);
@@ -1414,8 +1471,17 @@ public partial class PreView
 
             if (pts.Count == 2 || stroke.IsPolyline)
             {
-                for (int j = 0; j < pts.Count - 1; j++)
-                    gfx.DrawLine(pen, pts[j].X, pts[j].Y, pts[j + 1].X, pts[j + 1].Y);
+                if (stroke.IsRebar && stroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd))
+                {
+                    var path = new XGraphicsPath();
+                    BuildRebarPdfSharpPath(path, pts, stroke.CornerRadius, hookStart, hookEnd);
+                    gfx.DrawPath(pen, path);
+                }
+                else
+                {
+                    for (int j = 0; j < pts.Count - 1; j++)
+                        gfx.DrawLine(pen, pts[j].X, pts[j].Y, pts[j + 1].X, pts[j + 1].Y);
+                }
             }
             else
             {

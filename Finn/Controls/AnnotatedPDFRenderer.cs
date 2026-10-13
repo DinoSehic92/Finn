@@ -28,6 +28,8 @@ namespace Finn.Controls;
 /// </summary>
 public class AnnotatedPDFRenderer : PDFRenderer
 {
+    private static readonly Color s_rebarColor = Color.FromRgb(255, 0, 255);
+
     private InkStroke? _activeStroke;
     private ShapeAnnotation? _activeShape;
     private MeasurementAnnotation? _activeMeasurement;
@@ -920,19 +922,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // ── Polyline (multi-click straight-line segments) ─────────────────
 
-    public void BeginPolyline(Point pdfPoint, bool asAreaMeasure = false)
+    public void BeginPolyline(Point pdfPoint, bool asAreaMeasure = false, bool asRebar = false)
     {
         if (IsActiveLayerLocked) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
         {
-            Color = StrokeColor,
+            Color = asRebar ? s_rebarColor : StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsPolyline = true,
+            IsRebar = asRebar,
             DashPattern = asAreaMeasure ? LineDashPattern.Dashed : StrokeDashPattern,
-            CornerRadius = ShapeCornerRadius,
+            CornerRadius = asAreaMeasure ? 0 : (asRebar && ShapeCornerRadius == 0 ? 5 : ShapeCornerRadius),
             IsAreaMeasure = asAreaMeasure,
             IsFilled = asAreaMeasure,
             AreaScale = MeasurementScale,
@@ -1059,6 +1062,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public bool HasActivePolyline => _activePolyline != null;
     public int ActivePolylinePointCount => _activePolyline?.Points.Count ?? 0;
     public bool IsActivePolylineAreaMeasure => _activePolyline?.IsAreaMeasure ?? false;
+    public bool IsActivePolylineRebar => _activePolyline?.IsRebar ?? false;
 
     public bool TryGetActivePolylineStart(out Point start)
     {
@@ -3062,6 +3066,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             minX = Math.Min(minX, p.X); minY = Math.Min(minY, p.Y);
             maxX = Math.Max(maxX, p.X); maxY = Math.Max(maxY, p.Y);
         }
+        if (ink.TryGetRebarHookPoints(out var hookStart, out var hookEnd))
+        {
+            minX = Math.Min(minX, Math.Min(hookStart.X, hookEnd.X));
+            minY = Math.Min(minY, Math.Min(hookStart.Y, hookEnd.Y));
+            maxX = Math.Max(maxX, Math.Max(hookStart.X, hookEnd.X));
+            maxY = Math.Max(maxY, Math.Max(hookStart.Y, hookEnd.Y));
+        }
         return new Rect(minX, minY, Math.Max(0, maxX - minX), Math.Max(0, maxY - minY));
     }
 
@@ -3218,7 +3229,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public object? FindTopmostAt(Point pdfPoint)
     {
         if (ActiveLayer == null) return null;
-        double threshold = StrokeWidth * 3;
+        double threshold = Math.Min(StrokeWidth * 3, ScreenToPdfDistance(8));
 
         if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
             for (int i = texts.Count - 1; i >= 0; i--)
@@ -3345,6 +3356,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Polylines have sparse points with straight segments — test segment proximity
         if (stroke.IsPolyline && stroke.Points.Count >= 2)
         {
+            if (stroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd)
+                && (DistanceToSegment(pt, hookStart, stroke.Points[0]) <= threshold
+                    || DistanceToSegment(pt, stroke.Points[^1], hookEnd) <= threshold))
+                return true;
+
             // Closed/fillable polylines: hit interior using polygon geometry (not bbox).
             if (stroke.IsClosed && stroke.Points.Count >= 3)
             {
@@ -4271,14 +4287,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
             {
                 var lastPt = PdfToScreen(_activePolyline.Points[^1], da, boundsSize);
                 var previewPt = PdfToScreen(_polylinePreviewEnd.Value, da, boundsSize);
-                double pw = StrokeWidth * penScale;
-                if (_cachedPreviewPen == null || _cachedPreviewColor != StrokeColor
+                var previewColor = _activePolyline.Color;
+                double pw = _activePolyline.Width * penScale;
+                if (_cachedPreviewPen == null || _cachedPreviewColor != previewColor
                     || Math.Abs(_cachedPreviewWidth - pw) > 0.5)
                 {
-                    _cachedPreviewColor = StrokeColor;
+                    _cachedPreviewColor = previewColor;
                     _cachedPreviewWidth = pw;
                     _cachedPreviewPen = new Pen(
-                        new SolidColorBrush(Color.FromArgb(140, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(),
+                        new SolidColorBrush(Color.FromArgb(140, previewColor.R, previewColor.G, previewColor.B)).ToImmutable(),
                         pw, dashStyle: s_dashStyle4_3, lineCap: PenLineCap.Round);
                 }
                 context.DrawLine(_cachedPreviewPen, lastPt, previewPt);
@@ -4405,6 +4422,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
                         maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
                     }
+                    if (hoverStroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd))
+                    {
+                        var screenStart = PdfToScreen(hookStart, ox, oy, scaleX, scaleY);
+                        var screenEnd = PdfToScreen(hookEnd, ox, oy, scaleX, scaleY);
+                        minX = Math.Min(minX, Math.Min(screenStart.X, screenEnd.X));
+                        minY = Math.Min(minY, Math.Min(screenStart.Y, screenEnd.Y));
+                        maxX = Math.Max(maxX, Math.Max(screenStart.X, screenEnd.X));
+                        maxY = Math.Max(maxY, Math.Max(screenStart.Y, screenEnd.Y));
+                    }
                     hoverBounds = new Rect(minX, minY, maxX - minX, maxY - minY);
                     break;
                 }
@@ -4498,17 +4524,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
             && ActiveTool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse
                 or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
                 or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.MeasureDistance
-                or InlineAnnotationTool.Polyline or InlineAnnotationTool.Dot)
+                or InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot)
         {
             var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
             double arm = 8;
-            if (_cachedCrosshairPen == null || _cachedCursorColor != StrokeColor)
+            var cursorColor = ActiveTool == InlineAnnotationTool.Rebar ? s_rebarColor : StrokeColor;
+            if (_cachedCrosshairPen == null || _cachedCursorColor != cursorColor)
             {
-                _cachedCursorColor = StrokeColor;
+                _cachedCursorColor = cursorColor;
                 _cachedCursorBrush = new SolidColorBrush(
-                    Color.FromArgb(160, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable();
+                    Color.FromArgb(160, cursorColor.R, cursorColor.G, cursorColor.B)).ToImmutable();
                 _cachedCrosshairPen = new Pen(new SolidColorBrush(
-                    Color.FromArgb(180, StrokeColor.R, StrokeColor.G, StrokeColor.B)).ToImmutable(), 1.0);
+                    Color.FromArgb(180, cursorColor.R, cursorColor.G, cursorColor.B)).ToImmutable(), 1.0);
             }
             context.DrawLine(_cachedCrosshairPen, new Point(cp.X - arm, cp.Y), new Point(cp.X + arm, cp.Y));
             context.DrawLine(_cachedCrosshairPen, new Point(cp.X, cp.Y - arm), new Point(cp.X, cp.Y + arm));
@@ -4679,6 +4706,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             var sp = PdfToScreen(p, ox, oy, scaleX, scaleY);
                             minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
                             maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                        }
+                        if (stroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd))
+                        {
+                            var screenStart = PdfToScreen(hookStart, ox, oy, scaleX, scaleY);
+                            var screenEnd = PdfToScreen(hookEnd, ox, oy, scaleX, scaleY);
+                            minX = Math.Min(minX, Math.Min(screenStart.X, screenEnd.X));
+                            minY = Math.Min(minY, Math.Min(screenStart.Y, screenEnd.Y));
+                            maxX = Math.Max(maxX, Math.Max(screenStart.X, screenEnd.X));
+                            maxY = Math.Max(maxY, Math.Max(screenStart.Y, screenEnd.Y));
                         }
                         bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
                         break;
@@ -4992,6 +5028,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         bool cacheHit = geometry != null
             && stroke.CachedGeometryPointCount == pts.Count
             && stroke.CachedGeometryClosed == closed
+            && stroke.CachedGeometryRebar == stroke.IsRebar
             && stroke.CachedGeoScaleX == scaleX && stroke.CachedGeoScaleY == scaleY
             && stroke.CachedGeoOffX == offsetX && stroke.CachedGeoOffY == offsetY;
 
@@ -5003,13 +5040,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
             for (int i = 0; i < n; i++)
                 sp[i] = PdfToScreen(pts[i], offsetX, offsetY, scaleX, scaleY);
 
-            geometry = BuildStrokeGeometry(stroke, sp, n, closed, penScale);
+            Point? hookStart = null, hookEnd = null;
+            if (stroke.TryGetRebarHookPoints(out var pdfHookStart, out var pdfHookEnd))
+            {
+                hookStart = PdfToScreen(pdfHookStart, offsetX, offsetY, scaleX, scaleY);
+                hookEnd = PdfToScreen(pdfHookEnd, offsetX, offsetY, scaleX, scaleY);
+            }
+            geometry = BuildStrokeGeometry(stroke, sp, n, closed, penScale, hookStart, hookEnd);
 
             // Only cache for committed strokes (not the active stroke being drawn)
             if (overridePen == null)
             {
                 stroke.CachedGeometry = geometry;
                 stroke.CachedGeometryClosed = closed;
+                stroke.CachedGeometryRebar = stroke.IsRebar;
                 stroke.CachedGeoScaleX = scaleX;
                 stroke.CachedGeoScaleY = scaleY;
                 stroke.CachedGeoOffX = offsetX;
@@ -5026,14 +5070,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     /// <summary>Builds a StreamGeometry from pre-transformed screen-space points.</summary>
-    private static StreamGeometry BuildStrokeGeometry(InkStroke stroke, Span<Point> sp, int n, bool closed, double penScale)
+    private static StreamGeometry BuildStrokeGeometry(InkStroke stroke, Span<Point> sp, int n, bool closed, double penScale,
+                                                       Point? hookStart, Point? hookEnd)
     {
         var geometry = new StreamGeometry();
         using (var ctx = geometry.Open())
         {
             if (n == 2 || stroke.IsPolyline)
             {
-                double cr = stroke.CornerRadius * penScale;
+                double cr = stroke.IsAreaMeasure ? 0 : stroke.CornerRadius * penScale;
                 if (cr > 0.5 && stroke.IsPolyline && n >= 3)
                 {
                     // Determine effective point count: for closed shapes where
@@ -5075,7 +5120,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
                     else
                     {
-                        ctx.BeginFigure(sp[0], closed);
+                        ctx.BeginFigure(hookStart ?? sp[0], closed);
+                        if (hookStart.HasValue)
+                            ctx.LineTo(sp[0]);
                     }
 
                     // Interior vertices (or all vertices for closed)
@@ -5104,13 +5151,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     }
 
                     if (!closed)
+                    {
                         ctx.LineTo(sp[n - 1]);
+                        if (hookEnd.HasValue)
+                            ctx.LineTo(hookEnd.Value);
+                    }
                 }
                 else
                 {
-                    ctx.BeginFigure(sp[0], closed);
+                    ctx.BeginFigure(hookStart ?? sp[0], closed);
+                    if (hookStart.HasValue)
+                        ctx.LineTo(sp[0]);
                     for (int i = 1; i < n; i++)
                         ctx.LineTo(sp[i]);
+                    if (hookEnd.HasValue && !closed)
+                        ctx.LineTo(hookEnd.Value);
                 }
             }
             else
@@ -6229,6 +6284,8 @@ public class InkStroke
     public bool IsHighlighter { get; set; }
     /// <summary>When true, points are connected with straight line segments instead of spline curves.</summary>
     public bool IsPolyline { get; set; }
+    /// <summary>When true, this polyline is a rebar annotation with end hooks.</summary>
+    public bool IsRebar { get; set; }
     /// <summary>When true, the polyline forms a closed shape (last point connects back to first).</summary>
     public bool IsClosed { get; set; }
     /// <summary>When true, the closed polyline is rendered with a translucent fill.</summary>
@@ -6247,6 +6304,36 @@ public class InkStroke
     /// </summary>
     public double CornerRadius { get; set; }
 
+    public bool TryGetRebarHookPoints(out Point start, out Point end)
+    {
+        if (!IsRebar || IsClosed || Points.Count < 2)
+        {
+            start = end = default;
+            return false;
+        }
+
+        double hookLength = Math.Max(Width * 4, 8);
+        start = GetRebarHookPoint(Points[0], Points[1], hookLength);
+        end = GetRebarHookPoint(Points[^1], Points[^2], hookLength);
+        return true;
+    }
+
+    private static Point GetRebarHookPoint(Point endpoint, Point adjacent, double length)
+    {
+        double dx = adjacent.X - endpoint.X;
+        double dy = adjacent.Y - endpoint.Y;
+        double segmentLength = Math.Sqrt(dx * dx + dy * dy);
+        if (segmentLength < 0.001)
+            return endpoint;
+
+        const double hookAngleRadians = 45 * Math.PI / 180;
+        double cos = Math.Cos(hookAngleRadians);
+        double sin = Math.Sin(hookAngleRadians);
+        double hookX = (dx * cos - dy * sin) / segmentLength;
+        double hookY = (dx * sin + dy * cos) / segmentLength;
+        return new Point(endpoint.X + hookX * length, endpoint.Y + hookY * length);
+    }
+
     // Cached pen to avoid per-frame allocation during rendering.
     private IPen? _cachedPen;
     private double _cachedPenScale;
@@ -6256,6 +6343,7 @@ public class InkStroke
     // Invalidated when points change (InvalidateGeometry) or the view transform shifts.
     internal StreamGeometry? CachedGeometry;
     internal bool CachedGeometryClosed;
+    internal bool CachedGeometryRebar;
     internal double CachedGeoScaleX, CachedGeoScaleY, CachedGeoOffX, CachedGeoOffY;
     internal int CachedGeometryPointCount;
 

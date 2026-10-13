@@ -1249,7 +1249,7 @@ public partial class PreView
         {
             var tool = AnnotationRenderer.ActiveTool;
             // Area measure tool creates area polylines — exclude it
-            visible = tool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Polyline;
+            visible = tool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar;
         }
         _cornerRadiusBtn.IsVisible = visible;
     }

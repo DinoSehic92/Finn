@@ -18,6 +18,7 @@ public enum InlineAnnotationTool
     Line,
     Arrow,
     Polyline,
+    Rebar,
     Text,
     ArrowText,
     StickyNote,
