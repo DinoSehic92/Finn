@@ -149,7 +149,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private IPen? _cachedCrosshairPen;
     private Color _cachedCursorColor;
 
-    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange, GroupMove, GroupAdd }
+    private enum UndoType { Stroke, Shape, Text, Measurement, ClearPage, Move, Delete, PropertyChange, ZOrder, GroupResize, GroupPropertyChange, GroupMove, GroupAdd, GroupDelete }
     private readonly Stack<(UndoType type, int page, object? data, AnnotationLayer? layer)> _undoStack = new();
     private readonly Stack<(UndoType type, int page, object item, AnnotationLayer? layer)> _redoStack = new();
 
@@ -163,10 +163,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     /// <summary>Items collected during a <see cref="BeginGroupAdd"/>/<see cref="EndGroupAdd"/> batch.</summary>
     private record GroupAddSnapshot(List<object> Items);
+    private record GroupMembershipSnapshot(HashSet<object> Group, object[] Items);
+    private record DeletedAnnotationSnapshot(object Item, int Index, List<GroupMembershipSnapshot> Groups);
+    private record GroupDeleteSnapshot(List<DeletedAnnotationSnapshot> Items);
 
     // Batch-add support: when active, Place* methods append to this list instead of pushing individual undo entries.
     private bool _groupAddActive;
     private List<object>? _groupAddItems;
+    private bool _groupDeleteActive;
+    private List<DeletedAnnotationSnapshot>? _groupDeletedItems;
+    private int _groupDeletePage;
+    private AnnotationLayer? _groupDeleteLayer;
 
     // Cursor preview position for pen-size visualization
     private Point? _cursorPdfPos;
@@ -258,6 +265,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     return;
                 }
             }
+
         }
         MeasurementScale = DefaultMeasurementScale;
     }
@@ -303,6 +311,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     /// <summary>True when the active layer is locked and should reject mutations.</summary>
     public bool IsActiveLayerLocked => _activeLayer is { IsLocked: true };
+    public bool IsActiveLayerHidden => _activeLayer is { IsVisible: false };
+    public bool CannotAnnotateActiveLayer => IsActiveLayerLocked || IsActiveLayerHidden;
 
     public Color StrokeColor { get; set; } = Color.FromRgb(214, 64, 69);
     public double StrokeWidth { get; set; } = 2;
@@ -857,7 +867,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginStroke(Point pdfPoint)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         _activeStroke = new InkStroke
         {
@@ -899,7 +909,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void EndStroke()
     {
-        if (_activeStroke != null && _activeStroke.Points.Count > 1 && ActiveLayer != null)
+        if (_activeStroke != null && _activeStroke.Points.Count > 1 && ActiveLayer != null && !CannotAnnotateActiveLayer)
         {
             // Smooth the raw points before committing to reduce jaggedness
             _activeStroke.Points = SmoothPoints(_activeStroke.Points);
@@ -926,7 +936,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginPolyline(Point pdfPoint, bool asAreaMeasure = false, bool asRebar = false)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
@@ -986,7 +996,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void EndPolyline(bool close = false)
     {
-        if (_activePolyline != null && _activePolyline.Points.Count >= 2 && ActiveLayer != null)
+        if (_activePolyline != null && _activePolyline.Points.Count >= 2 && ActiveLayer != null && !CannotAnnotateActiveLayer)
         {
             // Area-measure polylines are always closed shapes.
             if (_activePolyline.IsAreaMeasure && _activePolyline.Points.Count >= 3)
@@ -1277,7 +1287,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginShape(Point pdfPoint)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeShape = new ShapeAnnotation
@@ -1320,7 +1330,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void EndShape()
     {
-        if (_activeShape != null && ActiveLayer != null)
+        if (_activeShape != null && ActiveLayer != null && !CannotAnnotateActiveLayer)
         {
             var s = _activeShape;
             double dx = s.End.X - s.Start.X;
@@ -1357,7 +1367,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public void PlaceDot(Point pdfPoint)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
@@ -1458,7 +1468,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PlaceText(Point pdfPoint, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
 
@@ -1495,7 +1505,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PlaceStickyNote(Point pdfPoint, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
 
@@ -1530,7 +1540,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void PlaceArrowText(Point arrowOrigin, Point textPosition, string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
 
@@ -1568,7 +1578,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built shape annotation (used by paste).</summary>
     public void PlaceShape(ShapeAnnotation shape)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes))
@@ -1587,7 +1597,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built ink stroke (used by paste).</summary>
     public void PlaceStroke(InkStroke stroke)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes))
@@ -1606,7 +1616,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built measurement (used by paste).</summary>
     public void PlaceMeasurement(MeasurementAnnotation measurement)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms))
@@ -1625,7 +1635,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Place a pre-built text annotation (used by paste to preserve all style properties).</summary>
     public void PlaceTextAnnotation(TextAnnotation annotation)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         if (ActiveLayer == null) return;
         if (!ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
@@ -1664,6 +1674,56 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (items == null || items.Count == 0) return;
         _undoStack.Push((UndoType.GroupAdd, _currentPage, new GroupAddSnapshot(items), ActiveLayer));
         _redoStack.Clear();
+    }
+
+    public void BeginGroupDelete()
+    {
+        if (_groupDeleteActive)
+            EndGroupDelete();
+        _groupDeleteActive = true;
+        _groupDeletedItems = [];
+        _groupDeletePage = _currentPage;
+        _groupDeleteLayer = ActiveLayer;
+    }
+
+    public void EndGroupDelete()
+    {
+        _groupDeleteActive = false;
+        var items = _groupDeletedItems;
+        _groupDeletedItems = null;
+        var page = _groupDeletePage;
+        var layer = _groupDeleteLayer;
+        _groupDeleteLayer = null;
+        if (items == null || items.Count == 0) return;
+        _undoStack.Push((UndoType.GroupDelete, page, new GroupDeleteSnapshot(items), layer));
+        _redoStack.Clear();
+        layer?.RefreshStatus();
+    }
+
+    private void RecordDeletedAnnotation(object item, int index)
+    {
+        var memberships = new List<GroupMembershipSnapshot>();
+        foreach (var group in _annotationGroups)
+        {
+            if (group.Contains(item))
+            {
+                var members = new object[group.Count];
+                group.CopyTo(members);
+                memberships.Add(new GroupMembershipSnapshot(group, members));
+            }
+        }
+        var snapshot = new DeletedAnnotationSnapshot(item, index, memberships);
+        RemoveFromGroups(item);
+        if (_groupDeleteActive)
+            _groupDeletedItems?.Add(snapshot);
+        else
+            _undoStack.Push((UndoType.Delete, _currentPage, snapshot, ActiveLayer));
+    }
+
+    private void CompleteDeleteMutation()
+    {
+        if (!_groupDeleteActive) _redoStack.Clear();
+        ActiveLayer?.RefreshStatus();
     }
 
     /// <summary>
@@ -1746,7 +1806,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void BeginMeasurement(Point pdfPoint)
     {
-        if (IsActiveLayerLocked) return;
+        if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activeMeasurement = new MeasurementAnnotation
@@ -1797,7 +1857,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void EndMeasurement()
     {
         _polarAngleDeg = null; _polarDistancePdf = null; _polarCursorScreen = null;
-        if (_activeMeasurement != null && ActiveLayer != null && _activeMeasurement.Points.Count >= 2)
+        if (_activeMeasurement != null && ActiveLayer != null && !CannotAnnotateActiveLayer && _activeMeasurement.Points.Count >= 2)
         {
             // Keep measurement scale consistent with calibrated project scale.
             _activeMeasurement.Scale = MeasurementScale;
@@ -1917,7 +1977,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public bool EraseAt(Point pdfPoint)
     {
-        if (ActiveLayer == null || IsActiveLayerLocked) return false;
+        if (CannotAnnotateActiveLayer) return false;
 
         double threshold = StrokeWidth * 3;
 
@@ -1933,10 +1993,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var erased = texts[i];
                     texts.RemoveAt(i);
+                    RecordDeletedAnnotation(erased, i);
                     ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1);
                     _totalTextCount = Math.Max(0, _totalTextCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
-                    _redoStack.Clear();
+                    CompleteDeleteMutation();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -1953,10 +2013,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var erased = measurements[i];
                     measurements.RemoveAt(i);
+                    RecordDeletedAnnotation(erased, i);
                     ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1);
                     _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
-                    _redoStack.Clear();
+                    CompleteDeleteMutation();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -1973,10 +2033,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var erased = shapes[i];
                     shapes.RemoveAt(i);
+                    RecordDeletedAnnotation(erased, i);
                     ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1);
                     _totalShapeCount = Math.Max(0, _totalShapeCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
-                    _redoStack.Clear();
+                    CompleteDeleteMutation();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -1993,10 +2053,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 {
                     var erased = strokes[i];
                     strokes.RemoveAt(i);
+                    RecordDeletedAnnotation(erased, i);
                     ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1);
                     _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1);
-                    _undoStack.Push((UndoType.Delete, _currentPage, erased, ActiveLayer));
-                    _redoStack.Clear();
+                    CompleteDeleteMutation();
                     ActiveLayer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -2186,6 +2246,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public void PushMoveUndo(object snapshot)
     {
+        if (snapshot is not MoveSnapshot move || !HasMoveChanged(move)) return;
         _undoStack.Push((UndoType.Move, _currentPage, snapshot, ActiveLayer));
         _redoStack.Clear();
     }
@@ -2195,11 +2256,31 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (snapshots.Count == 0) return;
         var list = new List<MoveSnapshot>(snapshots.Count);
         foreach (var s in snapshots)
-            if (s is MoveSnapshot ms)
+            if (s is MoveSnapshot ms && HasMoveChanged(ms))
                 list.Add(ms);
         if (list.Count == 0) return;
         _undoStack.Push((UndoType.GroupMove, _currentPage, new GroupMoveSnapshot(list), ActiveLayer));
         _redoStack.Clear();
+    }
+
+    private static bool HasMoveChanged(MoveSnapshot snapshot)
+    {
+        return snapshot.Item switch
+        {
+            TextAnnotation text => snapshot.Position != text.Position || snapshot.ArrowOrigin != text.ArrowOrigin,
+            ShapeAnnotation shape => snapshot.ShapeStart != shape.Start || snapshot.ShapeEnd != shape.End,
+            MeasurementAnnotation measurement => !PointsMatch(snapshot.Points, measurement.Points),
+            InkStroke stroke => !PointsMatch(snapshot.Points, stroke.Points),
+            _ => false
+        };
+    }
+
+    private static bool PointsMatch(Point[]? before, IList<Point> after)
+    {
+        if (before == null || before.Length != after.Count) return false;
+        for (int i = 0; i < before.Length; i++)
+            if (before[i] != after[i]) return false;
+        return true;
     }
 
     /// <summary>
@@ -3293,31 +3374,32 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Delete a specific annotation by reference from the active layer's current page.</summary>
     public bool DeleteAnnotation(object item)
     {
-        if (ActiveLayer == null || IsActiveLayerLocked) return false;
+        if (CannotAnnotateActiveLayer) return false;
         bool removed = false;
+        int removedIndex = -1;
         switch (item)
         {
             case TextAnnotation t:
-                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts) && texts.Remove(t))
-                { ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1); _totalTextCount = Math.Max(0, _totalTextCount - 1); removed = true; }
+                if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts) && (removedIndex = texts.IndexOf(t)) >= 0)
+                { texts.RemoveAt(removedIndex); ActiveLayer.TextCount = Math.Max(0, ActiveLayer.TextCount - 1); _totalTextCount = Math.Max(0, _totalTextCount - 1); removed = true; }
                 break;
             case ShapeAnnotation s:
-                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes) && shapes.Remove(s))
-                { ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1); _totalShapeCount = Math.Max(0, _totalShapeCount - 1); removed = true; }
+                if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes) && (removedIndex = shapes.IndexOf(s)) >= 0)
+                { shapes.RemoveAt(removedIndex); ActiveLayer.ShapeCount = Math.Max(0, ActiveLayer.ShapeCount - 1); _totalShapeCount = Math.Max(0, _totalShapeCount - 1); removed = true; }
                 break;
             case MeasurementAnnotation m:
-                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && ms.Remove(m))
-                { ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1); _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1); removed = true; }
+                if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var ms) && (removedIndex = ms.IndexOf(m)) >= 0)
+                { ms.RemoveAt(removedIndex); ActiveLayer.MeasurementCount = Math.Max(0, ActiveLayer.MeasurementCount - 1); _totalMeasurementCount = Math.Max(0, _totalMeasurementCount - 1); removed = true; }
                 break;
             case InkStroke ink:
-                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes) && strokes.Remove(ink))
-                { ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1); _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1); removed = true; }
+                if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes) && (removedIndex = strokes.IndexOf(ink)) >= 0)
+                { strokes.RemoveAt(removedIndex); ActiveLayer.StrokeCount = Math.Max(0, ActiveLayer.StrokeCount - 1); _totalStrokeCount = Math.Max(0, _totalStrokeCount - 1); removed = true; }
                 break;
         }
         if (removed)
         {
-            _undoStack.Push((UndoType.Delete, _currentPage, item, ActiveLayer));
-            _redoStack.Clear();
+            RecordDeletedAnnotation(item, removedIndex);
+            CompleteDeleteMutation();
             ActiveLayer.RefreshStatus();
             _selectHighlightItems.Remove(item);
             RemoveFromGroups(item);
@@ -3350,6 +3432,38 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 if (!layer.PageStrokes.TryGetValue(page, out var strokes)) { strokes = []; layer.PageStrokes[page] = strokes; }
                 strokes.Add(ink); layer.StrokeCount++; _totalStrokeCount++;
                 break;
+        }
+    }
+
+    private void RestoreDeletedAnnotationAt(int page, DeletedAnnotationSnapshot deleted, AnnotationLayer layer)
+    {
+        RestoreDeletedAnnotation(page, deleted.Item, layer);
+        switch (deleted.Item)
+        {
+            case TextAnnotation text when layer.PageTexts.TryGetValue(page, out var texts):
+                texts.Remove(text);
+                texts.Insert(Math.Clamp(deleted.Index, 0, texts.Count), text);
+                break;
+            case ShapeAnnotation shape when layer.PageShapes.TryGetValue(page, out var shapes):
+                shapes.Remove(shape);
+                shapes.Insert(Math.Clamp(deleted.Index, 0, shapes.Count), shape);
+                break;
+            case MeasurementAnnotation measurement when layer.PageMeasurements.TryGetValue(page, out var measurements):
+                measurements.Remove(measurement);
+                measurements.Insert(Math.Clamp(deleted.Index, 0, measurements.Count), measurement);
+                break;
+            case InkStroke stroke when layer.PageStrokes.TryGetValue(page, out var strokes):
+                strokes.Remove(stroke);
+                strokes.Insert(Math.Clamp(deleted.Index, 0, strokes.Count), stroke);
+                break;
+        }
+        foreach (var membership in deleted.Groups)
+        {
+            membership.Group.Clear();
+            foreach (var member in membership.Items)
+                membership.Group.Add(member);
+            if (!_annotationGroups.Contains(membership.Group))
+                _annotationGroups.Add(membership.Group);
         }
     }
 
@@ -3699,10 +3813,19 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
                 break;
             case UndoType.Delete:
-                if (data != null)
+                if (data is DeletedAnnotationSnapshot deletedSnapshot)
                 {
-                    RestoreDeletedAnnotation(page, data, layer);
-                    item = data;
+                    RestoreDeletedAnnotationAt(page, deletedSnapshot, layer);
+                    item = deletedSnapshot;
+                    removed = true;
+                }
+                break;
+            case UndoType.GroupDelete:
+                if (data is GroupDeleteSnapshot groupDelete && groupDelete.Items.Count > 0)
+                {
+                    for (int i = groupDelete.Items.Count - 1; i >= 0; i--)
+                        RestoreDeletedAnnotationAt(page, groupDelete.Items[i], layer);
+                    item = groupDelete;
                     removed = true;
                 }
                 break;
@@ -3933,8 +4056,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case UndoType.Delete:
             {
                 // Redo delete = remove the item again
+                var deleteSnapshot = item as DeletedAnnotationSnapshot;
+                var deletedItem = deleteSnapshot?.Item ?? item;
                 bool didRemove = false;
-                switch (item)
+                switch (deletedItem)
                 {
                     case TextAnnotation t:
                         if (layer.PageTexts.TryGetValue(page, out var txts) && txts.Remove(t))
@@ -3955,7 +4080,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 }
                 if (didRemove)
                 {
-                    _undoStack.Push((UndoType.Delete, page, item, entryLayer));
+                    if (deleteSnapshot != null)
+                        RemoveFromGroups(deletedItem);
+                    _undoStack.Push((UndoType.Delete, page, deleteSnapshot ?? deletedItem, entryLayer));
                     layer.RefreshStatus();
                     ClearSelectHighlight();
                     InvalidateVisual();
@@ -4031,6 +4158,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     foreach (var addedItem in groupAddRedo.Items)
                         RestoreDeletedAnnotation(page, addedItem, layer);
                     _undoStack.Push((UndoType.GroupAdd, page, groupAddRedo, entryLayer));
+                    layer.RefreshStatus();
+                    InvalidateVisual();
+                    NotifyAnnotationChanged();
+                    return;
+                }
+                break;
+            case UndoType.GroupDelete:
+                if (item is GroupDeleteSnapshot groupDeleteRedo && groupDeleteRedo.Items.Count > 0)
+                {
+                    foreach (var deleted in groupDeleteRedo.Items)
+                    {
+                        RemoveAnnotationFromLayer(page, deleted.Item, layer);
+                        RemoveFromGroups(deleted.Item);
+                    }
+                    _undoStack.Push((UndoType.GroupDelete, page, groupDeleteRedo, entryLayer));
                     layer.RefreshStatus();
                     InvalidateVisual();
                     NotifyAnnotationChanged();
@@ -6366,6 +6508,7 @@ public class InkStroke
     private IPen? _cachedPen;
     private double _cachedPenScale;
     private IBrush? _cachedFillBrush;
+    private byte _cachedFillAlpha;
 
     // Cached geometry to avoid rebuilding StreamGeometry every frame.
     // Invalidated when points change (InvalidateGeometry) or the view transform shifts.
@@ -6395,9 +6538,13 @@ public class InkStroke
 
     internal IBrush GetOrCreateFillBrush()
     {
-        byte alpha = IsAreaMeasure ? (byte)55 : (byte)30;
-        _cachedFillBrush ??= new SolidColorBrush(
-            Color.FromArgb(alpha, Color.R, Color.G, Color.B)).ToImmutable();
+        byte baseAlpha = IsAreaMeasure ? (byte)55 : (byte)30;
+        byte alpha = (byte)Math.Clamp(baseAlpha * Opacity, 0, 255);
+        if (_cachedFillBrush == null || _cachedFillAlpha != alpha)
+        {
+            _cachedFillAlpha = alpha;
+            _cachedFillBrush = new SolidColorBrush(Color.FromArgb(alpha, Color.R, Color.G, Color.B)).ToImmutable();
+        }
         return _cachedFillBrush;
     }
 

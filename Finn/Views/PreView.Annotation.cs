@@ -183,6 +183,7 @@ public partial class PreView
     private List<object>? _multiDragSnapshots;
     /// <summary>Timestamp of the last arrow-key nudge for undo coalescing.</summary>
     private DateTime _lastNudgeTime;
+    private HashSet<object>? _lastNudgeSelection;
     /// <summary>Toolbar state saved before selection syncing, restored on deselect.</summary>
     private Color _preSelectColor;
     private double _preSelectWidth;
@@ -209,6 +210,8 @@ public partial class PreView
     /// Enter key re-activates this tool — "repeat last command" like AutoCAD.
     /// </summary>
     private InlineAnnotationTool? _lastUsedTool;
+    private bool _stickyToolMode;
+    private Button? _stickyToolToggleBtn;
     /// <summary>Whether the centered helper text below the toolbar is visible.</summary>
     private bool _showAnnotationStatusHints = true;
     /// <summary>Cached reference to the status hint border control.</summary>
@@ -252,6 +255,32 @@ public partial class PreView
         AnnotationRenderer.ClearRubberBand();
     }
 
+    private void CompleteToolPlacement()
+    {
+        if (!_stickyToolMode)
+            ApplyToolSwitch(InlineAnnotationTool.Select);
+    }
+
+    private void OnAnnotationCreationBlocked()
+    {
+        SetAnnotationStatusText(AnnotationRenderer.IsActiveLayerLocked
+            ? "Active layer is locked — unlock it in the layer panel or choose another layer to annotate."
+            : AnnotationRenderer.IsActiveLayerHidden
+                ? "Active layer is hidden — show it in the layer panel before annotating."
+                : "No active annotation layer is available.");
+    }
+
+    private void SyncStickyToolButton()
+    {
+        _stickyToolToggleBtn ??= this.FindControl<Button>("StickyToolToggleBtn");
+        if (_stickyToolToggleBtn == null) return;
+        SyncToggleButton(_stickyToolToggleBtn, _stickyToolMode);
+        _stickyToolToggleBtn.Content = _stickyToolMode ? "Sticky: On" : "Sticky: Off";
+        Avalonia.Controls.ToolTip.SetTip(_stickyToolToggleBtn, _stickyToolMode
+            ? "Sticky tools on — click again to return to Select after placing"
+            : "Sticky tools off — click to keep the active tool selected after placing");
+    }
+
     private void SetAnnotationStatusText(string? text)
     {
         _annotationStatusBorder ??= this.FindControl<Border>("AnnotationStatusBorder");
@@ -293,7 +322,9 @@ public partial class PreView
 
         return AnnotationRenderer.ActiveTool switch
         {
-            InlineAnnotationTool.Select => "Select: click to select, Alt+click to cycle overlapping objects, Shift+click for multi-select, drag empty space to marquee select.",
+            InlineAnnotationTool.Select => _stickyToolMode
+                ? "Sticky tools on: placement keeps the current tool active. Select: click to select, Alt+click to cycle overlaps, Shift+click for multi-select."
+                : "Select: click to select, Alt+click to cycle overlapping objects, Shift+click for multi-select, drag empty space to marquee select. Sticky toggle keeps placement tools active.",
             InlineAnnotationTool.Draw => "Draw: drag to sketch freehand, right-click or Esc to cancel.",
             InlineAnnotationTool.Highlight => "Highlight: drag to mark up content, right-click or Esc to cancel.",
             InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
@@ -1044,10 +1075,25 @@ public partial class PreView
         // Delete/Backspace: always check first, outside the else-if chain
         if (e.Key is Key.Delete or Key.Back && _selectedAnnotations.Count > 0)
         {
-            foreach (var item in _selectedAnnotations.ToList())
-                AnnotationRenderer.DeleteAnnotation(item);
+            if (AnnotationRenderer.CannotAnnotateActiveLayer)
+            {
+                OnAnnotationCreationBlocked();
+                e.Handled = true;
+                return;
+            }
+            AnnotationRenderer.BeginGroupDelete();
+            try
+            {
+                foreach (var item in _selectedAnnotations.ToList())
+                    AnnotationRenderer.DeleteAnnotation(item);
+            }
+            finally
+            {
+                AnnotationRenderer.EndGroupDelete();
+            }
             _selectedAnnotation = null;
             _selectedAnnotations.Clear();
+            AnnotationRenderer.ClearSelectHighlight();
             e.Handled = true;
             return;
         }
@@ -1061,7 +1107,7 @@ public partial class PreView
                 AnnotationRenderer.CancelPolyline();
             else
                 AnnotationRenderer.EndPolyline(close: !AnnotationRenderer.IsActivePolylineRebar);
-            ApplyToolSwitch(InlineAnnotationTool.Select);
+            CompleteToolPlacement();
             e.Handled = true;
             return;
         }
@@ -1088,7 +1134,8 @@ public partial class PreView
             return;
         }
 
-        if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control)
+            && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             if (AnnotationRenderer.HasActivePolyline)
             {
@@ -1106,7 +1153,8 @@ public partial class PreView
             AnnotationRenderer.Focus();
             e.Handled = true;
         }
-        else if (e.Key == Key.Y && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        else if (e.Key == Key.Y && e.KeyModifiers.HasFlag(KeyModifiers.Control)
+            || e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.KeyModifiers.HasFlag(KeyModifiers.Shift))
         {
             AnnotationRenderer.Redo();
             AnnotationRenderer.Focus();
@@ -1212,26 +1260,33 @@ public partial class PreView
         }
         // Arrow keys: nudge the selected annotation (with undo coalescing)
         else if (e.Key is Key.Left or Key.Right or Key.Up or Key.Down
-            && _selectedAnnotations.Count > 0 && !AnnotationRenderer.IsActiveLayerLocked)
+            && _selectedAnnotations.Count > 0 && !AnnotationRenderer.CannotAnnotateActiveLayer)
         {
             double step = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 10 : 1;
             double dx = e.Key == Key.Left ? -step : e.Key == Key.Right ? step : 0;
             double dy = e.Key == Key.Up ? -step : e.Key == Key.Down ? step : 0;
             var now = DateTime.UtcNow;
-            bool coalesce = (now - _lastNudgeTime).TotalMilliseconds < 400;
+            bool sameSelection = _lastNudgeSelection != null
+                && _lastNudgeSelection.SetEquals(_selectedAnnotations);
+            bool coalesce = sameSelection && (now - _lastNudgeTime).TotalMilliseconds < 400;
+            List<object>? snaps = null;
             if (!coalesce)
             {
-                var snaps = new List<object>(_selectedAnnotations.Count);
+                snaps = new List<object>(_selectedAnnotations.Count);
                 foreach (var item in _selectedAnnotations)
                 {
                     var snap = AnnotationRenderer.CapturePreDragSnapshot(item);
                     if (snap != null) snaps.Add(snap);
                 }
-                AnnotationRenderer.PushGroupMoveUndo(snaps);
             }
-            _lastNudgeTime = now;
             foreach (var item in _selectedAnnotations)
                 MoveAnnotation(item, dx, dy);
+            if (snaps != null)
+            {
+                AnnotationRenderer.PushGroupMoveUndo(snaps);
+                _lastNudgeSelection = new HashSet<object>(_selectedAnnotations);
+            }
+            _lastNudgeTime = now;
             AnnotationRenderer.InvalidateVisual();
             AnnotationRenderer.NotifyAnnotationChanged();
             e.Handled = true;
@@ -1425,6 +1480,8 @@ public partial class PreView
     private void ApplyToolSwitch(InlineAnnotationTool tool)
     {
         var previousTool = AnnotationRenderer.ActiveTool;
+        if (previousTool == InlineAnnotationTool.Eraser && tool != previousTool)
+            AnnotationRenderer.EndGroupDelete();
 
         // Track the last non-Select tool so Enter can re-activate it.
         if (tool != InlineAnnotationTool.Select)
@@ -1491,6 +1548,7 @@ public partial class PreView
 
         AnnotationRenderer.Cursor = GetToolCursor(tool);
         SetActiveToolButton(FindToolbarButtonByTag(tool.ToString()));
+        SyncStickyToolButton();
         UpdateCornerRadiusVisibility();
         UpdateFontSizeVisibility();
         UpdateAnnotationStatusHint();

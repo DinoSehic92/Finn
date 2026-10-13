@@ -76,7 +76,7 @@ public partial class PreView
                     AnnotationRenderer.CancelPolyline();
                 else
                     AnnotationRenderer.EndPolyline();
-                ApplyToolSwitch(InlineAnnotationTool.Select);
+                CompleteToolPlacement();
                 UpdateAnnotationStatusHint();
                 e.Handled = true;
                 return;
@@ -113,6 +113,8 @@ public partial class PreView
             }
             if (_inkDrawing)
             {
+                if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.Eraser)
+                    AnnotationRenderer.EndGroupDelete();
                 AnnotationRenderer.CancelStroke();
                 _inkDrawing = false;
                 UpdateAnnotationStatusHint();
@@ -167,7 +169,9 @@ public partial class PreView
             bool shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
             AnnotationRenderer.UpdateShape(pdfPoint.Value, shift);
             AnnotationRenderer.EndShape();
-            ApplyToolSwitch(InlineAnnotationTool.Select);
+            if (AnnotationRenderer.CannotAnnotateActiveLayer)
+                OnAnnotationCreationBlocked();
+            CompleteToolPlacement();
             e.Pointer.Capture(null);
             return;
         }
@@ -191,8 +195,10 @@ public partial class PreView
             }
             else
             {
-                // Non-calibration measurement: return to Select so the result label is selectable
-                ApplyToolSwitch(InlineAnnotationTool.Select);
+                // Non-calibration measurement: follow the sticky-tool toggle.
+                if (AnnotationRenderer.CannotAnnotateActiveLayer)
+                    OnAnnotationCreationBlocked();
+                CompleteToolPlacement();
             }
             return;
         }
@@ -435,10 +441,12 @@ public partial class PreView
         }
 
         // ── Tool-specific first-click actions ──
-        // Block creation/mutation when the active layer is locked
-        if (AnnotationRenderer.IsActiveLayerLocked)
+        // Block creation/mutation on locked or hidden active layers.
+        if (AnnotationRenderer.IsActiveLayerLocked || AnnotationRenderer.IsActiveLayerHidden)
         {
-            SetAnnotationStatusText("Active layer is locked — unlock it in the layer panel or choose another layer to annotate.");
+            SetAnnotationStatusText(AnnotationRenderer.IsActiveLayerLocked
+                ? "Active layer is locked — unlock it in the layer panel or choose another layer to annotate."
+                : "Active layer is hidden — show it in the layer panel before annotating.");
             e.Pointer.Capture(null);
             return;
         }
@@ -446,6 +454,7 @@ public partial class PreView
         switch (tool)
         {
             case InlineAnnotationTool.Eraser:
+                AnnotationRenderer.BeginGroupDelete();
                 AnnotationRenderer.EraseAt(pdfPoint.Value);
                 _lastErasePdf = pdfPoint.Value;
                 _inkDrawing = true;
@@ -518,12 +527,12 @@ public partial class PreView
                         // remove it so we don't get a duplicate node at the end.
                         AnnotationRenderer.RemoveLastPolylinePoint();
                         AnnotationRenderer.EndPolyline(close: autoClose);
-                        ApplyToolSwitch(InlineAnnotationTool.Select);
+                        CompleteToolPlacement();
                     }
                     else if (atStart)
                     {
                         AnnotationRenderer.EndPolyline(close: autoClose);
-                        ApplyToolSwitch(InlineAnnotationTool.Select);
+                        CompleteToolPlacement();
                     }
                     else
                         AnnotationRenderer.AddPolylinePoint(pdfPoint.Value, shift);
@@ -549,12 +558,12 @@ public partial class PreView
                             AnnotationRenderer.CancelPolyline();
                         else
                             AnnotationRenderer.EndPolyline(close: true);
-                        ApplyToolSwitch(InlineAnnotationTool.Select);
+                        CompleteToolPlacement();
                     }
                     else if (autoClose)
                     {
                         AnnotationRenderer.EndPolyline(close: true);
-                        ApplyToolSwitch(InlineAnnotationTool.Select);
+                        CompleteToolPlacement();
                     }
                     else
                         AnnotationRenderer.AddPolylinePoint(pdfPoint.Value, shift);
@@ -568,7 +577,7 @@ public partial class PreView
 
             case InlineAnnotationTool.Dot:
                 AnnotationRenderer.PlaceDot(pdfPoint.Value);
-                ApplyToolSwitch(InlineAnnotationTool.Select);
+                CompleteToolPlacement();
                 e.Pointer.Capture(null);
                 break;
 
@@ -998,7 +1007,12 @@ public partial class PreView
             AnnotationRenderer.Cursor = _spaceHeld ? CursorHand : GetToolCursor(AnnotationRenderer.ActiveTool);
             return;
         }
-        if (!_inkDrawing) return;
+        if (!_inkDrawing)
+        {
+            if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.Eraser)
+                AnnotationRenderer.EndGroupDelete();
+            return;
+        }
         _inkDrawing = false;
         e.Pointer.Capture(null);
         e.Handled = true;
@@ -1083,6 +1097,8 @@ public partial class PreView
         }
 
         var tool = AnnotationRenderer.ActiveTool;
+        if (tool == InlineAnnotationTool.Eraser)
+            AnnotationRenderer.EndGroupDelete();
         switch (tool)
         {
             case InlineAnnotationTool.MeasureDistance:
@@ -1100,6 +1116,7 @@ public partial class PreView
             default: // Draw, Highlight
                 AnnotationRenderer.EndStroke();
                 AnnotationRenderer.UpdateCursorPreview(null);
+                CompleteToolPlacement();
                 break;
         }
         }

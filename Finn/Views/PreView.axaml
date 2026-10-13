@@ -294,8 +294,9 @@
 										</Button>
 										<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Opacity="0.7" Margin="3,4" CornerRadius="1"/>
 										<Button Name="GridToggleBtn" ToolTip.Tip="Toggle snap to grid (G)" Width="26" Height="26" Padding="0" Click="OnToggleGrid" BorderThickness="0">
-											<ic:SymbolIcon Symbol="Grid" IconVariant="Regular" FontSize="14"/>
-										</Button>
+										<ic:SymbolIcon Symbol="Grid" IconVariant="Regular" FontSize="14"/>
+									  </Button>
+									  <Button Name="StickyToolToggleBtn" Content="Sticky: Off" ToolTip.Tip="Sticky tools off — click to keep the active tool selected after placing" Width="74" Height="26" Padding="2,0" Click="OnToggleStickyTool" BorderThickness="0"/>
 									  <Button Name="StatusHintsToggleBtn" ToolTip.Tip="Toggle annotation status hints" Width="26" Height="26" Padding="0" Click="OnToggleStatusHints" BorderThickness="0">
 											<ic:SymbolIcon Symbol="Info" IconVariant="Regular" FontSize="14"/>
 										</Button>
@@ -795,8 +796,8 @@
 							<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="10" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="6">
 								<StackPanel Spacing="4" MaxWidth="420">
 									<TextBlock Text="Annotation Shortcuts" FontSize="14" FontWeight="SemiBold"/>
-									<TextBlock Text="V Select · P Polyline · A Area · D Dot · 1-0 Tools" FontSize="12"/>
-									<TextBlock Text="Enter finish polyline · Esc cancel/exit · Shift axis constrain" FontSize="12"/>
+									<TextBlock Text="V Select · P Polyline · B Rebar · A Area · D Dot · 1-0 Tools" FontSize="12"/>
+									<TextBlock Text="Enter finish · Esc cancel/exit · Shift constrain · Sticky toggle repeats placement" FontSize="12"/>
 									<TextBlock Text="Ctrl+C / Ctrl+V copy-paste · Ctrl+D duplicate · Ctrl+A select all" FontSize="12"/>
 									<TextBlock Text="Arrows nudge (Shift = 10) · [ ] width · -/+ text size · G grid snap" FontSize="12"/>
 									<TextBlock Text="S screenshot region (single-page only) · Ctrl+C copy full page" FontSize="12"/>
@@ -867,7 +868,7 @@
 										<Label Content="/" VerticalAlignment="Center"/>
 										<Label Content="{Binding PreviewVM.SearchItems}" VerticalAlignment="Center"/>
 									</StackPanel>
-								</StackPanel>
+																</StackPanel>
 							</Border>
 						</Grid>
 					</Border>

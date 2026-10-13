@@ -148,7 +148,8 @@ public partial class PreView
                 // Alpha matches in-app GetOrCreateFillBrush: 55 for area measures, 30 for regular.
                 if (closed && stroke.IsFilled)
                 {
-                    byte fillAlpha = stroke.IsAreaMeasure ? (byte)55 : (byte)30;
+                    byte baseAlpha = stroke.IsAreaMeasure ? (byte)55 : (byte)30;
+                    byte fillAlpha = (byte)(baseAlpha * stroke.Opacity);
                     using var closedFill = new SKPaint
                     {
                         Color = new SKColor(stroke.Color.R, stroke.Color.G, stroke.Color.B, fillAlpha),
@@ -282,8 +283,8 @@ public partial class PreView
             SKPaint? fillPaint = null;
             if (shape.IsFilled)
             {
-                // Alpha 45 matches ShapeAnnotation.GetOrCreateFillBrush(); scale by opacity.
-                byte fillAlpha = shape.Opacity < 1.0 ? (byte)(45 * shape.Opacity) : (byte)45;
+                // Alpha matches ShapeAnnotation.GetOrCreateFillBrush() and scales by opacity.
+                byte fillAlpha = (byte)(45 * shape.Opacity);
                 fillPaint = new SKPaint
                 {
                     Color = new SKColor(shape.Color.R, shape.Color.G, shape.Color.B, fillAlpha),
@@ -1186,6 +1187,7 @@ public partial class PreView
         catch (Exception ex)
         {
             ReviewExportStatus.Text = $"Error: {ex.Message}";
+            Finn.Utils.ErrorLogger.Log(ex, nameof(OnReviewExportConfirm));
         }
     }
 
@@ -1322,11 +1324,23 @@ public partial class PreView
         }
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
-        // Whiteboard or missing source → image-based fallback
-        if (sourcePath == null || !File.Exists(sourcePath))
+        // Whiteboards are exported as flattened page images, regardless of whether
+        // the current whiteboard has a backing file path.
+        if (pwr?.WhiteboardMode == true || sourcePath == null || !File.Exists(sourcePath))
             return ExportReviewPdfImageBased(outputPath, renderZoom);
 
-        return ExportReviewPdfSharpOnly(outputPath, sourcePath);
+        if (pwr?.WhiteboardMode == true)
+            return ExportReviewPdfImageBased(outputPath, renderZoom);
+
+        try
+        {
+            return ExportReviewPdfSharpOnly(outputPath, sourcePath);
+        }
+        catch (Exception ex)
+        {
+            Finn.Utils.ErrorLogger.Log(ex, nameof(ExportReviewPdfSharpOnly));
+            return ExportReviewPdfImageBased(outputPath, renderZoom);
+        }
     }
 
     /// <summary>

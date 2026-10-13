@@ -77,6 +77,7 @@ public class ShapeAnnotation
     private IPen? _cachedPen;
     private double _cachedPenScale;
     private IBrush? _cachedFillBrush;
+    private byte _cachedFillAlpha;
     private IBrush? _cachedDotBrush;
 
     // Cached cloud geometry — rebuilt only when screen-space endpoints or penScale change.
@@ -116,8 +117,12 @@ public class ShapeAnnotation
 
     internal IBrush GetOrCreateFillBrush()
     {
-        _cachedFillBrush ??= new SolidColorBrush(
-            Color.FromArgb(45, Color.R, Color.G, Color.B)).ToImmutable();
+        byte alpha = (byte)Math.Clamp(45 * Opacity, 0, 255);
+        if (_cachedFillBrush == null || _cachedFillAlpha != alpha)
+        {
+            _cachedFillAlpha = alpha;
+            _cachedFillBrush = new SolidColorBrush(Color.FromArgb(alpha, Color.R, Color.G, Color.B)).ToImmutable();
+        }
         return _cachedFillBrush;
     }
 

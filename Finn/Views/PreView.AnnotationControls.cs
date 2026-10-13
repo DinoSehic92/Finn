@@ -902,6 +902,14 @@ public partial class PreView
         AnnotationRenderer.Focus();
     }
 
+    private void OnToggleStickyTool(object? sender, RoutedEventArgs e)
+    {
+        _stickyToolMode = !_stickyToolMode;
+        SyncStickyToolButton();
+        UpdateAnnotationStatusHint();
+        AnnotationRenderer.Focus();
+    }
+
     private void SyncStatusHintsToggleButton()
     {
         _statusHintsToggleBtn ??= this.FindControl<Button>("StatusHintsToggleBtn");
@@ -998,14 +1006,24 @@ public partial class PreView
                 // Allow empty text for edits — treat it as a delete request
                 if (string.IsNullOrWhiteSpace(PropertyTextBox.Text))
                 {
-                    bool isNewPlacement2 = false;
+                    var annotationToDelete = _editingTextAnnotation;
                     CloseTextInput();
-                    AnnotationRenderer.DeleteAnnotation(_editingTextAnnotation);
-                    _selectedAnnotation = null;
-                    _selectedAnnotations.Clear();
-                    AnnotationRenderer.ClearSelectHighlight();
+                    bool deleted = annotationToDelete != null
+                        && AnnotationRenderer.DeleteAnnotation(annotationToDelete);
+                    if (deleted)
+                    {
+                        _selectedAnnotation = null;
+                        _selectedAnnotations.Clear();
+                        AnnotationRenderer.ClearSelectHighlight();
+                    }
                     AnnotationRenderer.InvalidateVisual();
                     UpdateAnnotationStatusHint();
+                    if (!deleted) OnAnnotationCreationBlocked();
+                    return;
+                }
+                if (AnnotationRenderer.CannotAnnotateActiveLayer)
+                {
+                    OnAnnotationCreationBlocked();
                     return;
                 }
                 var snap = AnnotationRenderer.CapturePropertySnapshot(_editingTextAnnotation);
@@ -1032,7 +1050,11 @@ public partial class PreView
                               && !string.IsNullOrWhiteSpace(PropertyTextBox.Text);
         CloseTextInput();
         if (isNewPlacement)
-            ApplyToolSwitch(InlineAnnotationTool.Select);
+        {
+            if (AnnotationRenderer.CannotAnnotateActiveLayer)
+                OnAnnotationCreationBlocked();
+            CompleteToolPlacement();
+        }
         AnnotationRenderer.InvalidateVisual();
         UpdateAnnotationStatusHint();
     }
