@@ -177,7 +177,10 @@ public partial class PreView
     {
         if (sender is Button btn && btn.Tag is string radiusStr && double.TryParse(radiusStr, out double r))
         {
-            AnnotationRenderer.ShapeCornerRadius = r;
+            if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.Rebar)
+                AnnotationRenderer.RebarCornerRadius = r;
+            else
+                AnnotationRenderer.ShapeCornerRadius = r;
 
             // Apply to currently selected annotations using the same immediate
             // capture→mutate→push pattern as OnAnnotateWidth / OnAnnotateDashPattern.
@@ -322,7 +325,9 @@ public partial class PreView
         UpdateColorIndicator(AnnotationRenderer.StrokeColor);
         UpdateBrushSizeIndicator(AnnotationRenderer.StrokeWidth);
         UpdateDashIndicator(AnnotationRenderer.StrokeDashPattern);
-        UpdateCornerIndicator(AnnotationRenderer.ShapeCornerRadius);
+        UpdateCornerIndicator(AnnotationRenderer.ActiveTool == InlineAnnotationTool.Rebar
+            ? AnnotationRenderer.RebarCornerRadius
+            : AnnotationRenderer.ShapeCornerRadius);
     }
 
     private void OnAnnotateUndo(object sender, RoutedEventArgs e) { AnnotationRenderer.Undo(); AnnotationRenderer.Focus(); }

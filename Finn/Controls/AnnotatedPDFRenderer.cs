@@ -318,6 +318,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public LineDashPattern StrokeDashPattern { get; set; } = LineDashPattern.Solid;
     /// <summary>Corner radius in PDF points for new Rectangle shapes and Polyline vertices. 0 = sharp.</summary>
     public double ShapeCornerRadius { get; set; }
+    /// <summary>Corner radius in PDF points for new Rebar vertices.</summary>
+    public double RebarCornerRadius { get; set; } = 5;
 
     /// <summary>When true, all placed/dragged points snap to the grid defined by <see cref="GridSpacing"/>.</summary>
     public bool SnapToGrid { get; set; }
@@ -935,7 +937,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             IsPolyline = true,
             IsRebar = asRebar,
             DashPattern = asAreaMeasure ? LineDashPattern.Dashed : StrokeDashPattern,
-            CornerRadius = asAreaMeasure ? 0 : (asRebar && ShapeCornerRadius == 0 ? 5 : ShapeCornerRadius),
+            CornerRadius = asAreaMeasure ? 0 : (asRebar ? RebarCornerRadius : ShapeCornerRadius),
             IsAreaMeasure = asAreaMeasure,
             IsFilled = asAreaMeasure,
             AreaScale = MeasurementScale,
@@ -2559,20 +2561,17 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _snapKindX = SnapKind.None;
         _snapKindY = SnapKind.None;
 
-        // Grid snap takes priority — snap to grid first, then refine with alignment snap
-        if (SnapToGrid && GridSpacing > 0)
+        bool snapToGrid = SnapToGrid && GridSpacing > 0;
+        var gridPoint = snapToGrid ? SnapPointToGrid(vertex) : vertex;
+        double bestDistX = threshold, bestDistY = threshold;
+        double snapX = gridPoint.X, snapY = gridPoint.Y;
+        if (snapToGrid)
         {
-            vertex = SnapPointToGrid(vertex);
-            _snapGuideX = vertex.X;
-            _snapGuideY = vertex.Y;
+            _snapGuideX = gridPoint.X;
+            _snapGuideY = gridPoint.Y;
             _snapKindX = SnapKind.Grid;
             _snapKindY = SnapKind.Grid;
-            _snapVertexPos = vertex;
-            return vertex;
         }
-
-        double bestDistX = threshold, bestDistY = threshold;
-        double snapX = vertex.X, snapY = vertex.Y;
 
         foreach (var layer in Layers)
         {
@@ -3228,39 +3227,67 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// <summary>Find the topmost annotation at a point.</summary>
     public object? FindTopmostAt(Point pdfPoint)
     {
-        if (ActiveLayer == null) return null;
+        var hits = FindAllAt(pdfPoint);
+        return hits.Count > 0 ? hits[0] : null;
+    }
+
+    /// <summary>Find annotations under a point on the active visible layer, ordered topmost first.</summary>
+    public List<object> FindAllAt(Point pdfPoint)
+    {
+        if (ActiveLayer is not { IsVisible: true } layer) return [];
         double threshold = Math.Min(StrokeWidth * 3, ScreenToPdfDistance(8));
+        var candidates = new List<(int ZIndex, int TypeOrder, int ItemOrder, object Item)>();
 
-        if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
-            for (int i = texts.Count - 1; i >= 0; i--)
+        if (layer.PageStrokes.TryGetValue(_currentPage, out var strokes))
+            for (int i = 0; i < strokes.Count; i++)
+                candidates.Add((strokes[i].ZIndex, 0, i, strokes[i]));
+        if (layer.PageShapes.TryGetValue(_currentPage, out var shapes))
+            for (int i = 0; i < shapes.Count; i++)
+                candidates.Add((shapes[i].ZIndex, 1, i, shapes[i]));
+        if (layer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
+            for (int i = 0; i < measurements.Count; i++)
+                candidates.Add((measurements[i].ZIndex, 2, i, measurements[i]));
+        if (layer.PageTexts.TryGetValue(_currentPage, out var texts))
+            for (int i = 0; i < texts.Count; i++)
+                candidates.Add((texts[i].ZIndex, 3, i, texts[i]));
+
+        candidates.Sort((a, b) =>
+        {
+            int byZ = a.ZIndex.CompareTo(b.ZIndex);
+            if (byZ != 0) return byZ;
+            int byType = a.TypeOrder.CompareTo(b.TypeOrder);
+            return byType != 0 ? byType : a.ItemOrder.CompareTo(b.ItemOrder);
+        });
+
+        var hits = new List<object>();
+        for (int i = candidates.Count - 1; i >= 0; i--)
+        {
+            object item = candidates[i].Item;
+            bool hit = item switch
             {
-                var t = texts[i];
-                // Arrow origin (tip) hit-test first — small circle around the tip
-                if (t.ArrowOrigin.HasValue)
-                {
-                    double dx = pdfPoint.X - t.ArrowOrigin.Value.X;
-                    double dy = pdfPoint.Y - t.ArrowOrigin.Value.Y;
-                    if (dx * dx + dy * dy <= 8 * 8) return t;
-                }
-                bool hit = t.IsStickyNote
-                    ? HitTestStickyNote(t, pdfPoint)
-                    : HitTestText(t, pdfPoint);
-                if (hit) return t;
-            }
+                TextAnnotation text => HitTestTextAnnotation(text, pdfPoint),
+                MeasurementAnnotation measurement => HitTestMeasurement(measurement, pdfPoint, threshold),
+                ShapeAnnotation shape => HitTestShape(shape, pdfPoint, threshold),
+                InkStroke stroke => HitTestStroke(stroke, pdfPoint, threshold),
+                _ => false
+            };
+            if (hit) hits.Add(item);
+        }
 
-        if (ActiveLayer.PageMeasurements.TryGetValue(_currentPage, out var measurements))
-            for (int i = measurements.Count - 1; i >= 0; i--)
-                if (HitTestMeasurement(measurements[i], pdfPoint, threshold)) return measurements[i];
+        return hits;
+    }
 
-        if (ActiveLayer.PageShapes.TryGetValue(_currentPage, out var shapes))
-            for (int i = shapes.Count - 1; i >= 0; i--)
-                if (HitTestShape(shapes[i], pdfPoint, threshold)) return shapes[i];
-
-        if (ActiveLayer.PageStrokes.TryGetValue(_currentPage, out var strokes))
-            for (int i = strokes.Count - 1; i >= 0; i--)
-                if (HitTestStroke(strokes[i], pdfPoint, threshold)) return strokes[i];
-
-        return null;
+    private bool HitTestTextAnnotation(TextAnnotation text, Point pdfPoint)
+    {
+        if (text.ArrowOrigin is { } arrowOrigin)
+        {
+            double dx = pdfPoint.X - arrowOrigin.X;
+            double dy = pdfPoint.Y - arrowOrigin.Y;
+            if (dx * dx + dy * dy <= 8 * 8) return true;
+        }
+        return text.IsStickyNote
+            ? HitTestStickyNote(text, pdfPoint)
+            : HitTestText(text, pdfPoint);
     }
 
     /// <summary>Delete a specific annotation by reference from the active layer's current page.</summary>
@@ -6313,12 +6340,12 @@ public class InkStroke
         }
 
         double hookLength = Math.Max(Width * 4, 8);
-        start = GetRebarHookPoint(Points[0], Points[1], hookLength);
-        end = GetRebarHookPoint(Points[^1], Points[^2], hookLength);
+        start = GetRebarHookPoint(Points[0], Points[1], hookLength, 1);
+        end = GetRebarHookPoint(Points[^1], Points[^2], hookLength, -1);
         return true;
     }
 
-    private static Point GetRebarHookPoint(Point endpoint, Point adjacent, double length)
+    private static Point GetRebarHookPoint(Point endpoint, Point adjacent, double length, double rotationDirection)
     {
         double dx = adjacent.X - endpoint.X;
         double dy = adjacent.Y - endpoint.Y;
@@ -6329,8 +6356,9 @@ public class InkStroke
         const double hookAngleRadians = 45 * Math.PI / 180;
         double cos = Math.Cos(hookAngleRadians);
         double sin = Math.Sin(hookAngleRadians);
-        double hookX = (dx * cos - dy * sin) / segmentLength;
-        double hookY = (dx * sin + dy * cos) / segmentLength;
+        double signedSin = sin * rotationDirection;
+        double hookX = (dx * cos - dy * signedSin) / segmentLength;
+        double hookY = (dx * signedSin + dy * cos) / segmentLength;
         return new Point(endpoint.X + hookX * length, endpoint.Y + hookY * length);
     }
 

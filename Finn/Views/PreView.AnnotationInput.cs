@@ -214,6 +214,24 @@ public partial class PreView
             else
                 hitItem = AnnotationRenderer.FindTopmostAt(pdfPoint.Value);
 
+            if (tool == InlineAnnotationTool.Select
+                && e.KeyModifiers.HasFlag(KeyModifiers.Alt)
+                && !e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                && !e.KeyModifiers.HasFlag(KeyModifiers.Control))
+            {
+                var overlappingHits = AnnotationRenderer.FindAllAt(pdfPoint.Value);
+                if (overlappingHits.Count > 1)
+                {
+                    SelectAnnotation(CycleOverlappingHit(pdfPoint.Value, overlappingHits));
+                    e.Pointer.Capture(null);
+                    return;
+                }
+            }
+            else if (tool == InlineAnnotationTool.Select)
+            {
+                ResetOverlapCycle();
+            }
+
             if (hitItem is TextAnnotation hitText)
             {
                 // Shift+Click: toggle multi-selection

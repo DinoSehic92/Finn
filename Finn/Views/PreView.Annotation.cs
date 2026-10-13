@@ -47,6 +47,48 @@ public partial class PreView
     private AnnotatedPDFRenderer AnnotationRenderer => _activeAnnotationRenderer ?? MuPDFRenderer;
     private Avalonia.Controls.ContextMenu? _savedSecondaryContextMenu;
     private bool _inkDrawing;
+    private List<object>? _overlapCycleItems;
+    private Point? _overlapCyclePoint;
+    private int _overlapCycleIndex = -1;
+
+    private object CycleOverlappingHit(Point pdfPoint, List<object> hits)
+    {
+        bool samePoint = _overlapCyclePoint.HasValue
+            && IsNear(pdfPoint, _overlapCyclePoint.Value, HitRadius(8));
+        bool sameItems = _overlapCycleItems?.Count == hits.Count;
+        if (sameItems)
+        {
+            for (int i = 0; i < hits.Count; i++)
+            {
+                if (!ReferenceEquals(_overlapCycleItems![i], hits[i]))
+                {
+                    sameItems = false;
+                    break;
+                }
+            }
+        }
+
+        if (samePoint && sameItems)
+        {
+            _overlapCycleIndex = (_overlapCycleIndex + 1) % hits.Count;
+        }
+        else
+        {
+            int selectedIndex = hits.FindIndex(item => ReferenceEquals(item, _selectedAnnotation));
+            _overlapCycleIndex = selectedIndex >= 0 ? (selectedIndex + 1) % hits.Count : 1 % hits.Count;
+            _overlapCycleItems = hits;
+            _overlapCyclePoint = pdfPoint;
+        }
+
+        return hits[_overlapCycleIndex];
+    }
+
+    private void ResetOverlapCycle()
+    {
+        _overlapCycleItems = null;
+        _overlapCyclePoint = null;
+        _overlapCycleIndex = -1;
+    }
 
     private void SetActiveAnnotationRenderer(object? sender)
     {
@@ -77,6 +119,7 @@ public partial class PreView
         var nextFilledMode = previous.IsFilledMode;
         var nextDash = previous.StrokeDashPattern;
         var nextCornerRadius = previous.ShapeCornerRadius;
+        var nextRebarCornerRadius = previous.RebarCornerRadius;
         var nextSnapToGrid = previous.SnapToGrid;
         var nextGridSpacing = previous.GridSpacing;
 
@@ -90,6 +133,7 @@ public partial class PreView
         renderer.IsFilledMode = nextFilledMode;
         renderer.StrokeDashPattern = nextDash;
         renderer.ShapeCornerRadius = nextCornerRadius;
+        renderer.RebarCornerRadius = nextRebarCornerRadius;
         renderer.SnapToGrid = nextSnapToGrid;
         renderer.GridSpacing = nextGridSpacing;
         renderer.Cursor = GetToolCursor(renderer.ActiveTool);
@@ -249,7 +293,7 @@ public partial class PreView
 
         return AnnotationRenderer.ActiveTool switch
         {
-            InlineAnnotationTool.Select => "Select: click to select, Shift+click for multi-select, drag empty space to marquee select.",
+            InlineAnnotationTool.Select => "Select: click to select, Alt+click to cycle overlapping objects, Shift+click for multi-select, drag empty space to marquee select.",
             InlineAnnotationTool.Draw => "Draw: drag to sketch freehand, right-click or Esc to cancel.",
             InlineAnnotationTool.Highlight => "Highlight: drag to mark up content, right-click or Esc to cancel.",
             InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
@@ -1209,6 +1253,7 @@ public partial class PreView
                 Key.D0 => InlineAnnotationTool.Eraser,
                 Key.V => InlineAnnotationTool.Select,
                 Key.P => InlineAnnotationTool.Polyline,
+                Key.B => InlineAnnotationTool.Rebar,
                 Key.A => InlineAnnotationTool.MeasureArea,
                 Key.D => InlineAnnotationTool.Dot,
                 _ => null
@@ -1278,6 +1323,7 @@ public partial class PreView
         ["Teal"]   = Color.FromRgb(38, 166, 154),
         ["Pink"]   = Color.FromRgb(236, 64, 122),
         ["Brown"]  = Color.FromRgb(141, 110, 99),
+        ["Magenta"] = Color.FromRgb(255, 0, 255),
     };
     private static readonly Dictionary<Color, string> ColorNames =
         ColorPalette.ToDictionary(kv => kv.Value, kv => kv.Key);
@@ -1396,7 +1442,11 @@ public partial class PreView
             _arrowTextOrigin = null;
             AnnotationRenderer.ClearArrowTextPreview();
         }
-        if (AnnotationRenderer.HasActivePolyline && tool is not (InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar))
+        bool switchingPolylineKind = previousTool != tool
+            && previousTool is InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar
+            && tool is InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar;
+        if (AnnotationRenderer.HasActivePolyline
+            && (switchingPolylineKind || tool is not (InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar)))
         {
             AnnotationRenderer.CancelPolyline();
         }

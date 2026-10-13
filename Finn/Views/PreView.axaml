@@ -253,7 +253,7 @@
 									<Button ToolTip.Tip="Polyline (P)" Width="26" Height="26" Padding="0" Tag="Polyline" Click="OnAnnotateToolSelect" BorderThickness="0">
 											<ic:SymbolIcon Symbol="BezierCurveSquare" IconVariant="Regular" FontSize="14"/>
 										</Button>
-									<Button ToolTip.Tip="Rebar" Width="26" Height="26" Padding="0" Tag="Rebar" Click="OnAnnotateToolSelect" BorderThickness="0">
+					<Button ToolTip.Tip="Rebar (B)" Width="26" Height="26" Padding="0" Tag="Rebar" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<TextBlock Text="R" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 									</Button>
 									<Button ToolTip.Tip="Rectangle (3)" Width="26" Height="26" Padding="0" Tag="Rectangle" Click="OnAnnotateToolSelect" BorderThickness="0">
@@ -286,7 +286,7 @@
 											<ic:SymbolIcon Symbol="Ruler" IconVariant="Regular" FontSize="14"/>
 										</Button>
 										<Button ToolTip.Tip="Area Measure (A)" Width="26" Height="26" Padding="0" Tag="MeasureArea" Click="OnAnnotateToolSelect" BorderThickness="0">
-											<ic:SymbolIcon Symbol="SelectObject" IconVariant="Regular" FontSize="14"/>
+											<TextBlock Text="A²" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 										</Button>
 
 										<Button ToolTip.Tip="Eraser (0)" Width="26" Height="26" Padding="0" Tag="Eraser" Click="OnAnnotateToolSelect" BorderThickness="0">
@@ -334,6 +334,8 @@
 																Background="#EC407A" Opacity="0.85" Tag="Pink" Click="OnAnnotateColor" CornerRadius="11"/>
 															<Button ToolTip.Tip="Brown" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
 																Background="#8D6E63" Opacity="0.85" Tag="Brown" Click="OnAnnotateColor" CornerRadius="11"/>
+										<Button ToolTip.Tip="Magenta (Rebar)" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
+										Background="#FF00FF" Opacity="0.85" Tag="Magenta" Click="OnAnnotateColor" CornerRadius="11"/>
 														</StackPanel>
 														<Button ToolTip.Tip="Custom Color" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
 															BorderThickness="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" Click="OnAnnotateCustomColor" CornerRadius="11" HorizontalAlignment="Left">
