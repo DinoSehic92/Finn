@@ -23,6 +23,7 @@ public partial class PreView
     private Border? _propertyCalibrateSeparator;
     private MeasurementAnnotation? _calibrationReferenceMeasurement;
     private Button? _propertySolidBgToggleBtn;
+    private StackPanel? _propertyBoundaryConditionRow;
 
     // Font-size undo coalescing: track the annotation and time of the last
     // size change so rapid +/- taps collapse into a single undo step.
@@ -101,6 +102,7 @@ public partial class PreView
         if (sender is Button btn && btn.Tag is string widthStr && double.TryParse(widthStr, out double w))
         {
             if (AnnotationRenderer.IsHighlighterMode) return;
+            if (_selectedAnnotations.Any(item => item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition })) return;
             AnnotationRenderer.StrokeWidth = w;
             _normalStrokeWidth = w;
 
@@ -135,6 +137,7 @@ public partial class PreView
         if (sender is Button btn && btn.Tag is string patternName
             && Enum.TryParse<LineDashPattern>(patternName, out var pattern))
         {
+            if (_selectedAnnotations.Any(item => item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition })) return;
             AnnotationRenderer.StrokeDashPattern = pattern;
 
             // Apply to currently selected annotations
@@ -1399,6 +1402,7 @@ public partial class PreView
         Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, AnnotationRenderer.Bounds.Height - 100));
 
         bool isDot = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
+        bool isBoundaryCondition = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition };
         bool isText = item is TextAnnotation;
         bool isMeasure = item is MeasurementAnnotation;
         bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, Points.Count: >= 3 };
@@ -1406,8 +1410,8 @@ public partial class PreView
         bool isGenericStroke = item is InkStroke { IsPolyline: false };
         bool isShape = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow };
 
-        bool hasStroke = isDot || isPolyline || isAreaPolyline || isGenericStroke || isShape;
-        bool hasDash = (isPolyline || isAreaPolyline || isGenericStroke || isShape) && !isDot;
+        bool hasStroke = (isDot || isPolyline || isAreaPolyline || isGenericStroke || isShape) && !isBoundaryCondition;
+        bool hasDash = (isPolyline || isAreaPolyline || isGenericStroke || isShape) && !isDot && !isBoundaryCondition;
         bool hasFill = (item is ShapeAnnotation sf
             && sf.ShapeType is InlineAnnotationTool.Rectangle
                             or InlineAnnotationTool.Ellipse
@@ -1418,6 +1422,8 @@ public partial class PreView
             || item is TextAnnotation { HasFrame: true };
 
         PropertyStrokeRow.IsVisible = hasStroke;
+        _propertyBoundaryConditionRow ??= this.FindControl<StackPanel>("PropertyBoundaryConditionRow");
+        if (_propertyBoundaryConditionRow != null) _propertyBoundaryConditionRow.IsVisible = isBoundaryCondition;
         _propertyDashRow ??= this.FindControl<StackPanel>("PropertyDashRow");
         if (_propertyDashRow != null) _propertyDashRow.IsVisible = hasDash;
         PropertyFillBtn.IsVisible = hasFill;
@@ -1519,6 +1525,7 @@ public partial class PreView
     private void OnPropertyWidth(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget == null) return;
+        if (_propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition }) return;
         if (sender is not Button btn || btn.Tag is not string widthStr || !double.TryParse(widthStr, out double w)) return;
         foreach (var selItem in _selectedAnnotations)
         {
@@ -1540,6 +1547,7 @@ public partial class PreView
     private void OnPropertyDash(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget == null) return;
+        if (_propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition }) return;
         if (sender is not Button btn || btn.Tag is not string patternName
             || !Enum.TryParse<LineDashPattern>(patternName, out var pattern)) return;
         foreach (var selItem in _selectedAnnotations)
@@ -1622,6 +1630,29 @@ public partial class PreView
         AnnotationRenderer.InvalidateVisual();
         AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
+    }
+
+    private void OnPropertyBoundaryCondition(object sender, RoutedEventArgs e)
+    {
+        // Enum tag parsing already supports newly added variants by name.
+        if (_propertyPanelTarget is not ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } support
+            || sender is not Button { Tag: string typeName }
+            || !Enum.TryParse(typeName, out BoundaryConditionType type)) return;
+        StagePropertyUndoSnapshot(support);
+        support.BoundaryCondition = type;
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyBoundaryOrientation(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } support
+            || sender is not Button { Tag: string orientationName }
+            || !Enum.TryParse(orientationName, out BoundaryConditionOrientation orientation)) return;
+        StagePropertyUndoSnapshot(support);
+        support.BoundaryOrientation = orientation;
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void OnPropertyCornerRadius(object sender, RoutedEventArgs e)

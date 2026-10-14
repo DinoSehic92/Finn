@@ -249,6 +249,9 @@
 									<Button ToolTip.Tip="Dot (D)" Width="26" Height="26" Padding="0" Tag="Dot" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 									</Button>
+										<Button ToolTip.Tip="Boundary condition" Width="26" Height="26" Padding="0" Tag="BoundaryCondition" Click="OnAnnotateToolSelect" BorderThickness="0">
+											<TextBlock Text="△" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+										</Button>
 									<Border Width="2" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,4" CornerRadius="1" Opacity="0.7"/>
 									<Button ToolTip.Tip="Polyline (P)" Width="26" Height="26" Padding="0" Tag="Polyline" Click="OnAnnotateToolSelect" BorderThickness="0">
 											<ic:SymbolIcon Symbol="BezierCurveSquare" IconVariant="Regular" FontSize="14"/>
@@ -296,7 +299,9 @@
 										<Button Name="GridToggleBtn" ToolTip.Tip="Toggle snap to grid (G)" Width="26" Height="26" Padding="0" Click="OnToggleGrid" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Grid" IconVariant="Regular" FontSize="14"/>
 									  </Button>
-									  <Button Name="StickyToolToggleBtn" Content="Sticky: Off" ToolTip.Tip="Sticky tools off — click to keep the active tool selected after placing" Width="74" Height="26" Padding="2,0" Click="OnToggleStickyTool" BorderThickness="0"/>
+					  <Button Name="StickyToolToggleBtn" ToolTip.Tip="Sticky tools off — click to keep the active tool selected after placing" Width="26" Height="26" Padding="0" Click="OnToggleStickyTool" BorderThickness="0">
+						  <ic:SymbolIcon Symbol="Pin" IconVariant="Regular" FontSize="14"/>
+					  </Button>
 									  <Button Name="StatusHintsToggleBtn" ToolTip.Tip="Toggle annotation status hints" Width="26" Height="26" Padding="0" Click="OnToggleStatusHints" BorderThickness="0">
 											<ic:SymbolIcon Symbol="Info" IconVariant="Regular" FontSize="14"/>
 										</Button>
@@ -665,6 +670,25 @@
 								<Button ToolTip.Tip="Brown" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
 									Background="#8D6E63" Opacity="0.85" Tag="Brown" Click="OnPropertyColor" CornerRadius="11"/>
 							</StackPanel>
+							<StackPanel Name="PropertyBoundaryConditionRow" IsVisible="False" Orientation="Horizontal" Spacing="3">
+								<Button Classes="ghost" ToolTip.Tip="Pinned support" Width="28" Height="28" Padding="3" Tag="Pinned" Click="OnPropertyBoundaryCondition">
+									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Pinned" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+								</Button>
+								<Button Classes="ghost" ToolTip.Tip="Translation fixed; rotation free" Width="28" Height="28" Padding="3" Tag="Fixed" Click="OnPropertyBoundaryCondition">
+									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Fixed" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+								</Button>
+								<Button Classes="ghost" ToolTip.Tip="Roller support" Width="28" Height="28" Padding="3" Tag="Roller" Click="OnPropertyBoundaryCondition">
+									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Roller" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+								</Button>
+								<Button Classes="ghost" ToolTip.Tip="Fully fixed; translation and rotation restrained" Width="28" Height="28" Padding="3" Tag="FixedWithRotation" Click="OnPropertyBoundaryCondition">
+									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="FixedWithRotation" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+								</Button>
+								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
+								<Button Classes="ghost" Content="↑" ToolTip.Tip="Support extends upward" Tag="Up" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+								<Button Classes="ghost" Content="→" ToolTip.Tip="Support extends right" Tag="Right" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+								<Button Classes="ghost" Content="↓" ToolTip.Tip="Support extends downward" Tag="Down" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+								<Button Classes="ghost" Content="←" ToolTip.Tip="Support extends left" Tag="Left" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+							</StackPanel>
 							<!-- Stroke width + dash + fill -->
 							<StackPanel Name="PropertyStrokeRow" Orientation="Horizontal" Spacing="2">
 								<Button Classes="ghost" ToolTip.Tip="Thin" Width="26" Height="26" Padding="0" Tag="1" Click="OnPropertyWidth" BorderThickness="0">
@@ -796,7 +820,7 @@
 							<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="10" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="6">
 								<StackPanel Spacing="4" MaxWidth="420">
 									<TextBlock Text="Annotation Shortcuts" FontSize="14" FontWeight="SemiBold"/>
-									<TextBlock Text="V Select · P Polyline · B Rebar · A Area · D Dot · 1-0 Tools" FontSize="12"/>
+									<TextBlock Text="V Select · P Polyline · B Rebar · A Area · D Dot · U Boundary condition (Pinned/Trans. fixed/Roller/Fully fixed) · 1-0 Tools" FontSize="12"/>
 									<TextBlock Text="Enter finish · Esc cancel/exit · Shift constrain · Sticky toggle repeats placement" FontSize="12"/>
 									<TextBlock Text="Ctrl+C / Ctrl+V copy-paste · Ctrl+D duplicate · Ctrl+A select all" FontSize="12"/>
 									<TextBlock Text="Arrows nudge (Shift = 10) · [ ] width · -/+ text size · G grid snap" FontSize="12"/>

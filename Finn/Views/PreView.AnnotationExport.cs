@@ -377,6 +377,15 @@ public partial class PreView
                     canvas.DrawCircle(sx, sy, r, dotPaint);
                     break;
                 }
+
+                case InlineAnnotationTool.BoundaryCondition:
+                    foreach (var line in AnnotatedPDFRenderer.GetBoundaryConditionLines(shape))
+                        canvas.DrawLine((float)(line.start.X * renderZoom), (float)(line.start.Y * renderZoom),
+                            (float)(line.end.X * renderZoom), (float)(line.end.Y * renderZoom), paint);
+                    foreach (var center in AnnotatedPDFRenderer.GetBoundaryConditionRollerCenters(shape))
+                        canvas.DrawCircle((float)(center.X * renderZoom), (float)(center.Y * renderZoom),
+                            2 * (float)renderZoom, paint);
+                    break;
             }
             paint.PathEffect?.Dispose();
             fillPaint?.Dispose();
@@ -1643,6 +1652,13 @@ public partial class PreView
 
                 case InlineAnnotationTool.RevisionCloud:
                     DrawCloudWithPdfSharp(gfx, pen, fill, sx, sy, ex, ey);
+                    break;
+
+                case InlineAnnotationTool.BoundaryCondition:
+                    foreach (var line in AnnotatedPDFRenderer.GetBoundaryConditionLines(shape))
+                        gfx.DrawLine(pen, line.start.X, line.start.Y, line.end.X, line.end.Y);
+                    foreach (var center in AnnotatedPDFRenderer.GetBoundaryConditionRollerCenters(shape))
+                        gfx.DrawEllipse(pen, center.X - 2, center.Y - 2, 4, 4);
                     break;
             }
         }

@@ -581,6 +581,12 @@ public partial class PreView
                 e.Pointer.Capture(null);
                 break;
 
+            case InlineAnnotationTool.BoundaryCondition:
+                AnnotationRenderer.PlaceBoundaryCondition(pdfPoint.Value);
+                CompleteToolPlacement();
+                e.Pointer.Capture(null);
+                break;
+
             default: // Draw, Highlight
                 _inkDrawing = true;
                 AnnotationRenderer.BeginStroke(pdfPoint.Value);
@@ -713,7 +719,8 @@ public partial class PreView
                         or InlineAnnotationTool.Polyline
                         or InlineAnnotationTool.Rebar
                         or InlineAnnotationTool.MeasureArea
-                        or InlineAnnotationTool.MeasureDistance)
+                        or InlineAnnotationTool.MeasureDistance
+                        or InlineAnnotationTool.BoundaryCondition)
                 {
                     if (hoverMoved)
                         AnnotationRenderer.UpdateSnapPreview(hoverPdf.Value);
@@ -786,7 +793,12 @@ public partial class PreView
                     {
                         target = AnnotationRenderer.ComputeVertexSnap(sv, target);
                     }
-                    if (_draggingVertexIndex == 0) sv.Start = target;
+                    if (sv.ShapeType == InlineAnnotationTool.BoundaryCondition)
+                    {
+                        sv.Start = target;
+                        sv.End = target;
+                    }
+                    else if (_draggingVertexIndex == 0) sv.Start = target;
                     else sv.End = target;
                     sv.InvalidatePen();
                     break;

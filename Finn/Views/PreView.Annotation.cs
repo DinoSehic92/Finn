@@ -275,7 +275,6 @@ public partial class PreView
         _stickyToolToggleBtn ??= this.FindControl<Button>("StickyToolToggleBtn");
         if (_stickyToolToggleBtn == null) return;
         SyncToggleButton(_stickyToolToggleBtn, _stickyToolMode);
-        _stickyToolToggleBtn.Content = _stickyToolMode ? "Sticky: On" : "Sticky: Off";
         Avalonia.Controls.ToolTip.SetTip(_stickyToolToggleBtn, _stickyToolMode
             ? "Sticky tools on — click again to return to Select after placing"
             : "Sticky tools off — click to keep the active tool selected after placing");
@@ -330,6 +329,7 @@ public partial class PreView
             InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
             InlineAnnotationTool.Rebar => "Rebar: click to add points, click the first point, double-click, or press Enter to finish; Esc to cancel.",
             InlineAnnotationTool.Dot => "Dot: click to place a dot annotation.",
+            InlineAnnotationTool.BoundaryCondition => "Boundary condition: click the support contact point; double-click the symbol to change type and orientation.",
             InlineAnnotationTool.Rectangle => "Rectangle: click once to start, move the mouse, click again to finish. Hold Shift for a square.",
             InlineAnnotationTool.Ellipse => "Ellipse: click once to start, move the mouse, click again to finish. Hold Shift for a circle.",
             InlineAnnotationTool.Line => "Line: click once to start, move the mouse, click again to finish. Hold Shift to constrain angles.",
@@ -427,13 +427,13 @@ public partial class PreView
         double? sourceWidth = source switch
         {
             InkStroke s => s.Width,
-            ShapeAnnotation s => s.StrokeWidth,
+            ShapeAnnotation { ShapeType: not InlineAnnotationTool.BoundaryCondition } s => s.StrokeWidth,
             _ => null
         };
         LineDashPattern? sourceDash = source switch
         {
             InkStroke s => s.DashPattern,
-            ShapeAnnotation s => s.DashPattern,
+            ShapeAnnotation { ShapeType: not InlineAnnotationTool.BoundaryCondition } s => s.DashPattern,
             _ => null
         };
         bool? sourceFill = source switch
@@ -485,8 +485,11 @@ public partial class PreView
             case ShapeAnnotation shape:
                 if (sourceColor.HasValue) shape.Color = sourceColor.Value;
                 if (sourceOpacity.HasValue) shape.Opacity = sourceOpacity.Value;
-                if (sourceWidth.HasValue) shape.StrokeWidth = sourceWidth.Value;
-                if (sourceDash.HasValue) shape.DashPattern = sourceDash.Value;
+                if (shape.ShapeType != InlineAnnotationTool.BoundaryCondition)
+                {
+                    if (sourceWidth.HasValue) shape.StrokeWidth = sourceWidth.Value;
+                    if (sourceDash.HasValue) shape.DashPattern = sourceDash.Value;
+                }
                 if (sourceCornerRadius.HasValue && shape.ShapeType == InlineAnnotationTool.Rectangle)
                     shape.CornerRadius = sourceCornerRadius.Value;
                 if (sourceFill.HasValue && shape.ShapeType is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud)
@@ -630,6 +633,17 @@ public partial class PreView
         double radiusSq = radius * radius;
         switch (item)
         {
+            case ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } support:
+                if (DistanceSq(pdfPoint, support.Start) <= radiusSq)
+                {
+                    _draggingVertexItem = support;
+                    _draggingVertexIndex = 0;
+                    _dragStartPdf = pdfPoint;
+                    _preDragSnapshot = AnnotationRenderer.CapturePreDragSnapshot(support);
+                    _inkDrawing = true;
+                    return true;
+                }
+                break;
             case ShapeAnnotation shape when shape.ShapeType != InlineAnnotationTool.Dot:
             {
                 double distS = DistanceSq(pdfPoint, shape.Start);
@@ -817,7 +831,9 @@ public partial class PreView
                     Color = src.Color, StrokeWidth = src.StrokeWidth,
                     Opacity = src.Opacity, IsFilled = src.IsFilled,
                     DashPattern = src.DashPattern,
-                    CornerRadius = src.CornerRadius
+                    CornerRadius = src.CornerRadius,
+                    BoundaryCondition = src.BoundaryCondition,
+                    BoundaryOrientation = src.BoundaryOrientation
                 };
                 AnnotationRenderer.PlaceShape(copy);
                 break;
@@ -1311,6 +1327,7 @@ public partial class PreView
                 Key.B => InlineAnnotationTool.Rebar,
                 Key.A => InlineAnnotationTool.MeasureArea,
                 Key.D => InlineAnnotationTool.Dot,
+                Key.U => InlineAnnotationTool.BoundaryCondition,
                 _ => null
             };
             if (toolKey.HasValue)
@@ -1437,8 +1454,13 @@ public partial class PreView
             double vr = HitRadius(HandleHitScreenPxLarge);
             switch (_selectedAnnotation)
             {
+                case ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } shape:
+                    if (IsNear(pdfPoint, shape.Start, vr))
+                        return CursorCross;
+                    break;
                 case ShapeAnnotation shape:
-                    if (IsNear(pdfPoint, shape.Start, vr) || IsNear(pdfPoint, shape.End, vr))
+                    if (shape.ShapeType != InlineAnnotationTool.Dot
+                        && (IsNear(pdfPoint, shape.Start, vr) || IsNear(pdfPoint, shape.End, vr)))
                         return CursorCross;
                     break;
                 case MeasurementAnnotation meas when meas.Points.Count >= 2:

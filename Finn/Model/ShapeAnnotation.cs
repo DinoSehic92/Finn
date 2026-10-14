@@ -27,7 +27,24 @@ public enum InlineAnnotationTool
     RevisionCloud,
     Eraser,
     Dot,
-    Screenshot
+    Screenshot,
+    BoundaryCondition
+}
+
+public enum BoundaryConditionType
+{
+    Pinned,
+    Fixed,
+    Roller,
+    FixedWithRotation
+}
+
+public enum BoundaryConditionOrientation
+{
+    Up,
+    Right,
+    Down,
+    Left
 }
 
 /// <summary>
@@ -63,6 +80,8 @@ public class ShapeAnnotation
     /// 0 = sharp corners. Typical presets: 0, 2, 5, 10.
     /// </summary>
     public double CornerRadius { get; set; }
+    public BoundaryConditionType BoundaryCondition { get; set; } = BoundaryConditionType.Pinned;
+    public BoundaryConditionOrientation BoundaryOrientation { get; set; } = BoundaryConditionOrientation.Down;
 
     public void InvalidatePen()
     {

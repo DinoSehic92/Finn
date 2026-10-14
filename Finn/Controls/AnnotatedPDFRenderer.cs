@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 
 namespace Finn.Controls;
 
@@ -193,6 +194,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private SnapKind _snapKindY;
     /// <summary>The vertex position being snapped (for indicator dot rendering).</summary>
     private Point? _snapVertexPos;
+    private Point? _snapPreviewPoint;
 
     // Polar tracking: live angle + distance shown near the cursor while drawing
     private double? _polarAngleDeg;
@@ -1400,6 +1402,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
+    public void PlaceBoundaryCondition(Point pdfPoint)
+    {
+        if (CannotAnnotateActiveLayer) return;
+        EnsureDefaultLayer();
+        if (ActiveLayer == null) return;
+        var anchor = ComputeVertexSnap(null!, pdfPoint);
+        PlaceShape(new ShapeAnnotation
+        {
+            ShapeType = InlineAnnotationTool.BoundaryCondition,
+            Start = anchor,
+            End = anchor,
+            Color = StrokeColor,
+            StrokeWidth = Math.Max(1.5, StrokeWidth),
+            Opacity = StrokeOpacity,
+            BoundaryCondition = BoundaryConditionType.Pinned,
+            BoundaryOrientation = BoundaryConditionOrientation.Down
+        });
+        _snapGuideX = null;
+        _snapGuideY = null;
+        _snapVertexPos = null;
+    }
+
     #endregion
 
     /// <summary>
@@ -2293,6 +2317,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double StrokeWidth, LineDashPattern DashPattern,
         // ShapeAnnotation
         bool IsFilled, double CornerRadius,
+        BoundaryConditionType BoundaryCondition, BoundaryConditionOrientation BoundaryOrientation,
         // TextAnnotation
         double FontSize, string Text, double MaxWidth, bool HasFrame,
         bool SolidBackground = false);
@@ -2303,10 +2328,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public object? CapturePropertySnapshot(object item) => item switch
     {
-        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, 0, "", 0, false),
-        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, 0, "", 0, false),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, t.CornerRadius, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground),
-        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, 0, "", 0, false),
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground),
+        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
         _ => null
     };
 
@@ -2326,6 +2351,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 sh.StrokeWidth = snap.StrokeWidth; sh.DashPattern = snap.DashPattern;
                 sh.IsFilled = snap.IsFilled;
                 sh.CornerRadius = snap.CornerRadius;
+                sh.BoundaryCondition = snap.BoundaryCondition;
+                sh.BoundaryOrientation = snap.BoundaryOrientation;
                 sh.InvalidatePen();
                 break;
             case TextAnnotation t:
@@ -2531,11 +2558,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public void ClearSnapGuides()
     {
-        if (_snapGuideX != null || _snapGuideY != null || _snapVertexPos != null)
+        if (_snapGuideX != null || _snapGuideY != null || _snapVertexPos != null || _snapPreviewPoint != null)
         {
             _snapGuideX = null;
             _snapGuideY = null;
             _snapVertexPos = null;
+            _snapPreviewPoint = null;
             _snapKindX = SnapKind.None;
             _snapKindY = SnapKind.None;
             InvalidateVisual();
@@ -2720,6 +2748,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
         var tb = GetAnnotationBounds(target);
         var tc = GetAnnotationCenter(target);
 
+        if (target is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } boundary)
+        {
+            double dx = Math.Abs(vx - boundary.Start.X);
+            if (IsBetterSnap(dx, bestDistX, SnapKind.Vertex, _snapKindX))
+            {
+                bestDistX = dx;
+                snapX = boundary.Start.X;
+                _snapGuideX = boundary.Start.X;
+                _snapKindX = SnapKind.Vertex;
+            }
+            double dy = Math.Abs(vy - boundary.Start.Y);
+            if (IsBetterSnap(dy, bestDistY, SnapKind.Vertex, _snapKindY))
+            {
+                bestDistY = dy;
+                snapY = boundary.Start.Y;
+                _snapGuideY = boundary.Start.Y;
+                _snapKindY = SnapKind.Vertex;
+            }
+            return;
+        }
+
         // Inline iteration over {Left, CenterX, Right} to avoid allocating new[]
         double tx = tb.Left;
         for (int i = 0; i < 3; i++)
@@ -2777,6 +2826,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Inline 3×3 iteration to avoid allocating new[] arrays each call
         Span<double> dxVs = [dL, dCx, dR];
         Span<double> txVals = [tL, tCx, tR];
+        if (target is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } boundary)
+        {
+            txVals[1] = boundary.Start.X;
+            txVals[0] = txVals[1];
+            txVals[2] = txVals[1];
+        }
         for (int di = 0; di < 3; di++)
             for (int ti = 0; ti < 3; ti++)
             {
@@ -2789,6 +2844,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         Span<double> dyVs = [dT, dCy, dB];
         Span<double> tyVals = [tT, tCy, tB];
+        if (target is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } boundaryY)
+        {
+            tyVals[1] = boundaryY.Start.Y;
+            tyVals[0] = tyVals[1];
+            tyVals[2] = tyVals[1];
+        }
         for (int di = 0; di < 3; di++)
             for (int ti = 0; ti < 3; ti++)
             {
@@ -2804,6 +2865,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static Point GetAnnotationCenter(object item) => item switch
     {
         TextAnnotation t => t.Position,
+        ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } s => s.Start,
         ShapeAnnotation s => new Point((s.Start.X + s.End.X) / 2, (s.Start.Y + s.End.Y) / 2),
         MeasurementAnnotation m when m.Points.Count >= 2 =>
             new Point((m.Points[0].X + m.Points[1].X) / 2, (m.Points[0].Y + m.Points[1].Y) / 2),
@@ -2826,6 +2888,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     internal static Rect GetAnnotationBounds(object item) => item switch
     {
         TextAnnotation t => GetTextBounds(t),
+        // BoundaryCondition bounds are already handled by the dedicated helper.
+        ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } support => GetBoundaryConditionBounds(support),
         ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot } dot =>
             new Rect(dot.Start.X - dot.StrokeWidth, dot.Start.Y - dot.StrokeWidth,
                      dot.StrokeWidth * 2, dot.StrokeWidth * 2),
@@ -2834,6 +2898,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InkStroke ink when ink.Points.Count > 0 => GetStrokeBounds(ink),
         _ => default
     };
+
+    private static Rect GetBoundaryConditionBounds(ShapeAnnotation shape)
+    {
+        var vertices = GetBoundaryConditionVertices(shape);
+        if (vertices.Length == 0) return default;
+        var lineSegments = GetBoundaryConditionLines(shape);
+        if (lineSegments.Length > 0)
+            vertices = [.. vertices, .. lineSegments.Select(l => l.start), .. lineSegments.Select(l => l.end)];
+        double minX = vertices.Min(p => p.X), minY = vertices.Min(p => p.Y);
+        double maxX = vertices.Max(p => p.X), maxY = vertices.Max(p => p.Y);
+        return new Rect(minX, minY, maxX - minX, maxY - minY);
+    }
 
     /// <summary>Computes the combined PDF-space bounding box for a set of annotations.</summary>
     internal static Rect GetCombinedBounds(IEnumerable<object> items)
@@ -3586,6 +3662,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 double hitR = Math.Max(shape.StrokeWidth * 2, threshold);
                 return dx * dx + dy * dy <= hitR * hitR;
             }
+            case InlineAnnotationTool.BoundaryCondition:
+                foreach (var line in GetBoundaryConditionLines(shape))
+                    if (DistanceToSegment(pt, line.start, line.end) <= threshold)
+                        return true;
+                foreach (var center in GetBoundaryConditionRollerCenters(shape))
+                {
+                    double dx = pt.X - center.X, dy = pt.Y - center.Y;
+                    if (dx * dx + dy * dy <= Math.Pow(threshold + 2, 2)) return true;
+                }
+                return false;
         }
         return false;
     }
@@ -3632,6 +3718,131 @@ public class AnnotatedPDFRenderer : PDFRenderer
         double w = Math.Abs(b.X - a.X);
         double h = Math.Abs(b.Y - a.Y);
         return new Rect(x, y, w, h);
+    }
+
+    internal const double BoundaryConditionSymbolSize = 20;
+    private const double BoundaryConditionTriangleHalfWidth = BoundaryConditionSymbolSize * 0.4;
+
+    internal static (Point tangent, Point normal) GetBoundaryConditionAxes(BoundaryConditionOrientation orientation) => orientation switch
+    {
+        BoundaryConditionOrientation.Up => (new Point(1, 0), new Point(0, -1)),
+        BoundaryConditionOrientation.Right => (new Point(0, 1), new Point(1, 0)),
+        BoundaryConditionOrientation.Down => (new Point(1, 0), new Point(0, 1)),
+        BoundaryConditionOrientation.Left => (new Point(0, 1), new Point(-1, 0)),
+        _ => (new Point(1, 0), new Point(0, 1))
+    };
+
+    internal static Point OffsetBoundaryPoint(Point origin, Point tangent, Point normal, double along, double outward) =>
+        new(origin.X + tangent.X * along + normal.X * outward,
+            origin.Y + tangent.Y * along + normal.Y * outward);
+
+    internal static Point[] GetBoundaryConditionVertices(ShapeAnnotation shape)
+    {
+        var (tangent, normal) = GetBoundaryConditionAxes(shape.BoundaryOrientation);
+        double size = BoundaryConditionSymbolSize;
+        return shape.BoundaryCondition switch
+        {
+            BoundaryConditionType.Pinned => [
+                shape.Start,
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size)],
+            BoundaryConditionType.Fixed =>
+            [
+                shape.Start,
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth - 4, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth * 0.5 - 4, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth * 0.5, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -4, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, 0, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth * 0.5 - 4, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth * 0.5, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth - 4, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size + 4)
+            ],
+            BoundaryConditionType.Roller =>
+            [
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size + 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth * 1.5, size + 8),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth * 1.5, size + 8)
+            ],
+            BoundaryConditionType.FixedWithRotation =>
+            [
+                shape.Start,
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, 0),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, 0),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth + 4, 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth * 0.5 + 4, 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, 4, 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth * 0.5 + 4, 4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth + 4, 4)
+            ],
+            _ => []
+        };
+    }
+
+    internal static (Point start, Point end)[] GetBoundaryConditionLines(ShapeAnnotation shape)
+    {
+        var (tangent, normal) = GetBoundaryConditionAxes(shape.BoundaryOrientation);
+        double size = BoundaryConditionSymbolSize;
+        Point At(double along, double outward) => OffsetBoundaryPoint(shape.Start, tangent, normal, along, outward);
+        (Point start, Point end)[] lines = shape.BoundaryCondition switch
+        {
+            BoundaryConditionType.Pinned =>
+            [
+                (shape.Start, At(-BoundaryConditionTriangleHalfWidth, size)),
+                (At(-BoundaryConditionTriangleHalfWidth, size), At(BoundaryConditionTriangleHalfWidth, size)),
+                (At(BoundaryConditionTriangleHalfWidth, size), shape.Start)
+            ],
+            BoundaryConditionType.Fixed =>
+            [
+                (shape.Start, At(-BoundaryConditionTriangleHalfWidth, size)),
+                (shape.Start, At(BoundaryConditionTriangleHalfWidth, size)),
+                (At(-BoundaryConditionTriangleHalfWidth, size), At(BoundaryConditionTriangleHalfWidth, size)),
+                (At(-BoundaryConditionTriangleHalfWidth, size), At(-BoundaryConditionTriangleHalfWidth - 4, size + 4)),
+                (At(-BoundaryConditionTriangleHalfWidth * 0.5, size), At(-BoundaryConditionTriangleHalfWidth * 0.5 - 4, size + 4)),
+                (At(0, size), At(-4, size + 4)),
+                (At(BoundaryConditionTriangleHalfWidth * 0.5, size), At(BoundaryConditionTriangleHalfWidth * 0.5 - 4, size + 4)),
+                (At(BoundaryConditionTriangleHalfWidth, size), At(BoundaryConditionTriangleHalfWidth - 4, size + 4))
+            ],
+            BoundaryConditionType.FixedWithRotation =>
+            [
+                (At(-BoundaryConditionTriangleHalfWidth, 0), At(BoundaryConditionTriangleHalfWidth, 0)),
+                (At(-BoundaryConditionTriangleHalfWidth, 0), At(-BoundaryConditionTriangleHalfWidth + 4, 4)),
+                (At(-BoundaryConditionTriangleHalfWidth * 0.5, 0), At(-BoundaryConditionTriangleHalfWidth * 0.5 + 4, 4)),
+                (At(0, 0), At(4, 4)),
+                (At(BoundaryConditionTriangleHalfWidth * 0.5, 0), At(BoundaryConditionTriangleHalfWidth * 0.5 + 4, 4)),
+                (At(BoundaryConditionTriangleHalfWidth, 0), At(BoundaryConditionTriangleHalfWidth + 4, 4))
+            ],
+            BoundaryConditionType.Roller =>
+            [
+                (shape.Start, At(-BoundaryConditionTriangleHalfWidth, size)),
+                (shape.Start, At(BoundaryConditionTriangleHalfWidth, size)),
+                (At(-BoundaryConditionTriangleHalfWidth, size), At(BoundaryConditionTriangleHalfWidth, size)),
+                (At(-BoundaryConditionTriangleHalfWidth * 1.5, size + 8), At(BoundaryConditionTriangleHalfWidth * 1.5, size + 8))
+            ],
+            _ => []
+        };
+        return lines;
+    }
+
+    internal static Point[] GetBoundaryConditionRollerCenters(ShapeAnnotation shape)
+    {
+        if (shape.BoundaryCondition != BoundaryConditionType.Roller) return [];
+        var (tangent, normal) = GetBoundaryConditionAxes(shape.BoundaryOrientation);
+        double size = BoundaryConditionSymbolSize;
+        return
+        [
+            OffsetBoundaryPoint(shape.Start, tangent, normal, -BoundaryConditionTriangleHalfWidth, size + 4),
+            OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth, size + 4)
+        ];
     }
 
     private bool HitTestText(TextAnnotation text, Point pt)
@@ -4752,6 +4963,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 DrawSnapIcon(context, sv, snapKind, snapIconR, s_snapVertexBrush, s_snapVertexPen);
             }
         }
+        if (_snapPreviewPoint is { } previewPoint)
+        {
+            var previewScreen = PdfToScreen(previewPoint, da, boundsSize);
+            context.DrawEllipse(null, s_snapVertexPen, previewScreen, 5.5, 5.5);
+        }
 
         // ── Polar tracking readout: distance + angle near the cursor ──
         if (_polarAngleDeg.HasValue && _polarDistancePdf.HasValue && _polarCursorScreen.HasValue)
@@ -4896,6 +5112,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             var sc = PdfToScreen(shape.Start, ox, oy, scaleX, scaleY);
                             double dotR = shape.StrokeWidth * penScale + padSize;
                             context.DrawEllipse(null, selectPen, sc, dotR, dotR);
+                            break;
+                        }
+                        if (shape.ShapeType == InlineAnnotationTool.BoundaryCondition)
+                        {
+                            var pdfBounds = GetBoundaryConditionBounds(shape);
+                            var topLeft = PdfToScreen(pdfBounds.TopLeft, ox, oy, scaleX, scaleY);
+                            var bottomRight = PdfToScreen(pdfBounds.BottomRight, ox, oy, scaleX, scaleY);
+                            bounds = new Rect(topLeft, bottomRight);
                             break;
                         }
                         var s = PdfToScreen(shape.Start, ox, oy, scaleX, scaleY);
@@ -5431,6 +5655,20 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 // Dots are always rendered as solid filled circles — no outline/dash pen.
                 double r = shape.StrokeWidth * penScale;
                 context.DrawEllipse(shape.GetOrCreateDotBrush(), null, screenStart, r, r);
+                break;
+            }
+            case InlineAnnotationTool.BoundaryCondition:
+            {
+                var (tangent, normal) = GetBoundaryConditionAxes(shape.BoundaryOrientation);
+                foreach (var line in GetBoundaryConditionLines(shape))
+                {
+                    context.DrawLine(pen,
+                        PdfToScreen(line.start, offsetX, offsetY, scaleX, scaleY),
+                        PdfToScreen(line.end, offsetX, offsetY, scaleX, scaleY));
+                }
+                double radius = Math.Max(1.5, 2 * penScale);
+                foreach (var center in GetBoundaryConditionRollerCenters(shape))
+                    context.DrawEllipse(null, pen, PdfToScreen(center, offsetX, offsetY, scaleX, scaleY), radius, radius);
                 break;
             }
         }
