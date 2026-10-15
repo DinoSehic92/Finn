@@ -94,14 +94,45 @@ public partial class PreView
                 StrokeJoin = SKStrokeJoin.Round,
                 IsAntialias = true,
                 BlendMode = stroke.IsHighlighter ? SKBlendMode.Multiply : SKBlendMode.SrcOver,
-                PathEffect = CreateDashEffect(stroke.DashPattern, (float)(stroke.Width * renderZoom))
+                PathEffect = CreateDashEffect(
+                    AnnotatedPDFRenderer.SupportsStructuralLinePattern(stroke) && IsStructuralLinePattern(stroke.DashPattern)
+                        ? LineDashPattern.Solid : stroke.DashPattern,
+                    (float)(stroke.Width * renderZoom))
             };
 
             var pts = stroke.Points;
             using var path = new SKPath();
             float z = (float)renderZoom;
 
-            if (pts.Count == 2 && !stroke.IsRebar)
+            if (stroke.IsPolyline
+                && AnnotatedPDFRenderer.SupportsStructuralLinePattern(stroke)
+                && IsStructuralLinePattern(stroke.DashPattern))
+            {
+                bool closedPattern = stroke.IsClosed && pts.Count >= 3;
+                int patternPointCount = pts.Count;
+                if (closedPattern && patternPointCount > 2
+                    && Math.Abs(pts[0].X - pts[^1].X) < 0.5 && Math.Abs(pts[0].Y - pts[^1].Y) < 0.5)
+                    patternPointCount--;
+                var patternPoints = new Avalonia.Point[patternPointCount];
+                for (int i = 0; i < patternPointCount; i++)
+                    patternPoints[i] = pts[i];
+                foreach (var segment in AnnotatedPDFRenderer.GetPatternSegments(patternPoints, stroke.DashPattern, closedPattern, stroke.StructuralPatternReversed))
+                {
+                    path.MoveTo((float)(segment.start.X * z), (float)(segment.start.Y * z));
+                    path.LineTo((float)(segment.end.X * z), (float)(segment.end.Y * z));
+                }
+            }
+            else if (pts.Count == 2 && !stroke.IsRebar
+                && AnnotatedPDFRenderer.SupportsStructuralLinePattern(stroke)
+                && IsStructuralLinePattern(stroke.DashPattern))
+            {
+                foreach (var segment in AnnotatedPDFRenderer.GetPatternSegments(pts, stroke.DashPattern, reversed: stroke.StructuralPatternReversed))
+                {
+                    path.MoveTo((float)(segment.start.X * z), (float)(segment.start.Y * z));
+                    path.LineTo((float)(segment.end.X * z), (float)(segment.end.Y * z));
+                }
+            }
+            else if (pts.Count == 2 && !stroke.IsRebar)
             {
                 path.MoveTo((float)(pts[0].X * z), (float)(pts[0].Y * z));
                 path.LineTo((float)(pts[1].X * z), (float)(pts[1].Y * z));
@@ -277,7 +308,10 @@ public partial class PreView
                 StrokeCap = SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round,
                 IsAntialias = true,
-                PathEffect = CreateDashEffect(shape.DashPattern, (float)(shape.StrokeWidth * renderZoom))
+                PathEffect = CreateDashEffect(
+                    shape.ShapeType == InlineAnnotationTool.Line && IsStructuralLinePattern(shape.DashPattern)
+                        ? LineDashPattern.Solid : shape.DashPattern,
+                    (float)(shape.StrokeWidth * renderZoom))
             };
 
             SKPaint? fillPaint = null;
@@ -301,7 +335,15 @@ public partial class PreView
             switch (shape.ShapeType)
             {
                 case InlineAnnotationTool.Line:
-                    canvas.DrawLine(sx, sy, ex, ey, paint);
+                    if (shape.DashPattern is LineDashPattern.ContinuousSpring or LineDashPattern.Rock or LineDashPattern.Soil)
+                    {
+                        foreach (var segment in AnnotatedPDFRenderer.GetPatternSegments(
+                            [shape.Start, shape.End], shape.DashPattern, reversed: shape.StructuralPatternReversed))
+                            canvas.DrawLine((float)(segment.start.X * renderZoom), (float)(segment.start.Y * renderZoom),
+                                (float)(segment.end.X * renderZoom), (float)(segment.end.Y * renderZoom), paint);
+                    }
+                    else
+                        canvas.DrawLine(sx, sy, ex, ey, paint);
                     break;
 
                 case InlineAnnotationTool.Arrow:
@@ -1492,7 +1534,22 @@ public partial class PreView
 
             var pts = stroke.Points;
 
-            if (pts.Count == 2 || stroke.IsPolyline)
+            if ((pts.Count == 2 && !stroke.IsRebar || stroke.IsPolyline)
+                && AnnotatedPDFRenderer.SupportsStructuralLinePattern(stroke)
+                && IsStructuralLinePattern(stroke.DashPattern))
+            {
+                bool closedSpring = stroke.IsClosed && pts.Count >= 3;
+                int springPointCount = pts.Count;
+                if (closedSpring && springPointCount > 2
+                    && Math.Abs(pts[0].X - pts[^1].X) < 0.5 && Math.Abs(pts[0].Y - pts[^1].Y) < 0.5)
+                    springPointCount--;
+                var springPoints = new Avalonia.Point[springPointCount];
+                for (int i = 0; i < springPointCount; i++)
+                    springPoints[i] = pts[i];
+                foreach (var segment in AnnotatedPDFRenderer.GetPatternSegments(springPoints, stroke.DashPattern, closedSpring, stroke.StructuralPatternReversed))
+                    gfx.DrawLine(pen, segment.start.X, segment.start.Y, segment.end.X, segment.end.Y);
+            }
+            else if (pts.Count == 2 || stroke.IsPolyline)
             {
                 if (stroke.IsRebar && stroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd))
                 {
@@ -1618,7 +1675,15 @@ public partial class PreView
             switch (shape.ShapeType)
             {
                 case InlineAnnotationTool.Line:
-                    gfx.DrawLine(pen, sx, sy, ex, ey);
+                    if (IsStructuralLinePattern(shape.DashPattern))
+                    {
+                        foreach (var segment in AnnotatedPDFRenderer.GetPatternSegments(
+                            [new Avalonia.Point(sx, sy), new Avalonia.Point(ex, ey)], shape.DashPattern,
+                            reversed: shape.StructuralPatternReversed))
+                            gfx.DrawLine(pen, segment.start.X, segment.start.Y, segment.end.X, segment.end.Y);
+                    }
+                    else
+                        gfx.DrawLine(pen, sx, sy, ex, ey);
                     break;
 
                 case InlineAnnotationTool.Arrow:

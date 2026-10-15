@@ -273,6 +273,7 @@ internal static class SharedProjectMerge
         IsRebar = source.IsRebar,
         IsClosed = source.IsClosed,
         DashPattern = source.DashPattern,
+        StructuralPatternReversed = source.StructuralPatternReversed,
         CornerRadius = source.CornerRadius
     };
 
@@ -286,6 +287,7 @@ internal static class SharedProjectMerge
         Opacity = source.Opacity,
         IsFilled = source.IsFilled,
         DashPattern = source.DashPattern,
+        StructuralPatternReversed = source.StructuralPatternReversed,
         CornerRadius = source.CornerRadius
     };
 

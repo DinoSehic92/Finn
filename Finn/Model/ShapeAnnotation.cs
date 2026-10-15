@@ -36,7 +36,8 @@ public enum BoundaryConditionType
     Pinned,
     Fixed,
     Roller,
-    FixedWithRotation
+    FixedWithRotation,
+    Spring
 }
 
 public enum BoundaryConditionOrientation
@@ -55,7 +56,10 @@ public enum LineDashPattern
     Solid,
     Dashed,
     Dotted,
-    DashDot
+    DashDot,
+    ContinuousSpring,
+    Rock,
+    Soil
 }
 
 /// <summary>
@@ -75,6 +79,7 @@ public class ShapeAnnotation
     public bool IsFilled { get; set; }
     /// <summary>Dash pattern applied to the shape stroke.</summary>
     public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
+    public bool StructuralPatternReversed { get; set; }
     /// <summary>
     /// Corner radius in PDF points for Rectangle shapes.
     /// 0 = sharp corners. Typical presets: 0, 2, 5, 10.
@@ -115,6 +120,7 @@ public class ShapeAnnotation
         LineDashPattern.Dashed => s_dashed,
         LineDashPattern.Dotted => s_dotted,
         LineDashPattern.DashDot => s_dashDot,
+        LineDashPattern.ContinuousSpring => null,
         _ => null
     };
 

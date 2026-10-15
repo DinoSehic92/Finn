@@ -871,13 +871,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
+        var dashPattern = IsStructuralLinePattern(StrokeDashPattern)
+            ? LineDashPattern.Solid
+            : StrokeDashPattern;
         _activeStroke = new InkStroke
         {
             Color = StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsHighlighter = IsHighlighterMode,
-            DashPattern = StrokeDashPattern
+            DashPattern = dashPattern
         };
         _activeStroke.Points.Add(pdfPoint);
     }
@@ -948,7 +951,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Opacity = StrokeOpacity,
             IsPolyline = true,
             IsRebar = asRebar,
-            DashPattern = asAreaMeasure ? LineDashPattern.Dashed : StrokeDashPattern,
+            DashPattern = asAreaMeasure ? LineDashPattern.Dashed
+                : asRebar && IsStructuralLinePattern(StrokeDashPattern) ? LineDashPattern.Solid
+                : StrokeDashPattern,
             CornerRadius = asAreaMeasure ? 0 : (asRebar ? RebarCornerRadius : ShapeCornerRadius),
             IsAreaMeasure = asAreaMeasure,
             IsFilled = asAreaMeasure,
@@ -1301,7 +1306,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             StrokeWidth = StrokeWidth,
             Opacity = StrokeOpacity,
             IsFilled = IsFilledMode,
-            DashPattern = StrokeDashPattern,
+            DashPattern = ActiveTool == InlineAnnotationTool.Line
+                ? StrokeDashPattern
+                : IsStructuralLinePattern(StrokeDashPattern) ? LineDashPattern.Solid : StrokeDashPattern,
             CornerRadius = ShapeCornerRadius
         };
         InvalidateVisual();
@@ -2314,7 +2321,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         object Item,
         Color Color, double Opacity,
         // InkStroke / ShapeAnnotation
-        double StrokeWidth, LineDashPattern DashPattern,
+        double StrokeWidth, LineDashPattern DashPattern, bool StructuralPatternReversed,
         // ShapeAnnotation
         bool IsFilled, double CornerRadius,
         BoundaryConditionType BoundaryCondition, BoundaryConditionOrientation BoundaryOrientation,
@@ -2328,10 +2335,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public object? CapturePropertySnapshot(object item) => item switch
     {
-        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
-        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground),
-        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, s.StructuralPatternReversed, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.StructuralPatternReversed, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground),
+        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
         _ => null
     };
 
@@ -2343,12 +2350,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             case InkStroke s:
                 s.Color = snap.Color; s.Opacity = snap.Opacity;
                 s.Width = snap.StrokeWidth; s.DashPattern = snap.DashPattern;
+                s.StructuralPatternReversed = snap.StructuralPatternReversed;
                 s.CornerRadius = snap.CornerRadius;
                 s.InvalidatePen();
                 break;
             case ShapeAnnotation sh:
                 sh.Color = snap.Color; sh.Opacity = snap.Opacity;
                 sh.StrokeWidth = snap.StrokeWidth; sh.DashPattern = snap.DashPattern;
+                sh.StructuralPatternReversed = snap.StructuralPatternReversed;
                 sh.IsFilled = snap.IsFilled;
                 sh.CornerRadius = snap.CornerRadius;
                 sh.BoundaryCondition = snap.BoundaryCondition;
@@ -2893,6 +2902,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot } dot =>
             new Rect(dot.Start.X - dot.StrokeWidth, dot.Start.Y - dot.StrokeWidth,
                      dot.StrokeWidth * 2, dot.StrokeWidth * 2),
+        ShapeAnnotation { ShapeType: InlineAnnotationTool.Line } s when IsStructuralLinePattern(s.DashPattern) =>
+            ExpandBounds(NormalizedRect(s.Start, s.End), GetStructuralPatternOffset(s.DashPattern)),
         ShapeAnnotation s => NormalizedRect(s.Start, s.End),
         MeasurementAnnotation m when m.Points.Count >= 2 => NormalizedRect(m.Points[0], m.Points[1]),
         InkStroke ink when ink.Points.Count > 0 => GetStrokeBounds(ink),
@@ -2902,12 +2913,23 @@ public class AnnotatedPDFRenderer : PDFRenderer
     private static Rect GetBoundaryConditionBounds(ShapeAnnotation shape)
     {
         var vertices = GetBoundaryConditionVertices(shape);
-        if (vertices.Length == 0) return default;
         var lineSegments = GetBoundaryConditionLines(shape);
-        if (lineSegments.Length > 0)
-            vertices = [.. vertices, .. lineSegments.Select(l => l.start), .. lineSegments.Select(l => l.end)];
-        double minX = vertices.Min(p => p.X), minY = vertices.Min(p => p.Y);
-        double maxX = vertices.Max(p => p.X), maxY = vertices.Max(p => p.Y);
+        if (vertices.Length == 0 && lineSegments.Length == 0) return default;
+        double minX = double.MaxValue, minY = double.MaxValue;
+        double maxX = double.MinValue, maxY = double.MinValue;
+        void Include(Point point)
+        {
+            minX = Math.Min(minX, point.X);
+            minY = Math.Min(minY, point.Y);
+            maxX = Math.Max(maxX, point.X);
+            maxY = Math.Max(maxY, point.Y);
+        }
+        foreach (var point in vertices) Include(point);
+        foreach (var line in lineSegments)
+        {
+            Include(line.start);
+            Include(line.end);
+        }
         return new Rect(minX, minY, maxX - minX, maxY - minY);
     }
 
@@ -3228,6 +3250,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
             minY = Math.Min(minY, Math.Min(hookStart.Y, hookEnd.Y));
             maxX = Math.Max(maxX, Math.Max(hookStart.X, hookEnd.X));
             maxY = Math.Max(maxY, Math.Max(hookStart.Y, hookEnd.Y));
+        }
+
+        if (SupportsStructuralLinePattern(ink) && IsStructuralLinePattern(ink.DashPattern))
+        {
+            int pointCount = ink.IsClosed && ink.Points.Count > 2 && NearlySamePoint(ink.Points[0], ink.Points[^1])
+                ? ink.Points.Count - 1
+                : ink.Points.Count;
+            var patternPoints = ink.Points.Take(pointCount).ToArray();
+            foreach (var segment in GetPatternSegments(patternPoints, ink.DashPattern, ink.IsClosed, ink.StructuralPatternReversed))
+            {
+                minX = Math.Min(minX, Math.Min(segment.start.X, segment.end.X));
+                minY = Math.Min(minY, Math.Min(segment.start.Y, segment.end.Y));
+                maxX = Math.Max(maxX, Math.Max(segment.start.X, segment.end.X));
+                maxY = Math.Max(maxY, Math.Max(segment.start.Y, segment.end.Y));
+            }
         }
         return new Rect(minX, minY, Math.Max(0, maxX - minX), Math.Max(0, maxY - minY));
     }
@@ -3573,6 +3610,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // Polylines have sparse points with straight segments — test segment proximity
         if (stroke.IsPolyline && stroke.Points.Count >= 2)
         {
+            if (SupportsStructuralLinePattern(stroke) && IsStructuralLinePattern(stroke.DashPattern))
+                return GetPatternSegments(stroke.Points, stroke.DashPattern, stroke.IsClosed, stroke.StructuralPatternReversed)
+                    .Any(segment => DistanceToSegment(pt, segment.start, segment.end) <= threshold);
+
             if (stroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd)
                 && (DistanceToSegment(pt, hookStart, stroke.Points[0]) <= threshold
                     || DistanceToSegment(pt, stroke.Points[^1], hookEnd) <= threshold))
@@ -3617,6 +3658,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             case InlineAnnotationTool.Line:
             case InlineAnnotationTool.Arrow:
+                if (shape.ShapeType == InlineAnnotationTool.Line && IsStructuralLinePattern(shape.DashPattern))
+                    return GetPatternSegments([shape.Start, shape.End], shape.DashPattern, reversed: shape.StructuralPatternReversed)
+                        .Any(segment => DistanceToSegment(pt, segment.start, segment.end) <= threshold);
                 return DistanceToSegment(pt, shape.Start, shape.End) <= threshold;
 
             case InlineAnnotationTool.Rectangle:
@@ -3722,6 +3766,105 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     internal const double BoundaryConditionSymbolSize = 20;
     private const double BoundaryConditionTriangleHalfWidth = BoundaryConditionSymbolSize * 0.4;
+    private static readonly (Point start, Point end)[] s_springPatternGlyph =
+        GetBoundaryConditionLines(new ShapeAnnotation
+        {
+            BoundaryCondition = BoundaryConditionType.Spring,
+            BoundaryOrientation = BoundaryConditionOrientation.Down
+        });
+
+    internal static (Point start, Point end)[] GetPatternSegments(
+        IReadOnlyList<Point> points, LineDashPattern pattern, bool closed = false, bool reversed = false)
+    {
+        if (pattern is not (LineDashPattern.ContinuousSpring or LineDashPattern.Rock or LineDashPattern.Soil)
+            || points.Count < 2)
+            return [];
+
+        var segments = new List<(Point start, Point end)>();
+        double symbolSpacing = pattern == LineDashPattern.ContinuousSpring ? 24 : 12;
+        const double symbolLength = 6;
+        double side = reversed ? 1 : -1;
+
+        int segmentCount = points.Count - 1 + (closed && points.Count > 2 ? 1 : 0);
+        for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
+        {
+            var start = points[segmentIndex];
+            var end = points[(segmentIndex + 1) % points.Count];
+            double dx = end.X - start.X;
+            double dy = end.Y - start.Y;
+            double length = Math.Sqrt(dx * dx + dy * dy);
+            if (length < 0.01) continue;
+
+            var tangent = new Point(dx / length, dy / length);
+            var normal = new Point(-tangent.Y, tangent.X);
+            int symbols = Math.Max(1, (int)Math.Floor(length / symbolSpacing));
+            double pitch = length / symbols;
+            Point At(double distance, double offset) => new(
+                start.X + tangent.X * distance + normal.X * offset * side,
+                start.Y + tangent.Y * distance + normal.Y * offset * side);
+
+            segments.Add((start, end));
+
+            if (pattern == LineDashPattern.ContinuousSpring)
+            {
+                for (int i = 0; i < symbols; i++)
+                {
+                    double center = pitch * (i + 0.5);
+                    var origin = At(center, 0);
+                    Point Transform(Point point) => new(
+                        origin.X + tangent.X * point.X + normal.X * point.Y * side,
+                        origin.Y + tangent.Y * point.X + normal.Y * point.Y * side);
+                    foreach (var segment in s_springPatternGlyph)
+                        segments.Add((Transform(segment.start), Transform(segment.end)));
+                }
+            }
+            else if (pattern == LineDashPattern.Soil)
+            {
+                for (int i = 0; i < symbols; i++)
+                {
+                    double center = pitch * (i + 0.5);
+                    segments.Add((At(center - symbolLength * 0.5, 0), At(center + symbolLength * 0.5, symbolLength)));
+                }
+            }
+
+            if (pattern == LineDashPattern.Rock)
+            {
+                for (int i = 0; i < symbols; i++)
+                {
+                    double center = pitch * (i + 0.5);
+                    var junction = At(center, 4);
+                    segments.Add((At(center, 0), junction));
+                    segments.Add((junction, At(center - symbolLength * 0.5, 8)));
+                    segments.Add((junction, At(center + symbolLength * 0.5, 8)));
+                }
+            }
+        }
+
+        return [.. segments];
+    }
+
+    internal static (Point start, Point end)[] GetContinuousSpringSegments(IReadOnlyList<Point> points, bool closed = false, bool reversed = false) =>
+        GetPatternSegments(points, LineDashPattern.ContinuousSpring, closed, reversed);
+
+    private static bool IsStructuralLinePattern(LineDashPattern pattern) =>
+        pattern is LineDashPattern.ContinuousSpring or LineDashPattern.Rock or LineDashPattern.Soil;
+
+    private static Rect ExpandBounds(Rect bounds, double amount) =>
+        new(bounds.X - amount, bounds.Y - amount, bounds.Width + amount * 2, bounds.Height + amount * 2);
+
+    private static double GetStructuralPatternOffset(LineDashPattern pattern) => pattern switch
+    {
+        LineDashPattern.ContinuousSpring => BoundaryConditionSymbolSize,
+        LineDashPattern.Rock => 14,
+        LineDashPattern.Soil => 10,
+        _ => 0
+    };
+
+    internal static bool SupportsStructuralLinePattern(ShapeAnnotation shape) =>
+        shape.ShapeType == InlineAnnotationTool.Line;
+
+    internal static bool SupportsStructuralLinePattern(InkStroke stroke) =>
+        stroke.IsPolyline && !stroke.IsAreaMeasure && !stroke.IsRebar;
 
     internal static (Point tangent, Point normal) GetBoundaryConditionAxes(BoundaryConditionOrientation orientation) => orientation switch
     {
@@ -3784,6 +3927,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth * 0.5 + 4, 4),
                 OffsetBoundaryPoint(shape.Start, tangent, normal, BoundaryConditionTriangleHalfWidth + 4, 4)
             ],
+            BoundaryConditionType.Spring =>
+            [
+                shape.Start,
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -5, BoundaryConditionSymbolSize * 0.25),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, 5, BoundaryConditionSymbolSize * 0.4),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -5, BoundaryConditionSymbolSize * 0.55),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, 5, BoundaryConditionSymbolSize * 0.7),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, -5, BoundaryConditionSymbolSize * 0.85),
+                OffsetBoundaryPoint(shape.Start, tangent, normal, 0, BoundaryConditionSymbolSize)
+            ],
             _ => []
         };
     }
@@ -3821,6 +3974,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 (At(BoundaryConditionTriangleHalfWidth * 0.5, 0), At(BoundaryConditionTriangleHalfWidth * 0.5 + 4, 4)),
                 (At(BoundaryConditionTriangleHalfWidth, 0), At(BoundaryConditionTriangleHalfWidth + 4, 4))
             ],
+            BoundaryConditionType.Spring =>
+            [
+                (shape.Start, At(0, size * 0.2)),
+                (At(0, size * 0.2), At(-5, size * 0.3)),
+                (At(-5, size * 0.3), At(5, size * 0.4)),
+                (At(5, size * 0.4), At(-5, size * 0.5)),
+                (At(-5, size * 0.5), At(5, size * 0.6)),
+                (At(5, size * 0.6), At(-5, size * 0.7)),
+                (At(-5, size * 0.7), At(5, size * 0.8)),
+                (At(5, size * 0.8), At(0, size * 0.9)),
+                (At(0, size * 0.9), At(0, size))
+            ],
             BoundaryConditionType.Roller =>
             [
                 (shape.Start, At(-BoundaryConditionTriangleHalfWidth, size)),
@@ -3835,7 +4000,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     internal static Point[] GetBoundaryConditionRollerCenters(ShapeAnnotation shape)
     {
-        if (shape.BoundaryCondition != BoundaryConditionType.Roller) return [];
+        if (shape.BoundaryCondition != BoundaryConditionType.Roller) return Array.Empty<Point>();
         var (tangent, normal) = GetBoundaryConditionAxes(shape.BoundaryOrientation);
         double size = BoundaryConditionSymbolSize;
         return
@@ -5410,6 +5575,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (pts.Count < 2) return;
 
         var pen = overridePen ?? stroke.GetOrCreatePen(penScale);
+        if (SupportsStructuralLinePattern(stroke) && IsStructuralLinePattern(stroke.DashPattern))
+        {
+            int pointCount = stroke.IsClosed && pts.Count > 2 && NearlySamePoint(pts[0], pts[^1])
+                ? pts.Count - 1
+                : pts.Count;
+            var patternPoints = pts.Take(pointCount).ToArray();
+            foreach (var segment in GetPatternSegments(patternPoints, stroke.DashPattern, stroke.IsClosed, stroke.StructuralPatternReversed))
+                context.DrawLine(pen,
+                    PdfToScreen(segment.start, da.X, da.Y, scaleX, scaleY),
+                    PdfToScreen(segment.end, da.X, da.Y, scaleX, scaleY));
+            return;
+        }
 
         bool closed = stroke.IsClosed && stroke.IsPolyline && pts.Count >= 3;
 
@@ -5615,7 +5792,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         switch (shape.ShapeType)
         {
             case InlineAnnotationTool.Line:
-                context.DrawLine(pen, screenStart, screenEnd);
+                if (IsStructuralLinePattern(shape.DashPattern))
+                {
+                    foreach (var segment in GetPatternSegments([shape.Start, shape.End], shape.DashPattern, reversed: shape.StructuralPatternReversed))
+                        context.DrawLine(pen,
+                            PdfToScreen(segment.start, offsetX, offsetY, scaleX, scaleY),
+                            PdfToScreen(segment.end, offsetX, offsetY, scaleX, scaleY));
+                }
+                else
+                    context.DrawLine(pen, screenStart, screenEnd);
                 break;
 
             case InlineAnnotationTool.Arrow:
@@ -6705,6 +6890,7 @@ public class InkStroke
     public double CreatedAtRotation { get; set; }
     /// <summary>Dash pattern applied to the stroke.</summary>
     public LineDashPattern DashPattern { get; set; } = LineDashPattern.Solid;
+    public bool StructuralPatternReversed { get; set; }
     /// <summary>
     /// Corner radius in PDF points for polyline vertices.
     /// 0 = sharp corners. Typical presets: 0, 2, 5, 10.

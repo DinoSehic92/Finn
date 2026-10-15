@@ -406,12 +406,24 @@
 														<Button ToolTip.Tip="Dash-dot" Width="50" Height="24" Padding="0" Tag="DashDot" Click="OnAnnotateDashPattern" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
 															<Line StartPoint="0,1" EndPoint="42,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
 														</Button>
+									<Button ToolTip.Tip="Continuous spring" Width="50" Height="24" Padding="0" Tag="ContinuousSpring" Click="OnAnnotateDashPattern" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<ctrl:StructuralLinePatternIcon Width="42" Height="16" Pattern="ContinuousSpring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button ToolTip.Tip="Rock / bedrock" Width="50" Height="24" Padding="0" Tag="Rock" Click="OnAnnotateDashPattern" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<ctrl:StructuralLinePatternIcon Width="42" Height="16" Pattern="Rock" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button ToolTip.Tip="Soil" Width="50" Height="24" Padding="0" Tag="Soil" Click="OnAnnotateDashPattern" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+										<ctrl:StructuralLinePatternIcon Width="42" Height="16" Pattern="Soil" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
 													</StackPanel>
 												</Border>
 											</Border>
 										</Flyout>
 									</Button.Flyout>
-									<Line Name="DashIndicator" StartPoint="0,1" EndPoint="22,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+									<Grid Width="22" Height="16">
+										<Line Name="DashIndicator" StartPoint="0,8" EndPoint="22,8" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+										<ctrl:StructuralLinePatternIcon Name="SpringLineDashIndicator" Width="22" Height="16" Pattern="ContinuousSpring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" IsVisible="False"/>
+									</Grid>
 								</Button>
 
 								<!-- Corner radius flyout -->
@@ -645,6 +657,16 @@
 						HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
 						PointerPressed="OnPropertyPanelBackgroundClick">
 					<Border Name="PropertyPanelBorder" Classes="shadow" Padding="8,6">
+						<Border.Resources>
+							<ControlTheme x:Key="PropertyPatternFlyout" TargetType="FlyoutPresenter" BasedOn="{StaticResource {x:Type FlyoutPresenter}}">
+								<Setter Property="Background" Value="Transparent"/>
+								<Setter Property="BorderThickness" Value="0"/>
+								<Setter Property="Padding" Value="0"/>
+								<Setter Property="MinWidth" Value="0"/>
+								<Setter Property="MinHeight" Value="0"/>
+								<Setter Property="CornerRadius" Value="0"/>
+							</ControlTheme>
+						</Border.Resources>
 						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8,-6" Padding="8,6" BorderThickness="1" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" CornerRadius="4">
 						<StackPanel Spacing="5" KeyboardNavigation.TabNavigation="Cycle">
 							<!-- Color swatches -->
@@ -683,6 +705,9 @@
 								<Button Classes="ghost" ToolTip.Tip="Fully fixed; translation and rotation restrained" Width="28" Height="28" Padding="3" Tag="FixedWithRotation" Click="OnPropertyBoundaryCondition">
 									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="FixedWithRotation" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 								</Button>
+								<Button Classes="ghost" ToolTip.Tip="Spring support" Width="28" Height="28" Padding="3" Tag="Spring" Click="OnPropertyBoundaryCondition">
+									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Spring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+								</Button>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 								<Button Classes="ghost" Content="↑" ToolTip.Tip="Support extends upward" Tag="Up" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
 								<Button Classes="ghost" Content="→" ToolTip.Tip="Support extends right" Tag="Right" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
@@ -702,18 +727,44 @@
 								</Button>
 								<StackPanel Name="PropertyDashRow" Orientation="Horizontal" Spacing="2">
 									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-									<Button Classes="ghost" ToolTip.Tip="Solid" Width="28" Height="26" Padding="2,0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+									<Button Name="PropertyDashSelector" Classes="ghost" ToolTip.Tip="Select line type" Width="30" Height="26" Padding="2,0" BorderThickness="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+										<Button.Flyout>
+											<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway" FlyoutPresenterTheme="{StaticResource PropertyPatternFlyout}">
+												<Border Classes="shadow" Padding="4">
+													<StackPanel Spacing="2">
+														<Button Classes="ghost" ToolTip.Tip="Solid" Height="24" Padding="4,0" Tag="Solid" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<Line StartPoint="0,1" EndPoint="28,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+														</Button>
+														<Button Classes="ghost" ToolTip.Tip="Dashed" Height="24" Padding="4,0" Tag="Dashed" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<Line StartPoint="0,1" EndPoint="28,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,3" VerticalAlignment="Center"/>
+														</Button>
+														<Button Classes="ghost" ToolTip.Tip="Dotted" Height="24" Padding="4,0" Tag="Dotted" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<Line StartPoint="0,1" EndPoint="28,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="1,2" VerticalAlignment="Center"/>
+														</Button>
+														<Button Classes="ghost" ToolTip.Tip="Dash-dot" Height="24" Padding="4,0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<Line StartPoint="0,1" EndPoint="28,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
+														</Button>
+										<Button Name="PropertyContinuousSpringOption" Classes="ghost" ToolTip.Tip="Continuous spring" Height="24" Padding="4,0" Tag="ContinuousSpring" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<ctrl:StructuralLinePatternIcon Width="28" Height="16" Pattern="ContinuousSpring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+														</Button>
+										<Button Name="PropertyRockOption" Classes="ghost" ToolTip.Tip="Rock / bedrock" Height="24" Padding="4,0" Tag="Rock" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<ctrl:StructuralLinePatternIcon Width="28" Height="16" Pattern="Rock" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+														</Button>
+										<Button Name="PropertySoilOption" Classes="ghost" ToolTip.Tip="Soil" Height="24" Padding="4,0" Tag="Soil" Click="OnPropertyDash" BorderThickness="0" HorizontalContentAlignment="Stretch">
+															<ctrl:StructuralLinePatternIcon Width="28" Height="16" Pattern="Soil" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+														</Button>
+													</StackPanel>
+												</Border>
+											</Flyout>
+										</Button.Flyout>
+										<Grid Width="22" Height="16">
+											<Line Name="PropertyDashIndicator" StartPoint="0,8" EndPoint="22,8" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
+											<ctrl:StructuralLinePatternIcon Name="PropertyStructuralPatternIcon" Width="22" Height="16" Pattern="ContinuousSpring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" IsVisible="False"/>
+										</Grid>
 									</Button>
-									<Button Classes="ghost" ToolTip.Tip="Dashed" Width="28" Height="26" Padding="2,0" Tag="Dashed" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,3" VerticalAlignment="Center"/>
-									</Button>
-									<Button Classes="ghost" ToolTip.Tip="Dotted" Width="28" Height="26" Padding="2,0" Tag="Dotted" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="1,2" VerticalAlignment="Center"/>
-									</Button>
-									<Button Classes="ghost" ToolTip.Tip="Dash-Dot" Width="28" Height="26" Padding="2,0" Tag="DashDot" Click="OnPropertyDash" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
-										<Line StartPoint="0,1" EndPoint="20,1" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" StrokeDashArray="4,2,1,2" VerticalAlignment="Center"/>
-									</Button>
+										<Button Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch pattern side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
+											<TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+										</Button>
 								</StackPanel>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 								<Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">

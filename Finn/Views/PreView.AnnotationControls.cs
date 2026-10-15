@@ -137,7 +137,11 @@ public partial class PreView
         if (sender is Button btn && btn.Tag is string patternName
             && Enum.TryParse<LineDashPattern>(patternName, out var pattern))
         {
+            if (_selectedAnnotations.Count == 0 && IsStructuralLinePattern(pattern)
+                && AnnotationRenderer.ActiveTool is not (InlineAnnotationTool.Line or InlineAnnotationTool.Polyline)) return;
             if (_selectedAnnotations.Any(item => item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition })) return;
+            if (_selectedAnnotations.Count > 0 && IsStructuralLinePattern(pattern)
+                && _selectedAnnotations.Any(item => !SupportsStructuralLinePattern(item))) return;
             AnnotationRenderer.StrokeDashPattern = pattern;
 
             // Apply to currently selected annotations
@@ -175,6 +179,17 @@ public partial class PreView
     private TextBlock? _propertyFontSizeLabel;
     private Button? _propertyFrameToggleBtn;
     private Button? _layerPickerBtn;
+    private StructuralLinePatternIcon? _springLineDashIndicator;
+
+    private static bool IsStructuralLinePattern(LineDashPattern pattern) =>
+        pattern is LineDashPattern.ContinuousSpring or LineDashPattern.Rock or LineDashPattern.Soil;
+
+    private static bool SupportsStructuralLinePattern(object item) => item switch
+    {
+        ShapeAnnotation shape => AnnotatedPDFRenderer.SupportsStructuralLinePattern(shape),
+        InkStroke stroke => AnnotatedPDFRenderer.SupportsStructuralLinePattern(stroke),
+        _ => false
+    };
 
     private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
     {
@@ -306,6 +321,14 @@ public partial class PreView
     private void UpdateDashIndicator(LineDashPattern pattern)
     {
         if (DashIndicator == null) return;
+        _springLineDashIndicator ??= this.FindControl<StructuralLinePatternIcon>("SpringLineDashIndicator");
+        bool isStructuralPattern = pattern is LineDashPattern.ContinuousSpring or LineDashPattern.Rock or LineDashPattern.Soil;
+        DashIndicator.IsVisible = !isStructuralPattern;
+        if (_springLineDashIndicator != null)
+        {
+            _springLineDashIndicator.IsVisible = isStructuralPattern;
+            if (isStructuralPattern) _springLineDashIndicator.Pattern = pattern;
+        }
         DashIndicator.StrokeDashArray = pattern switch
         {
             LineDashPattern.Dashed => new Avalonia.Collections.AvaloniaList<double> { 4, 3 },
@@ -954,8 +977,6 @@ public partial class PreView
 
         // Use the property panel with text row visible, but hide non-text rows
         _propertyPanelTarget = null;
-        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, AnnotationRenderer.Bounds.Width - 240));
-        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y, AnnotationRenderer.Bounds.Height - 100));
         PropertyStrokeRow.IsVisible = false;
         PropertyFillBtn.IsVisible = false;
         PropertyCornerRadiusRow.IsVisible = false;
@@ -975,7 +996,7 @@ public partial class PreView
         else
             PropertyTextBox.Width = 220;
 
-        PropertyPanelCanvas.IsVisible = true;
+        PositionPropertyPanel(screenPos);
         PropertyTextBox.Focus();
         UpdateAnnotationStatusHint();
     }
@@ -1315,14 +1336,17 @@ public partial class PreView
         double? width = null;
         LineDashPattern? dash = null;
         double? opacity = null;
+        bool supportsStructuralLinePatterns = false;
 
         switch (_selectedAnnotation)
         {
             case InkStroke s:
                 color = s.Color; width = s.Width; dash = s.DashPattern; opacity = s.Opacity;
+                supportsStructuralLinePatterns = AnnotatedPDFRenderer.SupportsStructuralLinePattern(s);
                 break;
             case ShapeAnnotation sh:
                 color = sh.Color; width = sh.StrokeWidth; dash = sh.DashPattern; opacity = sh.Opacity;
+                supportsStructuralLinePatterns = AnnotatedPDFRenderer.SupportsStructuralLinePattern(sh);
                 break;
             case TextAnnotation t:
                 color = t.Color; opacity = t.Opacity;
@@ -1353,9 +1377,12 @@ public partial class PreView
         // Sync dash pattern button highlight
         if (dash.HasValue)
         {
-            SetActiveDashButton(FindToolbarButtonByTag(dash.Value.ToString()));
-            AnnotationRenderer.StrokeDashPattern = dash.Value;
-            UpdateDashIndicator(dash.Value);
+            if (!IsStructuralLinePattern(dash.Value) || supportsStructuralLinePatterns)
+            {
+                SetActiveDashButton(FindToolbarButtonByTag(dash.Value.ToString()));
+                AnnotationRenderer.StrokeDashPattern = dash.Value;
+                UpdateDashIndicator(dash.Value);
+            }
         }
 
         // Sync opacity slider
@@ -1398,20 +1425,19 @@ public partial class PreView
         _propertyPanelTarget = item;
         SelectAnnotation(item);
 
-        Canvas.SetLeft(PropertyPanelBorder, Math.Min(screenPos.X, AnnotationRenderer.Bounds.Width - 220));
-        Canvas.SetTop(PropertyPanelBorder, Math.Min(screenPos.Y + 10, AnnotationRenderer.Bounds.Height - 100));
-
         bool isDot = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
         bool isBoundaryCondition = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition };
         bool isText = item is TextAnnotation;
         bool isMeasure = item is MeasurementAnnotation;
-        bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, Points.Count: >= 3 };
+        bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, IsRebar: false, Points.Count: >= 2 };
         bool isAreaPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: true };
         bool isGenericStroke = item is InkStroke { IsPolyline: false };
-        bool isShape = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow };
+        bool isSpringLine = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Line };
+        bool isShape = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.Arrow };
 
-        bool hasStroke = (isDot || isPolyline || isAreaPolyline || isGenericStroke || isShape) && !isBoundaryCondition;
-        bool hasDash = (isPolyline || isAreaPolyline || isGenericStroke || isShape) && !isDot && !isBoundaryCondition;
+        bool hasStroke = (isDot || isPolyline || isAreaPolyline || isGenericStroke || isShape || isSpringLine) && !isBoundaryCondition;
+        bool hasDash = (isPolyline || isSpringLine || isAreaPolyline || isGenericStroke || isShape) && !isDot && !isBoundaryCondition;
+        bool hasStructuralPatterns = isPolyline || isSpringLine;
         bool hasFill = (item is ShapeAnnotation sf
             && sf.ShapeType is InlineAnnotationTool.Rectangle
                             or InlineAnnotationTool.Ellipse
@@ -1426,6 +1452,57 @@ public partial class PreView
         if (_propertyBoundaryConditionRow != null) _propertyBoundaryConditionRow.IsVisible = isBoundaryCondition;
         _propertyDashRow ??= this.FindControl<StackPanel>("PropertyDashRow");
         if (_propertyDashRow != null) _propertyDashRow.IsVisible = hasDash;
+        var dashSelector = this.FindControl<Button>("PropertyDashSelector");
+        if (dashSelector != null) dashSelector.IsVisible = hasDash;
+        foreach (var optionName in new[] { "PropertyContinuousSpringOption", "PropertyRockOption", "PropertySoilOption" })
+        {
+            var option = this.FindControl<Button>(optionName);
+            if (option != null) option.IsVisible = hasStructuralPatterns;
+        }
+        var structuralPatternIcon = this.FindControl<StructuralLinePatternIcon>("PropertyStructuralPatternIcon");
+        var dashIndicator = this.FindControl<Avalonia.Controls.Shapes.Line>("PropertyDashIndicator");
+        LineDashPattern selectedPattern = item switch
+        {
+            ShapeAnnotation shape => shape.DashPattern,
+            InkStroke stroke => stroke.DashPattern,
+            _ => LineDashPattern.Solid
+        };
+        bool isStructuralPattern = IsStructuralLinePattern(selectedPattern);
+        if (dashIndicator != null)
+        {
+            dashIndicator.IsVisible = !isStructuralPattern;
+            dashIndicator.StrokeDashArray = selectedPattern switch
+            {
+                LineDashPattern.Dashed => new Avalonia.Collections.AvaloniaList<double> { 4, 3 },
+                LineDashPattern.Dotted => new Avalonia.Collections.AvaloniaList<double> { 1, 2 },
+                LineDashPattern.DashDot => new Avalonia.Collections.AvaloniaList<double> { 4, 2, 1, 2 },
+                _ => null
+            };
+        }
+        if (structuralPatternIcon != null)
+        {
+            structuralPatternIcon.IsVisible = isStructuralPattern;
+            if (isStructuralPattern) structuralPatternIcon.Pattern = selectedPattern;
+        }
+        var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
+        if (patternSideButton != null)
+        {
+            bool hasStructuralPattern = item switch
+            {
+                ShapeAnnotation shape => IsStructuralLinePattern(shape.DashPattern),
+                InkStroke stroke => IsStructuralLinePattern(stroke.DashPattern),
+                _ => false
+            };
+            patternSideButton.IsVisible = hasStructuralPatterns && hasStructuralPattern;
+            bool reversed = item switch
+            {
+                ShapeAnnotation shape => shape.StructuralPatternReversed,
+                InkStroke stroke => stroke.StructuralPatternReversed,
+                _ => false
+            };
+            patternSideButton.BorderThickness = reversed ? new Thickness(2) : new Thickness(0);
+            patternSideButton.BorderBrush = reversed ? Brushes.White : null;
+        }
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
         _propertyOpacityRow ??= this.FindControl<StackPanel>("PropertyOpacityRow");
@@ -1474,7 +1551,7 @@ public partial class PreView
             SyncSolidBgToggleButton(textItem.SolidBackground);
         }
 
-        PropertyPanelCanvas.IsVisible = true;
+        PositionPropertyPanel(screenPos + new Vector(0, 10));
 
         if (isText)
         {
@@ -1482,6 +1559,17 @@ public partial class PreView
             // Pre-select the existing text so the user can immediately replace it by typing
             PropertyTextBox.SelectAll();
         }
+    }
+
+    private void PositionPropertyPanel(Point preferredPosition)
+    {
+        PropertyPanelCanvas.IsVisible = true;
+        PropertyPanelBorder.Measure(AnnotationRenderer.Bounds.Size);
+        var panelSize = PropertyPanelBorder.DesiredSize;
+        double maxX = Math.Max(0, AnnotationRenderer.Bounds.Width - panelSize.Width);
+        double maxY = Math.Max(0, AnnotationRenderer.Bounds.Height - panelSize.Height);
+        Canvas.SetLeft(PropertyPanelBorder, Math.Clamp(preferredPosition.X, 0, maxX));
+        Canvas.SetTop(PropertyPanelBorder, Math.Clamp(preferredPosition.Y, 0, maxY));
     }
 
     private void ClosePropertyPanel(bool restoreFocus = true)
@@ -1544,14 +1632,43 @@ public partial class PreView
         UpdateAnnotationStatusHint();
     }
 
+    private void OnPropertyPatternSide(object sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget == null || !SupportsStructuralLinePattern(_propertyPanelTarget)) return;
+        StagePropertyUndoSnapshot(_propertyPanelTarget);
+        bool reversed;
+        switch (_propertyPanelTarget)
+        {
+            case ShapeAnnotation shape:
+                shape.StructuralPatternReversed = !shape.StructuralPatternReversed;
+                reversed = shape.StructuralPatternReversed;
+                break;
+            case InkStroke stroke:
+                stroke.StructuralPatternReversed = !stroke.StructuralPatternReversed;
+                reversed = stroke.StructuralPatternReversed;
+                break;
+            default:
+                return;
+        }
+        if (sender is Button button)
+        {
+            button.BorderThickness = reversed ? new Thickness(2) : new Thickness(0);
+            button.BorderBrush = reversed ? Brushes.White : null;
+        }
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
     private void OnPropertyDash(object sender, RoutedEventArgs e)
     {
         if (_propertyPanelTarget == null) return;
         if (_propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition }) return;
         if (sender is not Button btn || btn.Tag is not string patternName
             || !Enum.TryParse<LineDashPattern>(patternName, out var pattern)) return;
+        if (IsStructuralLinePattern(pattern) && !SupportsStructuralLinePattern(_propertyPanelTarget)) return;
         foreach (var selItem in _selectedAnnotations)
         {
+            if (IsStructuralLinePattern(pattern) && !SupportsStructuralLinePattern(selItem)) return;
             StagePropertyUndoSnapshot(selItem);
             switch (selItem)
             {
@@ -1561,9 +1678,32 @@ public partial class PreView
         }
         AnnotationRenderer.StrokeDashPattern = pattern;
         SetActiveDashButton(FindToolbarButtonByTag(patternName));
+        var structuralPatternIcon = this.FindControl<StructuralLinePatternIcon>("PropertyStructuralPatternIcon");
+        var propertyDashIndicator = this.FindControl<Avalonia.Controls.Shapes.Line>("PropertyDashIndicator");
+        bool structuralPattern = IsStructuralLinePattern(pattern);
+        if (structuralPatternIcon != null)
+        {
+            structuralPatternIcon.IsVisible = structuralPattern;
+            if (structuralPattern) structuralPatternIcon.Pattern = pattern;
+        }
+        if (propertyDashIndicator != null)
+        {
+            propertyDashIndicator.IsVisible = !structuralPattern;
+            propertyDashIndicator.StrokeDashArray = pattern switch
+            {
+                LineDashPattern.Dashed => new Avalonia.Collections.AvaloniaList<double> { 4, 3 },
+                LineDashPattern.Dotted => new Avalonia.Collections.AvaloniaList<double> { 1, 2 },
+                LineDashPattern.DashDot => new Avalonia.Collections.AvaloniaList<double> { 4, 2, 1, 2 },
+                _ => null
+            };
+        }
         AnnotationRenderer.InvalidateVisual();
         AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
+        var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
+        if (patternSideButton != null)
+            patternSideButton.IsVisible = SupportsStructuralLinePattern(_propertyPanelTarget)
+                && IsStructuralLinePattern(pattern);
     }
 
     private void SyncFrameToggleButton(bool hasFrame)

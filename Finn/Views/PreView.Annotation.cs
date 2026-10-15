@@ -831,6 +831,7 @@ public partial class PreView
                     Color = src.Color, StrokeWidth = src.StrokeWidth,
                     Opacity = src.Opacity, IsFilled = src.IsFilled,
                     DashPattern = src.DashPattern,
+                    StructuralPatternReversed = src.StructuralPatternReversed,
                     CornerRadius = src.CornerRadius,
                     BoundaryCondition = src.BoundaryCondition,
                     BoundaryOrientation = src.BoundaryOrientation
@@ -852,6 +853,7 @@ public partial class PreView
                     AreaScale = src.AreaScale,
                     CreatedAtRotation = src.CreatedAtRotation,
                     DashPattern = src.DashPattern,
+                    StructuralPatternReversed = src.StructuralPatternReversed,
                     CornerRadius = src.CornerRadius
                 };
                 foreach (var p in src.Points)
