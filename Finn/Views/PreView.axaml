@@ -762,10 +762,10 @@
 											<ctrl:StructuralLinePatternIcon Name="PropertyStructuralPatternIcon" Width="22" Height="16" Pattern="ContinuousSpring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" IsVisible="False"/>
 										</Grid>
 									</Button>
-										<Button Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch pattern side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
-											<TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-										</Button>
 								</StackPanel>
+								<Button Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch pattern side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
+									<TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+								</Button>
 								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 								<Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">
 									<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>

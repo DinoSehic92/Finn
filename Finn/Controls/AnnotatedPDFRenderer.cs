@@ -5599,6 +5599,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             && stroke.CachedGeometryPointCount == pts.Count
             && stroke.CachedGeometryClosed == closed
             && stroke.CachedGeometryRebar == stroke.IsRebar
+            && stroke.CachedGeometryPatternSideReversed == stroke.StructuralPatternReversed
+            && stroke.CachedGeometryStrokeWidth == stroke.Width
             && stroke.CachedGeoScaleX == scaleX && stroke.CachedGeoScaleY == scaleY
             && stroke.CachedGeoOffX == offsetX && stroke.CachedGeoOffY == offsetY;
 
@@ -5624,6 +5626,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 stroke.CachedGeometry = geometry;
                 stroke.CachedGeometryClosed = closed;
                 stroke.CachedGeometryRebar = stroke.IsRebar;
+                stroke.CachedGeometryPatternSideReversed = stroke.StructuralPatternReversed;
+                stroke.CachedGeometryStrokeWidth = stroke.Width;
                 stroke.CachedGeoScaleX = scaleX;
                 stroke.CachedGeoScaleY = scaleY;
                 stroke.CachedGeoOffX = offsetX;
@@ -6906,8 +6910,9 @@ public class InkStroke
         }
 
         double hookLength = Math.Max(Width * 4, 8);
-        start = GetRebarHookPoint(Points[0], Points[1], hookLength, 1);
-        end = GetRebarHookPoint(Points[^1], Points[^2], hookLength, -1);
+        double side = StructuralPatternReversed ? -1 : 1;
+        start = GetRebarHookPoint(Points[0], Points[1], hookLength, side);
+        end = GetRebarHookPoint(Points[^1], Points[^2], hookLength, -side);
         return true;
     }
 
@@ -6939,7 +6944,9 @@ public class InkStroke
     internal StreamGeometry? CachedGeometry;
     internal bool CachedGeometryClosed;
     internal bool CachedGeometryRebar;
+    internal bool CachedGeometryPatternSideReversed;
     internal double CachedGeoScaleX, CachedGeoScaleY, CachedGeoOffX, CachedGeoOffY;
+    internal double CachedGeometryStrokeWidth;
     internal int CachedGeometryPointCount;
 
     internal IPen GetOrCreatePen(double penScale)

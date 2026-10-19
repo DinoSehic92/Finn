@@ -191,6 +191,9 @@ public partial class PreView
         _ => false
     };
 
+    private static bool SupportsPatternSide(object item) =>
+        item is InkStroke { IsRebar: true } || SupportsStructuralLinePattern(item);
+
     private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string radiusStr && double.TryParse(radiusStr, out double r))
@@ -1430,6 +1433,7 @@ public partial class PreView
         bool isText = item is TextAnnotation;
         bool isMeasure = item is MeasurementAnnotation;
         bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, IsRebar: false, Points.Count: >= 2 };
+        bool isRebar = item is InkStroke { IsRebar: true };
         bool isAreaPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: true };
         bool isGenericStroke = item is InkStroke { IsPolyline: false };
         bool isSpringLine = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Line };
@@ -1447,7 +1451,7 @@ public partial class PreView
             || item is InkStroke { IsPolyline: true, IsAreaMeasure: false }
             || item is TextAnnotation { HasFrame: true };
 
-        PropertyStrokeRow.IsVisible = hasStroke;
+        PropertyStrokeRow.IsVisible = hasStroke || isRebar;
         _propertyBoundaryConditionRow ??= this.FindControl<StackPanel>("PropertyBoundaryConditionRow");
         if (_propertyBoundaryConditionRow != null) _propertyBoundaryConditionRow.IsVisible = isBoundaryCondition;
         _propertyDashRow ??= this.FindControl<StackPanel>("PropertyDashRow");
@@ -1487,13 +1491,13 @@ public partial class PreView
         var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
         if (patternSideButton != null)
         {
-            bool hasStructuralPattern = item switch
+            bool hasPatternSide = SupportsPatternSide(item) && (item is InkStroke { IsRebar: true } || item switch
             {
                 ShapeAnnotation shape => IsStructuralLinePattern(shape.DashPattern),
                 InkStroke stroke => IsStructuralLinePattern(stroke.DashPattern),
                 _ => false
-            };
-            patternSideButton.IsVisible = hasStructuralPatterns && hasStructuralPattern;
+            });
+            patternSideButton.IsVisible = hasPatternSide;
             bool reversed = item switch
             {
                 ShapeAnnotation shape => shape.StructuralPatternReversed,
@@ -1634,7 +1638,7 @@ public partial class PreView
 
     private void OnPropertyPatternSide(object sender, RoutedEventArgs e)
     {
-        if (_propertyPanelTarget == null || !SupportsStructuralLinePattern(_propertyPanelTarget)) return;
+        if (_propertyPanelTarget == null || !SupportsPatternSide(_propertyPanelTarget)) return;
         StagePropertyUndoSnapshot(_propertyPanelTarget);
         bool reversed;
         switch (_propertyPanelTarget)
@@ -1702,8 +1706,8 @@ public partial class PreView
         UpdateAnnotationStatusHint();
         var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
         if (patternSideButton != null)
-            patternSideButton.IsVisible = SupportsStructuralLinePattern(_propertyPanelTarget)
-                && IsStructuralLinePattern(pattern);
+            patternSideButton.IsVisible = SupportsPatternSide(_propertyPanelTarget)
+                && (_propertyPanelTarget is InkStroke { IsRebar: true } || IsStructuralLinePattern(pattern));
     }
 
     private void SyncFrameToggleButton(bool hasFrame)
