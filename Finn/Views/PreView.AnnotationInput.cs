@@ -63,6 +63,12 @@ public partial class PreView
         // Right-click: finish/cancel active operations
         if (point.Properties.IsRightButtonPressed)
         {
+            if (_boundaryConditionPlacementDraft != null)
+            {
+                CancelBoundaryConditionPlacement();
+                e.Handled = true;
+                return;
+            }
             if (_matchStyleArmed)
             {
                 CancelMatchStyle();
@@ -474,8 +480,11 @@ public partial class PreView
                 if (_arrowTextOrigin != null)
                 {
                     // Second click: freeze arrow at endpoint and show text input
-                    AnnotationRenderer.UpdateArrowTextPreview(pdfPoint.Value);
-                    ShowTextInput(pdfPoint.Value, e.GetPosition(AnnotationRenderer), _arrowTextOrigin.Value);
+                    var textPosition = e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                        ? AnnotatedPDFRenderer.ConstrainToFineAngle(_arrowTextOrigin.Value, pdfPoint.Value)
+                        : pdfPoint.Value;
+                    AnnotationRenderer.UpdateArrowTextPreview(textPosition);
+                    ShowTextInput(textPosition, e.GetPosition(AnnotationRenderer), _arrowTextOrigin.Value);
                     e.Pointer.Capture(null);
                 }
                 else
@@ -509,7 +518,8 @@ public partial class PreView
             case InlineAnnotationTool.Arrow:
             case InlineAnnotationTool.RevisionCloud:
                 // First click: begin shape (no drag needed — preview follows cursor)
-                AnnotationRenderer.BeginShape(pdfPoint.Value);
+                AnnotationRenderer.BeginShape(pdfPoint.Value,
+                    fromCenter: !e.KeyModifiers.HasFlag(KeyModifiers.Alt));
                 e.Pointer.Capture(null);
                 break;
 
@@ -582,8 +592,12 @@ public partial class PreView
                 break;
 
             case InlineAnnotationTool.BoundaryCondition:
-                AnnotationRenderer.PlaceBoundaryCondition(pdfPoint.Value);
-                CompleteToolPlacement();
+                _boundaryConditionPlacementDraft = AnnotationRenderer.UpdateBoundaryConditionPreview(pdfPoint.Value);
+                if (_boundaryConditionPlacementDraft != null)
+                {
+                    _boundaryConditionPlacementRenderer = AnnotationRenderer;
+                    ShowPropertyPanel(_boundaryConditionPlacementDraft, e.GetPosition(AnnotationRenderer));
+                }
                 e.Pointer.Capture(null);
                 break;
 
@@ -619,6 +633,37 @@ public partial class PreView
 
             var hoverPdf = AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer));
 
+            if (hoverPdf.HasValue && AnnotationRenderer.ActiveTool is
+                InlineAnnotationTool.Draw or InlineAnnotationTool.Highlight
+                or InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse
+                or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
+                or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.MeasureDistance
+                or InlineAnnotationTool.MeasureArea or InlineAnnotationTool.Polyline
+                or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot or InlineAnnotationTool.Eraser
+                or InlineAnnotationTool.BoundaryCondition)
+                AnnotationRenderer.UpdateCursorPreview(hoverPdf.Value);
+            else
+                AnnotationRenderer.UpdateCursorPreview(null);
+
+            if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.BoundaryCondition
+                && _boundaryConditionPlacementDraft == null)
+            {
+                var previewRenderer = AnnotationRenderer;
+                if (hoverPdf.HasValue)
+                {
+                    if (_boundaryConditionPreviewRenderer != null
+                        && !ReferenceEquals(_boundaryConditionPreviewRenderer, previewRenderer))
+                        _boundaryConditionPreviewRenderer.SetBoundaryConditionPreview(null);
+                    _boundaryConditionPreviewRenderer = previewRenderer;
+                    previewRenderer.UpdateBoundaryConditionPreview(hoverPdf);
+                }
+                else if (ReferenceEquals(_boundaryConditionPreviewRenderer, previewRenderer))
+                {
+                    previewRenderer.UpdateBoundaryConditionPreview(null);
+                    _boundaryConditionPreviewRenderer = null;
+                }
+            }
+
             // Two-click shapes: live preview follows cursor without drag
             if (_annotateMode && AnnotationRenderer.HasActiveShape)
             {
@@ -650,7 +695,12 @@ public partial class PreView
             else if (_annotateMode && _arrowTextOrigin != null && _textPlacementPdfPoint == null)
             {
                 if (hoverPdf.HasValue)
-                    AnnotationRenderer.UpdateArrowTextPreview(hoverPdf.Value);
+                {
+                    var previewEnd = e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                        ? AnnotatedPDFRenderer.ConstrainToFineAngle(_arrowTextOrigin.Value, hoverPdf.Value)
+                        : hoverPdf.Value;
+                    AnnotationRenderer.UpdateArrowTextPreview(previewEnd);
+                }
             }
             // Eraser hover highlight: track what's under the cursor
             else if (_annotateMode && AnnotationRenderer.ActiveTool == InlineAnnotationTool.Eraser)
@@ -742,7 +792,9 @@ public partial class PreView
                     var hoverHit = AnnotationRenderer.FindTopmostAt(hoverPdf.Value);
                     AnnotationRenderer.UpdateSelectHover(hoverHit);
                     ShowHoverEditHint(hoverHit);
-                    if (at is InlineAnnotationTool.Select)
+                    if (_matchStyleArmed)
+                        AnnotationRenderer.Cursor = CursorDragCopy;
+                    else if (at is InlineAnnotationTool.Select)
                         AnnotationRenderer.Cursor = GetHoverCursor(hoverPdf.Value, hoverHit);
                 }
                 else if (hoverMoved)
@@ -761,6 +813,7 @@ public partial class PreView
         // Swipe-to-erase: continuously erase while dragging with eraser tool
         if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.Eraser)
         {
+            AnnotationRenderer.UpdateCursorPreview(pdfPoint.Value);
             double edx = pdfPoint.Value.X - _lastErasePdf.X;
             double edy = pdfPoint.Value.Y - _lastErasePdf.Y;
             if (edx * edx + edy * edy >= EraseThresholdSq)
@@ -779,27 +832,40 @@ public partial class PreView
             {
                 case ShapeAnnotation sv:
                 {
+                    if (sv.ShapeType == InlineAnnotationTool.Ellipse && e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+                    {
+                        var center = new Point((sv.Start.X + sv.End.X) / 2, (sv.Start.Y + sv.End.Y) / 2);
+                        var ellipseHandle = e.KeyModifiers.HasFlag(KeyModifiers.Shift)
+                            ? AnnotatedPDFRenderer.ConstrainToSquare(center, pdfPoint.Value)
+                            : pdfPoint.Value;
+                        double radiusX = Math.Abs(ellipseHandle.X - center.X);
+                        double radiusY = Math.Abs(ellipseHandle.Y - center.Y);
+                        sv.Start = new Point(center.X - radiusX, center.Y - radiusY);
+                        sv.End = new Point(center.X + radiusX, center.Y + radiusY);
+                        sv.InvalidatePen();
+                        break;
+                    }
                     var anchor = _draggingVertexIndex == 0 ? sv.End : sv.Start;
-                    var target = pdfPoint.Value;
+                    var vertexTarget = pdfPoint.Value;
                     if (constrain)
                     {
-                        target = sv.ShapeType is InlineAnnotationTool.Rectangle
+                        vertexTarget = sv.ShapeType is InlineAnnotationTool.Rectangle
                                      or InlineAnnotationTool.Ellipse
                                      or InlineAnnotationTool.RevisionCloud
-                            ? AnnotatedPDFRenderer.ConstrainToSquare(anchor, target)
-                            : AnnotatedPDFRenderer.ConstrainToFineAngle(anchor, target);
+                            ? AnnotatedPDFRenderer.ConstrainToSquare(anchor, vertexTarget)
+                            : AnnotatedPDFRenderer.ConstrainToFineAngle(anchor, vertexTarget);
                     }
                     else
                     {
-                        target = AnnotationRenderer.ComputeVertexSnap(sv, target);
+                        vertexTarget = AnnotationRenderer.ComputeVertexSnap(sv, vertexTarget);
                     }
                     if (sv.ShapeType == InlineAnnotationTool.BoundaryCondition)
                     {
-                        sv.Start = target;
-                        sv.End = target;
+                        sv.Start = vertexTarget;
+                        sv.End = vertexTarget;
                     }
-                    else if (_draggingVertexIndex == 0) sv.Start = target;
-                    else sv.End = target;
+                    else if (_draggingVertexIndex == 0) sv.Start = vertexTarget;
+                    else sv.End = vertexTarget;
                     sv.InvalidatePen();
                     break;
                 }
@@ -1016,7 +1082,9 @@ public partial class PreView
             _middlePanning = false;
             e.Pointer.Capture(null);
             e.Handled = true;
-            AnnotationRenderer.Cursor = _spaceHeld ? CursorHand : GetToolCursor(AnnotationRenderer.ActiveTool);
+            AnnotationRenderer.Cursor = _spaceHeld
+                ? CursorHand
+                : _matchStyleArmed ? CursorDragCopy : GetToolCursor(AnnotationRenderer.ActiveTool);
             return;
         }
         if (!_inkDrawing)
@@ -1103,14 +1171,19 @@ public partial class PreView
             }
             _rubberBandAdditive = false;
             _rubberBandSubtractive = false;
-            AnnotationRenderer.Cursor = GetToolCursor(AnnotationRenderer.ActiveTool);
+            AnnotationRenderer.Cursor = _matchStyleArmed
+                ? CursorDragCopy
+                : GetToolCursor(AnnotationRenderer.ActiveTool);
             UpdateAnnotationStatusHint();
             return;
         }
 
         var tool = AnnotationRenderer.ActiveTool;
         if (tool == InlineAnnotationTool.Eraser)
+        {
             AnnotationRenderer.EndGroupDelete();
+            AnnotationRenderer.UpdateCursorPreview(AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer)));
+        }
         switch (tool)
         {
             case InlineAnnotationTool.MeasureDistance:
@@ -1127,7 +1200,10 @@ public partial class PreView
 
             default: // Draw, Highlight
                 AnnotationRenderer.EndStroke();
-                AnnotationRenderer.UpdateCursorPreview(null);
+                var cursorPdf = _stickyToolMode
+                    ? AnnotationRenderer.ScreenToPdf(e.GetPosition(AnnotationRenderer))
+                    : null;
+                AnnotationRenderer.UpdateCursorPreview(cursorPdf);
                 CompleteToolPlacement();
                 break;
         }

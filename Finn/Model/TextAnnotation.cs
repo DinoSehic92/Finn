@@ -64,6 +64,8 @@ public class TextAnnotation
         set { _arrowOrigin = value; InvalidateArrowPen(); }
     }
 
+    public ArrowHeadStyle ArrowHead { get; set; } = ArrowHeadStyle.Filled;
+
     /// <summary>
     /// Maximum width (PDF units) for word wrapping. 0 = no wrapping (single line).
     /// Set automatically for new annotations; the user can resize via the right-edge handle.

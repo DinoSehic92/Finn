@@ -16,7 +16,7 @@ namespace Finn.Views;
 public partial class PreView
 {
     private StackPanel? _propertyDashRow;
-    private StackPanel? _propertyOpacityRow;
+    private Grid? _propertyOpacityRow;
     private Button? _propertyClosePolyBtn;
     private Border? _propertyClosePolySeparator;
     private Button? _propertyCalibrateBtn;
@@ -47,6 +47,8 @@ public partial class PreView
         {
             var color = ColorPalette.GetValueOrDefault(colorName, ColorPalette["Red"]);
             AnnotationRenderer.StrokeColor = color;
+            if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null)
+                _pendingTextColor = color;
 
             if (AnnotationRenderer.ActiveLayer != null)
                 AnnotationRenderer.ActiveLayer.Color = color;
@@ -58,6 +60,71 @@ public partial class PreView
             UpdateColorIndicator(color);
             UpdateAnnotationStatusHint();
             AnnotationRenderer.Focus();
+        }
+    }
+
+    private void OnAnnotateArrowHead(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string styleName }
+            || !Enum.TryParse(styleName, out ArrowHeadStyle style)) return;
+
+        if (_pendingArrowOrigin.HasValue)
+        {
+            _pendingArrowHeadStyle = style;
+            SyncArrowHeadStyleIndicator(style);
+            return;
+        }
+
+        AnnotationRenderer.CurrentArrowHeadStyle = style;
+        var snapshots = new List<object>();
+        foreach (var item in _selectedAnnotations)
+        {
+            var snapshot = AnnotationRenderer.CapturePropertySnapshot(item);
+            switch (item)
+            {
+                case ShapeAnnotation { ShapeType: InlineAnnotationTool.Arrow } arrow:
+                    if (snapshot != null) snapshots.Add(snapshot);
+                    arrow.ArrowHead = style;
+                    break;
+                case TextAnnotation { ArrowOrigin: not null } text:
+                    if (snapshot != null) snapshots.Add(snapshot);
+                    text.ArrowHead = style;
+                    break;
+            }
+        }
+        if (snapshots.Count > 0)
+            AnnotationRenderer.PushGroupPropertyUndo(snapshots);
+        if (_selectedAnnotations.Count > 0)
+        {
+            AnnotationRenderer.InvalidateVisual();
+            AnnotationRenderer.NotifyAnnotationChanged();
+        }
+        SyncArrowHeadStyleIndicator(style);
+    }
+
+    private void SyncArrowHeadStyleIndicator(ArrowHeadStyle style)
+    {
+        var indicator = this.FindControl<TextBlock>("ArrowHeadStyleIndicator");
+        if (indicator != null)
+            indicator.Text = style switch
+            {
+                ArrowHeadStyle.Open => "▷",
+                ArrowHeadStyle.Stealth => "➤",
+                ArrowHeadStyle.Dot => "●",
+                _ => "▶"
+            };
+        var button = this.FindControl<Button>("ArrowHeadStyleButton");
+        if (button != null)
+            ToolTip.SetTip(button, $"Arrowhead style: {style}");
+
+        if (this.FindControl<Grid>("PropertyArrowHeadRow") is Grid row)
+        {
+            foreach (var option in row.Children.OfType<Button>())
+            {
+                bool active = option.Tag is string tag && tag == style.ToString();
+                option.BorderThickness = active ? new Thickness(2) : new Thickness(0);
+                option.BorderBrush = active ? Brushes.White : null;
+            }
         }
     }
 
@@ -101,33 +168,44 @@ public partial class PreView
     {
         if (sender is Button btn && btn.Tag is string widthStr && double.TryParse(widthStr, out double w))
         {
-            if (AnnotationRenderer.IsHighlighterMode) return;
             if (_selectedAnnotations.Any(item => item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition })) return;
-            AnnotationRenderer.StrokeWidth = w;
-            _normalStrokeWidth = w;
+            if (AnnotationRenderer.IsHighlighterMode)
+            {
+                _highlighterStrokeWidth = w * HighlighterWidthMultiplier;
+                AnnotationRenderer.StrokeWidth = _highlighterStrokeWidth;
+            }
+            else
+            {
+                AnnotationRenderer.StrokeWidth = w;
+                _normalStrokeWidth = w;
+                _highlighterStrokeWidth = Math.Max(12, _normalStrokeWidth * HighlighterWidthMultiplier);
+            }
 
             // Apply to currently selected annotations
             var snaps = new List<object>();
             foreach (var selItem in _selectedAnnotations)
             {
+                double annotationWidth = AnnotationRenderer.IsHighlighterMode
+                    ? _highlighterStrokeWidth
+                    : w;
                 if (selItem is InkStroke ink)
                 {
                     var snap = AnnotationRenderer.CapturePropertySnapshot(ink);
                     if (snap != null) snaps.Add(snap);
-                    ink.Width = w; ink.InvalidatePen();
+                    ink.Width = annotationWidth; ink.InvalidatePen();
                 }
                 else if (selItem is ShapeAnnotation sh)
                 {
                     var snap = AnnotationRenderer.CapturePropertySnapshot(sh);
                     if (snap != null) snaps.Add(snap);
-                    sh.StrokeWidth = w; sh.InvalidatePen();
+                    sh.StrokeWidth = annotationWidth; sh.InvalidatePen();
                 }
             }
             if (snaps.Count > 0) AnnotationRenderer.PushGroupPropertyUndo(snaps);
             if (_selectedAnnotations.Count > 0) { AnnotationRenderer.InvalidateVisual(); AnnotationRenderer.NotifyAnnotationChanged(); }
 
             SetActiveWidthButton(btn);
-            UpdateBrushSizeIndicator(w);
+            UpdateBrushSizeIndicator(AnnotationRenderer.StrokeWidth);
             UpdateAnnotationStatusHint();
         }
     }
@@ -173,6 +251,8 @@ public partial class PreView
 
     private Button? _activeCornerRadiusButton;
     private Button? _cornerRadiusBtn;
+    private Button? _brushSizeBtn;
+    private Button? _dashPatternBtn;
     private StackPanel? _fontSizeGroup;
 
     // Cached control references to avoid repeated FindControl tree walks
@@ -348,6 +428,18 @@ public partial class PreView
             CornerIndicator.CornerRadius = new CornerRadius(Math.Min(radius, 7));
     }
 
+    private void SyncCornerRadiusIndicator(double radius)
+    {
+        foreach (var option in PropertyCornerRadiusRow.Children.OfType<Button>())
+        {
+            bool active = option.Tag is string tag
+                && double.TryParse(tag, out double value)
+                && Math.Abs(value - radius) < 0.001;
+            option.BorderThickness = active ? new Thickness(2) : new Thickness(0);
+            option.BorderBrush = active ? Brushes.White : null;
+        }
+    }
+
     /// <summary>Syncs all flyout indicators to the current renderer state.</summary>
     private void SyncFlyoutIndicators()
     {
@@ -381,6 +473,11 @@ public partial class PreView
     {
         if (OpacitySlider == null) return;
         AnnotationRenderer.StrokeOpacity = OpacitySlider.Value;
+        if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null)
+        {
+            _pendingTextOpacity = OpacitySlider.Value;
+            return;
+        }
         if (_selectedAnnotations.Count == 0) return;
 
         var now = DateTime.UtcNow;
@@ -434,11 +531,25 @@ public partial class PreView
     {
         if (Color.TryParse(ColorInputBox.Text?.Trim(), out var c))
         {
-            AnnotationRenderer.StrokeColor = c;
-            if (AnnotationRenderer.ActiveLayer != null)
-                AnnotationRenderer.ActiveLayer.Color = c;
-            // Apply to any selected annotations (same as palette color path)
-            ApplyColorToSelection(c);
+            if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null)
+            {
+                _pendingTextColor = c;
+                AnnotationRenderer.StrokeColor = c;
+            }
+            else if (_propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } draft
+                     && ReferenceEquals(draft, _boundaryConditionPlacementDraft))
+            {
+                draft.Color = c;
+                AnnotationRenderer.StrokeColor = c;
+                AnnotationRenderer.InvalidateVisual();
+            }
+            else
+            {
+                AnnotationRenderer.StrokeColor = c;
+                if (AnnotationRenderer.ActiveLayer != null)
+                    AnnotationRenderer.ActiveLayer.Color = c;
+                ApplyColorToSelection(c);
+            }
             // Clear any active palette highlight — custom color doesn't match a preset
             SetActiveColorButton(null);
             UpdateColorIndicator(c);
@@ -826,6 +937,7 @@ public partial class PreView
         AnnotationRenderer.TextFontSize = Math.Clamp(AnnotationRenderer.TextFontSize + delta, 6, 72);
         UpdateFontSizeLabel();
 
+        if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null) return;
         if (_selectedAnnotation is not TextAnnotation t) return;
 
         var now = DateTime.UtcNow;
@@ -977,27 +1089,49 @@ public partial class PreView
         _editingTextAnnotation = null;
         _pendingArrowOrigin = arrowOrigin;
         _pendingStickyNote = isStickyNote;
+        _pendingTextColor = isStickyNote ? Color.FromRgb(255, 235, 59) : AnnotationRenderer.StrokeColor;
+        _pendingTextOpacity = AnnotationRenderer.StrokeOpacity;
+        _pendingTextHasFrame = true;
+        _pendingTextSolidBackground = false;
+        _pendingArrowHeadStyle = AnnotationRenderer.CurrentArrowHeadStyle;
+        _pendingTextCornerRadius = AnnotationRenderer.TextCornerRadius;
 
         // Use the property panel with text row visible, but hide non-text rows
         _propertyPanelTarget = null;
         PropertyStrokeRow.IsVisible = false;
         PropertyFillBtn.IsVisible = false;
-        PropertyCornerRadiusRow.IsVisible = false;
+        _propertyOpacityRow ??= this.FindControl<Grid>("PropertyOpacityRow");
+        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = true;
+        PropertyCornerRadiusRow.IsVisible = !isStickyNote;
+        _propertyFrameToggleBtn ??= this.FindControl<Button>("PropertyFrameToggleBtn");
+        if (_propertyFrameToggleBtn != null) _propertyFrameToggleBtn.IsVisible = !isStickyNote;
+        _propertySolidBgToggleBtn ??= this.FindControl<Button>("PropertySolidBgToggleBtn");
+        if (_propertySolidBgToggleBtn != null) _propertySolidBgToggleBtn.IsVisible = !isStickyNote;
+        var arrowHeadRow = this.FindControl<Grid>("PropertyArrowHeadRow");
+        if (arrowHeadRow != null) arrowHeadRow.IsVisible = arrowOrigin.HasValue;
+        _propertyBoundaryConditionRow ??= this.FindControl<StackPanel>("PropertyBoundaryConditionRow");
+        if (_propertyBoundaryConditionRow != null) _propertyBoundaryConditionRow.IsVisible = false;
+        var placementActions = this.FindControl<StackPanel>("PropertyBoundaryPlacementActions");
+        if (placementActions != null) placementActions.IsVisible = false;
+        if (arrowOrigin.HasValue)
+        {
+            SyncArrowHeadStyleIndicator(_pendingArrowHeadStyle);
+            SyncCornerRadiusIndicator(_pendingTextCornerRadius);
+        }
         PropertyActionsRow.IsVisible = false;
+        var colorRow = this.FindControl<Grid>("PropertyColorRow");
+        if (colorRow != null) colorRow.IsVisible = true;
         var closePolyBtn = this.FindControl<Button>("PropertyClosePolyBtn");
         if (closePolyBtn != null) closePolyBtn.IsVisible = false;
         PropertyTextRow.IsVisible = true;
         PropertyTextBox.Text = "";
-
-        // Give the TextBox a finite width matching the annotation's intended render width
-        // (TextMaxWidth in PDF units → screen pixels). Without this the TextBox has no
-        // width constraint inside the Canvas and TextWrapping="Wrap" never activates.
-        var da = AnnotationRenderer.DisplayArea;
-        var bounds = AnnotationRenderer.Bounds;
-        if (da.Width > 0 && bounds.Width > 0)
-            PropertyTextBox.Width = Math.Clamp(AnnotationRenderer.TextMaxWidth / da.Width * bounds.Width, 120, 400);
-        else
-            PropertyTextBox.Width = 220;
+        SetActiveColorButton(FindToolbarButtonByTag(MatchColorTag(_pendingTextColor.Value)));
+        PropertyOpacitySlider.Value = _pendingTextOpacity;
+        _propertyFontSizeLabel ??= this.FindControl<TextBlock>("PropertyFontSizeLabel");
+        if (_propertyFontSizeLabel != null) _propertyFontSizeLabel.Text = $"{AnnotationRenderer.TextFontSize}pt";
+        SyncFrameToggleButton(_pendingTextHasFrame);
+        SyncSolidBgToggleButton(_pendingTextSolidBackground);
+        PropertyCornerRadiusRow.IsVisible = !isStickyNote;
 
         PositionPropertyPanel(screenPos);
         PropertyTextBox.Focus();
@@ -1016,9 +1150,6 @@ public partial class PreView
             double annotX = (existing.Position.X - da.X) / da.Width * bounds.Width;
             double annotY = (existing.Position.Y - da.Y) / da.Height * bounds.Height;
             screenPos = new Point(annotX, annotY);
-            // Match text input width to annotation's MaxWidth for WYSIWYG editing
-            double pdfWidth = existing.MaxWidth > 0 ? existing.MaxWidth : AnnotationRenderer.TextMaxWidth;
-            PropertyTextBox.Width = Math.Clamp(pdfWidth / da.Width * bounds.Width, 120, 400);
         }
         // Show the property panel with text editing for the annotation
         ShowPropertyPanel(existing, screenPos);
@@ -1055,20 +1186,26 @@ public partial class PreView
                 }
                 var snap = AnnotationRenderer.CapturePropertySnapshot(_editingTextAnnotation);
                 _editingTextAnnotation.Text = PropertyTextBox.Text;
-                _editingTextAnnotation.MaxWidth = AnnotationRenderer.TextMaxWidth;
-                AnnotationRenderer.AutoSizeTextWidth(_editingTextAnnotation);
                 if (snap != null) AnnotationRenderer.PushPropertyUndo(snap);
             }
             else if (!string.IsNullOrWhiteSpace(PropertyTextBox.Text))
             {
                 // New placement: ignore empty input
                 if (_pendingStickyNote)
-                    AnnotationRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                    AnnotationRenderer.PlaceStickyNote(_textPlacementPdfPoint.Value, PropertyTextBox.Text,
+                        _pendingTextColor ?? Color.FromRgb(255, 235, 59), _pendingTextOpacity,
+                        fontSize: AnnotationRenderer.TextFontSize);
                 else if (_pendingArrowOrigin.HasValue)
                     AnnotationRenderer.PlaceArrowText(_pendingArrowOrigin.Value,
-                        _textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                        _textPlacementPdfPoint.Value, PropertyTextBox.Text,
+                        _pendingArrowHeadStyle, _pendingTextCornerRadius,
+                        _pendingTextColor, _pendingTextOpacity, _pendingTextHasFrame, _pendingTextSolidBackground,
+                        AnnotationRenderer.TextFontSize);
                 else
-                    AnnotationRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text);
+                    AnnotationRenderer.PlaceText(_textPlacementPdfPoint.Value, PropertyTextBox.Text,
+                        _pendingTextColor, _pendingTextOpacity, _pendingTextHasFrame,
+                        _pendingTextSolidBackground, AnnotationRenderer.TextFontSize,
+                        _pendingTextCornerRadius);
             }
         }
 
@@ -1306,6 +1443,39 @@ public partial class PreView
             visible = tool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar;
         }
         _cornerRadiusBtn.IsVisible = visible;
+        _brushSizeBtn ??= this.FindControl<Button>("BrushSizeBtn");
+        _dashPatternBtn ??= this.FindControl<Button>("DashPatternBtn");
+        bool hasSelection = _selectedAnnotations.Count > 0;
+        bool measureOnly = hasSelection
+            ? _selectedAnnotations.All(a => a is MeasurementAnnotation)
+            : AnnotationRenderer.ActiveTool is InlineAnnotationTool.MeasureDistance or InlineAnnotationTool.MeasureArea;
+        bool supportsDash = hasSelection
+            ? _selectedAnnotations.All(a => a is InkStroke { IsRebar: false } or ShapeAnnotation { ShapeType: not (InlineAnnotationTool.BoundaryCondition or InlineAnnotationTool.Dot) })
+            : AnnotationRenderer.ActiveTool is InlineAnnotationTool.Draw or InlineAnnotationTool.Highlight
+                or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow or InlineAnnotationTool.Rectangle
+                or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud
+                or InlineAnnotationTool.Polyline;
+        bool supportsWidth = hasSelection
+            ? _selectedAnnotations.All(a => a is InkStroke or ShapeAnnotation { ShapeType: not InlineAnnotationTool.BoundaryCondition })
+            : AnnotationRenderer.ActiveTool is InlineAnnotationTool.Draw or InlineAnnotationTool.Highlight
+                or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow or InlineAnnotationTool.Rectangle
+                or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud
+                or InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot;
+        if (_brushSizeBtn != null) _brushSizeBtn.IsVisible = supportsWidth && !measureOnly;
+        if (_dashPatternBtn != null) _dashPatternBtn.IsVisible = supportsDash;
+        var fillToggleBtn = this.FindControl<Button>("FillToggleBtn");
+        bool supportsFill = hasSelection
+            ? _selectedAnnotations.All(a => a is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud }
+                || a is InkStroke { IsPolyline: true, IsClosed: true })
+            : AnnotationRenderer.ActiveTool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud;
+        if (fillToggleBtn != null) fillToggleBtn.IsVisible = supportsFill;
+        var opacitySlider = this.FindControl<Slider>("OpacitySlider");
+        bool supportsOpacity = hasSelection
+            ? _selectedAnnotations.All(a => a is not MeasurementAnnotation)
+            : AnnotationRenderer.ActiveTool is not (InlineAnnotationTool.MeasureDistance or InlineAnnotationTool.MeasureArea);
+        if (opacitySlider != null) opacitySlider.IsVisible = supportsOpacity;
+        _propertyOpacityRow ??= this.FindControl<Grid>("PropertyOpacityRow");
+        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = supportsOpacity || _propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition };
     }
 
     /// <summary>
@@ -1373,7 +1543,11 @@ public partial class PreView
         {
             SetActiveWidthButton(FindToolbarButtonByTag(((int)width.Value).ToString()));
             if (!AnnotationRenderer.IsHighlighterMode)
-            { AnnotationRenderer.StrokeWidth = width.Value; _normalStrokeWidth = width.Value; }
+            {
+                AnnotationRenderer.StrokeWidth = width.Value;
+                _normalStrokeWidth = width.Value;
+                _highlighterStrokeWidth = Math.Max(12, _normalStrokeWidth * HighlighterWidthMultiplier);
+            }
             UpdateBrushSizeIndicator(width.Value);
         }
 
@@ -1430,6 +1604,9 @@ public partial class PreView
 
         bool isDot = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Dot };
         bool isBoundaryCondition = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition };
+        bool isBoundaryPlacement = ReferenceEquals(item, _boundaryConditionPlacementDraft);
+        bool hasArrowHead = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Arrow }
+            or TextAnnotation { ArrowOrigin: not null };
         bool isText = item is TextAnnotation;
         bool isMeasure = item is MeasurementAnnotation;
         bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, IsRebar: false, Points.Count: >= 2 };
@@ -1452,6 +1629,22 @@ public partial class PreView
             || item is TextAnnotation { HasFrame: true };
 
         PropertyStrokeRow.IsVisible = hasStroke || isRebar;
+        var colorRow = this.FindControl<Grid>("PropertyColorRow");
+        if (colorRow != null) colorRow.IsVisible = true;
+        var placementActions = this.FindControl<StackPanel>("PropertyBoundaryPlacementActions");
+        if (placementActions != null) placementActions.IsVisible = isBoundaryPlacement;
+        var arrowHeadRow = this.FindControl<Grid>("PropertyArrowHeadRow");
+        if (arrowHeadRow != null) arrowHeadRow.IsVisible = hasArrowHead;
+        if (hasArrowHead)
+        {
+            var arrowStyle = item switch
+            {
+                ShapeAnnotation shape => shape.ArrowHead,
+                TextAnnotation text => text.ArrowHead,
+                _ => ArrowHeadStyle.Filled
+            };
+            SyncArrowHeadStyleIndicator(arrowStyle);
+        }
         _propertyBoundaryConditionRow ??= this.FindControl<StackPanel>("PropertyBoundaryConditionRow");
         if (_propertyBoundaryConditionRow != null) _propertyBoundaryConditionRow.IsVisible = isBoundaryCondition;
         _propertyDashRow ??= this.FindControl<StackPanel>("PropertyDashRow");
@@ -1463,6 +1656,7 @@ public partial class PreView
             var option = this.FindControl<Button>(optionName);
             if (option != null) option.IsVisible = hasStructuralPatterns;
         }
+
         var structuralPatternIcon = this.FindControl<StructuralLinePatternIcon>("PropertyStructuralPatternIcon");
         var dashIndicator = this.FindControl<Avalonia.Controls.Shapes.Line>("PropertyDashIndicator");
         LineDashPattern selectedPattern = item switch
@@ -1509,8 +1703,12 @@ public partial class PreView
         }
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
-        _propertyOpacityRow ??= this.FindControl<StackPanel>("PropertyOpacityRow");
-        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = true;
+        _propertyOpacityRow ??= this.FindControl<Grid>("PropertyOpacityRow");
+        if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = item is not MeasurementAnnotation;
+        _propertyFrameToggleBtn ??= this.FindControl<Button>("PropertyFrameToggleBtn");
+        if (_propertyFrameToggleBtn != null) _propertyFrameToggleBtn.IsVisible = isText && item is not TextAnnotation { IsStickyNote: true };
+        _propertySolidBgToggleBtn ??= this.FindControl<Button>("PropertySolidBgToggleBtn");
+        if (_propertySolidBgToggleBtn != null) _propertySolidBgToggleBtn.IsVisible = isText && item is not TextAnnotation { IsStickyNote: true };
         _propertyClosePolyBtn ??= this.FindControl<Button>("PropertyClosePolyBtn");
         _propertyClosePolySeparator ??= this.FindControl<Border>("PropertyClosePolySeparator");
         if (_propertyClosePolyBtn != null) _propertyClosePolyBtn.IsVisible = isPolyline || isAreaPolyline;
@@ -1565,6 +1763,40 @@ public partial class PreView
         }
     }
 
+    private void OnPropertyArrowHead(object sender, RoutedEventArgs e)
+    {
+        if (_pendingArrowOrigin.HasValue
+            && sender is Button { Tag: string pendingStyleName }
+            && Enum.TryParse(pendingStyleName, out ArrowHeadStyle pendingStyle))
+        {
+            _pendingArrowHeadStyle = pendingStyle;
+            SyncArrowHeadStyleIndicator(pendingStyle);
+            return;
+        }
+        if (_propertyPanelTarget == null
+            || sender is not Button { Tag: string styleName }
+            || !Enum.TryParse(styleName, out ArrowHeadStyle style)) return;
+
+        switch (_propertyPanelTarget)
+        {
+            case ShapeAnnotation { ShapeType: InlineAnnotationTool.Arrow } arrow:
+                StagePropertyUndoSnapshot(arrow);
+                arrow.ArrowHead = style;
+                break;
+            case TextAnnotation { ArrowOrigin: not null } text:
+                StagePropertyUndoSnapshot(text);
+                text.ArrowHead = style;
+                break;
+            default:
+                return;
+        }
+
+        AnnotationRenderer.CurrentArrowHeadStyle = style;
+        SyncArrowHeadStyleIndicator(style);
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
     private void PositionPropertyPanel(Point preferredPosition)
     {
         PropertyPanelCanvas.IsVisible = true;
@@ -1592,6 +1824,11 @@ public partial class PreView
         var pos = e.GetPosition(PropertyPanelBorder);
         if (pos.X < 0 || pos.Y < 0 || pos.X > PropertyPanelBorder.Bounds.Width || pos.Y > PropertyPanelBorder.Bounds.Height)
         {
+            if (_boundaryConditionPlacementDraft != null)
+            {
+                e.Handled = true;
+                return;
+            }
             // If text editing is active, commit on outside click
             if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null)
                 OnTextInputCommit(this, e);
@@ -1603,9 +1840,27 @@ public partial class PreView
 
     private void OnPropertyColor(object sender, RoutedEventArgs e)
     {
-        if (_propertyPanelTarget == null) return;
+        if (_propertyPanelTarget == null)
+        {
+            if (!_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null
+                || sender is not Button { Tag: string textColorName }) return;
+            _pendingTextColor = ColorPalette.GetValueOrDefault(textColorName, ColorPalette["Red"]);
+            SetActiveColorButton(FindToolbarButtonByTag(textColorName));
+            UpdateColorIndicator(_pendingTextColor.Value);
+            return;
+        }
         if (sender is not Button btn || btn.Tag is not string colorName) return;
         var color = ColorPalette.GetValueOrDefault(colorName, ColorPalette["Red"]);
+        if (_propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } draft
+            && ReferenceEquals(draft, _boundaryConditionPlacementDraft))
+        {
+            draft.Color = color;
+            AnnotationRenderer.StrokeColor = color;
+            SetActiveColorButton(FindToolbarButtonByTag(colorName));
+            UpdateColorIndicator(color);
+            AnnotationRenderer.InvalidateVisual();
+            return;
+        }
         foreach (var selItem in _selectedAnnotations)
             StagePropertyUndoSnapshot(selItem);
         ApplyColorToSelection(color);
@@ -1630,6 +1885,7 @@ public partial class PreView
         }
         AnnotationRenderer.StrokeWidth = w;
         _normalStrokeWidth = w;
+        _highlighterStrokeWidth = Math.Max(12, _normalStrokeWidth * HighlighterWidthMultiplier);
         SetActiveWidthButton(FindToolbarButtonByTag(widthStr));
         AnnotationRenderer.InvalidateVisual();
         AnnotationRenderer.NotifyAnnotationChanged();
@@ -1721,6 +1977,12 @@ public partial class PreView
 
     private void OnPropertyFrameToggle(object sender, RoutedEventArgs e)
     {
+        if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null)
+        {
+            _pendingTextHasFrame = !_pendingTextHasFrame;
+            SyncFrameToggleButton(_pendingTextHasFrame);
+            return;
+        }
         if (_propertyPanelTarget is not TextAnnotation t) return;
         StagePropertyUndoSnapshot(t);
         t.HasFrame = !t.HasFrame;
@@ -1740,6 +2002,12 @@ public partial class PreView
 
     private void OnPropertySolidBgToggle(object sender, RoutedEventArgs e)
     {
+        if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null)
+        {
+            _pendingTextSolidBackground = !_pendingTextSolidBackground;
+            SyncSolidBgToggleButton(_pendingTextSolidBackground);
+            return;
+        }
         if (_propertyPanelTarget is not TextAnnotation t) return;
         StagePropertyUndoSnapshot(t);
         t.SolidBackground = !t.SolidBackground;
@@ -1782,10 +2050,12 @@ public partial class PreView
         if (_propertyPanelTarget is not ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } support
             || sender is not Button { Tag: string typeName }
             || !Enum.TryParse(typeName, out BoundaryConditionType type)) return;
-        StagePropertyUndoSnapshot(support);
+        if (!ReferenceEquals(support, _boundaryConditionPlacementDraft))
+            StagePropertyUndoSnapshot(support);
         support.BoundaryCondition = type;
         AnnotationRenderer.InvalidateVisual();
-        AnnotationRenderer.NotifyAnnotationChanged();
+        if (!ReferenceEquals(support, _boundaryConditionPlacementDraft))
+            AnnotationRenderer.NotifyAnnotationChanged();
     }
 
     private void OnPropertyBoundaryOrientation(object sender, RoutedEventArgs e)
@@ -1793,15 +2063,74 @@ public partial class PreView
         if (_propertyPanelTarget is not ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } support
             || sender is not Button { Tag: string orientationName }
             || !Enum.TryParse(orientationName, out BoundaryConditionOrientation orientation)) return;
-        StagePropertyUndoSnapshot(support);
+        if (!ReferenceEquals(support, _boundaryConditionPlacementDraft))
+            StagePropertyUndoSnapshot(support);
         support.BoundaryOrientation = orientation;
         AnnotationRenderer.InvalidateVisual();
-        AnnotationRenderer.NotifyAnnotationChanged();
+        if (!ReferenceEquals(support, _boundaryConditionPlacementDraft))
+            AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnBoundaryConditionPlacementCommit(object sender, RoutedEventArgs e)
+    {
+        var renderer = _boundaryConditionPlacementRenderer ?? AnnotationRenderer;
+        if (_boundaryConditionPlacementDraft == null || renderer.CannotAnnotateActiveLayer)
+        {
+            OnAnnotationCreationBlocked();
+            return;
+        }
+
+        var draft = _boundaryConditionPlacementDraft;
+        _boundaryConditionPlacementDraft = null;
+        _boundaryConditionPlacementRenderer = null;
+        if (ReferenceEquals(_boundaryConditionPreviewRenderer, renderer))
+            _boundaryConditionPreviewRenderer = null;
+        renderer.SetBoundaryConditionPreview(null);
+        var activeRenderer = AnnotationRenderer;
+        renderer.PlaceShape(draft);
+        ClosePropertyPanel();
+        if (!ReferenceEquals(renderer, activeRenderer))
+            SetActiveAnnotationRenderer(renderer);
+        CompleteToolPlacement();
+        UpdateAnnotationStatusHint();
+    }
+
+    private void OnBoundaryConditionPlacementCancel(object sender, RoutedEventArgs e)
+        => CancelBoundaryConditionPlacement();
+
+    private void CancelBoundaryConditionPlacement()
+    {
+        var renderer = _boundaryConditionPlacementRenderer;
+        _boundaryConditionPlacementDraft = null;
+        _boundaryConditionPlacementRenderer = null;
+        renderer?.SetBoundaryConditionPreview(null);
+        ClearBoundaryConditionPreview();
+        if (PropertyPanelCanvas.IsVisible)
+            ClosePropertyPanel();
+        DeselectAnnotation();
+        CompleteToolPlacement();
+        UpdateAnnotationStatusHint();
+    }
+
+    private void ClearBoundaryConditionPreview()
+    {
+        var renderer = _boundaryConditionPreviewRenderer;
+        _boundaryConditionPreviewRenderer = null;
+        renderer?.SetBoundaryConditionPreview(null);
     }
 
     private void OnPropertyCornerRadius(object sender, RoutedEventArgs e)
     {
+        if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null && !_pendingStickyNote
+            && sender is Button { Tag: string pendingRadiusText }
+            && double.TryParse(pendingRadiusText, out double pendingRadius))
+        {
+            _pendingTextCornerRadius = pendingRadius;
+            SyncCornerRadiusIndicator(pendingRadius);
+            return;
+        }
         if (_propertyPanelTarget == null) return;
+        if (_propertyPanelTarget is TextAnnotation { IsStickyNote: true }) return;
         if (sender is not Button btn || btn.Tag is not string radiusStr || !double.TryParse(radiusStr, out double r)) return;
         foreach (var selItem in _selectedAnnotations)
         {
@@ -1825,8 +2154,24 @@ public partial class PreView
 
     private void OnPropertyOpacityChanged(object? sender, RoutedEventArgs e)
     {
-        if (_propertyPanelTarget == null || PropertyOpacitySlider == null) return;
+        if (PropertyOpacitySlider == null) return;
         double val = PropertyOpacitySlider.Value;
+        if (_textPlacementPdfPoint.HasValue && _editingTextAnnotation == null)
+        {
+            _pendingTextOpacity = val;
+            return;
+        }
+        if (_propertyPanelTarget is MeasurementAnnotation) return;
+        if (_propertyPanelTarget is ShapeAnnotation { ShapeType: InlineAnnotationTool.BoundaryCondition } draft
+            && ReferenceEquals(draft, _boundaryConditionPlacementDraft))
+        {
+            draft.Opacity = val;
+            AnnotationRenderer.StrokeOpacity = val;
+            if (OpacitySlider != null) OpacitySlider.Value = val;
+            AnnotationRenderer.InvalidateVisual();
+            return;
+        }
+        if (_propertyPanelTarget == null) return;
         foreach (var selItem in _selectedAnnotations)
         {
             StagePropertyUndoSnapshot(selItem);

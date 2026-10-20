@@ -33,12 +33,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private InkStroke? _activeStroke;
     private ShapeAnnotation? _activeShape;
+    private Point? _activeShapeCenter;
+    private ShapeAnnotation? _boundaryConditionPreview;
     private MeasurementAnnotation? _activeMeasurement;
     private Point? _measurementPreviewPoint;
     private Point? _lastPointerPdfPos;
     private InkStroke? _activePolyline;
     private Point? _polylinePreviewEnd;
     private int _currentPage;
+
+    public int CurrentStrokePage => _currentPage;
 
     // Rubber-band marquee selection rectangle (PDF-space)
     private Point? _rubberBandStart;
@@ -232,6 +236,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         _activeStroke = null;
         _activeShape = null;
+        _activeShapeCenter = null;
         _activeMeasurement = null;
         _measurementPreviewPoint = null;
         _activePolyline = null;
@@ -322,10 +327,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public bool IsHighlighterMode { get; set; }
     public InlineAnnotationTool ActiveTool { get; set; } = InlineAnnotationTool.Draw;
     public double TextFontSize { get; set; } = 10;
+    public double TextCornerRadius { get; set; } = 5;
     /// <summary>Font family name for new text annotations.</summary>
     public string TextFontFamily { get; set; } = "";
     /// <summary>When true, new shapes are rendered with a translucent fill.</summary>
     public bool IsFilledMode { get; set; }
+    public ArrowHeadStyle CurrentArrowHeadStyle { get; set; } = ArrowHeadStyle.Filled;
     /// <summary>Dash pattern for new strokes and shapes.</summary>
     public LineDashPattern StrokeDashPattern { get; set; } = LineDashPattern.Solid;
     /// <summary>Corner radius in PDF points for new Rectangle shapes and Polyline vertices. 0 = sharp.</summary>
@@ -500,6 +507,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             return _activeStroke != null || _activePolyline != null
                    || _activeShape != null
                    || _activeMeasurement != null || _arrowTextPreviewOrigin != null
+                   || _boundaryConditionPreview != null
                    || _eraserHoverItem != null || _cursorPdfPos != null
                    || _selectHighlightItems.Count > 0 || _stickyNoteHoverItem != null
                    || _textPlacementPreviewPos != null
@@ -581,6 +589,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _activeStroke = null;
         _activeShape = null;
         _activeMeasurement = null;
+        _boundaryConditionPreview = null;
         _measurementPreviewPoint = null;
         _selectHighlightItems.Clear();
         _selectHoverItem = null;
@@ -946,7 +955,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
         {
-            Color = asRebar ? s_rebarColor : StrokeColor,
+            Color = StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsPolyline = true,
@@ -956,7 +965,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 : StrokeDashPattern,
             CornerRadius = asAreaMeasure ? 0 : (asRebar ? RebarCornerRadius : ShapeCornerRadius),
             IsAreaMeasure = asAreaMeasure,
-            IsFilled = asAreaMeasure,
+            IsFilled = asAreaMeasure || IsFilledMode,
             AreaScale = MeasurementScale,
             CreatedAtRotation = ViewRotation
         };
@@ -1105,6 +1114,40 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     public bool HasActiveShape => _activeShape != null;
     public bool HasActiveMeasurement => _activeMeasurement != null;
+
+    public ShapeAnnotation? UpdateBoundaryConditionPreview(Point? pdfPoint)
+    {
+        if (!pdfPoint.HasValue)
+        {
+            _boundaryConditionPreview = null;
+            InvalidateVisual();
+            return null;
+        }
+
+        var anchor = ComputeVertexSnap(null!, pdfPoint.Value);
+        if (_boundaryConditionPreview == null)
+        {
+            _boundaryConditionPreview = new ShapeAnnotation
+            {
+                ShapeType = InlineAnnotationTool.BoundaryCondition,
+                Color = StrokeColor,
+                StrokeWidth = Math.Max(1.5, StrokeWidth),
+                Opacity = StrokeOpacity,
+                BoundaryCondition = BoundaryConditionType.Pinned,
+                BoundaryOrientation = BoundaryConditionOrientation.Down
+            };
+        }
+        _boundaryConditionPreview.Start = anchor;
+        _boundaryConditionPreview.End = anchor;
+        InvalidateVisual();
+        return _boundaryConditionPreview;
+    }
+
+    public void SetBoundaryConditionPreview(ShapeAnnotation? preview)
+    {
+        _boundaryConditionPreview = preview;
+        InvalidateVisual();
+    }
 
     public (int FixedCount, int RemovedCount) ValidateAndRepairAnnotations()
     {
@@ -1276,6 +1319,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         _activeStroke = null;
         _activeShape = null;
+        _activeShapeCenter = null;
         _activeMeasurement = null;
         _measurementPreviewPoint = null;
         _activePolyline = null;
@@ -1292,11 +1336,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     #region Shape API
 
-    public void BeginShape(Point pdfPoint)
+    public void BeginShape(Point pdfPoint, bool fromCenter = true)
     {
         if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
+        _activeShapeCenter = ActiveTool == InlineAnnotationTool.Ellipse && fromCenter
+            ? pdfPoint
+            : null;
         _activeShape = new ShapeAnnotation
         {
             ShapeType = ActiveTool,
@@ -1309,7 +1356,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             DashPattern = ActiveTool == InlineAnnotationTool.Line
                 ? StrokeDashPattern
                 : IsStructuralLinePattern(StrokeDashPattern) ? LineDashPattern.Solid : StrokeDashPattern,
-            CornerRadius = ShapeCornerRadius
+            CornerRadius = ShapeCornerRadius,
+            ArrowHead = CurrentArrowHeadStyle
         };
         InvalidateVisual();
     }
@@ -1317,17 +1365,28 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public void UpdateShape(Point pdfPoint, bool constrainAxis = false)
     {
         if (_activeShape == null) return;
+        var anchor = _activeShapeCenter ?? _activeShape.Start;
         if (constrainAxis)
         {
             pdfPoint = _activeShape.ShapeType is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud
-                ? ConstrainToSquare(_activeShape.Start, pdfPoint)
-                : ConstrainToFineAngle(_activeShape.Start, pdfPoint);
+                ? ConstrainToSquare(anchor, pdfPoint)
+                : ConstrainToFineAngle(anchor, pdfPoint);
         }
         else
         {
             pdfPoint = ComputeVertexSnap(_activeShape, pdfPoint);
         }
-        _activeShape.End = pdfPoint;
+        if (_activeShapeCenter.HasValue)
+        {
+            double radiusX = Math.Abs(pdfPoint.X - anchor.X);
+            double radiusY = Math.Abs(pdfPoint.Y - anchor.Y);
+            _activeShape.Start = new Point(anchor.X - radiusX, anchor.Y - radiusY);
+            _activeShape.End = new Point(anchor.X + radiusX, anchor.Y + radiusY);
+        }
+        else
+        {
+            _activeShape.End = pdfPoint;
+        }
         // Polar tracking for line/arrow
         if (_activeShape.ShapeType is InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
                                    or InlineAnnotationTool.MeasureDistance)
@@ -1363,6 +1422,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
         _activeShape = null;
+        _activeShapeCenter = null;
         _snapGuideX = null;
         _snapGuideY = null;
         _snapVertexPos = null;
@@ -1496,7 +1556,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
             t.MaxWidth = needed;
     }
 
-    public void PlaceText(Point pdfPoint, string text)
+    public void PlaceText(Point pdfPoint, string text, Color? color = null, double? opacity = null,
+        bool hasFrame = true, bool solidBackground = true, double? fontSize = null,
+        double? cornerRadius = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         if (CannotAnnotateActiveLayer) return;
@@ -1507,11 +1569,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             Position = pdfPoint,
             Text = text,
-            FontSize = TextFontSize,
-            Color = StrokeColor,
-            Opacity = StrokeOpacity,
+            FontSize = fontSize ?? TextFontSize,
+            Color = color ?? StrokeColor,
+            Opacity = opacity ?? StrokeOpacity,
             FontFamily = TextFontFamily,
-            SolidBackground = true,
+            HasFrame = hasFrame,
+            SolidBackground = solidBackground,
+            CornerRadius = cornerRadius ?? TextCornerRadius,
             MaxWidth = TextMaxWidth,
             CreatedAtRotation = ViewRotation
         };
@@ -1533,7 +1597,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
-    public void PlaceStickyNote(Point pdfPoint, string text)
+    public void PlaceStickyNote(Point pdfPoint, string text, Color? color = null,
+        double? opacity = null, bool hasFrame = true, bool solidBackground = true,
+        double? fontSize = null, double? cornerRadius = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         if (CannotAnnotateActiveLayer) return;
@@ -1544,11 +1610,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             Position = pdfPoint,
             Text = text,
-            FontSize = TextFontSize,
-            Color = Color.FromRgb(255, 235, 59),  // always notepad yellow
-            Opacity = StrokeOpacity,
+            FontSize = fontSize ?? TextFontSize,
+            Color = color ?? Color.FromRgb(255, 235, 59),
+            Opacity = opacity ?? StrokeOpacity,
             FontFamily = TextFontFamily,
             IsStickyNote = true,
+            HasFrame = hasFrame,
+            SolidBackground = solidBackground,
+            CornerRadius = cornerRadius ?? TextCornerRadius,
             CreatedAtRotation = ViewRotation
         };
 
@@ -1568,7 +1637,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
         InvalidateVisual();
     }
 
-    public void PlaceArrowText(Point arrowOrigin, Point textPosition, string text)
+    public void PlaceArrowText(Point arrowOrigin, Point textPosition, string text,
+        ArrowHeadStyle? arrowHead = null, double? cornerRadius = null, Color? color = null,
+        double? opacity = null, bool hasFrame = true, bool solidBackground = true,
+        double? fontSize = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         if (CannotAnnotateActiveLayer) return;
@@ -1579,12 +1651,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             Position = textPosition,
             Text = text,
-            FontSize = TextFontSize,
-            Color = StrokeColor,
-            Opacity = StrokeOpacity,
+            FontSize = fontSize ?? TextFontSize,
+            Color = color ?? StrokeColor,
+            Opacity = opacity ?? StrokeOpacity,
             FontFamily = TextFontFamily,
             ArrowOrigin = arrowOrigin,
-            SolidBackground = true,
+            ArrowHead = arrowHead ?? CurrentArrowHeadStyle,
+            HasFrame = hasFrame,
+            SolidBackground = solidBackground,
+            CornerRadius = cornerRadius ?? TextCornerRadius,
             MaxWidth = TextMaxWidth,
             CreatedAtRotation = ViewRotation
         };
@@ -2010,7 +2085,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     {
         if (CannotAnnotateActiveLayer) return false;
 
-        double threshold = StrokeWidth * 3;
+        double threshold = EraserRadius;
 
         // Check text annotations first
         if (ActiveLayer.PageTexts.TryGetValue(_currentPage, out var texts))
@@ -2098,6 +2173,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
         return false;
     }
+
+    public double EraserRadius => StrokeWidth * 3;
 
     /// <summary>
     /// Updates the eraser hover highlight. Call on pointer-move when in Eraser mode.
@@ -2327,7 +2404,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         BoundaryConditionType BoundaryCondition, BoundaryConditionOrientation BoundaryOrientation,
         // TextAnnotation
         double FontSize, string Text, double MaxWidth, bool HasFrame,
-        bool SolidBackground = false);
+        bool SolidBackground = false,
+        ArrowHeadStyle ArrowHead = ArrowHeadStyle.Filled);
 
     /// <summary>
     /// Captures a snapshot of all visual properties of an annotation.
@@ -2336,8 +2414,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public object? CapturePropertySnapshot(object item) => item switch
     {
         InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, s.StructuralPatternReversed, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
-        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.StructuralPatternReversed, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.StructuralPatternReversed, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false, ArrowHead: sh.ArrowHead),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground, t.ArrowHead),
         MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
         _ => null
     };
@@ -2362,6 +2440,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 sh.CornerRadius = snap.CornerRadius;
                 sh.BoundaryCondition = snap.BoundaryCondition;
                 sh.BoundaryOrientation = snap.BoundaryOrientation;
+                sh.ArrowHead = snap.ArrowHead;
                 sh.InvalidatePen();
                 break;
             case TextAnnotation t:
@@ -2370,6 +2449,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 t.MaxWidth = snap.MaxWidth; t.HasFrame = snap.HasFrame;
                 t.SolidBackground = snap.SolidBackground;
                 t.CornerRadius = snap.CornerRadius;
+                t.ArrowHead = snap.ArrowHead;
                 t.InvalidateArrowPen();
                 break;
             case MeasurementAnnotation m:
@@ -4857,6 +4937,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
             RenderShape(context, _activeShape, da, boundsSize, scaleX, scaleY, penScale, dashPen);
         }
 
+        if (_boundaryConditionPreview != null)
+        {
+            var previewPen = _boundaryConditionPreview.GetOrCreateDashedPen(penScale);
+            RenderShape(context, _boundaryConditionPreview, da, boundsSize, scaleX, scaleY, penScale, previewPen);
+        }
+
         // Draw the active measurement being constructed
         if (_activeMeasurement != null)
         {
@@ -4891,8 +4977,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 _cachedPreviewPen = new Pen(new SolidColorBrush(StrokeColor).ToImmutable(),
                     1.2, lineCap: PenLineCap.Round);
             }
-            context.DrawLine(_cachedPreviewPen, from, to);
-            DrawArrowhead(context, _cachedPreviewPen, to, from, penScale);
+            var shaftStart = GetArrowShaftEnd(to, from, _cachedPreviewPen, penScale, CurrentArrowHeadStyle);
+            context.DrawLine(_cachedPreviewPen, shaftStart, to);
+            DrawArrowhead(context, _cachedPreviewPen, to, from, penScale, CurrentArrowHeadStyle);
         }
 
         // Hover popup for the text annotation under the cursor (drawn above all other items)
@@ -5049,6 +5136,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
         }
 
+        if (_cursorPdfPos.HasValue && ActiveTool == InlineAnnotationTool.Eraser)
+        {
+            var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
+            double radius = EraserRadius * penScale;
+            context.DrawEllipse(s_eraserHoverBrush, _cachedEraserHoverPen, cp, radius, radius);
+        }
+
         // Pen cursor preview: colored circle showing pen size at cursor position
         if (_cursorPdfPos.HasValue && ActiveTool is InlineAnnotationTool.Draw or InlineAnnotationTool.Highlight)
         {
@@ -5064,27 +5158,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             }
             context.DrawEllipse(_cachedCursorBrush, null, cp, radius, radius);
         }
-        // Crosshair cursor preview for shape/line/measurement/polyline tools
-        else if (_cursorPdfPos.HasValue
-            && ActiveTool is InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse
-                or InlineAnnotationTool.Line or InlineAnnotationTool.Arrow
-                or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.MeasureDistance
-                or InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot)
+        // Dot cursor preview: show the approximate footprint of the next dot.
+        else if (_cursorPdfPos.HasValue && ActiveTool == InlineAnnotationTool.Dot)
         {
             var cp = PdfToScreen(_cursorPdfPos.Value, da, boundsSize);
-            double arm = 8;
-            var cursorColor = ActiveTool == InlineAnnotationTool.Rebar ? s_rebarColor : StrokeColor;
-            if (_cachedCrosshairPen == null || _cachedCursorColor != cursorColor)
-            {
-                _cachedCursorColor = cursorColor;
-                _cachedCursorBrush = new SolidColorBrush(
-                    Color.FromArgb(160, cursorColor.R, cursorColor.G, cursorColor.B)).ToImmutable();
-                _cachedCrosshairPen = new Pen(new SolidColorBrush(
-                    Color.FromArgb(180, cursorColor.R, cursorColor.G, cursorColor.B)).ToImmutable(), 1.0);
-            }
-            context.DrawLine(_cachedCrosshairPen, new Point(cp.X - arm, cp.Y), new Point(cp.X + arm, cp.Y));
-            context.DrawLine(_cachedCrosshairPen, new Point(cp.X, cp.Y - arm), new Point(cp.X, cp.Y + arm));
-            context.DrawEllipse(null, _cachedCrosshairPen, cp, 3, 3);
+            double radius = Math.Max(StrokeWidth, 1.0) * penScale;
+            var dotColor = Color.FromArgb(130, StrokeColor.R, StrokeColor.G, StrokeColor.B);
+            context.DrawEllipse(new SolidColorBrush(dotColor), null, cp, radius, radius);
+            context.DrawEllipse(null, _cachedCrosshairPen, cp, radius, radius);
         }
 
         // Snap-to-alignment guides: thin dotted lines across the viewport
@@ -5808,8 +5889,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 break;
 
             case InlineAnnotationTool.Arrow:
-                context.DrawLine(pen, screenStart, screenEnd);
-                DrawArrowhead(context, pen, screenStart, screenEnd, penScale);
+                context.DrawLine(pen, screenStart, GetArrowShaftEnd(screenStart, screenEnd, pen, penScale, shape.ArrowHead));
+                DrawArrowhead(context, pen, screenStart, screenEnd, penScale, shape.ArrowHead);
                 DrawTailDot(context, pen, screenStart, penScale);
                 break;
 
@@ -5863,13 +5944,33 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    private static Point GetArrowShaftEnd(Point from, Point to, IPen pen, double penScale, ArrowHeadStyle style)
+    {
+        double dx = to.X - from.X;
+        double dy = to.Y - from.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return to;
+
+        double headLen = style == ArrowHeadStyle.Dot
+            ? Math.Min(Math.Max(3, pen.Thickness * 1.2), len * 0.4)
+            : Math.Min((6 + pen.Thickness) * penScale, len * 0.4);
+        return new Point(to.X - dx / len * headLen, to.Y - dy / len * headLen);
+    }
+
     private static void DrawArrowhead(DrawingContext context, IPen pen,
-                                      Point from, Point to, double penScale)
+                                      Point from, Point to, double penScale, ArrowHeadStyle style)
     {
         double dx = to.X - from.X;
         double dy = to.Y - from.Y;
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
+
+        if (style == ArrowHeadStyle.Dot)
+        {
+            double radius = Math.Max(3, pen.Thickness * 1.2);
+            context.DrawEllipse(pen.Brush, null, to, radius, radius);
+            return;
+        }
 
         double headLen = Math.Min((6 + pen.Thickness) * penScale, len * 0.4);
         double headAngle = Math.PI / 8; // 22.5 degrees
@@ -5882,18 +5983,21 @@ public class AnnotatedPDFRenderer : PDFRenderer
             to.X - headLen * Math.Cos(angle + headAngle),
             to.Y - headLen * Math.Sin(angle + headAngle));
 
+        var notch = new Point(to.X - dx / len * headLen * 0.55, to.Y - dy / len * headLen * 0.55);
         var arrowGeometry = new StreamGeometry();
         using (var ctx = arrowGeometry.Open())
         {
-            ctx.BeginFigure(left, true);
+            ctx.BeginFigure(left, style != ArrowHeadStyle.Open);
             ctx.LineTo(to);
             ctx.LineTo(right);
-            ctx.EndFigure(true);
+            if (style == ArrowHeadStyle.Stealth)
+                ctx.LineTo(notch);
+            ctx.EndFigure(style != ArrowHeadStyle.Open);
         }
 
         // Always draw the arrowhead with a solid pen regardless of the line body's dash pattern.
         var solidPen = new Pen(pen.Brush, pen.Thickness, lineCap: PenLineCap.Round, lineJoin: PenLineJoin.Round);
-        context.DrawGeometry(pen.Brush, solidPen, arrowGeometry);
+        context.DrawGeometry(style == ArrowHeadStyle.Open ? null : pen.Brush, solidPen, arrowGeometry);
     }
 
     /// <summary>Draws a small filled circle at the tail (origin) of an arrow.</summary>
@@ -5935,8 +6039,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
         byte alpha = t.Opacity < 1.0 ? (byte)(t.Opacity * 255) : (byte)255;
         var c = Color.FromArgb(alpha, t.Color.R, t.Color.G, t.Color.B);
         var pen = t.GetOrCreateArrowPen(penScale);
-        context.DrawLine(pen, arrowTip, connection);
-        DrawArrowhead(context, pen, connection, arrowTip, penScale);
+        context.DrawLine(pen, GetArrowShaftEnd(connection, arrowTip, pen, penScale, t.ArrowHead), connection);
+        DrawArrowhead(context, pen, connection, arrowTip, penScale, t.ArrowHead);
     }
 
     /// <summary>Returns the center point of the rectangle side closest to the given point.</summary>

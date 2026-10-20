@@ -101,6 +101,11 @@ public partial class PreView
 
         if (ReferenceEquals(_activeAnnotationRenderer, renderer)) return;
 
+        if (_boundaryConditionPlacementDraft != null)
+            CancelBoundaryConditionPlacement();
+        else
+            ClearBoundaryConditionPreview();
+
         var previous = AnnotationRenderer;
         previous.ClearSelectHighlight();
         previous.InvalidateVisual();
@@ -117,6 +122,7 @@ public partial class PreView
         var nextFontSize = previous.TextFontSize;
         var nextFontFamily = previous.TextFontFamily;
         var nextFilledMode = previous.IsFilledMode;
+        var nextArrowHeadStyle = previous.CurrentArrowHeadStyle;
         var nextDash = previous.StrokeDashPattern;
         var nextCornerRadius = previous.ShapeCornerRadius;
         var nextRebarCornerRadius = previous.RebarCornerRadius;
@@ -131,12 +137,13 @@ public partial class PreView
         renderer.TextFontSize = nextFontSize;
         renderer.TextFontFamily = nextFontFamily;
         renderer.IsFilledMode = nextFilledMode;
+        renderer.CurrentArrowHeadStyle = nextArrowHeadStyle;
         renderer.StrokeDashPattern = nextDash;
         renderer.ShapeCornerRadius = nextCornerRadius;
         renderer.RebarCornerRadius = nextRebarCornerRadius;
         renderer.SnapToGrid = nextSnapToGrid;
         renderer.GridSpacing = nextGridSpacing;
-        renderer.Cursor = GetToolCursor(renderer.ActiveTool);
+        renderer.Cursor = _matchStyleArmed ? CursorDragCopy : GetToolCursor(renderer.ActiveTool);
         _activeAnnotationRenderer = renderer;
 
         if (_annotateMode)
@@ -156,6 +163,8 @@ public partial class PreView
     private Button? _undoBtn;
     private Button? _redoBtn;
     private double _normalStrokeWidth = 2;
+    private double _highlighterStrokeWidth = 12;
+    private const double HighlighterWidthMultiplier = 6;
     private Point? _textPlacementPdfPoint;
     private TextAnnotation? _editingTextAnnotation;
     private TextAnnotation? _draggingTextAnnotation;
@@ -163,6 +172,9 @@ public partial class PreView
     private TextAnnotation? _draggingArrowOrigin;
     private Point _dragStartPdf;
     private bool _calibrationMode;
+    private ShapeAnnotation? _boundaryConditionPlacementDraft;
+    private AnnotatedPDFRenderer? _boundaryConditionPlacementRenderer;
+    private AnnotatedPDFRenderer? _boundaryConditionPreviewRenderer;
     private Point? _arrowTextOrigin;
     private object? _selectDragItem;
     /// <summary>When non-null, we're dragging a single vertex of this shape or measurement.</summary>
@@ -224,6 +236,12 @@ public partial class PreView
     private Point? _pendingArrowOrigin;
     /// <summary>True when the pending text input is for a sticky note.</summary>
     private bool _pendingStickyNote;
+    private Color? _pendingTextColor;
+    private double _pendingTextOpacity = 1.0;
+    private bool _pendingTextHasFrame = true;
+    private bool _pendingTextSolidBackground = true;
+    private ArrowHeadStyle _pendingArrowHeadStyle;
+    private double _pendingTextCornerRadius;
     /// <summary>Collects property snapshots while the property panel is open so related edits undo as a single step.</summary>
     private readonly Dictionary<object, object> _propertySessionSnapshots = new();
 
@@ -259,6 +277,18 @@ public partial class PreView
     {
         if (!_stickyToolMode)
             ApplyToolSwitch(InlineAnnotationTool.Select);
+    }
+
+    private void SetAnnotationRendererPage(AnnotatedPDFRenderer renderer, int page)
+    {
+        if (renderer.CurrentStrokePage != page)
+        {
+            if (ReferenceEquals(_boundaryConditionPlacementRenderer, renderer))
+                CancelBoundaryConditionPlacement();
+            else if (ReferenceEquals(_boundaryConditionPreviewRenderer, renderer))
+                ClearBoundaryConditionPreview();
+        }
+        renderer.SetStrokePage(page);
     }
 
     private void OnAnnotationCreationBlocked()
@@ -313,6 +343,9 @@ public partial class PreView
 
     private string GetDefaultToolStatusText()
     {
+        if (_boundaryConditionPlacementDraft != null)
+            return "Boundary condition: choose its type and orientation, then Place or Cancel.";
+
         if (_selectedAnnotations.Count > 1)
             return "Selection: drag to move, drag corners to resize, Delete to remove, Esc to deselect.";
 
@@ -331,7 +364,7 @@ public partial class PreView
             InlineAnnotationTool.Dot => "Dot: click to place a dot annotation.",
             InlineAnnotationTool.BoundaryCondition => "Boundary condition: click the support contact point; double-click the symbol to change type and orientation.",
             InlineAnnotationTool.Rectangle => "Rectangle: click once to start, move the mouse, click again to finish. Hold Shift for a square.",
-            InlineAnnotationTool.Ellipse => "Ellipse: click once to start, move the mouse, click again to finish. Hold Shift for a circle.",
+            InlineAnnotationTool.Ellipse => "Ellipse: click the center, move to set its size, then click to finish. Hold Shift for a circle; Alt at the first click draws from a corner.",
             InlineAnnotationTool.Line => "Line: click once to start, move the mouse, click again to finish. Hold Shift to constrain angles.",
             InlineAnnotationTool.Arrow => "Arrow: click once to start, move the mouse, click again to finish. Hold Shift to constrain angles.",
             InlineAnnotationTool.RevisionCloud => "Revision Cloud: click once to start, move the mouse, click again to finish.",
@@ -350,11 +383,11 @@ public partial class PreView
     private void UpdateAnnotationStatusHint()
     {
         string text = _matchStyleArmed
-            ? "Match Style: click a target annotation to apply the style. Right-click or Esc cancels."
+            ? "Match Properties: click a target annotation to copy its properties. Right-click or Esc cancels."
             : _textPlacementPdfPoint.HasValue || _editingTextAnnotation != null
                 ? "Text Editing: Enter saves, Shift+Enter inserts a new line, Esc cancels."
-                : _arrowTextOrigin != null
-                    ? "Arrow Comment: choose where the text box should go."
+            : _arrowTextOrigin != null
+                    ? "Arrow Comment: choose where the text box should go; hold Shift to constrain the arrow angle."
                     : AnnotationRenderer.HasActivePolyline
                         ? AnnotationRenderer.ActiveTool == InlineAnnotationTool.MeasureArea
                             ? $"Area Measure: keep clicking to add vertices (min. 3), then click the first point or press Enter to close ({AnnotationRenderer.ActivePolylinePointCount} so far). Ctrl+Z to undo last vertex."
@@ -393,7 +426,7 @@ public partial class PreView
     {
         _matchStyleSource = source;
         _matchStyleArmed = true;
-        AnnotationRenderer.Cursor = CursorHand;
+        AnnotationRenderer.Cursor = CursorDragCopy;
         UpdateAnnotationStatusHint();
         AnnotationRenderer.Focus();
     }
@@ -598,6 +631,12 @@ public partial class PreView
         _editingTextAnnotation = null;
         _pendingArrowOrigin = null;
         _pendingStickyNote = false;
+        _pendingTextColor = null;
+        _pendingArrowHeadStyle = ArrowHeadStyle.Filled;
+        _pendingTextOpacity = 1.0;
+        _pendingTextHasFrame = true;
+        _pendingTextSolidBackground = true;
+        _pendingTextCornerRadius = 5;
         _arrowTextOrigin = null;
         AnnotationRenderer.ClearArrowTextPreview();
         // Re-show the actions row that was hidden for new text placement
@@ -816,7 +855,8 @@ public partial class PreView
                     MaxWidth = src.MaxWidth,
                     ArrowOrigin = src.ArrowOrigin.HasValue
                         ? new Point(src.ArrowOrigin.Value.X + offset, src.ArrowOrigin.Value.Y + offset)
-                        : null
+                        : null,
+                    ArrowHead = src.ArrowHead
                 };
                 AnnotationRenderer.PlaceTextAnnotation(copy);
                 break;
@@ -834,7 +874,8 @@ public partial class PreView
                     StructuralPatternReversed = src.StructuralPatternReversed,
                     CornerRadius = src.CornerRadius,
                     BoundaryCondition = src.BoundaryCondition,
-                    BoundaryOrientation = src.BoundaryOrientation
+                    BoundaryOrientation = src.BoundaryOrientation,
+                    ArrowHead = src.ArrowHead
                 };
                 AnnotationRenderer.PlaceShape(copy);
                 break;
@@ -1006,6 +1047,9 @@ public partial class PreView
         _pendingStickyNote = false;
         _textPlacementPdfPoint = null;
         _editingTextAnnotation = null;
+        CancelBoundaryConditionPlacement();
+        ClearBoundaryConditionPreview();
+        MuPDFRenderer.SetBoundaryConditionPreview(null);
         MuPDFRenderer.CancelStroke();
         MuPDFRenderer.CancelPolyline();
         MuPDFRenderer.ClearSelectHighlight();
@@ -1034,6 +1078,7 @@ public partial class PreView
             secondary.AnnotationChanged -= OnAnnotationChanged;
             secondary.CancelStroke();
             secondary.CancelPolyline();
+            secondary.SetBoundaryConditionPreview(null);
             secondary.ClearSelectHighlight();
             secondary.ClearSnapGuides();
             secondary.UpdateCursorPreview(null);
@@ -1091,6 +1136,18 @@ public partial class PreView
         }
 
         // Delete/Backspace: always check first, outside the else-if chain
+        if (e.Key == Key.Back && AnnotationRenderer.HasActivePolyline
+            && !CalibrationCanvas.IsVisible && !ColorInputCanvas.IsVisible)
+        {
+            if (AnnotationRenderer.ActivePolylinePointCount > 1)
+                AnnotationRenderer.RemoveLastPolylinePoint();
+            else
+                AnnotationRenderer.CancelPolyline();
+            UpdateAnnotationStatusHint();
+            e.Handled = true;
+            return;
+        }
+
         if (e.Key is Key.Delete or Key.Back && _selectedAnnotations.Count > 0)
         {
             if (AnnotationRenderer.CannotAnnotateActiveLayer)
@@ -1232,6 +1289,10 @@ public partial class PreView
             else if (_matchStyleArmed)
             {
                 CancelMatchStyle();
+            }
+            else if (_boundaryConditionPlacementDraft != null || _boundaryConditionPreviewRenderer != null)
+            {
+                CancelBoundaryConditionPlacement();
             }
             else if (PropertyPanelCanvas.IsVisible)
             {
@@ -1403,11 +1464,11 @@ public partial class PreView
         ColorPalette.ToDictionary(kv => kv.Value, kv => kv.Key);
 
     private static readonly Avalonia.Input.Cursor CursorCross = new(Avalonia.Input.StandardCursorType.Cross);
-    private static readonly Avalonia.Input.Cursor CursorNo = new(Avalonia.Input.StandardCursorType.No);
     private static readonly Avalonia.Input.Cursor CursorIbeam = new(Avalonia.Input.StandardCursorType.Ibeam);
     private static readonly Avalonia.Input.Cursor CursorSizeAll = new(Avalonia.Input.StandardCursorType.SizeAll);
     private static readonly Avalonia.Input.Cursor CursorArrow = new(Avalonia.Input.StandardCursorType.Arrow);
     private static readonly Avalonia.Input.Cursor CursorHand = new(Avalonia.Input.StandardCursorType.Hand);
+    private static readonly Avalonia.Input.Cursor CursorDragCopy = new(Avalonia.Input.StandardCursorType.DragCopy);
     private static readonly Avalonia.Input.Cursor CursorSizeNWSE = new(Avalonia.Input.StandardCursorType.BottomRightCorner);
     private static readonly Avalonia.Input.Cursor CursorSizeNESW = new(Avalonia.Input.StandardCursorType.BottomLeftCorner);
 
@@ -1420,7 +1481,7 @@ public partial class PreView
 
     private static Avalonia.Input.Cursor GetToolCursor(InlineAnnotationTool tool) => tool switch
     {
-        InlineAnnotationTool.Eraser => CursorNo,
+        InlineAnnotationTool.Eraser => CursorCross,
         InlineAnnotationTool.Text => CursorIbeam,
         InlineAnnotationTool.StickyNote => CursorIbeam,
         InlineAnnotationTool.Select => CursorArrow,
@@ -1504,6 +1565,13 @@ public partial class PreView
     private void ApplyToolSwitch(InlineAnnotationTool tool)
     {
         var previousTool = AnnotationRenderer.ActiveTool;
+        if (tool != InlineAnnotationTool.BoundaryCondition)
+        {
+            if (_boundaryConditionPlacementDraft != null)
+                CancelBoundaryConditionPlacement();
+            else
+                ClearBoundaryConditionPreview();
+        }
         if (previousTool == InlineAnnotationTool.Eraser && tool != previousTool)
             AnnotationRenderer.EndGroupDelete();
 
@@ -1555,8 +1623,8 @@ public partial class PreView
 
         if (tool == InlineAnnotationTool.Highlight)
         {
-            _normalStrokeWidth = AnnotationRenderer.StrokeWidth;
-            AnnotationRenderer.StrokeWidth = 12;
+            _highlighterStrokeWidth = Math.Max(12, _normalStrokeWidth * HighlighterWidthMultiplier);
+            AnnotationRenderer.StrokeWidth = _highlighterStrokeWidth;
             AnnotationRenderer.StrokeOpacity = 0.35;
             AnnotationRenderer.IsHighlighterMode = true;
         }

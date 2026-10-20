@@ -48,6 +48,14 @@ public enum BoundaryConditionOrientation
     Left
 }
 
+public enum ArrowHeadStyle
+{
+    Filled,
+    Open,
+    Stealth,
+    Dot
+}
+
 /// <summary>
 /// Dash pattern for annotation strokes.
 /// </summary>
@@ -87,6 +95,7 @@ public class ShapeAnnotation
     public double CornerRadius { get; set; }
     public BoundaryConditionType BoundaryCondition { get; set; } = BoundaryConditionType.Pinned;
     public BoundaryConditionOrientation BoundaryOrientation { get; set; } = BoundaryConditionOrientation.Down;
+    public ArrowHeadStyle ArrowHead { get; set; } = ArrowHeadStyle.Filled;
 
     public void InvalidatePen()
     {

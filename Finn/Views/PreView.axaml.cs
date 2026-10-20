@@ -254,7 +254,7 @@ public partial class PreView : UserControl
             case "CurrentPage1":
                 if (_annotateMode && (_selectedAnnotation != null || _selectedAnnotations.Count > 0))
                     DeselectAnnotation();
-                MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
+                SetAnnotationRendererPage(MuPDFRenderer, pwr.CurrentPage1);
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec)
                 {
                     // Only update the secondary renderer's stroke page from
@@ -264,7 +264,7 @@ public partial class PreView : UserControl
                     bool unlinked = pwr.DualFileMode || (!pwr.LinkedPageMode && (_diffSideBySideOpen || _diffToggleOpen));
                     if (!unlinked)
                     {
-                        sec.SetStrokePage(pwr.CurrentPage1);
+                        SetAnnotationRendererPage(sec, pwr.CurrentPage1);
                         // Refresh secondary pixel diff overlay for the new page.
                         if ((_diffSideBySideOpen || _diffToggleOpen) && pwr.HasDiffResults)
                         {
@@ -287,7 +287,7 @@ public partial class PreView : UserControl
                 // in two-page mode and with the B file in diff side-by-side mode.
                 if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer sec2)
                 {
-                    sec2.SetStrokePage(pwr.CurrentPage2);
+                    SetAnnotationRendererPage(sec2, pwr.CurrentPage2);
                     if (pwr.HasDiffResults)
                     {
                         var diffB2 = pwr.GetDiffImagePathB(pwr.CurrentPage2);
@@ -346,13 +346,13 @@ public partial class PreView : UserControl
                     if (pwr.DiffShowingOriginal)
                     {
                         // Showing A (primary) — ensure it's on CurrentPage1
-                        MuPDFRenderer.SetStrokePage(pwr.CurrentPage1);
+                        SetAnnotationRendererPage(MuPDFRenderer, pwr.CurrentPage1);
                     }
                     else
                     {
                         // Showing B (secondary) — ensure it's on CurrentPage2
                         if (MuPDFRendererSecondary is Finn.Controls.AnnotatedPDFRenderer secToggle2)
-                            secToggle2.SetStrokePage(pwr.CurrentPage2);
+                            SetAnnotationRendererPage(secToggle2, pwr.CurrentPage2);
                     }
                 }
                 break;
@@ -440,7 +440,7 @@ public partial class PreView : UserControl
                 secondary.ValidateAndRepairAnnotations();
                 changed = true;
             }
-            secondary.SetStrokePage(pwr.CurrentPage2);
+            SetAnnotationRendererPage(secondary, pwr.CurrentPage2);
         }
         else if (pwr.TwopageMode && !pwr.DualFileMode && !pwr.DiffOverlayActive)
         {
@@ -450,7 +450,7 @@ public partial class PreView : UserControl
                 secondary.ValidateAndRepairAnnotations();
                 changed = true;
             }
-            secondary.SetStrokePage(pwr.CurrentPage2);
+            SetAnnotationRendererPage(secondary, pwr.CurrentPage2);
         }
         else if (!pwr.DualFileMode && !pwr.DiffOverlayActive && !pwr.TwopageMode && secondary.Layers.Count > 0)
         {
@@ -480,7 +480,7 @@ public partial class PreView : UserControl
         // Use CurrentPage2 when pages are unlinked.
         int secPage = (!pwr.LinkedPageMode && (_diffSideBySideOpen || _diffToggleOpen))
             ? pwr.CurrentPage2 : pwr.CurrentPage1;
-        annotated.SetStrokePage(secPage);
+        SetAnnotationRendererPage(annotated, secPage);
     }
 
     /// <summary>

@@ -356,7 +356,7 @@
 								</Button>
 
 								<!-- Brush size flyout -->
-                                <Button ToolTip.Tip="Open brush size menu" Width="26" Height="26" Padding="0" BorderThickness="0">
+								<Button Name="BrushSizeBtn" ToolTip.Tip="Open brush size menu" Width="26" Height="26" Padding="0" BorderThickness="0">
 									<Button.Flyout>
 										<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway"
 												FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
@@ -384,7 +384,7 @@
 								</Button>
 
 								<!-- Dash pattern flyout -->
-                                <Button ToolTip.Tip="Open dash pattern menu" Width="26" Height="26" Padding="0" BorderThickness="0" VerticalContentAlignment="Center">
+								<Button Name="DashPatternBtn" ToolTip.Tip="Open dash pattern menu" Width="26" Height="26" Padding="0" BorderThickness="0" VerticalContentAlignment="Center">
 									<Button.Flyout>
 										<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway"
 												FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
@@ -424,6 +424,29 @@
 										<Line Name="DashIndicator" StartPoint="0,8" EndPoint="22,8" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="2" VerticalAlignment="Center"/>
 										<ctrl:StructuralLinePatternIcon Name="SpringLineDashIndicator" Width="22" Height="16" Pattern="ContinuousSpring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" IsVisible="False"/>
 									</Grid>
+								</Button>
+								<Button Name="ArrowHeadStyleButton" ToolTip.Tip="Arrowhead style" Width="34" Height="26" Padding="0" BorderThickness="0">
+									<Button.Flyout>
+										<Flyout Placement="Bottom" ShowMode="TransientWithDismissOnPointerMoveAway" FlyoutPresenterTheme="{StaticResource OverlayFlyout}">
+											<Border Classes="shadow" Padding="4">
+												<StackPanel Spacing="2">
+													<Button Classes="ghost" ToolTip.Tip="Filled arrowhead" Tag="Filled" Click="OnAnnotateArrowHead" Height="28" Width="30" Padding="3">
+														<TextBlock Text="▶" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+													</Button>
+													<Button Classes="ghost" ToolTip.Tip="Open arrowhead" Tag="Open" Click="OnAnnotateArrowHead" Height="28" Width="30" Padding="3">
+														<TextBlock Text="▷" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+													</Button>
+													<Button Classes="ghost" ToolTip.Tip="Stealth arrowhead" Tag="Stealth" Click="OnAnnotateArrowHead" Height="28" Width="30" Padding="3">
+														<TextBlock Text="➤" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+													</Button>
+													<Button Classes="ghost" ToolTip.Tip="Dot arrowhead" Tag="Dot" Click="OnAnnotateArrowHead" Height="28" Width="30" Padding="3">
+														<TextBlock Text="●" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+													</Button>
+												</StackPanel>
+											</Border>
+										</Flyout>
+									</Button.Flyout>
+									<TextBlock Name="ArrowHeadStyleIndicator" Text="▶" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 								</Button>
 
 								<!-- Corner radius flyout -->
@@ -656,7 +679,7 @@
                <Canvas Name="PropertyPanelCanvas" IsVisible="False" IsHitTestVisible="True" Background="Transparent"
 						HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
 						PointerPressed="OnPropertyPanelBackgroundClick">
-					<Border Name="PropertyPanelBorder" Classes="shadow" Padding="8,6">
+					<Border Name="PropertyPanelBorder" Classes="shadow" Width="220" Padding="8,6">
 						<Border.Resources>
 							<ControlTheme x:Key="PropertyPatternFlyout" TargetType="FlyoutPresenter" BasedOn="{StaticResource {x:Type FlyoutPresenter}}">
 								<Setter Property="Background" Value="Transparent"/>
@@ -668,64 +691,82 @@
 							</ControlTheme>
 						</Border.Resources>
 						<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8,-6" Padding="8,6" BorderThickness="1" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" CornerRadius="4">
-						<StackPanel Spacing="5" KeyboardNavigation.TabNavigation="Cycle">
+						<StackPanel Spacing="6" HorizontalAlignment="Stretch" KeyboardNavigation.TabNavigation="Cycle">
 							<!-- Color swatches -->
-							<StackPanel Orientation="Horizontal" Spacing="3">
-								<Button ToolTip.Tip="Red" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#D64045" Opacity="0.85" Tag="Red" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Blue" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#3B82D9" Opacity="0.85" Tag="Blue" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Green" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#3DA35F" Opacity="0.85" Tag="Green" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Black" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#222222" Opacity="0.85" Tag="Black" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Orange" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#E87D2F" Opacity="0.85" Tag="Orange" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Purple" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#8B5CF6" Opacity="0.85" Tag="Purple" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Yellow" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#F5C332" Opacity="0.85" Tag="Yellow" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Teal" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#26A69A" Opacity="0.85" Tag="Teal" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Pink" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#EC407A" Opacity="0.85" Tag="Pink" Click="OnPropertyColor" CornerRadius="11"/>
-								<Button ToolTip.Tip="Brown" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0"
-									Background="#8D6E63" Opacity="0.85" Tag="Brown" Click="OnPropertyColor" CornerRadius="11"/>
+							<Grid Name="PropertyColorRow" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" RowDefinitions="Auto,Auto" RowSpacing="3" ColumnSpacing="4" HorizontalAlignment="Center">
+								<Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" ToolTip.Tip="Red" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#D64045" Opacity="0.85" Tag="Red" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" ToolTip.Tip="Blue" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#3B82D9" Opacity="0.85" Tag="Blue" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" ToolTip.Tip="Green" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#3DA35F" Opacity="0.85" Tag="Green" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="0" Grid.Column="3" HorizontalAlignment="Center" ToolTip.Tip="Black" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#222222" Opacity="0.85" Tag="Black" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="0" Grid.Column="4" HorizontalAlignment="Center" ToolTip.Tip="Orange" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#E87D2F" Opacity="0.85" Tag="Orange" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Center" ToolTip.Tip="Purple" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#8B5CF6" Opacity="0.85" Tag="Purple" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" ToolTip.Tip="Yellow" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#F5C332" Opacity="0.85" Tag="Yellow" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="1" Grid.Column="2" HorizontalAlignment="Center" ToolTip.Tip="Teal" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#26A69A" Opacity="0.85" Tag="Teal" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="1" Grid.Column="3" HorizontalAlignment="Center" ToolTip.Tip="Pink" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#EC407A" Opacity="0.85" Tag="Pink" Click="OnPropertyColor" CornerRadius="11"/>
+								<Button Grid.Row="1" Grid.Column="4" HorizontalAlignment="Center" ToolTip.Tip="Brown" Width="22" Height="22" Padding="0" MinWidth="0" MinHeight="0" Background="#8D6E63" Opacity="0.85" Tag="Brown" Click="OnPropertyColor" CornerRadius="11"/>
+							</Grid>
+							<Grid Name="PropertyArrowHeadRow" IsVisible="False" ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="4" HorizontalAlignment="Center">
+								<Button Grid.Column="0" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Filled arrowhead" Tag="Filled" Click="OnPropertyArrowHead" Width="30" Height="28" Padding="3">
+									<TextBlock Text="▶" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Button>
+								<Button Grid.Column="1" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Open arrowhead" Tag="Open" Click="OnPropertyArrowHead" Width="30" Height="28" Padding="3">
+									<TextBlock Text="▷" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Button>
+								<Button Grid.Column="2" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Stealth arrowhead" Tag="Stealth" Click="OnPropertyArrowHead" Width="30" Height="28" Padding="3">
+									<TextBlock Text="➤" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Button>
+								<Button Grid.Column="3" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Dot arrowhead" Tag="Dot" Click="OnPropertyArrowHead" Width="30" Height="28" Padding="3">
+									<TextBlock Text="●" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+								</Button>
+							</Grid>
+							<StackPanel Name="PropertyBoundaryConditionRow" IsVisible="False" Spacing="3" HorizontalAlignment="Stretch">
+								<Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnSpacing="4" HorizontalAlignment="Center">
+									<Button Grid.Column="0" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Pinned support" Width="28" Height="28" Padding="3" Tag="Pinned" Click="OnPropertyBoundaryCondition">
+										<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Pinned" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button Grid.Column="1" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Translation fixed; rotation free" Width="28" Height="28" Padding="3" Tag="Fixed" Click="OnPropertyBoundaryCondition">
+										<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Fixed" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button Grid.Column="2" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Roller support" Width="28" Height="28" Padding="3" Tag="Roller" Click="OnPropertyBoundaryCondition">
+										<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Roller" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button Grid.Column="3" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Fully fixed; translation and rotation restrained" Width="28" Height="28" Padding="3" Tag="FixedWithRotation" Click="OnPropertyBoundaryCondition">
+										<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="FixedWithRotation" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button Grid.Column="4" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Spring support" Width="28" Height="28" Padding="3" Tag="Spring" Click="OnPropertyBoundaryCondition">
+										<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Spring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+								</Grid>
+								<Grid ColumnDefinitions="58,Auto,Auto,Auto,Auto" ColumnSpacing="4" HorizontalAlignment="Center">
+									<TextBlock Grid.Column="0" Text="Orientation" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+									<Button Grid.Column="1" HorizontalAlignment="Center" Classes="ghost" Content="↑" ToolTip.Tip="Support extends upward" Tag="Up" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+									<Button Grid.Column="2" HorizontalAlignment="Center" Classes="ghost" Content="→" ToolTip.Tip="Support extends right" Tag="Right" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+									<Button Grid.Column="3" HorizontalAlignment="Center" Classes="ghost" Content="↓" ToolTip.Tip="Support extends downward" Tag="Down" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+									<Button Grid.Column="4" HorizontalAlignment="Center" Classes="ghost" Content="←" ToolTip.Tip="Support extends left" Tag="Left" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+								</Grid>
 							</StackPanel>
-							<StackPanel Name="PropertyBoundaryConditionRow" IsVisible="False" Orientation="Horizontal" Spacing="3">
-								<Button Classes="ghost" ToolTip.Tip="Pinned support" Width="28" Height="28" Padding="3" Tag="Pinned" Click="OnPropertyBoundaryCondition">
-									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Pinned" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+							<StackPanel Name="PropertyBoundaryPlacementActions" IsVisible="False" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" Margin="0,2,0,0">
+								<Button Classes="body" ToolTip.Tip="Place boundary condition" Click="OnBoundaryConditionPlacementCommit" Width="28" Height="28" Padding="4">
+									<ic:SymbolIcon Symbol="Add" IconVariant="Regular" FontSize="16"/>
 								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Translation fixed; rotation free" Width="28" Height="28" Padding="3" Tag="Fixed" Click="OnPropertyBoundaryCondition">
-									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Fixed" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+								<Button Classes="ghost" ToolTip.Tip="Delete boundary condition draft" Click="OnBoundaryConditionPlacementCancel" Width="28" Height="28" Padding="4">
+									<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="16"/>
 								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Roller support" Width="28" Height="28" Padding="3" Tag="Roller" Click="OnPropertyBoundaryCondition">
-									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Roller" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Fully fixed; translation and rotation restrained" Width="28" Height="28" Padding="3" Tag="FixedWithRotation" Click="OnPropertyBoundaryCondition">
-									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="FixedWithRotation" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Spring support" Width="28" Height="28" Padding="3" Tag="Spring" Click="OnPropertyBoundaryCondition">
-									<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Spring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-								</Button>
-								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-								<Button Classes="ghost" Content="↑" ToolTip.Tip="Support extends upward" Tag="Up" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
-								<Button Classes="ghost" Content="→" ToolTip.Tip="Support extends right" Tag="Right" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
-								<Button Classes="ghost" Content="↓" ToolTip.Tip="Support extends downward" Tag="Down" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
-								<Button Classes="ghost" Content="←" ToolTip.Tip="Support extends left" Tag="Left" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
 							</StackPanel>
 							<!-- Stroke width + dash + fill -->
-							<StackPanel Name="PropertyStrokeRow" Orientation="Horizontal" Spacing="2">
-								<Button Classes="ghost" ToolTip.Tip="Thin" Width="26" Height="26" Padding="0" Tag="1" Click="OnPropertyWidth" BorderThickness="0">
-									<Ellipse Width="4" Height="4" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Medium" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyWidth" BorderThickness="0">
-									<Ellipse Width="6" Height="6" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Thick" Width="26" Height="26" Padding="0" Tag="4" Click="OnPropertyWidth" BorderThickness="0">
-									<Ellipse Width="9" Height="9" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-								</Button>
-								<StackPanel Name="PropertyDashRow" Orientation="Horizontal" Spacing="2">
+							<Grid Name="PropertyStrokeRow" ColumnDefinitions="Auto,Auto,Auto,Auto" HorizontalAlignment="Center">
+								<StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2" HorizontalAlignment="Left">
+									<Button Classes="ghost" ToolTip.Tip="Thin" Width="26" Height="26" Padding="0" Tag="1" Click="OnPropertyWidth" BorderThickness="0">
+										<Ellipse Width="4" Height="4" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button Classes="ghost" ToolTip.Tip="Medium" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyWidth" BorderThickness="0">
+										<Ellipse Width="6" Height="6" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+									<Button Classes="ghost" ToolTip.Tip="Thick" Width="26" Height="26" Padding="0" Tag="4" Click="OnPropertyWidth" BorderThickness="0">
+										<Ellipse Width="9" Height="9" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+									</Button>
+								</StackPanel>
+								<StackPanel Grid.Column="1" Name="PropertyDashRow" Orientation="Horizontal" Spacing="2">
 									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
 									<Button Name="PropertyDashSelector" Classes="ghost" ToolTip.Tip="Select line type" Width="30" Height="26" Padding="2,0" BorderThickness="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
 										<Button.Flyout>
@@ -763,55 +804,61 @@
 										</Grid>
 									</Button>
 								</StackPanel>
-								<Button Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch pattern side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
+								<Button Grid.Column="2" Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch pattern side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
 									<TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 								</Button>
-								<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
-								<Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">
-									<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>
-								</Button>
-							</StackPanel>
+								<StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
+									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="2,3" CornerRadius="1" Opacity="0.7"/>
+									<Button Classes="ghost" Name="PropertyFillBtn" ToolTip.Tip="Toggle fill" Width="26" Height="26" Padding="0" Click="OnPropertyFill" BorderThickness="0">
+										<ic:SymbolIcon Symbol="PaintBucket" IconVariant="Regular" FontSize="14"/>
+									</Button>
+								</StackPanel>
+							</Grid>
 							<!-- Corner radius -->
-							<StackPanel Name="PropertyCornerRadiusRow" Orientation="Horizontal" Spacing="2">
-								<Button Classes="ghost" ToolTip.Tip="Sharp corners" Width="26" Height="26" Padding="0" Tag="0" Click="OnPropertyCornerRadius" BorderThickness="0">
+							<Grid Name="PropertyCornerRadiusRow" ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="4" HorizontalAlignment="Center">
+								<Button Grid.Column="0" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Sharp corners" Width="26" Height="26" Padding="0" Tag="0" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="0"/>
 								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Small radius" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyCornerRadius" BorderThickness="0">
+								<Button Grid.Column="1" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Small radius" Width="26" Height="26" Padding="0" Tag="2" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="2"/>
 								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Medium radius" Width="26" Height="26" Padding="0" Tag="5" Click="OnPropertyCornerRadius" BorderThickness="0">
+								<Button Grid.Column="2" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Medium radius" Width="26" Height="26" Padding="0" Tag="5" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="3"/>
 								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Large radius" Width="26" Height="26" Padding="0" Tag="10" Click="OnPropertyCornerRadius" BorderThickness="0">
+								<Button Grid.Column="3" HorizontalAlignment="Center" Classes="ghost" ToolTip.Tip="Large radius" Width="26" Height="26" Padding="0" Tag="10" Click="OnPropertyCornerRadius" BorderThickness="0">
 									<Border Width="13" Height="13" BorderThickness="1.5" BorderBrush="{DynamicResource SystemControlForegroundBaseHighBrush}" CornerRadius="4"/>
 								</Button>
-							</StackPanel>
+							</Grid>
 							<!-- Opacity -->
-							<StackPanel Name="PropertyOpacityRow" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-								<TextBlock Text="Opacity" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
-								<Slider Name="PropertyOpacitySlider" Minimum="0.1" Maximum="1" Value="1" Width="90" VerticalAlignment="Center"/>
-							</StackPanel>
+							<Grid Name="PropertyOpacityRow" ColumnDefinitions="58,82" ColumnSpacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+								<TextBlock Grid.Column="0" Text="Opacity" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+								<Slider Grid.Column="1" Name="PropertyOpacitySlider" Minimum="0.1" Maximum="1" Value="1" Width="82" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+							</Grid>
 							<!-- Inline text editor (visible for text annotations and new text placement) -->
-							<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="4">
+							<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="4" HorizontalAlignment="Stretch">
 								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,1" Opacity="0.5"/>
 								<!-- Font size + frame toggle -->
-								<StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
-									<Button Name="PropertyFontDecreaseBtn" Classes="ghost" ToolTip.Tip="Decrease font size" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeDecrease" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Subtract" IconVariant="Regular" FontSize="12"/>
-									</Button>
-									<TextBlock Name="PropertyFontSizeLabel" Text="10pt" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" MinWidth="32" TextAlignment="Center"/>
-									<Button Name="PropertyFontIncreaseBtn" Classes="ghost" ToolTip.Tip="Increase font size" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeIncrease" BorderThickness="0">
-										<ic:SymbolIcon Symbol="Add" IconVariant="Regular" FontSize="12"/>
-									</Button>
-									<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,3" CornerRadius="1" Opacity="0.7"/>
-									<Button Name="PropertyFrameToggleBtn" Classes="ghost" ToolTip.Tip="Toggle background &amp; border" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFrameToggle" BorderThickness="0">
+								<Grid ColumnDefinitions="Auto,Auto" HorizontalAlignment="Center">
+									<StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+										<Button Name="PropertyFontDecreaseBtn" Classes="ghost" ToolTip.Tip="Decrease font size" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeDecrease" BorderThickness="0">
+											<ic:SymbolIcon Symbol="Subtract" IconVariant="Regular" FontSize="12"/>
+										</Button>
+										<TextBlock Name="PropertyFontSizeLabel" Text="10pt" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" MinWidth="32" TextAlignment="Center"/>
+										<Button Name="PropertyFontIncreaseBtn" Classes="ghost" ToolTip.Tip="Increase font size" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFontSizeIncrease" BorderThickness="0">
+											<ic:SymbolIcon Symbol="Add" IconVariant="Regular" FontSize="12"/>
+										</Button>
+									</StackPanel>
+									<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+										<Border Width="1" Background="{DynamicResource AppToolbarSeparatorBrush}" Margin="3,3" CornerRadius="1" Opacity="0.7"/>
+										<Button Name="PropertyFrameToggleBtn" Classes="ghost" ToolTip.Tip="Toggle background &amp; border" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertyFrameToggle" BorderThickness="0">
 											<ic:SymbolIcon Symbol="TextBox" IconVariant="Regular" FontSize="14"/>
 										</Button>
 										<Button Name="PropertySolidBgToggleBtn" Classes="ghost" ToolTip.Tip="Toggle solid background" Width="26" Height="26" Padding="0" MinWidth="0" MinHeight="0" Click="OnPropertySolidBgToggle" BorderThickness="0">
 											<ic:SymbolIcon Symbol="RectangleLandscape" IconVariant="Filled" FontSize="14"/>
 										</Button>
-								</StackPanel>
-								<TextBox Name="PropertyTextBox" MinWidth="190" MinHeight="38" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text…" HorizontalAlignment="Stretch"/>
+									</StackPanel>
+								</Grid>
+								<TextBox Name="PropertyTextBox" Margin="0,5" MinHeight="38" Padding="5" AcceptsReturn="True" TextWrapping="Wrap" PlaceholderText="Enter text…" HorizontalAlignment="Stretch"/>
 							</StackPanel>
 							<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,1" Opacity="0.5"/>
 							<!-- Action buttons -->

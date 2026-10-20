@@ -353,14 +353,16 @@ public partial class PreView
                     float alen = MathF.Sqrt(adx * adx + ady * ady);
                     if (alen > 1)
                     {
-                        float headLen = MathF.Min((6f + (float)shape.StrokeWidth) * (float)renderZoom, alen * 0.4f);
+                        float headLen = shape.ArrowHead == ArrowHeadStyle.Dot
+                            ? MathF.Min(MathF.Max(3f * (float)renderZoom, (float)shape.StrokeWidth * (float)renderZoom * 1.2f), alen * 0.4f)
+                            : MathF.Min((6f + (float)shape.StrokeWidth) * (float)renderZoom, alen * 0.4f);
                         float shortenX = adx / alen * headLen;
                         float shortenY = ady / alen * headLen;
                         canvas.DrawLine(sx, sy, ex - shortenX, ey - shortenY, paint);
                     }
-                    RenderSkiaArrowhead(canvas, paint, sx, sy, ex, ey, renderZoom);
+                    RenderSkiaArrowhead(canvas, paint, sx, sy, ex, ey, renderZoom, shape.ArrowHead);
                     // Tail dot at origin — matches in-app DrawTailDot
-                    float tailR = MathF.Max(2f * (float)renderZoom, paint.StrokeWidth * 0.9f);
+                        float tailR = MathF.Max(3f * (float)renderZoom, paint.StrokeWidth * 1.2f);
                     using var tailPaint = new SKPaint { Color = paint.Color, Style = SKPaintStyle.Fill, IsAntialias = true };
                     canvas.DrawCircle(sx, sy, tailR, tailPaint);
                     break;
@@ -587,12 +589,14 @@ public partial class PreView
                     float aalen = MathF.Sqrt(aadx * aadx + aady * aady);
                     if (aalen > 1)
                     {
-                        float headLen = MathF.Min((6f + arrowStrokeWidth / (float)renderZoom) * (float)renderZoom, aalen * 0.4f);
+                        float headLen = t.ArrowHead == ArrowHeadStyle.Dot
+                            ? MathF.Min(MathF.Max(3f * (float)renderZoom, arrowStrokeWidth * 1.2f), aalen * 0.4f)
+                            : MathF.Min((6f + arrowStrokeWidth / (float)renderZoom) * (float)renderZoom, aalen * 0.4f);
                         float shX = aadx / aalen * headLen;
                         float shY = aady / aalen * headLen;
                         canvas.DrawLine(arrowDrawX, arrowDrawY, arrowTipX - shX, arrowTipY - shY, arrowLinePaint);
                     }
-                    RenderSkiaArrowhead(canvas, arrowLinePaint, arrowDrawX, arrowDrawY, arrowTipX, arrowTipY, renderZoom);
+                    RenderSkiaArrowhead(canvas, arrowLinePaint, arrowDrawX, arrowDrawY, arrowTipX, arrowTipY, renderZoom, t.ArrowHead);
                 }
             }
         }
@@ -764,8 +768,16 @@ public partial class PreView
 
     private static void RenderSkiaArrowhead(SKCanvas canvas, SKPaint paint,
                                             float fx, float fy, float tx, float ty,
-                                            double renderZoom)
+                                            double renderZoom, ArrowHeadStyle style)
     {
+        if (style == ArrowHeadStyle.Dot)
+        {
+            float radius = MathF.Max(3f * (float)renderZoom, paint.StrokeWidth * 1.2f);
+            using var dotPaint = new SKPaint { Color = paint.Color, Style = SKPaintStyle.Fill, IsAntialias = true };
+            canvas.DrawCircle(tx, ty, radius, dotPaint);
+            return;
+        }
+
         double dx = tx - fx;
         double dy = ty - fy;
         double len = Math.Sqrt(dx * dx + dy * dy);
@@ -778,7 +790,7 @@ public partial class PreView
         using var arrowPaint = new SKPaint
         {
             Color = paint.Color,
-            Style = SKPaintStyle.Fill,
+            Style = style == ArrowHeadStyle.Open ? SKPaintStyle.Stroke : SKPaintStyle.Fill,
             IsAntialias = true
         };
 
@@ -790,7 +802,17 @@ public partial class PreView
         path.MoveTo(lx, ly);
         path.LineTo(tx, ty);
         path.LineTo(rx, ry);
-        path.Close();
+        if (style == ArrowHeadStyle.Stealth)
+        {
+            float notchX = (float)(tx - dx / len * headLen * 0.55);
+            float notchY = (float)(ty - dy / len * headLen * 0.55);
+            path.LineTo(notchX, notchY);
+            path.Close();
+        }
+        else if (style == ArrowHeadStyle.Filled)
+        {
+            path.Close();
+        }
         canvas.DrawPath(path, arrowPaint);
     }
 
@@ -1693,14 +1715,16 @@ public partial class PreView
                     double alen = Math.Sqrt(adx * adx + ady * ady);
                     if (alen > 1)
                     {
-                        double headLen = Math.Min(6 + shape.StrokeWidth, alen * 0.4);
+                        double headLen = shape.ArrowHead == ArrowHeadStyle.Dot
+                            ? Math.Min(Math.Max(3, shape.StrokeWidth * 1.2), alen * 0.4)
+                            : Math.Min(6 + shape.StrokeWidth, alen * 0.4);
                         double shX = adx / alen * headLen;
                         double shY = ady / alen * headLen;
                         gfx.DrawLine(pen, sx, sy, ex - shX, ey - shY);
                     }
-                    DrawArrowheadPdfSharp(gfx, sx, sy, ex, ey, color, shape.StrokeWidth);
+                    DrawArrowheadPdfSharp(gfx, sx, sy, ex, ey, color, shape.StrokeWidth, shape.ArrowHead);
                     // Tail dot at origin — matches in-app DrawTailDot
-                    double tailR = Math.Max(2.0, shape.StrokeWidth * 0.9);
+                    double tailR = Math.Max(3.0, shape.StrokeWidth * 1.2);
                     gfx.DrawEllipse(new XSolidBrush(color), sx - tailR, sy - tailR, tailR * 2, tailR * 2);
                     break;
                 }
@@ -1878,12 +1902,15 @@ public partial class PreView
                 double aalen = Math.Sqrt(aadx * aadx + aady * aady);
                 if (aalen > 1)
                 {
-                    double headLen = Math.Min(7.2, aalen * 0.4);
+                    double headLen = t.ArrowHead == ArrowHeadStyle.Dot
+                        ? Math.Min(Math.Max(3, 1.2 * 1.2), aalen * 0.4)
+                        : Math.Min(7.2, aalen * 0.4);
                     double shX = aadx / aalen * headLen;
                     double shY = aady / aalen * headLen;
                     gfx.DrawLine(arrowPen, arrowDrawX, arrowDrawY, arrowTipX - shX, arrowTipY - shY);
                 }
-                DrawArrowheadPdfSharp(gfx, arrowDrawX, arrowDrawY, arrowTipX, arrowTipY, annColor);
+                DrawArrowheadPdfSharp(gfx, arrowDrawX, arrowDrawY, arrowTipX, arrowTipY,
+                    annColor, 1.2, t.ArrowHead);
             }
         }
     }
@@ -2007,23 +2034,44 @@ public partial class PreView
 
     private static void DrawArrowheadPdfSharp(
         XGraphics gfx, double fromX, double fromY, double tipX, double tipY, XColor color,
-        double strokeWidth = 1.0)
+        double strokeWidth = 1.0, ArrowHeadStyle style = ArrowHeadStyle.Filled)
     {
         double dx = tipX - fromX, dy = tipY - fromY;
         double len = Math.Sqrt(dx * dx + dy * dy);
         if (len < 1) return;
+        if (style == ArrowHeadStyle.Dot)
+        {
+            double radius = Math.Max(3, strokeWidth * 1.2);
+            gfx.DrawEllipse(new XSolidBrush(color), tipX - radius, tipY - radius, radius * 2, radius * 2);
+            return;
+        }
         double headLen = Math.Min(6 + strokeWidth, len * 0.4);
         const double ang = Math.PI / 8;
         double angle = Math.Atan2(dy, dx);
+        var left = new XPoint(tipX - headLen * Math.Cos(angle - ang),
+                              tipY - headLen * Math.Sin(angle - ang));
+        var tip = new XPoint(tipX, tipY);
+        var right = new XPoint(tipX - headLen * Math.Cos(angle + ang),
+                               tipY - headLen * Math.Sin(angle + ang));
         var path = new XGraphicsPath();
-        path.AddPolygon([
-            new XPoint(tipX - headLen * Math.Cos(angle - ang),
-                       tipY - headLen * Math.Sin(angle - ang)),
-            new XPoint(tipX, tipY),
-            new XPoint(tipX - headLen * Math.Cos(angle + ang),
-                       tipY - headLen * Math.Sin(angle + ang))
-        ]);
-        gfx.DrawPath(new XSolidBrush(color), path);
+        if (style == ArrowHeadStyle.Stealth)
+        {
+            double notchLen = headLen * 0.55;
+            var notch = new XPoint(tipX - dx / len * notchLen, tipY - dy / len * notchLen);
+            path.AddPolygon([left, tip, right, notch]);
+        }
+        else
+        {
+            path.AddLine(left, tip);
+            path.AddLine(tip, right);
+            if (style == ArrowHeadStyle.Filled)
+                path.AddLine(right, left);
+        }
+
+        if (style == ArrowHeadStyle.Open)
+            gfx.DrawPath(new XPen(color, Math.Max(0.5, strokeWidth)), path);
+        else
+            gfx.DrawPath(new XSolidBrush(color), path);
     }
 
     /// <summary>
