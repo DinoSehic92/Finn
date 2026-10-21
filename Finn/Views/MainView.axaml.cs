@@ -591,6 +591,7 @@ public partial class MainView : UserControl
 
     private bool _isDraggingToGroup;
     private bool _isRubberBanding;
+    private bool _fileGridGestureEligible;
     private Point _dragStartPoint;
     private const double DragThreshold = 6;
 
@@ -611,15 +612,26 @@ public partial class MainView : UserControl
     {
         _isDraggingToGroup = false;
         _isRubberBanding = false;
+        _fileGridGestureEligible = false;
 
         if (!e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
 
+        if (FileGrid.InputHitTest(e.GetPosition(FileGrid)) is Visual hit)
+        {
+            if (hit is DataGridColumnHeader or DataGridColumnHeadersPresenter or ScrollBar
+                || hit.FindAncestorOfType<DataGridColumnHeader>() != null
+                || hit.FindAncestorOfType<DataGridColumnHeadersPresenter>() != null
+                || hit.FindAncestorOfType<ScrollBar>() != null)
+                return;
+        }
+
+        _fileGridGestureEligible = true;
         _dragStartPoint = e.GetPosition(FileGrid);
     }
 
     private void OnFileGridPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (!e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
+        if (!_fileGridGestureEligible || !e.GetCurrentPoint(FileGrid).Properties.IsLeftButtonPressed) return;
 
         var pos = e.GetPosition(FileGrid);
         var delta = pos - _dragStartPoint;
@@ -685,6 +697,8 @@ public partial class MainView : UserControl
 
     private void OnFileGridPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
+        _fileGridGestureEligible = false;
+
         if (_isDraggingToGroup)
         {
             _isDraggingToGroup = false;
@@ -701,6 +715,7 @@ public partial class MainView : UserControl
 
     private void OnFileGridCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
+        _fileGridGestureEligible = false;
         if (_isRubberBanding)
             EndRubberBand(null);
     }
