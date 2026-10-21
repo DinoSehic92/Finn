@@ -679,7 +679,7 @@
                <Canvas Name="PropertyPanelCanvas" IsVisible="False" IsHitTestVisible="True" Background="Transparent"
 						HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
 						PointerPressed="OnPropertyPanelBackgroundClick">
-					<Border Name="PropertyPanelBorder" Classes="shadow" Width="220" Padding="8,6">
+					<Border Name="PropertyPanelBorder" Classes="shadow" Width="240" Padding="8,6">
 						<Border.Resources>
 							<ControlTheme x:Key="PropertyPatternFlyout" TargetType="FlyoutPresenter" BasedOn="{StaticResource {x:Type FlyoutPresenter}}">
 								<Setter Property="Background" Value="Transparent"/>
@@ -737,21 +737,12 @@
 										<ctrl:BoundaryConditionIcon Width="20" Height="20" BoundaryCondition="Spring" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
 									</Button>
 								</Grid>
-								<Grid ColumnDefinitions="58,Auto,Auto,Auto,Auto" ColumnSpacing="4" HorizontalAlignment="Center">
-									<TextBlock Grid.Column="0" Text="Orientation" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
-									<Button Grid.Column="1" HorizontalAlignment="Center" Classes="ghost" Content="↑" ToolTip.Tip="Support extends upward" Tag="Up" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
-									<Button Grid.Column="2" HorizontalAlignment="Center" Classes="ghost" Content="→" ToolTip.Tip="Support extends right" Tag="Right" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
-									<Button Grid.Column="3" HorizontalAlignment="Center" Classes="ghost" Content="↓" ToolTip.Tip="Support extends downward" Tag="Down" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
-									<Button Grid.Column="4" HorizontalAlignment="Center" Classes="ghost" Content="←" ToolTip.Tip="Support extends left" Tag="Left" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+								<Grid ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="4" HorizontalAlignment="Center">
+									<Button Grid.Column="0" HorizontalAlignment="Center" Classes="ghost" Content="↑" ToolTip.Tip="Support extends upward" Tag="Up" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+									<Button Grid.Column="1" HorizontalAlignment="Center" Classes="ghost" Content="→" ToolTip.Tip="Support extends right" Tag="Right" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+									<Button Grid.Column="2" HorizontalAlignment="Center" Classes="ghost" Content="↓" ToolTip.Tip="Support extends downward" Tag="Down" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
+									<Button Grid.Column="3" HorizontalAlignment="Center" Classes="ghost" Content="←" ToolTip.Tip="Support extends left" Tag="Left" Click="OnPropertyBoundaryOrientation" Padding="5,2"/>
 								</Grid>
-							</StackPanel>
-							<StackPanel Name="PropertyBoundaryPlacementActions" IsVisible="False" Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right" Margin="0,2,0,0">
-								<Button Classes="body" ToolTip.Tip="Place boundary condition" Click="OnBoundaryConditionPlacementCommit" Width="28" Height="28" Padding="4">
-									<ic:SymbolIcon Symbol="Add" IconVariant="Regular" FontSize="16"/>
-								</Button>
-								<Button Classes="ghost" ToolTip.Tip="Delete boundary condition draft" Click="OnBoundaryConditionPlacementCancel" Width="28" Height="28" Padding="4">
-									<ic:SymbolIcon Symbol="Delete" IconVariant="Regular" FontSize="16"/>
-								</Button>
 							</StackPanel>
 							<!-- Stroke width + dash + fill -->
 							<Grid Name="PropertyStrokeRow" ColumnDefinitions="Auto,Auto,Auto,Auto" HorizontalAlignment="Center">

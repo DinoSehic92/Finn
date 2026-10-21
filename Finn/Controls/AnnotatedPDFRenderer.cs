@@ -955,7 +955,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
         {
-            Color = StrokeColor,
+            Color = asRebar ? Color.FromRgb(255, 0, 255) : StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsPolyline = true,
@@ -1133,7 +1133,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 Color = StrokeColor,
                 StrokeWidth = Math.Max(1.5, StrokeWidth),
                 Opacity = StrokeOpacity,
-                BoundaryCondition = BoundaryConditionType.Pinned,
+                BoundaryCondition = BoundaryConditionType.Fixed,
                 BoundaryOrientation = BoundaryConditionOrientation.Down
             };
         }
@@ -1483,7 +1483,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Color = StrokeColor,
             StrokeWidth = Math.Max(1.5, StrokeWidth),
             Opacity = StrokeOpacity,
-            BoundaryCondition = BoundaryConditionType.Pinned,
+            BoundaryCondition = BoundaryConditionType.Fixed,
             BoundaryOrientation = BoundaryConditionOrientation.Down
         });
         _snapGuideX = null;

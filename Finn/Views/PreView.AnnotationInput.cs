@@ -63,12 +63,6 @@ public partial class PreView
         // Right-click: finish/cancel active operations
         if (point.Properties.IsRightButtonPressed)
         {
-            if (_boundaryConditionPlacementDraft != null)
-            {
-                CancelBoundaryConditionPlacement();
-                e.Handled = true;
-                return;
-            }
             if (_matchStyleArmed)
             {
                 CancelMatchStyle();
@@ -592,12 +586,9 @@ public partial class PreView
                 break;
 
             case InlineAnnotationTool.BoundaryCondition:
-                _boundaryConditionPlacementDraft = AnnotationRenderer.UpdateBoundaryConditionPreview(pdfPoint.Value);
-                if (_boundaryConditionPlacementDraft != null)
-                {
-                    _boundaryConditionPlacementRenderer = AnnotationRenderer;
-                    ShowPropertyPanel(_boundaryConditionPlacementDraft, e.GetPosition(AnnotationRenderer));
-                }
+                ClearBoundaryConditionPreview();
+                AnnotationRenderer.PlaceBoundaryCondition(pdfPoint.Value);
+                CompleteToolPlacement();
                 e.Pointer.Capture(null);
                 break;
 
@@ -645,8 +636,7 @@ public partial class PreView
             else
                 AnnotationRenderer.UpdateCursorPreview(null);
 
-            if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.BoundaryCondition
-                && _boundaryConditionPlacementDraft == null)
+            if (AnnotationRenderer.ActiveTool == InlineAnnotationTool.BoundaryCondition)
             {
                 var previewRenderer = AnnotationRenderer;
                 if (hoverPdf.HasValue)

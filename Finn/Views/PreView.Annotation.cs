@@ -101,10 +101,7 @@ public partial class PreView
 
         if (ReferenceEquals(_activeAnnotationRenderer, renderer)) return;
 
-        if (_boundaryConditionPlacementDraft != null)
-            CancelBoundaryConditionPlacement();
-        else
-            ClearBoundaryConditionPreview();
+        ClearBoundaryConditionPreview();
 
         var previous = AnnotationRenderer;
         previous.ClearSelectHighlight();
@@ -172,8 +169,6 @@ public partial class PreView
     private TextAnnotation? _draggingArrowOrigin;
     private Point _dragStartPdf;
     private bool _calibrationMode;
-    private ShapeAnnotation? _boundaryConditionPlacementDraft;
-    private AnnotatedPDFRenderer? _boundaryConditionPlacementRenderer;
     private AnnotatedPDFRenderer? _boundaryConditionPreviewRenderer;
     private Point? _arrowTextOrigin;
     private object? _selectDragItem;
@@ -283,9 +278,7 @@ public partial class PreView
     {
         if (renderer.CurrentStrokePage != page)
         {
-            if (ReferenceEquals(_boundaryConditionPlacementRenderer, renderer))
-                CancelBoundaryConditionPlacement();
-            else if (ReferenceEquals(_boundaryConditionPreviewRenderer, renderer))
+            if (ReferenceEquals(_boundaryConditionPreviewRenderer, renderer))
                 ClearBoundaryConditionPreview();
         }
         renderer.SetStrokePage(page);
@@ -343,9 +336,6 @@ public partial class PreView
 
     private string GetDefaultToolStatusText()
     {
-        if (_boundaryConditionPlacementDraft != null)
-            return "Boundary condition: choose its type and orientation, then Place or Cancel.";
-
         if (_selectedAnnotations.Count > 1)
             return "Selection: drag to move, drag corners to resize, Delete to remove, Esc to deselect.";
 
@@ -1047,7 +1037,6 @@ public partial class PreView
         _pendingStickyNote = false;
         _textPlacementPdfPoint = null;
         _editingTextAnnotation = null;
-        CancelBoundaryConditionPlacement();
         ClearBoundaryConditionPreview();
         MuPDFRenderer.SetBoundaryConditionPreview(null);
         MuPDFRenderer.CancelStroke();
@@ -1290,9 +1279,9 @@ public partial class PreView
             {
                 CancelMatchStyle();
             }
-            else if (_boundaryConditionPlacementDraft != null || _boundaryConditionPreviewRenderer != null)
+            else if (_boundaryConditionPreviewRenderer != null)
             {
-                CancelBoundaryConditionPlacement();
+                ClearBoundaryConditionPreview();
             }
             else if (PropertyPanelCanvas.IsVisible)
             {
@@ -1566,12 +1555,7 @@ public partial class PreView
     {
         var previousTool = AnnotationRenderer.ActiveTool;
         if (tool != InlineAnnotationTool.BoundaryCondition)
-        {
-            if (_boundaryConditionPlacementDraft != null)
-                CancelBoundaryConditionPlacement();
-            else
-                ClearBoundaryConditionPreview();
-        }
+            ClearBoundaryConditionPreview();
         if (previousTool == InlineAnnotationTool.Eraser && tool != previousTool)
             AnnotationRenderer.EndGroupDelete();
 
