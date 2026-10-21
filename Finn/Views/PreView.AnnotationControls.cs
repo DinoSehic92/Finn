@@ -40,6 +40,7 @@ public partial class PreView
     private HashSet<object>? _opacityUndoSelection;
     private DateTime _opacityLastChange = DateTime.MinValue;
     private const double OpacityCoalesceMs = 600;
+    private bool _isUpdatingDotSpacingSlider;
 
     private void OnAnnotateColor(object sender, RoutedEventArgs e)
     {
@@ -272,7 +273,7 @@ public partial class PreView
     };
 
     private static bool SupportsPatternSide(object item) =>
-        item is InkStroke { IsRebar: true } || SupportsStructuralLinePattern(item);
+        item is InkStroke { IsRebar: true } or InkStroke { IsDotLine: true } || SupportsStructuralLinePattern(item);
 
     private void OnAnnotateCornerRadius(object sender, RoutedEventArgs e)
     {
@@ -1606,12 +1607,13 @@ public partial class PreView
         bool isMeasure = item is MeasurementAnnotation;
         bool isPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: false, IsRebar: false, Points.Count: >= 2 };
         bool isRebar = item is InkStroke { IsRebar: true };
+        bool isDotLine = item is InkStroke { IsDotLine: true };
         bool isAreaPolyline = item is InkStroke { IsPolyline: true, IsAreaMeasure: true };
-        bool isGenericStroke = item is InkStroke { IsPolyline: false };
+        bool isGenericStroke = item is InkStroke { IsPolyline: false, IsRebar: false, IsDotLine: false };
         bool isSpringLine = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Line };
         bool isShape = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud or InlineAnnotationTool.Arrow };
 
-        bool hasStroke = (isDot || isPolyline || isAreaPolyline || isGenericStroke || isShape || isSpringLine) && !isBoundaryCondition;
+        bool hasStroke = (isDot || isDotLine || isPolyline || isAreaPolyline || isGenericStroke || isShape || isSpringLine) && !isBoundaryCondition;
         bool hasDash = (isPolyline || isSpringLine || isAreaPolyline || isGenericStroke || isShape) && !isDot && !isBoundaryCondition;
         bool hasStructuralPatterns = isPolyline || isSpringLine;
         bool hasFill = (item is ShapeAnnotation sf
@@ -1620,7 +1622,7 @@ public partial class PreView
                             or InlineAnnotationTool.RevisionCloud)
             || item is InkStroke { IsPolyline: true, IsClosed: true };
         bool hasCornerRadius = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle }
-            || item is InkStroke { IsPolyline: true, IsAreaMeasure: false, IsRebar: false }
+            || item is InkStroke { IsPolyline: true, IsAreaMeasure: false, IsRebar: false, IsDotLine: false }
             || item is TextAnnotation { HasFrame: true };
         bool hasOpacity = item is ShapeAnnotation { ShapeType: InlineAnnotationTool.Rectangle or InlineAnnotationTool.Ellipse or InlineAnnotationTool.RevisionCloud }
             || item is InkStroke { IsPolyline: true, IsClosed: true, IsRebar: false };
@@ -1680,7 +1682,7 @@ public partial class PreView
         var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
         if (patternSideButton != null)
         {
-            bool hasPatternSide = SupportsPatternSide(item) && (item is InkStroke { IsRebar: true } || item switch
+            bool hasPatternSide = SupportsPatternSide(item) && (item is InkStroke { IsRebar: true } or InkStroke { IsDotLine: true } || item switch
             {
                 ShapeAnnotation shape => IsStructuralLinePattern(shape.DashPattern),
                 InkStroke stroke => IsStructuralLinePattern(stroke.DashPattern),
@@ -1700,6 +1702,16 @@ public partial class PreView
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
         _propertyOpacityRow ??= this.FindControl<Grid>("PropertyOpacityRow");
         if (_propertyOpacityRow != null) _propertyOpacityRow.IsVisible = hasOpacity;
+        var dotSpacingRow = this.FindControl<Grid>("PropertyDotSpacingRow");
+        var dotSpacingSlider = this.FindControl<Slider>("PropertyDotSpacingSlider");
+        if (dotSpacingRow != null) dotSpacingRow.IsVisible = isDotLine;
+        if (isDotLine && item is InkStroke dotLine && dotSpacingSlider != null)
+        {
+            _isUpdatingDotSpacingSlider = true;
+            dotSpacingSlider.Value = dotLine.DotSpacing;
+            _isUpdatingDotSpacingSlider = false;
+            UpdateDotSpacingValue(dotLine.DotSpacing);
+        }
         _propertyFrameToggleBtn ??= this.FindControl<Button>("PropertyFrameToggleBtn");
         if (_propertyFrameToggleBtn != null) _propertyFrameToggleBtn.IsVisible = isText && item is not TextAnnotation { IsStickyNote: true };
         _propertySolidBgToggleBtn ??= this.FindControl<Button>("PropertySolidBgToggleBtn");
@@ -1943,7 +1955,7 @@ public partial class PreView
         var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
         if (patternSideButton != null)
             patternSideButton.IsVisible = SupportsPatternSide(_propertyPanelTarget)
-                && (_propertyPanelTarget is InkStroke { IsRebar: true } || IsStructuralLinePattern(pattern));
+                && (_propertyPanelTarget is InkStroke { IsRebar: true } or InkStroke { IsDotLine: true } || IsStructuralLinePattern(pattern));
     }
 
     private void SyncFrameToggleButton(bool hasFrame)
@@ -2113,6 +2125,29 @@ public partial class PreView
         AnnotationRenderer.InvalidateVisual();
         AnnotationRenderer.NotifyAnnotationChanged();
         UpdateAnnotationStatusHint();
+    }
+
+    private void OnPropertyDotSpacingChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_isUpdatingDotSpacingSlider || _propertyPanelTarget is not InkStroke { IsDotLine: true } dotLine)
+            return;
+
+        var slider = this.FindControl<Slider>("PropertyDotSpacingSlider");
+        if (slider == null) return;
+        double spacing = slider.Value;
+        StagePropertyUndoSnapshot(dotLine);
+        dotLine.DotSpacing = spacing;
+        dotLine.InvalidateGeometry();
+        UpdateDotSpacingValue(spacing);
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
+    private void UpdateDotSpacingValue(double spacing)
+    {
+        var value = this.FindControl<TextBlock>("PropertyDotSpacingValue");
+        if (value != null)
+            value.Text = spacing.ToString("0");
     }
 }
 

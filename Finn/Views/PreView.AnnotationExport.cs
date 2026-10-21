@@ -101,6 +101,19 @@ public partial class PreView
             };
 
             var pts = stroke.Points;
+            if (stroke.IsDotLine)
+            {
+                using var dotPaint = new SKPaint
+                {
+                    Color = new SKColor(255, 0, 255, (byte)(stroke.Opacity * 255)),
+                    Style = SKPaintStyle.Fill,
+                    IsAntialias = true
+                };
+                foreach (var center in AnnotatedPDFRenderer.GetDotLineCenters(stroke))
+                    canvas.DrawCircle((float)(center.X * renderZoom), (float)(center.Y * renderZoom),
+                        (float)(stroke.DotSize * renderZoom), dotPaint);
+                continue;
+            }
             using var path = new SKPath();
             float z = (float)renderZoom;
 
@@ -1555,6 +1568,15 @@ public partial class PreView
             };
 
             var pts = stroke.Points;
+
+            if (stroke.IsDotLine)
+            {
+                var brush = new XSolidBrush(XColor.FromArgb(alpha, 255, 0, 255));
+                foreach (var center in AnnotatedPDFRenderer.GetDotLineCenters(stroke))
+                    gfx.DrawEllipse(brush, center.X - stroke.DotSize, center.Y - stroke.DotSize,
+                        stroke.DotSize * 2, stroke.DotSize * 2);
+                continue;
+            }
 
             if ((pts.Count == 2 && !stroke.IsRebar || stroke.IsPolyline)
                 && AnnotatedPDFRenderer.SupportsStructuralLinePattern(stroke)

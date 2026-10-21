@@ -32,6 +32,7 @@ public partial class PreView : UserControl
         CalibrationValueBox.AddHandler(KeyDownEvent, OnCalibrationKeyDown, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, OnOpacitySliderChanged);
         PropertyOpacitySlider.AddHandler(Slider.ValueChangedEvent, OnPropertyOpacityChanged);
+        this.FindControl<Slider>("PropertyDotSpacingSlider")?.AddHandler(Slider.ValueChangedEvent, OnPropertyDotSpacingChanged);
 
         // Centralized keyboard shortcuts — replaces per-button HotKey attributes
         // so every shortcut respects CanExecute guards and mode state.

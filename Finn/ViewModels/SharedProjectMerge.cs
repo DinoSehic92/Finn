@@ -271,6 +271,10 @@ internal static class SharedProjectMerge
         IsHighlighter = source.IsHighlighter,
         IsPolyline = source.IsPolyline,
         IsRebar = source.IsRebar,
+        IsDotLine = source.IsDotLine,
+        DotSpacing = source.DotSpacing,
+        DotOffset = source.DotOffset,
+        DotSize = source.DotSize, // Preserve dot size for dot-line strokes
         IsClosed = source.IsClosed,
         DashPattern = source.DashPattern,
         StructuralPatternReversed = source.StructuralPatternReversed,

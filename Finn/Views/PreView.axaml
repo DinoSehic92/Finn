@@ -246,9 +246,6 @@
 									<Button ToolTip.Tip="Highlight (2)" Width="26" Height="26" Padding="0" Tag="Highlight" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Highlight" IconVariant="Regular" FontSize="14"/>
 									</Button>
-									<Button ToolTip.Tip="Dot (D)" Width="26" Height="26" Padding="0" Tag="Dot" Click="OnAnnotateToolSelect" BorderThickness="0">
-										<Ellipse Width="8" Height="8" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-									</Button>
 										<Button ToolTip.Tip="Boundary condition" Width="26" Height="26" Padding="0" Tag="BoundaryCondition" Click="OnAnnotateToolSelect" BorderThickness="0">
 											<TextBlock Text="△" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 										</Button>
@@ -257,7 +254,19 @@
 											<ic:SymbolIcon Symbol="BezierCurveSquare" IconVariant="Regular" FontSize="14"/>
 										</Button>
 					<Button ToolTip.Tip="Rebar (B)" Width="26" Height="26" Padding="0" Tag="Rebar" Click="OnAnnotateToolSelect" BorderThickness="0">
-										<TextBlock Text="R" FontSize="13" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+										<Canvas Width="16" Height="16">
+											<Line StartPoint="3,4" EndPoint="7,8" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="1.7"/>
+											<Line StartPoint="7,8" EndPoint="9,8" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="1.7"/>
+											<Line StartPoint="9,8" EndPoint="13,12" Stroke="{DynamicResource SystemControlForegroundBaseHighBrush}" StrokeThickness="1.7"/>
+										</Canvas>
+									</Button>
+									<Button ToolTip.Tip="Dot Line: click to add points; Enter or right-click to finish" Width="26" Height="26" Padding="0" Tag="Dot" Click="OnAnnotateToolSelect" BorderThickness="0">
+										<Canvas Width="16" Height="16">
+											<Ellipse Canvas.Left="2" Canvas.Top="11" Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+											<Ellipse Canvas.Left="5.5" Canvas.Top="8" Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+											<Ellipse Canvas.Left="9" Canvas.Top="5" Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+											<Ellipse Canvas.Left="12.5" Canvas.Top="2" Width="3" Height="3" Fill="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+										</Canvas>
 									</Button>
 									<Button ToolTip.Tip="Rectangle (3)" Width="26" Height="26" Padding="0" Tag="Rectangle" Click="OnAnnotateToolSelect" BorderThickness="0">
 										<ic:SymbolIcon Symbol="Square" IconVariant="Regular" FontSize="14"/>
@@ -825,6 +834,11 @@
 								<TextBlock Grid.Column="0" Text="Opacity" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
 								<Slider Grid.Column="1" Name="PropertyOpacitySlider" Minimum="0.1" Maximum="1" Value="1" Width="82" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
 							</Grid>
+							<Grid Name="PropertyDotSpacingRow" IsVisible="False" ColumnDefinitions="58,82,28" ColumnSpacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+								<TextBlock Grid.Column="0" Text="Spacing" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+								<Slider Grid.Column="1" Name="PropertyDotSpacingSlider" Minimum="4" Maximum="40" Value="12" Width="82" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip.Tip="Distance between dots"/>
+								<TextBlock Grid.Column="2" Name="PropertyDotSpacingValue" Text="12" FontSize="10" VerticalAlignment="Center"/>
+							</Grid>
 							<!-- Inline text editor (visible for text annotations and new text placement) -->
 							<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="4" HorizontalAlignment="Stretch">
 								<Border Height="1" Background="{DynamicResource AppDividerBrush}" Margin="0,1" Opacity="0.5"/>
@@ -909,7 +923,7 @@
 							<Border Background="{DynamicResource AppOverlaySurfaceBrush}" Margin="-8" Padding="10" BorderBrush="{DynamicResource AppFlyoutBorderBrush}" BorderThickness="1" CornerRadius="6">
 								<StackPanel Spacing="4" MaxWidth="420">
 									<TextBlock Text="Annotation Shortcuts" FontSize="14" FontWeight="SemiBold"/>
-									<TextBlock Text="V Select · P Polyline · B Rebar · A Area · D Dot · U Boundary condition (Pinned/Trans. fixed/Roller/Fully fixed) · 1-0 Tools" FontSize="12"/>
+									<TextBlock Text="V Select · P Polyline · B Rebar · Dot line: click points, Enter to finish, double-click properties to flip side · A Area · U Boundary condition (Pinned/Trans. fixed/Roller/Fully fixed) · 1-0 Tools" FontSize="12"/>
 									<TextBlock Text="Enter finish · Esc cancel/exit · Shift constrain · Sticky toggle repeats placement" FontSize="12"/>
 									<TextBlock Text="Ctrl+C / Ctrl+V copy-paste · Ctrl+D duplicate · Ctrl+A select all" FontSize="12"/>
 									<TextBlock Text="Arrows nudge (Shift = 10) · [ ] width · -/+ text size · G grid snap" FontSize="12"/>

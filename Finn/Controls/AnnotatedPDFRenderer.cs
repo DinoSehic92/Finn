@@ -145,6 +145,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     // Constant-thickness vertex pen used by selection highlight (avoid per-frame allocation)
     private static readonly IPen s_vertexPen =
         new Pen(s_vertexPenBrush, 1.2, lineCap: PenLineCap.Round);
+    private static readonly IPen s_dotLineSelectionPen =
+        new Pen(new SolidColorBrush(Color.FromRgb(255, 200, 0)).ToImmutable(), 1.5, lineCap: PenLineCap.Round);
     // Polyline/arrow preview pens depend on user-chosen color/width.
     private IPen? _cachedPreviewPen;
     private Color _cachedPreviewColor;
@@ -339,6 +341,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public double ShapeCornerRadius { get; set; }
     /// <summary>Corner radius in PDF points for new Rebar vertices.</summary>
     public double RebarCornerRadius { get; set; } = 5;
+    public double DotLineSpacing { get; set; } = 12;
+    public double DotLineOffset { get; set; } = 6;
 
     /// <summary>When true, all placed/dragged points snap to the grid defined by <see cref="GridSpacing"/>.</summary>
     public bool SnapToGrid { get; set; }
@@ -948,22 +952,25 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     // ── Polyline (multi-click straight-line segments) ─────────────────
 
-    public void BeginPolyline(Point pdfPoint, bool asAreaMeasure = false, bool asRebar = false)
+    public void BeginPolyline(Point pdfPoint, bool asAreaMeasure = false, bool asRebar = false, bool asDotLine = false)
     {
         if (CannotAnnotateActiveLayer) return;
         EnsureDefaultLayer();
         pdfPoint = ComputeVertexSnap(null!, pdfPoint);
         _activePolyline = new InkStroke
         {
-            Color = asRebar ? Color.FromRgb(255, 0, 255) : StrokeColor,
+            Color = asRebar || asDotLine ? Color.FromRgb(255, 0, 255) : StrokeColor,
             Width = StrokeWidth,
             Opacity = StrokeOpacity,
             IsPolyline = true,
             IsRebar = asRebar,
+            IsDotLine = asDotLine,
+            DotSpacing = DotLineSpacing,
+            DotOffset = DotLineOffset,
             DashPattern = asAreaMeasure ? LineDashPattern.Dashed
                 : asRebar && IsStructuralLinePattern(StrokeDashPattern) ? LineDashPattern.Solid
-                : StrokeDashPattern,
-            CornerRadius = asAreaMeasure ? 0 : (asRebar ? RebarCornerRadius : ShapeCornerRadius),
+                : asDotLine ? LineDashPattern.Solid : StrokeDashPattern,
+            CornerRadius = asAreaMeasure ? 0 : (asRebar ? RebarCornerRadius : asDotLine ? 0 : ShapeCornerRadius),
             IsAreaMeasure = asAreaMeasure,
             IsFilled = asAreaMeasure || IsFilledMode,
             AreaScale = MeasurementScale,
@@ -1091,6 +1098,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public int ActivePolylinePointCount => _activePolyline?.Points.Count ?? 0;
     public bool IsActivePolylineAreaMeasure => _activePolyline?.IsAreaMeasure ?? false;
     public bool IsActivePolylineRebar => _activePolyline?.IsRebar ?? false;
+    public bool IsActivePolylineDotLine => _activePolyline?.IsDotLine ?? false;
 
     public bool TryGetActivePolylineStart(out Point start)
     {
@@ -2398,7 +2406,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         object Item,
         Color Color, double Opacity,
         // InkStroke / ShapeAnnotation
-        double StrokeWidth, LineDashPattern DashPattern, bool StructuralPatternReversed,
+        double StrokeWidth, LineDashPattern DashPattern, bool StructuralPatternReversed, double DotSpacing,
         // ShapeAnnotation
         bool IsFilled, double CornerRadius,
         BoundaryConditionType BoundaryCondition, BoundaryConditionOrientation BoundaryOrientation,
@@ -2413,10 +2421,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public object? CapturePropertySnapshot(object item) => item switch
     {
-        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, s.StructuralPatternReversed, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
-        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.StructuralPatternReversed, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false, ArrowHead: sh.ArrowHead),
-        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground, t.ArrowHead),
-        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, s.StructuralPatternReversed, s.DotSpacing, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
+        ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.StructuralPatternReversed, 12, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false, ArrowHead: sh.ArrowHead),
+        TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, 12, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground, t.ArrowHead),
+        MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 12, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
         _ => null
     };
 
@@ -2429,6 +2437,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 s.Color = snap.Color; s.Opacity = snap.Opacity;
                 s.Width = snap.StrokeWidth; s.DashPattern = snap.DashPattern;
                 s.StructuralPatternReversed = snap.StructuralPatternReversed;
+                s.DotSpacing = snap.DotSpacing;
                 s.CornerRadius = snap.CornerRadius;
                 s.InvalidatePen();
                 break;
@@ -2990,6 +2999,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
         _ => default
     };
 
+
     private static Rect GetBoundaryConditionBounds(ShapeAnnotation shape)
     {
         var vertices = GetBoundaryConditionVertices(shape);
@@ -3346,6 +3356,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 maxY = Math.Max(maxY, Math.Max(segment.start.Y, segment.end.Y));
             }
         }
+        if (ink.IsDotLine)
+        {
+            foreach (var center in GetDotLineCenters(ink))
+            {
+                minX = Math.Min(minX, center.X - ink.DotSize);
+                minY = Math.Min(minY, center.Y - ink.DotSize);
+                maxX = Math.Max(maxX, center.X + ink.DotSize);
+                maxY = Math.Max(maxY, center.Y + ink.DotSize);
+            }
+        }
         return new Rect(minX, minY, Math.Max(0, maxX - minX), Math.Max(0, maxY - minY));
     }
 
@@ -3685,8 +3705,159 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
     }
 
+    internal static Point[] GetDotLineCenters(InkStroke stroke)
+    {
+        var points = stroke.Points;
+        if (points.Count < 2)
+            return [];
+
+        var pathPoints = new List<Point>(points.Count);
+        foreach (var point in points)
+        {
+            if (pathPoints.Count == 0 || DistanceToSegment(point, pathPoints[^1], pathPoints[^1]) > 0.001)
+                pathPoints.Add(point);
+        }
+        if (pathPoints.Count < 2)
+            return [];
+
+        var centers = new List<Point>();
+        double dotSpacing = double.IsFinite(stroke.DotSpacing) ? Math.Max(0.5, stroke.DotSpacing) : 12;
+        double dotSize = double.IsFinite(stroke.DotSize) ? Math.Max(0.5, stroke.DotSize) : 2;
+        double spacing = Math.Max(dotSpacing, dotSize * 2);
+        double side = stroke.StructuralPatternReversed ? -1 : 1;
+        double minCenterDistance = dotSize * 2;
+        double minBaselineClearance = dotSize + 0.5;
+        double configuredOffset = double.IsFinite(stroke.DotOffset) ? stroke.DotOffset : 6;
+        double offset = Math.Max(configuredOffset, minBaselineClearance);
+        var centerBuckets = new Dictionary<(int X, int Y), List<Point>>();
+
+        var segmentNormals = new Point[pathPoints.Count - 1];
+        var segmentLengths = new double[pathPoints.Count - 1];
+        var cumulativeLengths = new double[pathPoints.Count];
+        for (int i = 0; i < pathPoints.Count - 1; i++)
+        {
+            var start = pathPoints[i];
+            var end = pathPoints[i + 1];
+            double dx = end.X - start.X;
+            double dy = end.Y - start.Y;
+            double length = Math.Sqrt(dx * dx + dy * dy);
+            if (!double.IsFinite(length) || length < 0.001)
+                return [];
+            segmentLengths[i] = length;
+            cumulativeLengths[i + 1] = cumulativeLengths[i] + length;
+            segmentNormals[i] = new Point(-dy / length * side, dx / length * side);
+        }
+
+        double totalLength = cumulativeLengths[^1];
+        int segmentIndex = 0;
+        for (double pathDistance = spacing / 2; pathDistance < totalLength; pathDistance += spacing)
+        {
+            while (segmentIndex < segmentLengths.Length - 1
+                && cumulativeLengths[segmentIndex + 1] < pathDistance)
+                segmentIndex++;
+
+            double distanceInSegment = pathDistance - cumulativeLengths[segmentIndex];
+            double t = distanceInSegment / segmentLengths[segmentIndex];
+            var baselinePoint = new Point(
+                pathPoints[segmentIndex].X + (pathPoints[segmentIndex + 1].X - pathPoints[segmentIndex].X) * t,
+                pathPoints[segmentIndex].Y + (pathPoints[segmentIndex + 1].Y - pathPoints[segmentIndex].Y) * t);
+            double normalX = segmentNormals[segmentIndex].X;
+            double normalY = segmentNormals[segmentIndex].Y;
+
+            int cornerIndex = -1;
+            double cornerDistance = 0;
+            if (segmentIndex > 0 && distanceInSegment < offset)
+            {
+                cornerIndex = segmentIndex;
+                cornerDistance = distanceInSegment;
+            }
+            else if (segmentIndex < segmentLengths.Length - 1
+                && segmentLengths[segmentIndex] - distanceInSegment < offset)
+            {
+                cornerIndex = segmentIndex + 1;
+                cornerDistance = segmentLengths[segmentIndex] - distanceInSegment;
+            }
+
+            if (cornerIndex > 0 && cornerIndex < segmentNormals.Length)
+            {
+                var previousNormal = segmentNormals[cornerIndex - 1];
+                var nextNormal = segmentNormals[cornerIndex];
+                double signedCornerDistance = segmentIndex == cornerIndex - 1 ? -cornerDistance : cornerDistance;
+                double blend = Math.Clamp((signedCornerDistance + offset) / (2 * offset), 0, 1);
+                double blendedX = previousNormal.X * (1 - blend) + nextNormal.X * blend;
+                double blendedY = previousNormal.Y * (1 - blend) + nextNormal.Y * blend;
+                double blendedLength = Math.Sqrt(blendedX * blendedX + blendedY * blendedY);
+                if (blendedLength > 0.001)
+                {
+                    normalX = blendedX / blendedLength;
+                    normalY = blendedY / blendedLength;
+                }
+            }
+
+            var center = new Point(
+                baselinePoint.X + normalX * offset,
+                baselinePoint.Y + normalY * offset);
+            bool tooCloseToBaseline = false;
+            for (int baselineIndex = Math.Max(0, segmentIndex - 1); baselineIndex <= Math.Min(pathPoints.Count - 2, segmentIndex + 1); baselineIndex++)
+            {
+                if (DistanceToSegment(center, pathPoints[baselineIndex], pathPoints[baselineIndex + 1]) < minBaselineClearance)
+                {
+                    tooCloseToBaseline = true;
+                    break;
+                }
+            }
+            if (tooCloseToBaseline)
+                continue;
+
+            int bucketX = (int)Math.Floor(center.X / minCenterDistance);
+            int bucketY = (int)Math.Floor(center.Y / minCenterDistance);
+            bool tooCloseToDot = false;
+            for (int bucketOffsetY = -1; bucketOffsetY <= 1 && !tooCloseToDot; bucketOffsetY++)
+            for (int bucketOffsetX = -1; bucketOffsetX <= 1 && !tooCloseToDot; bucketOffsetX++)
+            {
+                if (!centerBuckets.TryGetValue((bucketX + bucketOffsetX, bucketY + bucketOffsetY), out var nearbyCenters))
+                    continue;
+                foreach (var existing in nearbyCenters)
+                {
+                    double centerDx = center.X - existing.X;
+                    double centerDy = center.Y - existing.Y;
+                    if (centerDx * centerDx + centerDy * centerDy < minCenterDistance * minCenterDistance)
+                    {
+                        tooCloseToDot = true;
+                        break;
+                    }
+                }
+            }
+            if (tooCloseToDot)
+                continue;
+
+            centers.Add(center);
+            if (!centerBuckets.TryGetValue((bucketX, bucketY), out var bucket))
+                centerBuckets[(bucketX, bucketY)] = bucket = [];
+            bucket.Add(center);
+        }
+
+        return [.. centers];
+    }
+
     private static bool HitTestStroke(InkStroke stroke, Point pt, double threshold)
     {
+        if (stroke.IsDotLine)
+        {
+            double radius = Math.Max(threshold, stroke.DotSize);
+            if (GetDotLineCenters(stroke).Any(center =>
+            {
+                double dx = pt.X - center.X;
+                double dy = pt.Y - center.Y;
+                return dx * dx + dy * dy <= radius * radius;
+            }))
+                return true;
+
+            for (int i = 0; i < stroke.Points.Count - 1; i++)
+                if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= threshold)
+                    return true;
+            return false;
+        }
         // Polylines have sparse points with straight segments — test segment proximity
         if (stroke.IsPolyline && stroke.Points.Count >= 2)
         {
@@ -3699,12 +3870,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
                     || DistanceToSegment(pt, stroke.Points[^1], hookEnd) <= threshold))
                 return true;
 
-            // Closed/fillable polylines: hit interior using polygon geometry (not bbox).
-            if (stroke.IsClosed && stroke.Points.Count >= 3)
-            {
-                if (stroke.IsFilled && IsPointInPolygon(stroke.Points, pt))
-                    return true;
-            }
+            if (stroke.IsClosed && stroke.Points.Count >= 3 && stroke.IsFilled
+                && IsPointInPolygon(stroke.Points, pt))
+                return true;
+
             for (int i = 0; i < stroke.Points.Count - 1; i++)
                 if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= threshold)
                     return true;
@@ -3713,12 +3882,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 return true;
             return false;
         }
-        // Freehand/highlight: use segment distance for more natural geometry hit-testing.
         if (stroke.Points.Count >= 2)
         {
-            double tol = Math.Max(threshold, stroke.Width * 0.7);
+            double tolerance = Math.Max(threshold, stroke.Width * 0.7);
             for (int i = 0; i < stroke.Points.Count - 1; i++)
-                if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= tol)
+                if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= tolerance)
                     return true;
             return false;
         }
@@ -3726,12 +3894,11 @@ public class AnnotatedPDFRenderer : PDFRenderer
         {
             double dx = pt.X - stroke.Points[0].X;
             double dy = pt.Y - stroke.Points[0].Y;
-            double tol = Math.Max(threshold, stroke.Width);
-            return dx * dx + dy * dy <= tol * tol;
+            double tolerance = Math.Max(threshold, stroke.Width);
+            return dx * dx + dy * dy <= tolerance * tolerance;
         }
         return false;
     }
-
     private static bool HitTestShape(ShapeAnnotation shape, Point pt, double threshold)
     {
         switch (shape.ShapeType)
@@ -5338,6 +5505,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
                             maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
                         }
+                        if (stroke.IsDotLine)
+                        {
+                            foreach (var center in GetDotLineCenters(stroke))
+                            {
+                                var sp = PdfToScreen(center, ox, oy, scaleX, scaleY);
+                                minX = Math.Min(minX, sp.X); minY = Math.Min(minY, sp.Y);
+                                maxX = Math.Max(maxX, sp.X); maxY = Math.Max(maxY, sp.Y);
+                            }
+                        }
                         if (stroke.TryGetRebarHookPoints(out var hookStart, out var hookEnd))
                         {
                             var screenStart = PdfToScreen(hookStart, ox, oy, scaleX, scaleY);
@@ -5496,6 +5672,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             {
                                 var sp = PdfToScreen(p, ox, oy, scaleX, scaleY);
                                 context.DrawEllipse(s_vertexBrush, vertexPen, sp, vtxSize, vtxSize);
+                            }
+                            if (selPoly.IsDotLine)
+                            {
+                                double dotSelectionRadius = Math.Max(2, selPoly.DotSize * penScale) + padSize;
+                                foreach (var center in GetDotLineCenters(selPoly))
+                                {
+                                    var sp = PdfToScreen(center, ox, oy, scaleX, scaleY);
+                                    context.DrawEllipse(null, s_dotLineSelectionPen, sp,
+                                        dotSelectionRadius, dotSelectionRadius);
+                                }
                             }
                         }
                         // Text width resize handle: right-center edge
@@ -5656,6 +5842,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (pts.Count < 2) return;
 
         var pen = overridePen ?? stroke.GetOrCreatePen(penScale);
+        if (stroke.IsDotLine)
+        {
+            var brush = overridePen?.Brush ?? stroke.GetOrCreateDotBrush();
+            double radius = Math.Max(0.5, stroke.DotSize) * penScale;
+            foreach (var center in GetDotLineCenters(stroke))
+                context.DrawEllipse(brush, null, PdfToScreen(center, da.X, da.Y, scaleX, scaleY), radius, radius);
+            return;
+        }
         if (SupportsStructuralLinePattern(stroke) && IsStructuralLinePattern(stroke.DashPattern))
         {
             int pointCount = stroke.IsClosed && pts.Count > 2 && NearlySamePoint(pts[0], pts[^1])
@@ -6986,6 +7180,11 @@ public class InkStroke
     public bool IsPolyline { get; set; }
     /// <summary>When true, this polyline is a rebar annotation with end hooks.</summary>
     public bool IsRebar { get; set; }
+    /// <summary>When true, render regularly spaced magenta dots along one side of the polyline.</summary>
+    public bool IsDotLine { get; set; }
+    public double DotSpacing { get; set; } = 12;
+    public double DotOffset { get; set; } = 6;
+    public double DotSize { get; set; } = 2;
     /// <summary>When true, the polyline forms a closed shape (last point connects back to first).</summary>
     public bool IsClosed { get; set; }
     /// <summary>When true, the closed polyline is rendered with a translucent fill.</summary>
@@ -7042,6 +7241,8 @@ public class InkStroke
     private double _cachedPenScale;
     private IBrush? _cachedFillBrush;
     private byte _cachedFillAlpha;
+    private IBrush? _cachedDotBrush;
+    private byte _cachedDotAlpha;
 
     // Cached geometry to avoid rebuilding StreamGeometry every frame.
     // Invalidated when points change (InvalidateGeometry) or the view transform shifts.
@@ -7083,6 +7284,17 @@ public class InkStroke
         return _cachedFillBrush;
     }
 
-    public void InvalidatePen() { _cachedPen = null; _cachedFillBrush = null; CachedGeometry = null; }
+    internal IBrush GetOrCreateDotBrush()
+    {
+        byte alpha = (byte)Math.Clamp(Opacity * 255, 0, 255);
+        if (_cachedDotBrush == null || _cachedDotAlpha != alpha)
+        {
+            _cachedDotAlpha = alpha;
+            _cachedDotBrush = new SolidColorBrush(Color.FromArgb(alpha, 255, 0, 255)).ToImmutable();
+        }
+        return _cachedDotBrush;
+    }
+
+    public void InvalidatePen() { _cachedPen = null; _cachedFillBrush = null; _cachedDotBrush = null; CachedGeometry = null; }
     public void InvalidateGeometry() { CachedGeometry = null; }
 }

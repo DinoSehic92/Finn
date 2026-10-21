@@ -123,6 +123,8 @@ public partial class PreView
         var nextDash = previous.StrokeDashPattern;
         var nextCornerRadius = previous.ShapeCornerRadius;
         var nextRebarCornerRadius = previous.RebarCornerRadius;
+        var nextDotLineSpacing = previous.DotLineSpacing;
+        var nextDotLineOffset = previous.DotLineOffset;
         var nextSnapToGrid = previous.SnapToGrid;
         var nextGridSpacing = previous.GridSpacing;
 
@@ -138,6 +140,8 @@ public partial class PreView
         renderer.StrokeDashPattern = nextDash;
         renderer.ShapeCornerRadius = nextCornerRadius;
         renderer.RebarCornerRadius = nextRebarCornerRadius;
+        renderer.DotLineSpacing = nextDotLineSpacing;
+        renderer.DotLineOffset = nextDotLineOffset;
         renderer.SnapToGrid = nextSnapToGrid;
         renderer.GridSpacing = nextGridSpacing;
         renderer.Cursor = _matchStyleArmed ? CursorDragCopy : GetToolCursor(renderer.ActiveTool);
@@ -351,7 +355,7 @@ public partial class PreView
             InlineAnnotationTool.Highlight => "Highlight: drag to mark up content, right-click or Esc to cancel.",
             InlineAnnotationTool.Polyline => "Polyline: click to add points, click the first point or press Enter to close, Esc to cancel.",
             InlineAnnotationTool.Rebar => "Rebar: click to add points, click the first point, double-click, or press Enter to finish; Esc to cancel.",
-            InlineAnnotationTool.Dot => "Dot: click to place a dot annotation.",
+            InlineAnnotationTool.Dot => "Dot line: click to add points, then press Enter or right-click to finish; dots stay on one side. Double-click the finished line to flip sides.",
             InlineAnnotationTool.BoundaryCondition => "Boundary condition: click the support contact point; double-click the symbol to change type and orientation.",
             InlineAnnotationTool.Rectangle => "Rectangle: click once to start, move the mouse, click again to finish. Hold Shift for a square.",
             InlineAnnotationTool.Ellipse => "Ellipse: click the center, move to set its size, then click to finish. Hold Shift for a circle; Alt at the first click draws from a corner.",
@@ -878,6 +882,10 @@ public partial class PreView
                     Opacity = src.Opacity, IsHighlighter = src.IsHighlighter,
                     IsPolyline = src.IsPolyline,
                     IsRebar = src.IsRebar,
+                    IsDotLine = src.IsDotLine,
+                    DotSpacing = src.DotSpacing,
+                    DotOffset = src.DotOffset,
+                    DotSize = src.DotSize,
                     IsClosed = src.IsClosed,
                     IsFilled = src.IsFilled,
                     IsAreaMeasure = src.IsAreaMeasure,
@@ -1170,7 +1178,7 @@ public partial class PreView
             if (AnnotationRenderer.IsActivePolylineAreaMeasure && AnnotationRenderer.ActivePolylinePointCount < 3)
                 AnnotationRenderer.CancelPolyline();
             else
-                AnnotationRenderer.EndPolyline(close: !AnnotationRenderer.IsActivePolylineRebar);
+                AnnotationRenderer.EndPolyline(close: !AnnotationRenderer.IsActivePolylineRebar && !AnnotationRenderer.IsActivePolylineDotLine);
             CompleteToolPlacement();
             e.Handled = true;
             return;
@@ -1378,7 +1386,6 @@ public partial class PreView
                 Key.P => InlineAnnotationTool.Polyline,
                 Key.B => InlineAnnotationTool.Rebar,
                 Key.A => InlineAnnotationTool.MeasureArea,
-                Key.D => InlineAnnotationTool.Dot,
                 Key.U => InlineAnnotationTool.BoundaryCondition,
                 _ => null
             };
@@ -1474,7 +1481,7 @@ public partial class PreView
         InlineAnnotationTool.Text => CursorIbeam,
         InlineAnnotationTool.StickyNote => CursorIbeam,
         InlineAnnotationTool.Select => CursorArrow,
-        InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar => CursorCross,
+        InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot => CursorCross,
         InlineAnnotationTool.Screenshot => CursorCross,
         _ => CursorCross
     };
@@ -1576,10 +1583,10 @@ public partial class PreView
             AnnotationRenderer.ClearArrowTextPreview();
         }
         bool switchingPolylineKind = previousTool != tool
-            && previousTool is InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar
-            && tool is InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar;
+            && previousTool is InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot
+            && tool is InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot;
         if (AnnotationRenderer.HasActivePolyline
-            && (switchingPolylineKind || tool is not (InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar)))
+            && (switchingPolylineKind || tool is not (InlineAnnotationTool.Polyline or InlineAnnotationTool.Rebar or InlineAnnotationTool.Dot)))
         {
             AnnotationRenderer.CancelPolyline();
         }
