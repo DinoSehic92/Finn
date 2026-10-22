@@ -54,6 +54,7 @@ namespace Finn.ViewModels
         {
             if (CurrentFile == null || SelectedVersion == null) return;
             CurrentFile.RemoveVersion(SelectedVersion);
+            Collections.SetCollectionContent();
             MarkDirty();
         }
 

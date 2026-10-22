@@ -33,29 +33,36 @@ namespace Finn.ViewModels
             }
         }
 
-        public async Task RequestPreviewLeftAsync(FileData? file)
+        public async Task RequestPreviewLeftAsync(FileData? file, FileVersionData? version = null)
         {
-            if (file == null || !file.HasPdfExtension())
+            if (file == null)
                 return;
+
+            var previewFile = version == null ? file : CreateVersionPreviewFile(file, version);
+            if (!previewFile.HasPdfExtension()) return;
 
             if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
                 UI.PreviewEmbeddedOpen = true;
 
             CheckSingleFile();
-            PreviewVM.RequestFile = file;
+            PreviewVM.VersionSourceFile = version == null ? null : file;
+            PreviewVM.RequestFile = previewFile;
             // Preserve the dual-file layout — only replace the left document.
             await PreviewVM.SetFileAsync(preserveDualFile: true);
         }
 
-        public async Task RequestPreview2Async(FileData? file)
+        public async Task RequestPreview2Async(FileData? file, FileVersionData? version = null)
         {
-            if (file == null || !file.HasPdfExtension())
+            if (file == null)
                 return;
+
+            var previewFile = version == null ? file : CreateVersionPreviewFile(file, version);
+            if (!previewFile.HasPdfExtension()) return;
 
             if (!UI.PreviewEmbeddedOpen && !PreviewWindowOpen)
                 UI.PreviewEmbeddedOpen = true;
 
-            await PreviewVM.SetFile2Async(file);
+            await PreviewVM.SetFile2Async(previewFile);
         }
 
         /// <summary>
@@ -63,19 +70,27 @@ namespace Finn.ViewModels
         /// </summary>
         public async Task PreviewVersionAsync(FileVersionData version, string? searchText = null)
         {
-            if (version == null) return;
+            if (CurrentFile == null) return;
+            await PreviewVersionAsync(CurrentFile, version, searchText);
+        }
+
+        public async Task PreviewVersionAsync(FileData sourceFile, FileVersionData version, string? searchText = null)
+        {
+            if (!sourceFile.Versions.Contains(version)) return;
             SelectedVersion = version;
             // Remember the real file so CanCompareVersions works during version preview
-            PreviewVM.VersionSourceFile = CurrentFile;
-            var stub = new FileData { Sökväg = version.Sökväg, Namn = version.ShortName };
-            // Point the stub at the version's own annotation layers so strokes
-            // survive version switches instead of being lost with the stub.
-            stub.AnnotationLayers = version.AnnotationLayers;
-            // Inherit cache flag from the parent file so versions use the local cache.
-            if (CurrentFile?.IsCached == true)
-                stub.IsCached = true;
+            PreviewVM.VersionSourceFile = sourceFile;
+            var stub = CreateVersionPreviewFile(sourceFile, version);
             await RequestPreviewAsync(stub, searchText);
         }
+
+        private static FileData CreateVersionPreviewFile(FileData sourceFile, FileVersionData version) => new()
+        {
+            Sökväg = version.Sökväg,
+            Namn = version.ShortName,
+            IsCached = sourceFile.IsCached,
+            AnnotationLayers = version.AnnotationLayers
+        };
 
         /// <summary>
         /// Returns to the original file after previewing a version.

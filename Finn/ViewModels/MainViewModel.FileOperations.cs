@@ -45,7 +45,8 @@ namespace Finn.ViewModels
             /// <summary>
             /// Toggles <see cref="FileData.IsCached"/> for all selected files.
             /// Files that are newly marked for caching are pre-cached in the
-            /// background immediately so subsequent opens are instant.
+            /// background immediately so subsequent opens are instant. When
+            /// caching is disabled, unneeded cache entries are reconciled safely.
             /// </summary>
             private async Task ToggleCacheFiles()
             {
@@ -57,8 +58,13 @@ namespace Finn.ViewModels
 
                 foreach (var file in files)
                     file.IsCached = newState;
+                OnPropertyChanged(nameof(CacheSelectedFilesLabel));
 
-                if (!newState) return;
+                if (!newState)
+                {
+                    ReconcileFileCache();
+                    return;
+                }
 
                 // Collect all paths to pre-cache: main file + all version paths
                 var paths = new List<string>();
@@ -673,7 +679,9 @@ namespace Finn.ViewModels
                             Datum        = canonical.Datum,
                             SyncFolder   = canonical.SyncFolder,
                             IsFromFolder = canonical.IsFromFolder,
+                            PartOfCollections = new ObservableCollection<string>(ver.PartOfCollections),
                         };
+                        Collections.ReplaceVersionWithFile(canonical, ver, restored);
                         project.StoredFiles.Add(restored);
                     }
 
@@ -687,6 +695,7 @@ namespace Finn.ViewModels
                 }
 
                 project.SetFiletypeList();
+                Collections.SetCollectionContent();
                 UpdateFilter();
                 BuildTreeData();
                 MarkDirty();

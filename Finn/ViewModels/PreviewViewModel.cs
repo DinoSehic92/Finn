@@ -47,7 +47,6 @@ namespace Finn.ViewModels
             Path.Combine(MainViewModel.SavePath, "Cache"));
         private string? _mainPinnedCachePath;   // cached path held open by MuPDF (fast-open)
         private string? _secondaryPinnedCachePath; // cached path held open by secondary doc
-        private bool _autoCacheNetworkFiles; // snapshot of UI setting
         #endregion
 
         #region Constructor
@@ -86,18 +85,6 @@ namespace Finn.ViewModels
         /// <summary>Number of files currently in the local cache.</summary>
         [System.Text.Json.Serialization.JsonIgnore]
         public int CacheFileCount => _fileCache.CachedFileCount;
-
-        /// <summary>
-        /// When true, network files are automatically routed through the local
-        /// cache before preview — even if not explicitly marked <c>IsCached</c>.
-        /// Set by MainViewModel from <see cref="UISettingsViewModel.AutoCacheNetworkFiles"/>.
-        /// </summary>
-        [System.Text.Json.Serialization.JsonIgnore]
-        public bool AutoCacheNetworkFiles
-        {
-            get => _autoCacheNetworkFiles;
-            set => SetProperty(ref _autoCacheNetworkFiles, value);
-        }
 
         private bool _readBytesMode;
         /// <summary>
@@ -140,9 +127,9 @@ namespace Finn.ViewModels
         /// Use this for any code path that reads a file (diff, export, etc.)
         /// so it benefits from the local cache.
         /// </summary>
-        public async Task<string> ResolveCachedPathAsync(string path, CancellationToken token = default)
+        public async Task<string> ResolveCachedPathAsync(string path, CancellationToken token = default, bool fileIsCached = false)
         {
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(path) || !fileIsCached)
                 return path;
             // Fast exit: local files don't need cache resolution
             if (!LocalFileCache.IsNetworkPath(path))
@@ -1310,18 +1297,13 @@ namespace Finn.ViewModels
                 if (IsStale(myGeneration)) return;
 
                 string path = requestedFile.Sökväg;
-                var reqFileRef = requestedFile;
-
-                // Route through local cache when the file is explicitly cached
-                // or when AutoCacheNetworkFiles is on for a network path.
                 // ReadBytesMode alone should not persist files to the cache folder.
                 bool cacheHit = false;
                 bool cachedLocally = false;
                 bool wasStale = false;
                 string originalPath = path;
                 bool isNetworkPath = LocalFileCache.IsNetworkPath(path);
-                bool useCache = requestedFile.IsCached
-                    || (_autoCacheNetworkFiles && isNetworkPath);
+                bool useCache = requestedFile.IsCached;
 
                 if (useCache)
                 {
@@ -1340,12 +1322,6 @@ namespace Finn.ViewModels
                     : (isNetworkPath ? "Cloud" : "HardDrive");
 
                 string openPath = path;
-
-                // When AutoCacheNetworkFiles is on, mark the file so the
-                // grid icon reflects cached state. ReadBytesMode is a
-                // transparent optimization and should not permanently mark files.
-                if (_autoCacheNetworkFiles && isNetworkPath && cachedLocally && !reqFileRef.IsCached)
-                    reqFileRef.IsCached = true;
 
                 // Create MuPDF objects on the background thread — document
                 // construction is pure native file I/O with no UI dependency.
@@ -1759,13 +1735,10 @@ namespace Finn.ViewModels
 
                 if (IsStale2()) return;
 
-                // Resolve through local cache when the file is marked for caching
-                // or auto-cache is enabled for network paths.
                 // ReadBytesMode alone should not write to the cache folder.
                 string filePath = file.Sökväg;
                 bool secondaryCachedLocally = false;
-                bool useCache2 = file.IsCached
-                    || (_autoCacheNetworkFiles && LocalFileCache.IsNetworkPath(filePath));
+                bool useCache2 = file.IsCached;
 
                 if (useCache2)
                 {

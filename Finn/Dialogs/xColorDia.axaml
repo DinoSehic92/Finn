@@ -207,9 +207,6 @@
 					<Label Content="Dark Default"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.PreviewDarkMode}" HorizontalAlignment="Left"/>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="100,*" IsVisible="{Binding UI.SuperuserMode}">
-					<Label Content="Auto Cache"/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.AutoCacheNetworkFiles}" HorizontalAlignment="Left"/>
-				</Grid>
-				<Grid Classes="SettingRow" ColumnDefinitions="100,*" IsVisible="{Binding UI.SuperuserMode}">
 					<Label Content="Read Bytes" ToolTip.Tip="Read entire file into memory before opening. Avoids file locks on network shares but uses more memory."/><ToggleSwitch Grid.Column="1" IsChecked="{Binding UI.ReadBytesMode}" HorizontalAlignment="Left"/>
 				</Grid>
 				<Grid Classes="SettingRow" ColumnDefinitions="100,*" IsVisible="{Binding UI.SuperuserMode}">

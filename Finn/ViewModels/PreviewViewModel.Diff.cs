@@ -957,9 +957,10 @@ namespace Finn.ViewModels
             StatusMessage = "Comparing…";
             try
             {
-                // Resolve through local cache so diffs on cached files are fast
-                string resolvedA = await ResolveCachedPathAsync(pathA, ct).ConfigureAwait(false);
-                string resolvedB = await ResolveCachedPathAsync(pathB, ct).ConfigureAwait(false);
+                // Resolve through local cache only when the source file opted in.
+                bool fileIsCached = sourceFile?.IsCached == true;
+                string resolvedA = await ResolveCachedPathAsync(pathA, ct, fileIsCached).ConfigureAwait(false);
+                string resolvedB = await ResolveCachedPathAsync(pathB, ct, fileIsCached).ConfigureAwait(false);
 
                 var progress = new Progress<int>(p => StatusMessage = $"Comparing… {p}%");
                 var (results, dir) = await PdfDiffService.CompareAsync(resolvedA, resolvedB, progress, ct, _diffTolerance,
@@ -1005,9 +1006,10 @@ namespace Finn.ViewModels
             StatusMessage = "Text comparing…";
             try
             {
-                // Resolve through local cache so diffs on cached files are fast
-                string resolvedA = await ResolveCachedPathAsync(pathA, ct).ConfigureAwait(false);
-                string resolvedB = await ResolveCachedPathAsync(pathB, ct).ConfigureAwait(false);
+                // Resolve through local cache only when the source file opted in.
+                bool fileIsCached = sourceFile?.IsCached == true;
+                string resolvedA = await ResolveCachedPathAsync(pathA, ct, fileIsCached).ConfigureAwait(false);
+                string resolvedB = await ResolveCachedPathAsync(pathB, ct, fileIsCached).ConfigureAwait(false);
 
                 var progress = new Progress<int>(p => StatusMessage = $"Text comparing… {p}%");
                 var results = await TextDiffService.CompareAsync(resolvedA, resolvedB, progress, ct,
@@ -1057,8 +1059,8 @@ namespace Finn.ViewModels
                     await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
                     if (_secondaryCloseGen != openStartGen) return;
 
-                    // Resolve through local cache
-                    string path = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
+                    // Resolve through local cache only when the source file opted in.
+                    string path = await ResolveCachedPathAsync(secondaryPath, fileIsCached: _diffSourceFile?.IsCached == true).ConfigureAwait(false);
                     var (newDoc, newCtx) = await Task.Run(() => CreateMuPDFDocument(path, false)).ConfigureAwait(false);
 
                     if (_secondaryCloseGen != openStartGen)
@@ -1131,8 +1133,8 @@ namespace Finn.ViewModels
                     await DisposeSecondaryDocumentAsync().ConfigureAwait(false);
                     if (_secondaryCloseGen != openStartGen) return false;
 
-                    // Resolve through local cache
-                    string resolvedPath = await ResolveCachedPathAsync(secondaryPath).ConfigureAwait(false);
+                    // Resolve through local cache only when the source file opted in.
+                    string resolvedPath = await ResolveCachedPathAsync(secondaryPath, fileIsCached: _diffSourceFile?.IsCached == true).ConfigureAwait(false);
                     var (newDoc, newCtx) = await Task.Run(() => CreateMuPDFDocument(resolvedPath, false)).ConfigureAwait(false);
 
                     if (_secondaryCloseGen != openStartGen)

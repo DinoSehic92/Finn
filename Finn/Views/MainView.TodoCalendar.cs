@@ -356,6 +356,17 @@ public partial class MainView
         }
     }
 
+    private void OnAddVersionToCollection(object? sender, RoutedEventArgs e)
+    {
+        string? name = sender switch
+        {
+            MenuItem { SelectedItem: string s } => s,
+            _ => null
+        };
+        if (name != null && _ctx.CurrentFile != null && VersionsGrid.SelectedItem is FileVersionData version)
+            _ctx.Collections.AddVersionToCollection(_ctx.CurrentFile, version, name);
+    }
+
     private void OnRenameCollection(object? sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(CollectionInput.Text))
@@ -365,14 +376,14 @@ public partial class MainView
         }
     }
 
-    private void OnMoveCollectionFileUp(object? sender, RoutedEventArgs e)
+    private void OnMoveCollectionEntryUp(object? sender, RoutedEventArgs e)
     {
-        _ctx.Collections.MoveSelectedFileUp();
+        _ctx.Collections.MoveSelectedEntryUp();
     }
 
-    private void OnMoveCollectionFileDown(object? sender, RoutedEventArgs e)
+    private void OnMoveCollectionEntryDown(object? sender, RoutedEventArgs e)
     {
-        _ctx.Collections.MoveSelectedFileDown();
+        _ctx.Collections.MoveSelectedEntryDown();
     }
 
     private void OnAddToCollection(object? sender, RoutedEventArgs e)

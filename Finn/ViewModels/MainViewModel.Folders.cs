@@ -123,10 +123,12 @@ namespace Finn.ViewModels
                             }
                         }
 
-                        Collections.SetCollectionContent();
                         CurrentProject!.Folders.Remove(folder);
                     }
                 }
+
+                if (folders.Count > 0)
+                    Collections.SetCollectionContent();
 
                 if (folders.Count > 0)
                 {
@@ -917,6 +919,7 @@ namespace Finn.ViewModels
                             // broken link and can remove the file manually.
                         }
 
+                        Collections.SetCollectionContent();
                         MarkDirty();
                     }
                     else
@@ -1237,6 +1240,7 @@ namespace Finn.ViewModels
                     folder.InvalidateExclusionCache();
 
                     CurrentProject!.RefreshHasChildren();
+                    Collections.SetCollectionContent();
                     UpdateFilter();
                     MarkDirty();
 

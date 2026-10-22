@@ -197,13 +197,6 @@ public class UISettingsViewModel : ObservableObject
         private bool showThumbnails;
         public bool ShowThumbnails { get => showThumbnails; set { showThumbnails = value; OnPropertyChanged(nameof(ShowThumbnails)); } }
 
-        private bool autoCacheNetworkFiles;
-        /// <summary>
-        /// When true, network files are automatically cached locally before
-        /// previewing. Avoids locking server files and speeds up re-opens.
-        /// </summary>
-        public bool AutoCacheNetworkFiles { get => autoCacheNetworkFiles; set { autoCacheNetworkFiles = value; OnPropertyChanged(nameof(AutoCacheNetworkFiles)); } }
-
         private bool readBytesMode;
         /// <summary>
         /// When true, PDF files are read entirely into memory before passing

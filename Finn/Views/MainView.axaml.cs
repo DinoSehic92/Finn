@@ -91,7 +91,7 @@ public partial class MainView : UserControl
         MainGrid.AddHandler(DragDrop.DropEvent, OnDragDropCompleted);
 
         CollectionContent.AddHandler(DataGrid.DoubleTappedEvent, OnOpenFile);
-        CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectFavorite);
+        CollectionContent.AddHandler(DataGrid.SelectionChangedEvent, SelectCollectionItem);
 
         OtherFilesGrid.AddHandler(DragDrop.DropEvent, OnDropOtherFiles);
 
@@ -134,7 +134,6 @@ public partial class MainView : UserControl
         _pwr.DarkModeTint = _ctx.UI.PreviewDarkModeTint;
         _pwr.DarkModeTintIntensity = _ctx.UI.PreviewTintIntensity;
         _pwr.LightPaper = _ctx.UI.PreviewLightPaper;
-        _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
         _pwr.ReadBytesMode = _ctx.UI.ReadBytesMode;
         _ctx.PropertyChanged += OnViewModelPropertyChanged;
         _ctx.UI.PropertyChanged += OnUIPropertyChanged;
@@ -345,9 +344,6 @@ public partial class MainView : UserControl
             case nameof(_ctx.UI.Color3):
             case nameof(_ctx.UI.DarkMode):
                 _ctx.SyncPreviewRegionColor();
-                break;
-            case nameof(_ctx.UI.AutoCacheNetworkFiles):
-                _pwr.AutoCacheNetworkFiles = _ctx.UI.AutoCacheNetworkFiles;
                 break;
             case nameof(_ctx.UI.ReadBytesMode):
                 _pwr.ReadBytesMode = _ctx.UI.ReadBytesMode;
@@ -1099,10 +1095,18 @@ public partial class MainView : UserControl
         // When double-clicking a collection/recent item that is an appended file,
         // open it directly rather than relying on CurrentFiles (which holds the parent).
         if (sender is DataGrid grid && grid == CollectionContent
-            && CollectionContent.SelectedItem is FileData cf && cf.ParentFile != null)
+            && CollectionContent.SelectedItem is CollectionEntryViewModel entry)
         {
-            _ctx.OpenFileDirect(cf.Sökväg);
-            return;
+            if (entry.Version != null)
+            {
+                _ctx.OpenFileDirect(entry.Path);
+                return;
+            }
+            if (entry.File.ParentFile != null)
+            {
+                _ctx.OpenFileDirect(entry.Path);
+                return;
+            }
         }
         _ctx.OpenFile();
     }
@@ -1313,7 +1317,11 @@ public partial class MainView : UserControl
     private async void OnBindCollection(object? sender, RoutedEventArgs e)
     {
         await BindFilesAsync(
-            _ctx.Collections.CollectionContent,
+            _ctx.Collections.CollectionContent.Select(entry => new FileData
+            {
+                Namn = entry.DisplayName,
+                Sökväg = entry.Path
+            }),
             $"Collection '{_ctx.Collections.CurrentCollection}'");
     }
 
@@ -2129,17 +2137,56 @@ public partial class MainView : UserControl
         _ctx.SelectFiles(files);
     }
 
-    private void SelectFavorite(object? sender, RoutedEventArgs e)
+    private async void SelectCollectionItem(object? sender, RoutedEventArgs e)
     {
         if (_isUpdatingSelection) return;
-        ClearOtherGridSelections(CollectionContent);
-        using (SuppressSelection())
+        try
         {
-            var files = CollectionContent.SelectedItems.Cast<FileData>().ToList();
-            var target = files.FirstOrDefault();
+            ClearOtherGridSelections(CollectionContent);
+            var target = CollectionContent.SelectedItems.Cast<CollectionEntryViewModel>().FirstOrDefault();
             if (target == null) return;
 
-            SelectAuxiliaryFile(target, files, addRecentForTopLevel: true, addRecentForChild: true);
+            using (SuppressSelection())
+                SelectCollectionEntry(target);
+
+            if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
+            await PreviewCollectionEntryAsync(target);
+        }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(SelectCollectionItem)); }
+    }
+
+    private void SelectCollectionEntry(CollectionEntryViewModel entry)
+    {
+        var file = entry.File;
+        var navigationFile = file.IsAppendedFile && file.ParentFile != null
+            ? file.ParentFile
+            : file;
+        _ctx.SelectAndNavigateFiles([navigationFile]);
+
+        if (navigationFile != file && !navigationFile.IsExpanded)
+        {
+            navigationFile.IsExpanded = true;
+            _ctx.UpdateFilter();
+        }
+
+        FileGrid.SelectedItem = file;
+        FileGrid.ScrollIntoView(file, null);
+        _ctx.SelectFiles([file]);
+        VersionsGrid.SelectedItem = entry.Version;
+        _ctx.SelectedVersion = entry.Version;
+        _pwr.AddRecentFile(file);
+    }
+
+    private async Task PreviewCollectionEntryAsync(CollectionEntryViewModel entry)
+    {
+        var file = entry.File;
+        string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
+        if (entry.Version != null)
+            await _ctx.PreviewVersionAsync(file, entry.Version, searchText);
+        else
+        {
+            _ctx.ClearSelectedVersion();
+            await _ctx.RequestPreviewAsync(file, searchText);
         }
     }
 
@@ -2318,6 +2365,11 @@ public partial class MainView : UserControl
         try
         {
             if (!_pwr.DualFileMode) return;
+            if (CollectionContent.SelectedItem is CollectionEntryViewModel collectionEntry)
+            {
+                await _ctx.RequestPreviewLeftAsync(collectionEntry.File, collectionEntry.Version);
+                return;
+            }
             var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
             if (file != null)
                 await _ctx.RequestPreviewLeftAsync(file);
@@ -2330,6 +2382,11 @@ public partial class MainView : UserControl
         try
         {
             if (!_pwr.DualFileMode) return;
+            if (CollectionContent.SelectedItem is CollectionEntryViewModel collectionEntry)
+            {
+                await _ctx.RequestPreview2Async(collectionEntry.File, collectionEntry.Version);
+                return;
+            }
             var file = (FileGrid.SelectedItem ?? CollectionContent.SelectedItem) as FileData;
             if (file != null)
                 await _ctx.RequestPreview2Async(file);
@@ -2353,7 +2410,7 @@ public partial class MainView : UserControl
         var row = e.Row;
         if (_trackedRows.Add(row))
             row.DataContextChanged += OnRowDataContextChanged;
-        BindRowToFileData(row, row.DataContext as FileData);
+        BindRowToFileData(row, GetRowFileData(row.DataContext));
         ApplyRowClasses(row, IsMainFileGridRow(row));
     }
 
@@ -2375,10 +2432,17 @@ public partial class MainView : UserControl
     {
         if (sender is DataGridRow row)
         {
-            BindRowToFileData(row, row.DataContext as FileData);
+            BindRowToFileData(row, GetRowFileData(row.DataContext));
             ApplyRowClasses(row, IsMainFileGridRow(row));
         }
     }
+
+    private static FileData? GetRowFileData(object? data) => data switch
+    {
+        FileData file => file,
+        CollectionEntryViewModel entry => entry.File,
+        _ => null
+    };
 
     private void BindRowToFileData(DataGridRow row, FileData? newData)
     {
@@ -2429,7 +2493,8 @@ public partial class MainView : UserControl
 
     private void ApplyRowClasses(DataGridRow row, bool isMainFileGrid = false)
     {
-        if (row.DataContext is not FileData data)
+        var data = GetRowFileData(row.DataContext);
+        if (data == null)
         {
             row.Classes.Remove("MissingFile");
             row.Classes.Remove("ParentRow");

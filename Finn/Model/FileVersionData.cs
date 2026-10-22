@@ -1,3 +1,4 @@
+using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -29,8 +30,28 @@ namespace Finn.Model
         private string _sökväg = string.Empty;
         private string _label = string.Empty;
         private string _addedDate = string.Empty;
+        private string _id = Guid.NewGuid().ToString("N");
+        private ObservableCollection<string> _partOfCollections = new();
         private bool _isActive;
         private bool _isAutoGrouped;
+
+        /// <summary>
+        /// Stable identifier used for collection ordering. Older project files
+        /// receive an identifier when deserialized.
+        /// </summary>
+        public string Id
+        {
+            get => _id;
+            set => _id = string.IsNullOrWhiteSpace(value)
+                ? Guid.NewGuid().ToString("N")
+                : value;
+        }
+
+        public ObservableCollection<string> PartOfCollections
+        {
+            get => _partOfCollections;
+            set => _partOfCollections = value ?? new ObservableCollection<string>();
+        }
 
         /// <summary>
         /// True when this version was created automatically by the version-suffix

@@ -166,6 +166,19 @@ namespace Finn.ViewModels
                             while (!fileIds.Add(file.Id));
                         }
 
+                        var versionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var version in file.Versions)
+                        {
+                            if (string.IsNullOrWhiteSpace(version.Id) || !versionIds.Add(version.Id))
+                            {
+                                do
+                                {
+                                    version.Id = Guid.NewGuid().ToString("N");
+                                }
+                                while (!versionIds.Add(version.Id));
+                            }
+                        }
+
                         // Clear stale thumbnail references
                         if (!string.IsNullOrEmpty(file.ThumbnailSource) && !File.Exists(file.ThumbnailSource))
                             file.ThumbnailSource = string.Empty;

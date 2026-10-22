@@ -23,8 +23,8 @@ namespace Finn.Storage
         }
 
         /// <summary>
-        /// Ordered file IDs for each collection. Membership remains stored on
-        /// FileData.PartOfCollections for compatibility with existing projects.
+        /// Ordered collection-entry IDs for each collection. Existing file IDs
+        /// remain unchanged; version entries use a composite parent/version key.
         /// </summary>
         public Dictionary<string, List<string>> CollectionOrders { get; set; } = new();
 

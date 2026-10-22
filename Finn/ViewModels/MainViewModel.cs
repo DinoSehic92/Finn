@@ -232,6 +232,7 @@ namespace Finn.ViewModels
                     OnPropertyChanged(nameof(SelectedFileIsLocal));
                     OnPropertyChanged(nameof(CanReplaceSelectedFiles));
                     OnPropertyChanged(nameof(CanCacheSelectedFiles));
+                    OnPropertyChanged(nameof(CacheSelectedFilesLabel));
                     OnPropertyChanged(nameof(CanCategorizeSelectedFiles));
                     OnPropertyChanged(nameof(HasAvailableParents));
                     OnPropertyChanged(nameof(SelectedFileIsNotSketch));
@@ -359,7 +360,12 @@ namespace Finn.ViewModels
             /// </summary>
             public bool CanCacheSelectedFiles =>
                 CurrentFiles != null && CurrentFiles.Count > 0
-                && CurrentFiles.All(f => !f.IsSketch);
+                && CurrentFiles.All(f => !f.IsSketch && !f.IsGroup && !string.IsNullOrWhiteSpace(f.Sökväg));
+
+            public string CacheSelectedFilesLabel =>
+                CurrentFiles != null && CurrentFiles.Count > 0 && CurrentFiles.All(f => f.IsCached)
+                    ? "Remove Local Cache"
+                    : "Cache Locally";
 
             private FileVersionData? selectedVersion;
             /// <summary>

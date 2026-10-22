@@ -69,6 +69,7 @@ public partial class MainView
 
     private async void SelectVersion(object? sender, RoutedEventArgs e)
     {
+        if (_isUpdatingSelection) return;
         if (VersionsGrid.SelectedItem is not FileVersionData version) return;
         // Block version preview while in Diff or Dual-File mode
         if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
