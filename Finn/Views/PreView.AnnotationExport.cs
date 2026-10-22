@@ -101,7 +101,8 @@ public partial class PreView
             };
 
             var pts = stroke.Points;
-            if (stroke.IsDotLine)
+            var dotCenters = AnnotatedPDFRenderer.GetStrokeDotCenters(stroke, out double dotSize);
+            if (dotCenters.Length > 0)
             {
                 using var dotPaint = new SKPaint
                 {
@@ -109,9 +110,13 @@ public partial class PreView
                     Style = SKPaintStyle.Fill,
                     IsAntialias = true
                 };
-                foreach (var center in AnnotatedPDFRenderer.GetDotLineCenters(stroke))
+                float radius = (float)(dotSize * renderZoom);
+                foreach (var center in dotCenters)
                     canvas.DrawCircle((float)(center.X * renderZoom), (float)(center.Y * renderZoom),
-                        (float)(stroke.DotSize * renderZoom), dotPaint);
+                        radius, dotPaint);
+            }
+            if (stroke.IsDotLine)
+            {
                 continue;
             }
             using var path = new SKPath();
@@ -1569,12 +1574,16 @@ public partial class PreView
 
             var pts = stroke.Points;
 
-            if (stroke.IsDotLine)
+            var dotCenters = AnnotatedPDFRenderer.GetStrokeDotCenters(stroke, out double dotSize);
+            if (dotCenters.Length > 0)
             {
                 var brush = new XSolidBrush(XColor.FromArgb(alpha, 255, 0, 255));
-                foreach (var center in AnnotatedPDFRenderer.GetDotLineCenters(stroke))
-                    gfx.DrawEllipse(brush, center.X - stroke.DotSize, center.Y - stroke.DotSize,
-                        stroke.DotSize * 2, stroke.DotSize * 2);
+                foreach (var center in dotCenters)
+                    gfx.DrawEllipse(brush, center.X - dotSize, center.Y - dotSize,
+                        dotSize * 2, dotSize * 2);
+            }
+            if (stroke.IsDotLine)
+            {
                 continue;
             }
 

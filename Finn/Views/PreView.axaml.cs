@@ -33,6 +33,7 @@ public partial class PreView : UserControl
         OpacitySlider.AddHandler(Slider.ValueChangedEvent, OnOpacitySliderChanged);
         PropertyOpacitySlider.AddHandler(Slider.ValueChangedEvent, OnPropertyOpacityChanged);
         this.FindControl<Slider>("PropertyDotSpacingSlider")?.AddHandler(Slider.ValueChangedEvent, OnPropertyDotSpacingChanged);
+        this.FindControl<Slider>("PropertyRebarBarsSpacingSlider")?.AddHandler(Slider.ValueChangedEvent, OnPropertyRebarBarsSpacingChanged);
 
         // Centralized keyboard shortcuts — replaces per-button HotKey attributes
         // so every shortcut respects CanExecute guards and mode state.

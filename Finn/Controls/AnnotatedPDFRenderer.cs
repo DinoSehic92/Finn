@@ -341,6 +341,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     public double ShapeCornerRadius { get; set; }
     /// <summary>Corner radius in PDF points for new Rebar vertices.</summary>
     public double RebarCornerRadius { get; set; } = 5;
+    public double RebarBarSpacing { get; set; } = 12;
     public double DotLineSpacing { get; set; } = 12;
     public double DotLineOffset { get; set; } = 6;
 
@@ -964,6 +965,8 @@ public class AnnotatedPDFRenderer : PDFRenderer
             Opacity = StrokeOpacity,
             IsPolyline = true,
             IsRebar = asRebar,
+            HasRebarBars = false,
+            RebarBarSpacing = RebarBarSpacing,
             IsDotLine = asDotLine,
             DotSpacing = DotLineSpacing,
             DotOffset = DotLineOffset,
@@ -2413,7 +2416,9 @@ public class AnnotatedPDFRenderer : PDFRenderer
         // TextAnnotation
         double FontSize, string Text, double MaxWidth, bool HasFrame,
         bool SolidBackground = false,
-        ArrowHeadStyle ArrowHead = ArrowHeadStyle.Filled);
+        ArrowHeadStyle ArrowHead = ArrowHeadStyle.Filled,
+        bool HasRebarBars = false, double RebarBarSpacing = 12,
+        bool? RebarBarsSideReversed = null, bool? RebarHooksSideReversed = null);
 
     /// <summary>
     /// Captures a snapshot of all visual properties of an annotation.
@@ -2421,7 +2426,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
     /// </summary>
     public object? CapturePropertySnapshot(object item) => item switch
     {
-        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, s.StructuralPatternReversed, s.DotSpacing, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
+        InkStroke s => new PropertySnapshot(s, s.Color, s.Opacity, s.Width, s.DashPattern, s.StructuralPatternReversed, s.DotSpacing, false, s.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false, HasRebarBars: s.HasRebarBars, RebarBarSpacing: s.RebarBarSpacing, RebarBarsSideReversed: s.RebarBarsSideReversed, RebarHooksSideReversed: s.RebarHooksSideReversed),
         ShapeAnnotation sh => new PropertySnapshot(sh, sh.Color, sh.Opacity, sh.StrokeWidth, sh.DashPattern, sh.StructuralPatternReversed, 12, sh.IsFilled, sh.CornerRadius, sh.BoundaryCondition, sh.BoundaryOrientation, 0, "", 0, false, ArrowHead: sh.ArrowHead),
         TextAnnotation t => new PropertySnapshot(t, t.Color, t.Opacity, 0, LineDashPattern.Solid, false, 12, false, t.CornerRadius, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, t.FontSize, t.Text, t.MaxWidth, t.HasFrame, t.SolidBackground, t.ArrowHead),
         MeasurementAnnotation m => new PropertySnapshot(m, m.Color, 1.0, 0, LineDashPattern.Solid, false, 12, false, 0, BoundaryConditionType.Pinned, BoundaryConditionOrientation.Down, 0, "", 0, false),
@@ -2438,6 +2443,10 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 s.Width = snap.StrokeWidth; s.DashPattern = snap.DashPattern;
                 s.StructuralPatternReversed = snap.StructuralPatternReversed;
                 s.DotSpacing = snap.DotSpacing;
+                s.HasRebarBars = snap.HasRebarBars;
+                s.RebarBarSpacing = snap.RebarBarSpacing;
+                s.RebarBarsSideReversed = snap.RebarBarsSideReversed;
+                s.RebarHooksSideReversed = snap.RebarHooksSideReversed;
                 s.CornerRadius = snap.CornerRadius;
                 s.InvalidatePen();
                 break;
@@ -3341,6 +3350,14 @@ public class AnnotatedPDFRenderer : PDFRenderer
             maxX = Math.Max(maxX, Math.Max(hookStart.X, hookEnd.X));
             maxY = Math.Max(maxY, Math.Max(hookStart.Y, hookEnd.Y));
         }
+        var dotCenters = GetStrokeDotCenters(ink, out double dotSize);
+        foreach (var center in dotCenters)
+        {
+            minX = Math.Min(minX, center.X - dotSize);
+            minY = Math.Min(minY, center.Y - dotSize);
+            maxX = Math.Max(maxX, center.X + dotSize);
+            maxY = Math.Max(maxY, center.Y + dotSize);
+        }
 
         if (SupportsStructuralLinePattern(ink) && IsStructuralLinePattern(ink.DashPattern))
         {
@@ -3358,12 +3375,12 @@ public class AnnotatedPDFRenderer : PDFRenderer
         }
         if (ink.IsDotLine)
         {
-            foreach (var center in GetDotLineCenters(ink))
+            foreach (var center in dotCenters)
             {
-                minX = Math.Min(minX, center.X - ink.DotSize);
-                minY = Math.Min(minY, center.Y - ink.DotSize);
-                maxX = Math.Max(maxX, center.X + ink.DotSize);
-                maxY = Math.Max(maxY, center.Y + ink.DotSize);
+                minX = Math.Min(minX, center.X - dotSize);
+                minY = Math.Min(minY, center.Y - dotSize);
+                maxX = Math.Max(maxX, center.X + dotSize);
+                maxY = Math.Max(maxY, center.Y + dotSize);
             }
         }
         return new Rect(minX, minY, Math.Max(0, maxX - minX), Math.Max(0, maxY - minY));
@@ -3706,6 +3723,27 @@ public class AnnotatedPDFRenderer : PDFRenderer
     }
 
     internal static Point[] GetDotLineCenters(InkStroke stroke)
+        => GetDotLineCenters(stroke, stroke.DotSpacing, stroke.DotSize, stroke.DotOffset, stroke.StructuralPatternReversed);
+
+    internal static Point[] GetStrokeDotCenters(InkStroke stroke, out double dotSize)
+    {
+        if (stroke.IsDotLine)
+        {
+            dotSize = Math.Max(0.5, stroke.DotSize);
+            return GetDotLineCenters(stroke);
+        }
+        if (stroke.IsRebar && stroke.HasRebarBars)
+        {
+            dotSize = Math.Max(0.5, stroke.Width * 1.5);
+            bool reversed = stroke.RebarBarsSideReversed ?? stroke.StructuralPatternReversed;
+            return GetDotLineCenters(stroke, stroke.RebarBarSpacing, dotSize, Math.Max(dotSize + 0.5, stroke.Width * 2), reversed);
+        }
+
+        dotSize = 0;
+        return [];
+    }
+
+    private static Point[] GetDotLineCenters(InkStroke stroke, double dotSpacing, double dotSize, double configuredOffset, bool reversed)
     {
         var points = stroke.Points;
         if (points.Count < 2)
@@ -3721,13 +3759,13 @@ public class AnnotatedPDFRenderer : PDFRenderer
             return [];
 
         var centers = new List<Point>();
-        double dotSpacing = double.IsFinite(stroke.DotSpacing) ? Math.Max(0.5, stroke.DotSpacing) : 12;
-        double dotSize = double.IsFinite(stroke.DotSize) ? Math.Max(0.5, stroke.DotSize) : 2;
+        dotSpacing = double.IsFinite(dotSpacing) ? Math.Max(0.5, dotSpacing) : 12;
+        dotSize = double.IsFinite(dotSize) ? Math.Max(0.5, dotSize) : 2;
         double spacing = Math.Max(dotSpacing, dotSize * 2);
-        double side = stroke.StructuralPatternReversed ? -1 : 1;
+        double side = reversed ? -1 : 1;
         double minCenterDistance = dotSize * 2;
         double minBaselineClearance = dotSize + 0.5;
-        double configuredOffset = double.IsFinite(stroke.DotOffset) ? stroke.DotOffset : 6;
+        configuredOffset = double.IsFinite(configuredOffset) ? configuredOffset : 6;
         double offset = Math.Max(configuredOffset, minBaselineClearance);
         var centerBuckets = new Dictionary<(int X, int Y), List<Point>>();
 
@@ -3842,17 +3880,18 @@ public class AnnotatedPDFRenderer : PDFRenderer
 
     private static bool HitTestStroke(InkStroke stroke, Point pt, double threshold)
     {
+        var dotCenters = GetStrokeDotCenters(stroke, out double dotSize);
+        if (dotCenters.Any(center =>
+        {
+            double radius = Math.Max(threshold, dotSize);
+            double dx = pt.X - center.X;
+            double dy = pt.Y - center.Y;
+            return dx * dx + dy * dy <= radius * radius;
+        }))
+            return true;
+
         if (stroke.IsDotLine)
         {
-            double radius = Math.Max(threshold, stroke.DotSize);
-            if (GetDotLineCenters(stroke).Any(center =>
-            {
-                double dx = pt.X - center.X;
-                double dy = pt.Y - center.Y;
-                return dx * dx + dy * dy <= radius * radius;
-            }))
-                return true;
-
             for (int i = 0; i < stroke.Points.Count - 1; i++)
                 if (DistanceToSegment(pt, stroke.Points[i], stroke.Points[i + 1]) <= threshold)
                     return true;
@@ -5230,6 +5269,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
                         maxX = Math.Max(maxX, Math.Max(screenStart.X, screenEnd.X));
                         maxY = Math.Max(maxY, Math.Max(screenStart.Y, screenEnd.Y));
                     }
+                    var dotCenters = GetStrokeDotCenters(hoverStroke, out double dotSize);
+                    foreach (var center in dotCenters)
+                    {
+                        var screenCenter = PdfToScreen(center, ox, oy, scaleX, scaleY);
+                        double radius = dotSize * penScale;
+                        minX = Math.Min(minX, screenCenter.X - radius);
+                        minY = Math.Min(minY, screenCenter.Y - radius);
+                        maxX = Math.Max(maxX, screenCenter.X + radius);
+                        maxY = Math.Max(maxY, screenCenter.Y + radius);
+                    }
                     hoverBounds = new Rect(minX, minY, maxX - minX, maxY - minY);
                     break;
                 }
@@ -5522,6 +5571,16 @@ public class AnnotatedPDFRenderer : PDFRenderer
                             minY = Math.Min(minY, Math.Min(screenStart.Y, screenEnd.Y));
                             maxX = Math.Max(maxX, Math.Max(screenStart.X, screenEnd.X));
                             maxY = Math.Max(maxY, Math.Max(screenStart.Y, screenEnd.Y));
+                        }
+                        var dotCenters = GetStrokeDotCenters(stroke, out double dotSize);
+                        foreach (var center in dotCenters)
+                        {
+                            var screenCenter = PdfToScreen(center, ox, oy, scaleX, scaleY);
+                            double radius = dotSize * penScale;
+                            minX = Math.Min(minX, screenCenter.X - radius);
+                            minY = Math.Min(minY, screenCenter.Y - radius);
+                            maxX = Math.Max(maxX, screenCenter.X + radius);
+                            maxY = Math.Max(maxY, screenCenter.Y + radius);
                         }
                         bounds = new Rect(minX, minY, maxX - minX, maxY - minY);
                         break;
@@ -5842,14 +5901,15 @@ public class AnnotatedPDFRenderer : PDFRenderer
         if (pts.Count < 2) return;
 
         var pen = overridePen ?? stroke.GetOrCreatePen(penScale);
-        if (stroke.IsDotLine)
+        var dotCenters = GetStrokeDotCenters(stroke, out double dotSize);
+        if (dotCenters.Length > 0)
         {
             var brush = overridePen?.Brush ?? stroke.GetOrCreateDotBrush();
-            double radius = Math.Max(0.5, stroke.DotSize) * penScale;
-            foreach (var center in GetDotLineCenters(stroke))
+            double radius = dotSize * penScale;
+            foreach (var center in dotCenters)
                 context.DrawEllipse(brush, null, PdfToScreen(center, da.X, da.Y, scaleX, scaleY), radius, radius);
-            return;
         }
+        if (stroke.IsDotLine) return;
         if (SupportsStructuralLinePattern(stroke) && IsStructuralLinePattern(stroke.DashPattern))
         {
             int pointCount = stroke.IsClosed && pts.Count > 2 && NearlySamePoint(pts[0], pts[^1])
@@ -5875,6 +5935,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
             && stroke.CachedGeometryClosed == closed
             && stroke.CachedGeometryRebar == stroke.IsRebar
             && stroke.CachedGeometryPatternSideReversed == stroke.StructuralPatternReversed
+            && stroke.CachedGeometryRebarHooksSideReversed == stroke.RebarHooksSideReversed
             && stroke.CachedGeometryStrokeWidth == stroke.Width
             && stroke.CachedGeoScaleX == scaleX && stroke.CachedGeoScaleY == scaleY
             && stroke.CachedGeoOffX == offsetX && stroke.CachedGeoOffY == offsetY;
@@ -5902,6 +5963,7 @@ public class AnnotatedPDFRenderer : PDFRenderer
                 stroke.CachedGeometryClosed = closed;
                 stroke.CachedGeometryRebar = stroke.IsRebar;
                 stroke.CachedGeometryPatternSideReversed = stroke.StructuralPatternReversed;
+                stroke.CachedGeometryRebarHooksSideReversed = stroke.RebarHooksSideReversed;
                 stroke.CachedGeometryStrokeWidth = stroke.Width;
                 stroke.CachedGeoScaleX = scaleX;
                 stroke.CachedGeoScaleY = scaleY;
@@ -7180,6 +7242,10 @@ public class InkStroke
     public bool IsPolyline { get; set; }
     /// <summary>When true, this polyline is a rebar annotation with end hooks.</summary>
     public bool IsRebar { get; set; }
+    public bool HasRebarBars { get; set; }
+    public double RebarBarSpacing { get; set; } = 12;
+    public bool? RebarBarsSideReversed { get; set; }
+    public bool? RebarHooksSideReversed { get; set; }
     /// <summary>When true, render regularly spaced magenta dots along one side of the polyline.</summary>
     public bool IsDotLine { get; set; }
     public double DotSpacing { get; set; } = 12;
@@ -7213,7 +7279,7 @@ public class InkStroke
         }
 
         double hookLength = Math.Max(Width * 4, 8);
-        double side = StructuralPatternReversed ? -1 : 1;
+        double side = (RebarHooksSideReversed ?? StructuralPatternReversed) ? -1 : 1;
         start = GetRebarHookPoint(Points[0], Points[1], hookLength, side);
         end = GetRebarHookPoint(Points[^1], Points[^2], hookLength, -side);
         return true;
@@ -7250,6 +7316,7 @@ public class InkStroke
     internal bool CachedGeometryClosed;
     internal bool CachedGeometryRebar;
     internal bool CachedGeometryPatternSideReversed;
+    internal bool? CachedGeometryRebarHooksSideReversed;
     internal double CachedGeoScaleX, CachedGeoScaleY, CachedGeoOffX, CachedGeoOffY;
     internal double CachedGeometryStrokeWidth;
     internal int CachedGeometryPointCount;

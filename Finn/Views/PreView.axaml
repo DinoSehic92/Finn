@@ -804,7 +804,7 @@
 										</Grid>
 									</Button>
 								</StackPanel>
-								<Button Grid.Column="2" Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch pattern side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
+								<Button Grid.Column="2" Name="PropertyPatternSideButton" Classes="ghost" ToolTip.Tip="Switch Rebar hook side" Width="26" Height="26" Padding="0" Click="OnPropertyPatternSide" BorderThickness="0" IsVisible="False">
 									<TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 								</Button>
 								<StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="2">
@@ -838,6 +838,15 @@
 								<TextBlock Grid.Column="0" Text="Spacing" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
 								<Slider Grid.Column="1" Name="PropertyDotSpacingSlider" Minimum="4" Maximum="40" Value="12" Width="82" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip.Tip="Distance between dots"/>
 								<TextBlock Grid.Column="2" Name="PropertyDotSpacingValue" Text="12" FontSize="10" VerticalAlignment="Center"/>
+							</Grid>
+							<Grid Name="PropertyRebarBarsRow" IsVisible="False" ColumnDefinitions="Auto,Auto,Auto,82,28" ColumnSpacing="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+								<TextBlock Grid.Column="0" Text="Bars" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource AppSubtleForegroundBrush}"/>
+								<CheckBox Grid.Column="1" Name="PropertyRebarBarsToggle" ToolTip.Tip="Show perpendicular bars" VerticalAlignment="Center" Click="OnPropertyRebarBarsToggled"/>
+								<Button Grid.Column="2" Name="PropertyRebarBarsSideButton" Classes="ghost" ToolTip.Tip="Flip dotted bars to the other side" Width="26" Height="26" Padding="0" Click="OnPropertyRebarBarsSide" BorderThickness="0">
+									<TextBlock Text="↕" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+								</Button>
+								<Slider Grid.Column="3" Name="PropertyRebarBarsSpacingSlider" Minimum="4" Maximum="40" Value="12" Width="82" HorizontalAlignment="Stretch" VerticalAlignment="Center" ToolTip.Tip="Adjust spacing between perpendicular dots"/>
+								<TextBlock Grid.Column="4" Name="PropertyRebarBarsSpacingValue" Text="12" FontSize="10" VerticalAlignment="Center"/>
 							</Grid>
 							<!-- Inline text editor (visible for text annotations and new text placement) -->
 							<StackPanel Name="PropertyTextRow" IsVisible="False" Spacing="4" HorizontalAlignment="Stretch">

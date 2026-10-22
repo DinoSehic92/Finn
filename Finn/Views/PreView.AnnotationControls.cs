@@ -41,6 +41,7 @@ public partial class PreView
     private DateTime _opacityLastChange = DateTime.MinValue;
     private const double OpacityCoalesceMs = 600;
     private bool _isUpdatingDotSpacingSlider;
+    private bool _isUpdatingRebarBarsSpacingSlider;
 
     private void OnAnnotateColor(object sender, RoutedEventArgs e)
     {
@@ -1692,11 +1693,22 @@ public partial class PreView
             bool reversed = item switch
             {
                 ShapeAnnotation shape => shape.StructuralPatternReversed,
+                InkStroke { IsRebar: true } stroke => stroke.RebarHooksSideReversed ?? stroke.StructuralPatternReversed,
                 InkStroke stroke => stroke.StructuralPatternReversed,
                 _ => false
             };
             patternSideButton.BorderThickness = reversed ? new Thickness(2) : new Thickness(0);
             patternSideButton.BorderBrush = reversed ? Brushes.White : null;
+            ToolTip.SetTip(patternSideButton, isRebar ? "Flip end hooks to the other side" : isDotLine ? "Flip dots to the other side" : "Switch pattern side");
+        }
+        var rebarBarsSideButton = this.FindControl<Button>("PropertyRebarBarsSideButton");
+        if (rebarBarsSideButton != null)
+        {
+            rebarBarsSideButton.IsVisible = isRebar && item is InkStroke { HasRebarBars: true };
+            bool barsReversed = item is InkStroke { IsRebar: true } rebarStroke
+                && (rebarStroke.RebarBarsSideReversed ?? rebarStroke.StructuralPatternReversed);
+            rebarBarsSideButton.BorderThickness = barsReversed ? new Thickness(2) : new Thickness(0);
+            rebarBarsSideButton.BorderBrush = barsReversed ? Brushes.White : null;
         }
         PropertyFillBtn.IsVisible = hasFill;
         PropertyCornerRadiusRow.IsVisible = hasCornerRadius;
@@ -1711,6 +1723,21 @@ public partial class PreView
             dotSpacingSlider.Value = dotLine.DotSpacing;
             _isUpdatingDotSpacingSlider = false;
             UpdateDotSpacingValue(dotLine.DotSpacing);
+        }
+        var rebarBarsRow = this.FindControl<Grid>("PropertyRebarBarsRow");
+        var rebarBarsToggle = this.FindControl<CheckBox>("PropertyRebarBarsToggle");
+        var rebarBarsSpacingSlider = this.FindControl<Slider>("PropertyRebarBarsSpacingSlider");
+        if (rebarBarsRow != null) rebarBarsRow.IsVisible = isRebar;
+        if (isRebar && item is InkStroke rebar)
+        {
+            if (rebarBarsToggle != null) rebarBarsToggle.IsChecked = rebar.HasRebarBars;
+            if (rebarBarsSpacingSlider != null)
+            {
+                _isUpdatingRebarBarsSpacingSlider = true;
+                rebarBarsSpacingSlider.Value = rebar.RebarBarSpacing;
+                _isUpdatingRebarBarsSpacingSlider = false;
+            }
+            UpdateRebarBarsSpacingValue(rebar.RebarBarSpacing);
         }
         _propertyFrameToggleBtn ??= this.FindControl<Button>("PropertyFrameToggleBtn");
         if (_propertyFrameToggleBtn != null) _propertyFrameToggleBtn.IsVisible = isText && item is not TextAnnotation { IsStickyNote: true };
@@ -1896,8 +1923,16 @@ public partial class PreView
                 reversed = shape.StructuralPatternReversed;
                 break;
             case InkStroke stroke:
-                stroke.StructuralPatternReversed = !stroke.StructuralPatternReversed;
-                reversed = stroke.StructuralPatternReversed;
+                if (stroke.IsRebar)
+                {
+                    stroke.RebarHooksSideReversed = !(stroke.RebarHooksSideReversed ?? stroke.StructuralPatternReversed);
+                    reversed = stroke.RebarHooksSideReversed.Value;
+                }
+                else
+                {
+                    stroke.StructuralPatternReversed = !stroke.StructuralPatternReversed;
+                    reversed = stroke.StructuralPatternReversed;
+                }
                 break;
             default:
                 return;
@@ -2146,6 +2181,59 @@ public partial class PreView
     private void UpdateDotSpacingValue(double spacing)
     {
         var value = this.FindControl<TextBlock>("PropertyDotSpacingValue");
+        if (value != null)
+            value.Text = spacing.ToString("0");
+    }
+
+    private void OnPropertyRebarBarsToggled(object? sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not InkStroke { IsRebar: true } rebar
+            || sender is not CheckBox toggle)
+            return;
+
+        StagePropertyUndoSnapshot(rebar);
+        rebar.HasRebarBars = toggle.IsChecked == true;
+        var patternSideButton = this.FindControl<Button>("PropertyPatternSideButton");
+        var barsSideButton = this.FindControl<Button>("PropertyRebarBarsSideButton");
+        if (barsSideButton != null)
+            barsSideButton.IsVisible = rebar.HasRebarBars;
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyRebarBarsSide(object? sender, RoutedEventArgs e)
+    {
+        if (_propertyPanelTarget is not InkStroke { IsRebar: true } rebar)
+            return;
+        StagePropertyUndoSnapshot(rebar);
+        rebar.RebarBarsSideReversed = !(rebar.RebarBarsSideReversed ?? rebar.StructuralPatternReversed);
+        if (sender is Button button)
+        {
+            bool reversed = rebar.RebarBarsSideReversed.Value;
+            button.BorderThickness = reversed ? new Thickness(2) : new Thickness(0);
+            button.BorderBrush = reversed ? Brushes.White : null;
+        }
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
+    private void OnPropertyRebarBarsSpacingChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_isUpdatingRebarBarsSpacingSlider || _propertyPanelTarget is not InkStroke { IsRebar: true } rebar)
+            return;
+        var slider = this.FindControl<Slider>("PropertyRebarBarsSpacingSlider");
+        if (slider == null) return;
+
+        StagePropertyUndoSnapshot(rebar);
+        rebar.RebarBarSpacing = slider.Value;
+        UpdateRebarBarsSpacingValue(slider.Value);
+        AnnotationRenderer.InvalidateVisual();
+        AnnotationRenderer.NotifyAnnotationChanged();
+    }
+
+    private void UpdateRebarBarsSpacingValue(double spacing)
+    {
+        var value = this.FindControl<TextBlock>("PropertyRebarBarsSpacingValue");
         if (value != null)
             value.Text = spacing.ToString("0");
     }
