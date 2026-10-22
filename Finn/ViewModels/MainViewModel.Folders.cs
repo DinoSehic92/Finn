@@ -760,7 +760,10 @@ namespace Finn.ViewModels
                     for (int i = file.Versions.Count - 1; i >= 0; i--)
                     {
                         if (file.Versions[i].Sökväg.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        {
+                            PreviewVM.RemoveRecentVersion(file, file.Versions[i]);
                             file.Versions.RemoveAt(i);
+                        }
                     }
 
                     // If the canonical path was promoted and now lives under this folder,
@@ -787,7 +790,10 @@ namespace Finn.ViewModels
                             for (int i = file.Versions.Count - 1; i >= 0; i--)
                             {
                                 if (string.Equals(file.Versions[i].Sökväg, restorePath, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    PreviewVM.RemoveRecentVersion(file, file.Versions[i]);
                                     file.Versions.RemoveAt(i);
+                                }
                             }
                         }
                     }
@@ -880,7 +886,10 @@ namespace Finn.ViewModels
                     {
                         // Remove stale version entries normally
                         foreach (var (file, v) in staleVersions)
+                        {
+                            PreviewVM.RemoveRecentVersion(file, v);
                             file.RemoveVersion(v);
+                        }
 
                         // Restore promoted canonicals: fall back to the pre-promotion
                         // OriginalPath when it is outside the folder; otherwise fall back
@@ -912,7 +921,10 @@ namespace Finn.ViewModels
                                 {
                                     if (string.Equals(file.Versions[i].Sökväg, restorePath,
                                             StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        PreviewVM.RemoveRecentVersion(file, file.Versions[i]);
                                         file.Versions.RemoveAt(i);
+                                    }
                                 }
                             }
                             // If no restore path is available, leave as-is; the user will see a
@@ -1227,7 +1239,10 @@ namespace Finn.ViewModels
                             if (removeDia.Confirmed)
                             {
                                 foreach (var (file, v) in versionsToRemove)
+                                {
+                                    PreviewVM.RemoveRecentVersion(file, v);
                                     file.RemoveVersion(v);
+                                }
                             }
                             else
                             {

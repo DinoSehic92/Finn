@@ -335,11 +335,11 @@ namespace Finn.ViewModels
             {
                 child.PartOfCollections.Clear();
                 CurrentProject!.StoredFiles.Remove(child);
-                PreviewVM.RecentFiles.Remove(child);
+                PreviewVM.RemoveRecentFile(child);
             }
 
             CurrentProject!.StoredFiles.Remove(group);
-            PreviewVM.RecentFiles.Remove(group);
+            PreviewVM.RemoveRecentFile(group);
 
             // Flag only the folders whose synced children were removed.
             var affectedFolders = removableChildren
@@ -397,7 +397,7 @@ namespace Finn.ViewModels
                 {
                     file.PartOfCollections.Clear();
                     DetachChild(file);
-                    PreviewVM.RecentFiles.Remove(file);
+                    PreviewVM.RemoveRecentFile(file);
                     CurrentProject!.StoredFiles.Remove(file);
                     continue;
                 }
@@ -412,12 +412,12 @@ namespace Finn.ViewModels
 
                     child.PartOfCollections.Clear();
                     DetachChild(child);
-                    PreviewVM.RecentFiles.Remove(child);
+                    PreviewVM.RemoveRecentFile(child);
                     CurrentProject!.StoredFiles.Remove(child);
                 }
 
                 CurrentProject!.RemoveFile(file);
-                PreviewVM.RecentFiles.Remove(file);
+                PreviewVM.RemoveRecentFile(file);
             }
 
             RefreshHierarchyState(refreshCollections: true, updateFilter: false);

@@ -52,7 +52,7 @@ namespace Finn.ViewModels
 
             foreach (FileData file in removed.StoredFiles)
             {
-                PreviewVM.RecentFiles.Remove(file);
+                PreviewVM.RemoveRecentFile(file);
             }
 
             if (ReferenceEquals(currentProject, removed))
@@ -73,7 +73,7 @@ namespace Finn.ViewModels
                 Storage.StoredProjects.Remove(project);
                 foreach (FileData file in project.StoredFiles)
                 {
-                    PreviewVM.RecentFiles.Remove(file);
+                    PreviewVM.RemoveRecentFile(file);
                 }
             }
 

@@ -2174,7 +2174,7 @@ public partial class MainView : UserControl
         _ctx.SelectFiles([file]);
         VersionsGrid.SelectedItem = entry.Version;
         _ctx.SelectedVersion = entry.Version;
-        _pwr.AddRecentFile(file);
+        _pwr.AddRecentFile(file, entry.Version);
     }
 
     private async Task PreviewCollectionEntryAsync(CollectionEntryViewModel entry)
@@ -2182,7 +2182,9 @@ public partial class MainView : UserControl
         var file = entry.File;
         string? searchText = _ctx.IndexedSearch ? SearchText.Text : null;
         if (entry.Version != null)
-            await _ctx.PreviewVersionAsync(file, entry.Version, searchText);
+        {
+            await _ctx.PreviewVersionAsync(file, entry.Version, searchText, addToRecent: false);
+        }
         else
         {
             _ctx.ClearSelectedVersion();
@@ -2190,18 +2192,39 @@ public partial class MainView : UserControl
         }
     }
 
-    private void SelectRecent(object? sender, RoutedEventArgs e)
+    private async void SelectRecent(object? sender, RoutedEventArgs e)
     {
         if (_isUpdatingSelection) return;
-        ClearOtherGridSelections(RecentGrid);
-        using (SuppressSelection())
+        try
         {
-            var files = RecentGrid.SelectedItems.Cast<FileData>().ToList();
-            var target = files.FirstOrDefault();
+            ClearOtherGridSelections(RecentGrid);
+            var target = RecentGrid.SelectedItem as CollectionEntryViewModel;
             if (target == null) return;
 
-            SelectAuxiliaryFile(target, files, addRecentForTopLevel: false, addRecentForChild: false);
+            using (SuppressSelection())
+            {
+                var file = target.File;
+                var navigationFile = file.IsAppendedFile && file.ParentFile != null
+                    ? file.ParentFile
+                    : file;
+                _ctx.SelectAndNavigateFiles([navigationFile]);
+                if (navigationFile != file && !navigationFile.IsExpanded)
+                {
+                    navigationFile.IsExpanded = true;
+                    _ctx.UpdateFilter();
+                }
+
+                FileGrid.SelectedItem = file;
+                FileGrid.ScrollIntoView(file, null);
+                _ctx.SelectFiles([file]);
+                VersionsGrid.SelectedItem = target.Version;
+                _ctx.SelectedVersion = target.Version;
+            }
+
+            if (_pwr.DualFileMode || _pwr.DiffOverlayActive) return;
+            await PreviewCollectionEntryAsync(target);
         }
+        catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(SelectRecent)); }
     }
 
     /// <summary>
@@ -2219,7 +2242,7 @@ public partial class MainView : UserControl
 
         // When nothing is explicitly selected in the grid, start from index 1 so the
         // first press immediately moves away from the current file (which lives at index 0).
-        int current = RecentGrid.SelectedItem is FileData sel
+        int current = RecentGrid.SelectedItem is CollectionEntryViewModel sel
             ? items.IndexOf(sel)
             : 0;
         int next = Math.Clamp(current + delta, 0, items.Count - 1);
@@ -2268,27 +2291,24 @@ public partial class MainView : UserControl
 
     private void OnRecentOpen(object? sender, RoutedEventArgs e)
     {
-        var file = RecentGrid.SelectedItem as FileData;
-        if (file == null) return;
-        _ctx.OpenFileDirect(file.Sökväg);
+        if (RecentGrid.SelectedItem is not CollectionEntryViewModel entry) return;
+        _ctx.OpenFileDirect(entry.Path);
     }
 
     private void OnRecentOpenFolder(object? sender, RoutedEventArgs e)
     {
-        var file = RecentGrid.SelectedItem as FileData;
-        if (file == null) return;
-        _ctx.OpenPathDirect(file.Sökväg);
+        if (RecentGrid.SelectedItem is not CollectionEntryViewModel entry) return;
+        _ctx.OpenPathDirect(entry.Path);
     }
 
     private async void OnRecentCopyPath(object? sender, RoutedEventArgs e)
     {
         try
         {
-            var file = RecentGrid.SelectedItem as FileData;
-            if (file == null) return;
+            if (RecentGrid.SelectedItem is not CollectionEntryViewModel entry) return;
             var topLevel = (TopLevel)ParentWindow;
             if (topLevel?.Clipboard is { } clipboard)
-                await clipboard.SetTextAsync(file.Sökväg);
+                await clipboard.SetTextAsync(entry.Path);
         }
         catch (Exception ex) { Utils.ErrorLogger.Log(ex, nameof(OnRecentCopyPath)); }
     }

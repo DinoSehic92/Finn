@@ -52,7 +52,7 @@ namespace Finn.ViewModels
         #region Constructor
         public PreviewViewModel(ILogger<PreviewViewModel>? logger = null) : base(logger)
         {
-            recentFiles = new AvaloniaList<FileData>();
+            recentFiles = new AvaloniaList<CollectionEntryViewModel>();
             searchPages = new AvaloniaList<int>();
             searchPagesText = new AvaloniaList<string>();
 
@@ -260,8 +260,8 @@ namespace Finn.ViewModels
             set => SetProperty(ref _isPreviewLocked, value);
         }
 
-        private AvaloniaList<FileData> recentFiles;
-        public AvaloniaList<FileData> RecentFiles
+        private AvaloniaList<CollectionEntryViewModel> recentFiles;
+        public AvaloniaList<CollectionEntryViewModel> RecentFiles
         {
             get => recentFiles;
             set => SetProperty(ref recentFiles, value);
@@ -1823,28 +1823,64 @@ namespace Finn.ViewModels
         #endregion
 
         #region Recent Files Management
-        public void AddRecentFile(FileData? file)
+        public void AddRecentFile(FileData? file, FileVersionData? version = null)
         {
-            if (file?.Uppdrag == string.Empty || file == null) return;
+            if (file == null || file.Uppdrag == string.Empty)
+                return;
+            if (version != null && !file.Versions.Contains(version))
+                return;
 
             try
             {
-                int index = RecentFiles.IndexOf(file);
+                string entryId = version == null
+                    ? file.Id
+                    : CollectionEntryViewModel.GetVersionId(file.Id, version.Id);
+                int index = RecentFiles.ToList().FindIndex(entry =>
+                    string.Equals(entry.Id, entryId, StringComparison.OrdinalIgnoreCase));
 
                 // Already at the top — nothing to do
                 if (index == 0) return;
 
                 if (index > 0)
+                {
+                    RecentFiles[index].Detach();
                     RecentFiles.RemoveAt(index);
+                }
 
-                RecentFiles.Insert(0, file);
+                RecentFiles.Insert(0, new CollectionEntryViewModel(file, version));
 
                 while (RecentFiles.Count > MAX_RECENT_FILES)
+                {
+                    RecentFiles[^1].Detach();
                     RecentFiles.RemoveAt(RecentFiles.Count - 1);
+                }
             }
             catch (Exception ex)
             {
                 logger?.LogError(ex, "Error adding recent file");
+            }
+        }
+
+        public void RemoveRecentFile(FileData file)
+        {
+            for (int i = RecentFiles.Count - 1; i >= 0; i--)
+            {
+                if (!ReferenceEquals(RecentFiles[i].File, file))
+                    continue;
+                RecentFiles[i].Detach();
+                RecentFiles.RemoveAt(i);
+            }
+        }
+
+        public void RemoveRecentVersion(FileData file, FileVersionData version)
+        {
+            for (int i = RecentFiles.Count - 1; i >= 0; i--)
+            {
+                var entry = RecentFiles[i];
+                if (!ReferenceEquals(entry.File, file) || !ReferenceEquals(entry.Version, version))
+                    continue;
+                entry.Detach();
+                RecentFiles.RemoveAt(i);
             }
         }
         #endregion

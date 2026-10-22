@@ -1506,8 +1506,8 @@
 							<DataTemplate x:DataType="vm:CollectionEntryViewModel">
 								<TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" Margin="6,0"
 										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-										   FontStyle="{Binding File.IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-										   Opacity="{Binding File.IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+									   FontStyle="{Binding File.IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+									   Opacity="{Binding File.IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>
@@ -1639,11 +1639,11 @@
 							</StackPanel>
 						</DataGridTemplateColumn.Header>
 						<DataGridTemplateColumn.CellTemplate>
-							<DataTemplate x:DataType="model:FileData">
-								<TextBlock Text="{Binding Namn}" VerticalAlignment="Center" Margin="6,0"
+			<DataTemplate x:DataType="vm:CollectionEntryViewModel">
+				<TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" Margin="6,0"
 										   FontSize="{Binding $parent[DataGrid].DataContext.UI.FontSize}"
-										   FontStyle="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
-										   Opacity="{Binding IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
+							  FontStyle="{Binding File.IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.FontStyle}}"
+						   Opacity="{Binding File.IsStyledAsAttached, Converter={x:Static converter:AppendedFileStyleConverter.Opacity}}"/>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>

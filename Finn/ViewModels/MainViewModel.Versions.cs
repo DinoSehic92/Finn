@@ -53,6 +53,7 @@ namespace Finn.ViewModels
         public void RemoveSelectedVersion()
         {
             if (CurrentFile == null || SelectedVersion == null) return;
+            PreviewVM.RemoveRecentVersion(CurrentFile, SelectedVersion);
             CurrentFile.RemoveVersion(SelectedVersion);
             Collections.SetCollectionContent();
             MarkDirty();

@@ -686,7 +686,10 @@ namespace Finn.ViewModels
                     }
 
                     foreach (var ver in autoVersions)
+                    {
+                        PreviewVM.RemoveRecentVersion(canonical, ver);
                         canonical.RemoveVersion(ver);
+                    }
 
                     // Clear the canonical flag only when all auto-grouped versions are gone.
                     // If manual versions remain, the file stays versioned.

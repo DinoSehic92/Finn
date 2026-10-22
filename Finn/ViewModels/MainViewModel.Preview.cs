@@ -68,16 +68,18 @@ namespace Finn.ViewModels
         /// <summary>
         /// Previews a specific version of a file without changing the stored path.
         /// </summary>
-        public async Task PreviewVersionAsync(FileVersionData version, string? searchText = null)
+        public async Task PreviewVersionAsync(FileVersionData version, string? searchText = null, bool addToRecent = true)
         {
             if (CurrentFile == null) return;
-            await PreviewVersionAsync(CurrentFile, version, searchText);
+            await PreviewVersionAsync(CurrentFile, version, searchText, addToRecent);
         }
 
-        public async Task PreviewVersionAsync(FileData sourceFile, FileVersionData version, string? searchText = null)
+        public async Task PreviewVersionAsync(FileData sourceFile, FileVersionData version, string? searchText = null, bool addToRecent = true)
         {
             if (!sourceFile.Versions.Contains(version)) return;
             SelectedVersion = version;
+            if (addToRecent)
+                PreviewVM.AddRecentFile(sourceFile, version);
             // Remember the real file so CanCompareVersions works during version preview
             PreviewVM.VersionSourceFile = sourceFile;
             var stub = CreateVersionPreviewFile(sourceFile, version);
