@@ -1117,6 +1117,9 @@ public partial class PreView
         // Guard against mismatched register/remove leaving this active.
         if (!_annotateMode) return;
 
+        // Let the review-name TextBox handle its own typing, Enter, and Escape.
+        if (ReviewExportCanvas.IsVisible) return;
+
         // While the text input is open, only intercept Escape so the user
         // can still type Shift+digits (!, @, …), capital letters, brackets, etc.
         if (_textPlacementPdfPoint.HasValue || _editingTextAnnotation != null)
